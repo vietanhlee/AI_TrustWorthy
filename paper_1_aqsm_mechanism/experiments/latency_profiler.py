@@ -22,8 +22,8 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
-from edge_sec_pro.transformer_monitors.rtdetr_mechanism_analyzer import _get_rtdetr_core_model
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.mechanism_analyzer import _get_rtdetr_core_model
 from paper_1_aqsm_mechanism.experiments.config import (
     RAW_CSV_DIR,
     SUMMARY_JSON_DIR,

@@ -20,13 +20,14 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from edge_sec_pro.core.coco_gt import load_coco_val2017_gt_cohort
-from edge_sec_pro.experiments.step_generate_adv_cache import load_cached_adv_images
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.coco_gt import load_coco_val2017_gt_cohort
+from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.attack_engine import DiagnosticAttackEngine
 from paper_1_aqsm_mechanism.experiments.causal_surgery_engine import run_causal_surgery
 from paper_1_aqsm_mechanism.experiments.config import (
+    ADV_CACHE_DIR,
     COHORT_SIZE,
     EPSILON_L_INF,
     LOGS_DIR,
@@ -40,7 +41,7 @@ from paper_1_aqsm_mechanism.experiments.config import (
 
 
 def load_adv_images_helper(atk_name: str, eps_num: int, n_eval: int, clean_imgs: torch.Tensor) -> torch.Tensor:
-    cache_dir = WORKSPACE_DIR / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache"
+    cache_dir = ADV_CACHE_DIR
     cf = cache_dir / f"adv_cache_{atk_name}_eps{eps_num}_n{n_eval}.npz"
     if not cf.exists():
         cf = cache_dir / f"adv_cache_{atk_name}_eps{eps_num}_n300.npz"

@@ -18,8 +18,8 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from edge_sec_pro.core.coco_gt import load_coco_val2017_gt_cohort
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.coco_gt import load_coco_val2017_gt_cohort
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
     LOGS_DIR,

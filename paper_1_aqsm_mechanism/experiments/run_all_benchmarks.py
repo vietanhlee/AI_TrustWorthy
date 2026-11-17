@@ -29,11 +29,12 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from edge_sec_pro.core.coco_gt import load_coco_val2017_gt_cohort
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.coco_gt import load_coco_val2017_gt_cohort
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.attack_engine import DiagnosticAttackEngine
 from paper_1_aqsm_mechanism.experiments.causal_surgery_engine import run_causal_surgery
 from paper_1_aqsm_mechanism.experiments.config import (
+    ADV_CACHE_DIR,
     COHORT_SIZE,
     EPSILON_L_INF,
     FIG_DIR,
@@ -121,7 +122,7 @@ def main():
 
     # 3. Sinh hoặc nạp các mẫu đối kháng THẬT
     logger.info("\n>>> [GIAI ĐOẠN 1] Chuẩn bị các mẫu đối kháng chuẩn L_inf (eps=16/255, T=15 steps)...")
-    cache_dir = WORKSPACE_DIR / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache"
+    cache_dir = ADV_CACHE_DIR
 
     def get_adv_tensor(atk_name: str, n_samples: int) -> torch.Tensor:
         cache_file = cache_dir / f"adv_cache_{atk_name}_eps16_n300.npz"

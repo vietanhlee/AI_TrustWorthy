@@ -26,7 +26,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from edge_sec_pro.core.coco_gt import (
+from paper_1_aqsm_mechanism.core.coco_gt import (
     bootstrap_paired_diff,
     compute_per_image_coco_aps,
     evaluate_coco_from_match_cache,
@@ -35,8 +35,8 @@ from edge_sec_pro.core.coco_gt import (
     precompute_coco_match_cache,
     repeated_measures_2x2_anova,
 )
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
-from edge_sec_pro.transformer_monitors.rtdetr_mechanism_analyzer import (
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
     extract_encoder_components,
     run_decoder_from_components,
 )

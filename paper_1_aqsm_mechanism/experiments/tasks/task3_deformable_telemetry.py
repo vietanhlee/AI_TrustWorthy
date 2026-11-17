@@ -19,10 +19,11 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from edge_sec_pro.core.coco_gt import load_coco_val2017_gt_cohort
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.coco_gt import load_coco_val2017_gt_cohort
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
+    ADV_CACHE_DIR,
     COHORT_SIZE,
     LOGS_DIR,
     MODEL_NAME,
@@ -61,7 +62,7 @@ def main():
     gt_list = cohort_data["gt_list"]
     n_actual = len(gt_list)
 
-    cache_dir = WORKSPACE_DIR / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache"
+    cache_dir = ADV_CACHE_DIR
 
     def load_cached(atk_name: str) -> torch.Tensor:
         cf = cache_dir / f"adv_cache_{atk_name}_eps16_n300.npz"

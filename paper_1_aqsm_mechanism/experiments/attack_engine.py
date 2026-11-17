@@ -13,8 +13,8 @@ from typing import Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from edge_sec_pro.transformer_monitors.detr_attack_generator import DETRAttackGenerator
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.config import (
     AQSM_LAMBDA_RANK,
     AQSM_RANKING_MARGIN,

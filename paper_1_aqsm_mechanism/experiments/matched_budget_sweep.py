@@ -19,14 +19,15 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from edge_sec_pro.core.coco_gt import (
+from paper_1_aqsm_mechanism.core.coco_gt import (
     evaluate_coco_predictions,
     postprocess_rtdetr_predictions,
 )
-from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
-from edge_sec_pro.transformer_monitors.rtdetr_mechanism_analyzer import extract_encoder_components
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.core.mechanism_analyzer import extract_encoder_components
 from paper_1_aqsm_mechanism.experiments.attack_engine import DiagnosticAttackEngine
 from paper_1_aqsm_mechanism.experiments.config import (
+    ADV_CACHE_DIR,
     PGD_NUM_STEPS,
     PGD_STEP_SIZE,
     RAW_CSV_DIR,
@@ -79,7 +80,7 @@ def run_matched_budget_sweep(
     print(f">>> Clean Baseline: mAP@50 = {clean_map50*100:.2f}%, mAP@[50:95] = {clean_map95*100:.2f}%")
 
     # 2. Lặp qua từng mức ngân sách epsilon
-    cache_dir = Path(__file__).resolve().parent.parent.parent / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache"
+    cache_dir = ADV_CACHE_DIR
 
     for eps in eps_list:
         eps_key = f"eps_{int(eps * 255)}"

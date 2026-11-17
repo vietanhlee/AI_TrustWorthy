@@ -25,10 +25,13 @@ PAPER_DIR: Path = EXPERIMENTS_DIR.parent
 WORKSPACE_DIR: Path = PAPER_DIR.parent
 
 # Thư mục chứa dataset COCO gốc
-DATA_DIR: Path = WORKSPACE_DIR / "edge_sec_pro" / "data"
+DATA_DIR: Path = Path(os.environ.get("EDGE_SEC_DATA_DIR", str(WORKSPACE_DIR / "edge_sec_pro" / "data")))
 COCO_VAL_DIR: Path = DATA_DIR / "coco5k" / "val2017"
 COCO_ANN_FILE: Path = DATA_DIR / "coco5k" / "annotations" / "instances_val2017.json"
 SPLIT_FILE: Path = DATA_DIR / "split.json"
+
+# Thư mục lưu trữ bộ nhớ đệm mẫu đối kháng (Adversarial Cache)
+ADV_CACHE_DIR: Path = Path(os.environ.get("EDGE_SEC_ADV_CACHE_DIR", str(WORKSPACE_DIR / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache")))
 
 # Thư mục lưu trữ hình ảnh xuất bản và dữ liệu thực nghiệm phục vụ audit
 FIG_DIR: Path = PAPER_DIR / "fig"
