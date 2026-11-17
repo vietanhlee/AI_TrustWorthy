@@ -1,0 +1,41 @@
+{
+  "experiment": "step8_edge_latency",
+  "timestamp": "2026-11-17 19:09:48",
+  "platform_info": {
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "python_version": "3.10.20",
+    "pytorch_threads": 4,
+    "device": "cpu"
+  },
+  "num_runs": 50,
+  "input_resolution": "320x320",
+  "latency_metrics": {
+    "rtdetr_base_ms": {
+      "mean": 163.05,
+      "std": 34.21,
+      "fps": 6.13
+    },
+    "tensor_extraction_ms": {
+      "mean": 4.11,
+      "std": 0.78
+    },
+    "decision_scoring_ms": {
+      "mean": 0.2178,
+      "std": 0.0379
+    },
+    "total_guardrail_ms": {
+      "mean": 4.33,
+      "std": 0.79
+    },
+    "combined_inference_ms": {
+      "mean": 167.37,
+      "std": 34.66,
+      "fps": 5.97
+    },
+    "relative_overhead_percentage": 2.65
+  },
+  "artifacts": {
+    "runs_csv": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\step8_latency_runs_history.csv",
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step8_edge_latency_20261117_190936.log"
+  }
+}

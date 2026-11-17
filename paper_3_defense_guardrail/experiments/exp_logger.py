@@ -289,7 +289,13 @@ def compute_confusion_stats(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str,
 
 def save_audit_json(json_path: Path, data: Dict[str, Any]) -> None:
     """Lưu dữ liệu kiểm toán ra file JSON với định dạng tương thích và thụt lề chuẩn."""
-    from edge_sec_pro.core.metrics import make_serializable
+    try:
+        from paper_3_defense_guardrail.core.metrics import make_serializable
+    except ImportError:
+        try:
+            from core.metrics import make_serializable
+        except ImportError:
+            from edge_sec_pro.core.metrics import make_serializable
 
     json_path.parent.mkdir(parents=True, exist_ok=True)
     serializable_data = make_serializable(data)

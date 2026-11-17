@@ -258,7 +258,7 @@ def run_benchmarks():
     
     # Load authentic adversarial caches
     local_adv_dir = EXPERIMENTS_DIR / "adv_cache"
-    global_adv_dir = WORKSPACE / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache"
+    global_adv_dir = (Path(__file__).resolve().parent / "adv_cache") if (Path(__file__).resolve().parent / "adv_cache").exists() else (WORKSPACE / "edge_sec_pro" / "results" / "checkpoints" / "adv_cache")
     adv_dir = local_adv_dir if (local_adv_dir / "adv_cache_eqf_eps16_n300.npz").exists() else global_adv_dir
 
     eqf_path = adv_dir / "adv_cache_eqf_eps16_n300.npz"

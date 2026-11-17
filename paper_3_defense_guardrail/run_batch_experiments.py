@@ -204,7 +204,7 @@ def main():
     # -------------------------------------------------------------------------
     # GIAI ĐOẠN 1: BƯỚC 1 CALIBRATION (BẮT BUỘC CHẠY TRƯỚC NẾU CHƯA CÓ CHECKPOINT)
     # -------------------------------------------------------------------------
-    ckpt_file = WORKSPACE_DIR / "edge_sec_pro" / "results" / "checkpoints" / "calibration_and_detectors.pkl"
+    ckpt_file = RESULTS_DIR / "checkpoints" / "calibration_and_detectors.pkl" if (RESULTS_DIR / "checkpoints" / "calibration_and_detectors.pkl").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "checkpoints" / "calibration_and_detectors.pkl")
     should_run_step1 = not args.skip_calibration or not ckpt_file.exists()
 
     if should_run_step1:

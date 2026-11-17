@@ -1,0 +1,63 @@
+{
+  "Clean Baseline": {
+    "mAP@50": 51.2,
+    "mAP@50:95": 35.4,
+    "relative_drop_50": 0.0,
+    "relative_drop_50_95": 0.0,
+    "retained_mAP_with_defense": 51.2
+  },
+  "Control: Gaussian Noise (sigma=16)": {
+    "mAP@50": 37.5,
+    "relative_drop_50": 26.7,
+    "mAP@50:95": 22.3,
+    "relative_drop_50_95": 37.1
+  },
+  "Control: Random Patch (48x48)": {
+    "mAP@50": 51.1,
+    "relative_drop_50": 0.3,
+    "mAP@50:95": 35.2,
+    "relative_drop_50_95": 0.6
+  },
+  "Clean Shift: Gaussian Blur (5x5)": {
+    "mAP@50": 36.2,
+    "relative_drop_50": 29.2,
+    "mAP@50:95": 22.3,
+    "relative_drop_50_95": 37.0
+  },
+  "Clean Shift: Brightness (-30%)": {
+    "mAP@50": 50.5,
+    "relative_drop_50": 1.5,
+    "mAP@50:95": 34.5,
+    "relative_drop_50_95": 2.4
+  },
+  "Attack: Gradient Patch (48x48)": {
+    "mAP@50": 49.7,
+    "relative_drop_50": 3.0,
+    "mAP@50:95": 34.1,
+    "relative_drop_50_95": 3.7
+  },
+  "Attack: Query Selection Manipulation (AQSM)": {
+    "mAP@50": 8.3,
+    "relative_drop_50": 83.7,
+    "mAP@50:95": 2.5,
+    "relative_drop_50_95": 93.0
+  },
+  "Attack: PGD Query Vanishing (20 steps)": {
+    "mAP@50": 6.6,
+    "relative_drop_50": 87.1,
+    "mAP@50:95": 2.9,
+    "relative_drop_50_95": 91.9
+  },
+  "Attack: PGD Query Fabrication (20 steps)": {
+    "mAP@50": 8.1,
+    "relative_drop_50": 84.1,
+    "mAP@50:95": 2.8,
+    "relative_drop_50_95": 92.0
+  },
+  "Attack: Adaptive Evasion PGD (lambda=0.5)": {
+    "mAP@50": 8.8,
+    "relative_drop_50": 82.8,
+    "mAP@50:95": 3.1,
+    "relative_drop_50_95": 91.3
+  }
+}

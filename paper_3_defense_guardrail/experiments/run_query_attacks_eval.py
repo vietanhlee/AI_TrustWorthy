@@ -28,7 +28,7 @@ if str(WORKSPACE_DIR) not in sys.path:
 if str(WORKSPACE_DIR / "edge_sec_pro") not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR / "edge_sec_pro"))
 
-from edge_sec_pro.experiments.common_exp import (
+from paper_3_defense_guardrail.experiments.common_exp import (
     load_coco_images,
     clopper_pearson_interval,
     compute_auroc_and_bootstrap_ci,

@@ -1,0 +1,99 @@
+{
+  "experiment": "step11_mcnemar_tests",
+  "timestamp": "2026-11-17 19:09:36",
+  "comparisons": {
+    "AQSM: ESM Drop vs. Top1Mean": {
+      "N": 300,
+      "contingency_table": {
+        "a_both_detect": 140,
+        "b_only_A": 28,
+        "c_only_B": 10,
+        "d_neither": 122
+      },
+      "tpr_A": 56.0,
+      "tpr_B": 50.0,
+      "tpr_diff": 6.0,
+      "discordant_pairs": 38,
+      "mcnemar_chi2": 7.6053,
+      "p_value_chi2": 0.00582,
+      "p_value_exact_binomial": 0.0050976432976312935,
+      "odds_ratio": 2.8,
+      "statistically_significant_05": 1
+    },
+    "AQSM: ESM Margin vs. Top1Mean": {
+      "N": 300,
+      "contingency_table": {
+        "a_both_detect": 147,
+        "b_only_A": 26,
+        "c_only_B": 3,
+        "d_neither": 124
+      },
+      "tpr_A": 57.67,
+      "tpr_B": 50.0,
+      "tpr_diff": 7.67,
+      "discordant_pairs": 29,
+      "mcnemar_chi2": 16.6897,
+      "p_value_chi2": 4.4e-05,
+      "p_value_exact_binomial": 1.5236437320709229e-05,
+      "odds_ratio": 8.667,
+      "statistically_significant_05": 1
+    },
+    "AQSM: ESM Drop vs. ActiveQ": {
+      "N": 300,
+      "contingency_table": {
+        "a_both_detect": 65,
+        "b_only_A": 103,
+        "c_only_B": 10,
+        "d_neither": 122
+      },
+      "tpr_A": 56.0,
+      "tpr_B": 25.0,
+      "tpr_diff": 31.0,
+      "discordant_pairs": 113,
+      "mcnemar_chi2": 74.9027,
+      "p_value_chi2": 0.0,
+      "p_value_exact_binomial": 1.3214119981913161e-20,
+      "odds_ratio": 10.3,
+      "statistically_significant_05": 1
+    },
+    "Vanishing: ActiveQ vs. Top1Mean": {
+      "N": 300,
+      "contingency_table": {
+        "a_both_detect": 70,
+        "b_only_A": 177,
+        "c_only_B": 0,
+        "d_neither": 53
+      },
+      "tpr_A": 82.33,
+      "tpr_B": 23.33,
+      "tpr_diff": 59.0,
+      "discordant_pairs": 177,
+      "mcnemar_chi2": 175.0056,
+      "p_value_chi2": 0.0,
+      "p_value_exact_binomial": 1.044048714879764e-53,
+      "odds_ratio": Infinity,
+      "statistically_significant_05": 1
+    },
+    "Vanishing: ActiveQ vs. ESM Drop": {
+      "N": 300,
+      "contingency_table": {
+        "a_both_detect": 49,
+        "b_only_A": 198,
+        "c_only_B": 1,
+        "d_neither": 52
+      },
+      "tpr_A": 82.33,
+      "tpr_B": 16.67,
+      "tpr_diff": 65.67,
+      "discordant_pairs": 199,
+      "mcnemar_chi2": 193.0452,
+      "p_value_chi2": 0.0,
+      "p_value_exact_binomial": 4.9784122222889134e-58,
+      "odds_ratio": 198.0,
+      "statistically_significant_05": 1
+    }
+  },
+  "artifacts": {
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step11_mcnemar_tests_20261117_190936.log"
+  }
+}

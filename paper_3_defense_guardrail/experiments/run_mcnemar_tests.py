@@ -29,7 +29,7 @@ if str(WORKSPACE_DIR) not in sys.path:
 if str(WORKSPACE_DIR / "edge_sec_pro") not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR / "edge_sec_pro"))
 
-from edge_sec_pro.experiments.common_exp import CHECKPOINTS_DIR
+from paper_3_defense_guardrail.experiments.common_exp import CHECKPOINTS_DIR
 from paper_3_defense_guardrail.experiments.exp_logger import (
     setup_experiment_logger,
     save_audit_json,
@@ -88,8 +88,8 @@ def run_mcnemar():
     logger, log_file = setup_experiment_logger("step11_mcnemar_tests")
     logger.info("BƯỚC 11: KIỂM ĐỊNH THỐNG KÊ GHÉP CẶP MCNEMAR (PAIRED HYPOTHESIS TESTING)")
 
-    npz_file = WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_raw_scores.npz"
-    json_file = WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_results.json"
+    npz_file = RESULTS_DIR / "rtdetr_advanced_defense_raw_scores.npz" if (RESULTS_DIR / "rtdetr_advanced_defense_raw_scores.npz").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_raw_scores.npz")
+    json_file = RESULTS_DIR / "rtdetr_advanced_defense_results.json" if (RESULTS_DIR / "rtdetr_advanced_defense_results.json").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_results.json")
 
     if not npz_file.exists() or not json_file.exists():
         err_msg = f"Không tìm thấy file kết quả thô: {npz_file} hoặc {json_file}"
@@ -143,7 +143,7 @@ def run_mcnemar():
 
     # Xuất file kết quả JSON
     res_json_paper3 = RESULTS_DIR / "step11_mcnemar_test_results.json"
-    res_json_global = WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_mcnemar_test_results.json"
+    res_json_global = RESULTS_DIR / "rtdetr_mcnemar_test_results.json"
 
     export_payload = {
         "experiment": "step11_mcnemar_tests",

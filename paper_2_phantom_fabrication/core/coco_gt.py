@@ -26,7 +26,7 @@ try:
         N_TEST_CLEAN_SAMPLES,
     )
 except ImportError:
-    from edge_sec_pro.core.config import (
+    from paper_2_phantom_fabrication.core.config import (
         COCO_VAL_DIR,
         DATA_DIR,
         IMG_SIZE,

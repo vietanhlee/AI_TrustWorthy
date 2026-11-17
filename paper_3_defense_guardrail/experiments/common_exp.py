@@ -34,50 +34,94 @@ torch.set_num_threads(4)
 # Định vị package và workspace
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 WORKSPACE_DIR = PACKAGE_DIR.parent
-if str(WORKSPACE_DIR) not in sys.path:
-    sys.path.insert(0, str(WORKSPACE_DIR))
 if str(PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(PACKAGE_DIR))
+if str(WORKSPACE_DIR) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_DIR))
 
-# Tái xuất các đường dẫn chuẩn từ core
-from edge_sec_pro.core.config import (
-    CHECKPOINTS_DIR,
-    COCO_VAL_DIR,
-    DATA_DIR,
-    RESULTS_DIR,
-    SPLIT_FILE,
-)
-
-# Tái xuất các thước đo thống kê và nạp dữ liệu từ core
-from edge_sec_pro.core.dataset import (
-    COCOValSubsetDataset,
-    apply_natural_corruption,
-    load_coco_images,
-)
-from edge_sec_pro.core.metrics import (
-    calculate_task_level_asr,
-    clopper_pearson_interval,
-    compute_auroc_and_bootstrap_ci,
-    compute_tpr_at_fixed_fpr,
-    make_serializable,
-)
-
-# Tái xuất các thành phần mô hình và bộ giám sát
-from edge_sec_pro.transformer_monitors.detr_attack_generator import DETRAttackGenerator
-from edge_sec_pro.transformer_monitors.detr_wrapper import (
-    DETRInternalState,
-    RTDETRModelWrapper,
-)
-from edge_sec_pro.transformer_monitors.rtdetr_advanced_features import (
-    RTDETRDeepFeatureExtractor,
-    RTDETRDeepFeatures,
-)
-from edge_sec_pro.transformer_monitors.rtdetr_advanced_monitor import (
-    CalibratedMaxOREnsemble,
-    EncoderSelectionMonitor,
-    LayerwiseMahalanobisDetector,
-    SingleFeatureBaseline,
-)
+# Tái xuất các đường dẫn chuẩn từ core nội bộ Paper 3
+try:
+    from paper_3_defense_guardrail.core.config import (
+        CHECKPOINTS_DIR,
+        COCO_VAL_DIR,
+        DATA_DIR,
+        RESULTS_DIR,
+        SPLIT_FILE,
+    )
+    from paper_3_defense_guardrail.core.dataset import (
+        COCOValSubsetDataset,
+        apply_natural_corruption,
+        load_coco_images,
+    )
+    from paper_3_defense_guardrail.core.coco_gt import (
+        box_cxcywh_to_xyxy,
+        compute_map_coco,
+        evaluate_coco_predictions,
+        load_coco_val2017_gt_cohort,
+    )
+    from paper_3_defense_guardrail.core.metrics import (
+        calculate_task_level_asr,
+        clopper_pearson_interval,
+        compute_auroc_and_bootstrap_ci,
+        compute_tpr_at_fixed_fpr,
+        make_serializable,
+    )
+    from paper_3_defense_guardrail.transformer_monitors.detr_attack_generator import DETRAttackGenerator
+    from paper_3_defense_guardrail.transformer_monitors.detr_wrapper import (
+        DETRInternalState,
+        RTDETRModelWrapper,
+    )
+    from paper_3_defense_guardrail.transformer_monitors.rtdetr_advanced_features import (
+        RTDETRDeepFeatureExtractor,
+        RTDETRDeepFeatures,
+    )
+    from paper_3_defense_guardrail.transformer_monitors.rtdetr_advanced_monitor import (
+        CalibratedMaxOREnsemble,
+        EncoderSelectionMonitor,
+        LayerwiseMahalanobisDetector,
+        SingleFeatureBaseline,
+    )
+except ImportError:
+    from core.config import (
+        CHECKPOINTS_DIR,
+        COCO_VAL_DIR,
+        DATA_DIR,
+        RESULTS_DIR,
+        SPLIT_FILE,
+    )
+    from core.dataset import (
+        COCOValSubsetDataset,
+        apply_natural_corruption,
+        load_coco_images,
+    )
+    from core.coco_gt import (
+        box_cxcywh_to_xyxy,
+        compute_map_coco,
+        evaluate_coco_predictions,
+        load_coco_val2017_gt_cohort,
+    )
+    from core.metrics import (
+        calculate_task_level_asr,
+        clopper_pearson_interval,
+        compute_auroc_and_bootstrap_ci,
+        compute_tpr_at_fixed_fpr,
+        make_serializable,
+    )
+    from transformer_monitors.detr_attack_generator import DETRAttackGenerator
+    from transformer_monitors.detr_wrapper import (
+        DETRInternalState,
+        RTDETRModelWrapper,
+    )
+    from transformer_monitors.rtdetr_advanced_features import (
+        RTDETRDeepFeatureExtractor,
+        RTDETRDeepFeatures,
+    )
+    from transformer_monitors.rtdetr_advanced_monitor import (
+        CalibratedMaxOREnsemble,
+        EncoderSelectionMonitor,
+        LayerwiseMahalanobisDetector,
+        SingleFeatureBaseline,
+    )
 
 __all__ = [
     "PACKAGE_DIR",
@@ -104,4 +148,8 @@ __all__ = [
     "CalibratedMaxOREnsemble",
     "EncoderSelectionMonitor",
     "DETRAttackGenerator",
+    "box_cxcywh_to_xyxy",
+    "compute_map_coco",
+    "load_coco_val2017_gt_cohort",
+    "evaluate_coco_predictions",
 ]

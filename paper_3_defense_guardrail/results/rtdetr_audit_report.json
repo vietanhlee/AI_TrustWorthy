@@ -1,0 +1,564 @@
+{
+  "multitest_audit": {
+    "clean_reconstruct_max_abs_diff": 1.1102230246251565e-16,
+    "multitest": {
+      "Uncalibrated_OR": {
+        "name": "Uncalibrated Standard OR (M=4)",
+        "threshold_tau": 0.95,
+        "note": "alpha = 0.05 m\u1ed7i k\u00eanh kh\u00f4ng ki\u1ec3m so\u00e1t FWER",
+        "clean_fpr": {
+          "fp_count": 93,
+          "n_test": 600,
+          "fpr_pct": 15.5,
+          "ci_95": [
+            12.696532805665434,
+            18.647970264988686
+          ]
+        },
+        "attack_tpr": {
+          "AQSM": {
+            "tp_count": 193,
+            "n_samples": 300,
+            "tpr_pct": 64.33333333333333,
+            "ci_95": [
+              58.625440930421114,
+              69.75496851259157
+            ]
+          },
+          "EQF": {
+            "tp_count": 267,
+            "n_samples": 300,
+            "tpr_pct": 89.0,
+            "ci_95": [
+              84.89967784252752,
+              92.30610364723853
+            ]
+          },
+          "Vanishing": {
+            "tp_count": 250,
+            "n_samples": 300,
+            "tpr_pct": 83.33333333333334,
+            "ci_95": [
+              78.62443212000801,
+              87.36943081113327
+            ]
+          },
+          "Adaptive_Evasion": {
+            "tp_count": 101,
+            "n_samples": 300,
+            "tpr_pct": 33.666666666666664,
+            "ci_95": [
+              28.337398827011697,
+              39.32230179847071
+            ]
+          },
+          "Adaptive_Joint": {
+            "tp_count": 127,
+            "n_samples": 300,
+            "tpr_pct": 42.333333333333336,
+            "ci_95": [
+              36.67592429551088,
+              48.14368097765533
+            ]
+          },
+          "Adaptive_ESM": {
+            "tp_count": 98,
+            "n_samples": 300,
+            "tpr_pct": 32.666666666666664,
+            "ci_95": [
+              27.38755348957324,
+              38.2922292908096
+            ]
+          },
+          "Adaptive_Fused": {
+            "tp_count": 110,
+            "n_samples": 300,
+            "tpr_pct": 36.666666666666664,
+            "ci_95": [
+              31.202711772728957,
+              42.39684752949927
+            ]
+          }
+        }
+      },
+      "Bonferroni_OR": {
+        "name": "Bonferroni Correction (alpha/4)",
+        "threshold_tau": 0.9875,
+        "note": "tau = 1 - alpha/4 = 0.9875",
+        "clean_fpr": {
+          "fp_count": 23,
+          "n_test": 600,
+          "fpr_pct": 3.833333333333333,
+          "ci_95": [
+            2.4452463612503568,
+            5.696555338746009
+          ]
+        },
+        "attack_tpr": {
+          "AQSM": {
+            "tp_count": 133,
+            "n_samples": 300,
+            "tpr_pct": 44.333333333333336,
+            "ci_95": [
+              38.62576526196697,
+              50.15392060153281
+            ]
+          },
+          "EQF": {
+            "tp_count": 122,
+            "n_samples": 300,
+            "tpr_pct": 40.666666666666664,
+            "ci_95": [
+              35.05816857672782,
+              46.46139071160509
+            ]
+          },
+          "Vanishing": {
+            "tp_count": 214,
+            "n_samples": 300,
+            "tpr_pct": 71.33333333333334,
+            "ci_95": [
+              65.85583037079084,
+              76.38383079479244
+            ]
+          },
+          "Adaptive_Evasion": {
+            "tp_count": 22,
+            "n_samples": 300,
+            "tpr_pct": 7.333333333333333,
+            "ci_95": [
+              4.6525664384785115,
+              10.892446451689587
+            ]
+          },
+          "Adaptive_Joint": {
+            "tp_count": 34,
+            "n_samples": 300,
+            "tpr_pct": 11.333333333333332,
+            "ci_95": [
+              7.9775831324687,
+              15.475953514267204
+            ]
+          },
+          "Adaptive_ESM": {
+            "tp_count": 17,
+            "n_samples": 300,
+            "tpr_pct": 5.666666666666666,
+            "ci_95": [
+              3.335331151668461,
+              8.918040443416297
+            ]
+          },
+          "Adaptive_Fused": {
+            "tp_count": 27,
+            "n_samples": 300,
+            "tpr_pct": 9.0,
+            "ci_95": [
+              6.014952983765152,
+              12.824250877329824
+            ]
+          }
+        }
+      },
+      "Sidak_OR": {
+        "name": "\u0160id\u00e1k Correction",
+        "threshold_tau": 0.9872585449014338,
+        "note": "tau = (1 - alpha)^(1/4) = 0.9872585",
+        "clean_fpr": {
+          "fp_count": 23,
+          "n_test": 600,
+          "fpr_pct": 3.833333333333333,
+          "ci_95": [
+            2.4452463612503568,
+            5.696555338746009
+          ]
+        },
+        "attack_tpr": {
+          "AQSM": {
+            "tp_count": 133,
+            "n_samples": 300,
+            "tpr_pct": 44.333333333333336,
+            "ci_95": [
+              38.62576526196697,
+              50.15392060153281
+            ]
+          },
+          "EQF": {
+            "tp_count": 122,
+            "n_samples": 300,
+            "tpr_pct": 40.666666666666664,
+            "ci_95": [
+              35.05816857672782,
+              46.46139071160509
+            ]
+          },
+          "Vanishing": {
+            "tp_count": 214,
+            "n_samples": 300,
+            "tpr_pct": 71.33333333333334,
+            "ci_95": [
+              65.85583037079084,
+              76.38383079479244
+            ]
+          },
+          "Adaptive_Evasion": {
+            "tp_count": 22,
+            "n_samples": 300,
+            "tpr_pct": 7.333333333333333,
+            "ci_95": [
+              4.6525664384785115,
+              10.892446451689587
+            ]
+          },
+          "Adaptive_Joint": {
+            "tp_count": 34,
+            "n_samples": 300,
+            "tpr_pct": 11.333333333333332,
+            "ci_95": [
+              7.9775831324687,
+              15.475953514267204
+            ]
+          },
+          "Adaptive_ESM": {
+            "tp_count": 17,
+            "n_samples": 300,
+            "tpr_pct": 5.666666666666666,
+            "ci_95": [
+              3.335331151668461,
+              8.918040443416297
+            ]
+          },
+          "Adaptive_Fused": {
+            "tp_count": 27,
+            "n_samples": 300,
+            "tpr_pct": 9.0,
+            "ci_95": [
+              6.014952983765152,
+              12.824250877329824
+            ]
+          }
+        }
+      },
+      "Calibrated_Max_OR": {
+        "name": "Calibrated Max-OR (4-Channel Gate)",
+        "threshold_tau": 0.9841666666666666,
+        "note": "Hi\u1ec7u chu\u1ea9n c\u1ef1c tr\u1ecb th\u1ef1c nghi\u1ec7m tr\u00ean N_cal=1200: tau = 0.9842",
+        "clean_fpr": {
+          "fp_count": 31,
+          "n_test": 600,
+          "fpr_pct": 5.166666666666667,
+          "ci_95": [
+            3.537138076815317,
+            7.253795599311105
+          ]
+        },
+        "attack_tpr": {
+          "AQSM": {
+            "tp_count": 143,
+            "n_samples": 300,
+            "tpr_pct": 47.66666666666667,
+            "ci_95": [
+              41.89581580700267,
+              53.48404577247353
+            ]
+          },
+          "EQF": {
+            "tp_count": 158,
+            "n_samples": 300,
+            "tpr_pct": 52.666666666666664,
+            "ci_95": [
+              46.84783642783636,
+              58.43232112397726
+            ]
+          },
+          "Vanishing": {
+            "tp_count": 218,
+            "n_samples": 300,
+            "tpr_pct": 72.66666666666667,
+            "ci_95": [
+              67.24897252242378,
+              77.63040405497257
+            ]
+          },
+          "Adaptive_Evasion": {
+            "tp_count": 27,
+            "n_samples": 300,
+            "tpr_pct": 9.0,
+            "ci_95": [
+              6.014952983765152,
+              12.824250877329824
+            ]
+          },
+          "Adaptive_Joint": {
+            "tp_count": 41,
+            "n_samples": 300,
+            "tpr_pct": 13.666666666666666,
+            "ci_95": [
+              9.989123371643185,
+              18.080492488646563
+            ]
+          },
+          "Adaptive_ESM": {
+            "tp_count": 25,
+            "n_samples": 300,
+            "tpr_pct": 8.333333333333332,
+            "ci_95": [
+              5.465427587840893,
+              12.055873687593493
+            ]
+          },
+          "Adaptive_Fused": {
+            "tp_count": 38,
+            "n_samples": 300,
+            "tpr_pct": 12.666666666666668,
+            "ci_95": [
+              9.121842374575385,
+              16.969290735849533
+            ]
+          }
+        }
+      }
+    }
+  },
+  "coco_map_and_asr_audit": {
+    "n_eval": 300,
+    "clean_query_stats": {
+      "n_images": 300,
+      "clean_max_conf_ge_035": 291,
+      "clean_max_conf_ge_020": 299,
+      "clean_class1_bicycle_ge_035": 4
+    },
+    "scenarios": {
+      "Clean Baseline": {
+        "coco_map_hf": {
+          "mAP@50": 50.59023395844567,
+          "mAP@75": 30.058175808997945,
+          "mAP@50:95": 27.92738470060895,
+          "active_classes": 78
+        },
+        "coco_map_qmax": {
+          "mAP@50": 49.78100616479236,
+          "mAP@75": 29.61706556517098,
+          "mAP@50:95": 27.50252560514145,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": 0.0,
+        "rel_drop_50_95_pct": 0.0
+      },
+      "Control: Gaussian Noise (sigma=16/255)": {
+        "coco_map_hf": {
+          "mAP@50": 48.34981424027359,
+          "mAP@75": 27.786479833795152,
+          "mAP@50:95": 26.380584181981988,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -4.428561686455816,
+        "rel_drop_50_95_pct": -5.538651525050375,
+        "asr_audit": {}
+      },
+      "Control: Random Patch (48x48 Random Pos)": {
+        "coco_map_hf": {
+          "mAP@50": 47.75534887891766,
+          "mAP@75": 27.8125037539056,
+          "mAP@50:95": 26.04353591003666,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -5.603621208505502,
+        "rel_drop_50_95_pct": -6.745525264065323,
+        "asr_audit": {}
+      },
+      "Clean Shift: Gaussian Blur (5x5, sigma=1.5)": {
+        "coco_map_hf": {
+          "mAP@50": 43.569020044415716,
+          "mAP@75": 24.334448825131815,
+          "mAP@50:95": 24.00188869564777,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -13.878595461323847,
+        "rel_drop_50_95_pct": -14.05608168127388,
+        "asr_audit": {}
+      },
+      "Clean Shift: Brightness (-30%)": {
+        "coco_map_hf": {
+          "mAP@50": 50.755669443273575,
+          "mAP@75": 29.992889946890273,
+          "mAP@50:95": 28.04273569106643,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": 0.3270107131028289,
+        "rel_drop_50_95_pct": 0.4130389998708464,
+        "asr_audit": {}
+      },
+      "Attack: Query Selection Manipulation (AQSM)": {
+        "coco_map_hf": {
+          "mAP@50": 1.2294065928212246,
+          "mAP@75": 0.5284124916931295,
+          "mAP@50:95": 0.5578465591911422,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -97.56987367595286,
+        "rel_drop_50_95_pct": -98.00251056383745,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "AQSM",
+            "asr_pct": 73.53951890034365,
+            "succ": 214,
+            "total": 291,
+            "ci_95": [
+              68.0757230857434,
+              78.51686550181407
+            ]
+          }
+        }
+      },
+      "Attack: PGD Query Vanishing (15 steps)": {
+        "coco_map_hf": {
+          "mAP@50": 1.7474763078887845,
+          "mAP@75": 0.691455339291446,
+          "mAP@50:95": 0.8405897640182987,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -96.5458228374193,
+        "rel_drop_50_95_pct": -96.99008778290661,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "Vanishing",
+            "asr_pct": 49.666666666666664,
+            "succ": 149,
+            "total": 300,
+            "ci_95": [
+              43.869886752792084,
+              55.47009321615124
+            ]
+          },
+          "conditional_on_clean_ge035": {
+            "asr_pct": 48.45360824742268,
+            "succ": 141,
+            "total": 291
+          }
+        }
+      },
+      "Attack: Standard Task PGD (15 steps)": {
+        "coco_map_hf": {
+          "mAP@50": 0.005642587290140536,
+          "mAP@75": 2.6054140086232948e-06,
+          "mAP@50:95": 0.0006292603059505004,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -99.98884648903822,
+        "rel_drop_50_95_pct": -99.99774679830318,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "Vanishing",
+            "asr_pct": 0.0,
+            "succ": 0,
+            "total": 300,
+            "ci_95": [
+              0.0,
+              1.2220974694293552
+            ]
+          },
+          "conditional_on_clean_ge035": {
+            "asr_pct": 0.0,
+            "succ": 0,
+            "total": 291
+          }
+        }
+      },
+      "Attack: Encoder Query Fabrication (EQF, 15 steps)": {
+        "coco_map_hf": {
+          "mAP@50": 4.031991350306674,
+          "mAP@75": 1.80777555388465,
+          "mAP@50:95": 1.905735753724652,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -92.03009941875636,
+        "rel_drop_50_95_pct": -93.17610376283069,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "Fabrication",
+            "asr_pct": 100.0,
+            "succ": 300,
+            "total": 300,
+            "ci_95": [
+              98.77790253057064,
+              100.0
+            ]
+          },
+          "net_new_class1_pct": 98.66666793823242,
+          "clean_already_had_class1_count": 4
+        }
+      },
+      "Attack: PGD Query Fabrication (DQF, 15 steps)": {
+        "coco_map_hf": {
+          "mAP@50": 5.277073107761667,
+          "mAP@75": 1.1977497543426554,
+          "mAP@50:95": 2.0123264769366704,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -89.56898852830726,
+        "rel_drop_50_95_pct": -92.79443278162458,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "Fabrication",
+            "asr_pct": 99.66666666666667,
+            "succ": 299,
+            "total": 300,
+            "ci_95": [
+              98.1568747951932,
+              99.99156108676821
+            ]
+          },
+          "net_new_class1_pct": 98.33333492279053,
+          "clean_already_had_class1_count": 4
+        }
+      },
+      "Attack: Gradient Patch (48x48 Random Pos)": {
+        "coco_map_hf": {
+          "mAP@50": 46.289006545597985,
+          "mAP@75": 25.493179824968525,
+          "mAP@50:95": 25.034246906460144,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -8.50209037653527,
+        "rel_drop_50_95_pct": -10.359501346668248,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "Patch",
+            "asr_pct": 91.33333333333333,
+            "succ": 274,
+            "total": 300,
+            "ci_95": [
+              87.55926371349084,
+              94.2605167452949
+            ]
+          }
+        }
+      },
+      "Attack: Adaptive PGD (1D Hinge, lambda=0.50)": {
+        "coco_map_hf": {
+          "mAP@50": 6.269121289514815,
+          "mAP@75": 2.1178695580327074,
+          "mAP@50:95": 2.6520305069053327,
+          "active_classes": 78
+        },
+        "rel_drop_50_pct": -87.60804052682538,
+        "rel_drop_50_95_pct": -90.50383508754578,
+        "asr_audit": {
+          "code_formula": {
+            "asr_type": "Adaptive",
+            "asr_pct": 99.33333333333333,
+            "succ": 298,
+            "total": 300,
+            "ci_95": [
+              97.61265024278262,
+              99.91916135872002
+            ]
+          },
+          "net_new_class1_pct": 98.00000190734863,
+          "clean_already_had_class1_count": 4
+        }
+      }
+    }
+  }
+}

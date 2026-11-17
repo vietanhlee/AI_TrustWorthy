@@ -29,14 +29,14 @@ if str(WORKSPACE_DIR) not in sys.path:
 if str(WORKSPACE_DIR / "edge_sec_pro") not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR / "edge_sec_pro"))
 
-from edge_sec_pro.experiments.common_exp import (
+from paper_3_defense_guardrail.experiments.common_exp import (
     load_coco_images,
     RTDETRModelWrapper,
     RTDETRDeepFeatureExtractor,
     DETRAttackGenerator,
     CHECKPOINTS_DIR,
 )
-from edge_sec_pro.run_map_evaluation import box_cxcywh_to_xyxy, compute_map_coco
+from paper_3_defense_guardrail.experiments.common_exp import box_cxcywh_to_xyxy, compute_map_coco
 from paper_3_defense_guardrail.experiments.exp_logger import (
     setup_experiment_logger,
     MetricHistoryTracker,
