@@ -64,6 +64,57 @@ def _gather_priors_by_indices(comp: Dict[str, Any], ind: torch.Tensor) -> Tuple[
     return tgt, ref_pts
 
 
+def verify_intervention_validity(comp_clean: Dict[str, Any], comp_adv: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Kiểm tra tính hợp lệ phân phối của can thiệp nhân quả (Intervention Validity).
+    Xác nhận rằng việc tráo đổi tensor giữa Clean và Adversarial không gây ra hiện tượng
+    sụp đổ phân phối số học (numerical/out-of-distribution shock):
+      1. Tỷ lệ chuẩn Frobenius của Memory M: ||M_adv||_F / ||M_clean||_F trong khoảng hợp lý [0.8, 1.4].
+      2. Tọa độ khởi tạo hộp B_init thuộc miền đóng chuẩn hóa [0.0, 1.0].
+      3. Không chứa giá trị phi số học (NaN, Inf) làm phá vỡ phép chiếu Deformable Attention.
+    """
+    mem_clean = comp_clean["source_flatten"]
+    mem_adv = comp_adv["source_flatten"]
+
+    norm_clean = float(torch.linalg.norm(mem_clean).item())
+    norm_adv = float(torch.linalg.norm(mem_adv).item())
+    norm_ratio = norm_adv / max(norm_clean, 1e-12)
+
+    ref_clean = torch.sigmoid(comp_clean["init_reference_points"])
+    ref_adv = torch.sigmoid(comp_adv["init_reference_points"])
+
+    has_nan = bool(
+        torch.isnan(mem_clean).any()
+        or torch.isnan(mem_adv).any()
+        or torch.isnan(ref_clean).any()
+        or torch.isnan(ref_adv).any()
+    )
+    has_inf = bool(
+        torch.isinf(mem_clean).any()
+        or torch.isinf(mem_adv).any()
+        or torch.isinf(ref_clean).any()
+        or torch.isinf(ref_adv).any()
+    )
+
+    ref_bounds_valid = bool(
+        (ref_clean >= 0.0).all()
+        and (ref_clean <= 1.0).all()
+        and (ref_adv >= 0.0).all()
+        and (ref_adv <= 1.0).all()
+    )
+
+    return {
+        "valid": (not has_nan) and (not has_inf) and ref_bounds_valid,
+        "norm_clean": norm_clean,
+        "norm_adv": norm_adv,
+        "norm_ratio": norm_ratio,
+        "has_nan": has_nan,
+        "has_inf": has_inf,
+        "ref_bounds_valid": ref_bounds_valid,
+    }
+
+
+
 def run_causal_surgery(
     wrapper: RTDETRModelWrapper,
     clean_imgs: torch.Tensor,

@@ -9,7 +9,7 @@ Mục đích: Cung cấp bộ công cụ tính toán các chỉ số thống kê
 5. Tiện ích tuần tự hóa JSON cho dữ liệu numpy / PyTorch.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from scipy.stats import beta
 from sklearn.metrics import roc_auc_score, roc_curve
@@ -197,3 +197,74 @@ def make_serializable(obj: Any) -> Any:
 
 
 to_json_serializable = make_serializable
+
+
+def benjamini_hochberg_correction(
+    p_values: Union[Sequence[float], np.ndarray],
+    fdr_threshold: float = 0.05,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Kiểm soát tỷ lệ phát hiện sai (False Discovery Rate - FDR) theo quy trình Benjamini-Hochberg.
+    Được áp dụng cho các kiểm định đa giả thuyết (Multiple Hypothesis Testing) giữa các lớp đối tượng COCO
+    và các phép đo telemetry đa tỷ lệ (multi-scale telemetry).
+
+    Args:
+        p_values: Mảng các giá trị p-value đơn lẻ.
+        fdr_threshold: Ngưỡng FDR danh định (mặc định q = 0.05 hoặc 0.01).
+
+    Returns:
+        is_significant: Mảng boolean đánh dấu các giả thuyết có ý nghĩa thống kê sau hiệu chỉnh.
+        adjusted_q_values: Mảng các giá trị q-value sau khi hiệu chỉnh BH.
+    """
+    p = np.asarray(p_values, dtype=np.float64)
+    n = len(p)
+    if n == 0:
+        return np.array([], dtype=bool), np.array([], dtype=np.float64)
+
+    sorted_indices = np.argsort(p)
+    sorted_p = p[sorted_indices]
+
+    ranks = np.arange(1, n + 1)
+    q_values = sorted_p * n / ranks
+    # Đảm bảo tính đơn điệu không giảm từ cuối về đầu
+    for i in range(n - 2, -1, -1):
+        q_values[i] = min(q_values[i], q_values[i + 1])
+    q_values = np.clip(q_values, 0.0, 1.0)
+
+    adjusted_q = np.empty_like(q_values)
+    adjusted_q[sorted_indices] = q_values
+
+    is_significant = adjusted_q <= fdr_threshold
+    return is_significant, adjusted_q
+
+
+def bonferroni_correction(
+    p_values: Union[Sequence[float], np.ndarray],
+    family_alpha: float = 0.05,
+) -> Tuple[np.ndarray, float]:
+    """
+    Hiệu chỉnh FWER (Family-Wise Error Rate) theo chuẩn nghiêm ngặt Bonferroni:
+    alpha_adj = family_alpha / K.
+    """
+    p = np.asarray(p_values, dtype=np.float64)
+    k = len(p)
+    if k == 0:
+        return np.array([], dtype=bool), family_alpha
+    alpha_adj = family_alpha / k
+    is_significant = p <= alpha_adj
+    return is_significant, float(alpha_adj)
+
+
+def compute_asr_starve(
+    score_dropoffs: Union[Sequence[float], np.ndarray],
+    threshold: float = 15.0,
+) -> float:
+    """
+    Tính toán Query Selection Starvation ASR (ASR_starve) theo công thức Equation (11):
+    ASR_starve = (1/|D|) * sum(I( s_(1) / (s_(300) + 1e-4) <= 15.0 ))
+    """
+    arr = np.asarray(score_dropoffs, dtype=np.float64)
+    if len(arr) == 0:
+        return 0.0
+    return float(np.mean(arr <= threshold) * 100.0)
+
