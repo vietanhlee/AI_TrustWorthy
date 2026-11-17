@@ -107,14 +107,23 @@ class RTDETRModelWrapper(nn.Module):
         self.d_model = self.model.config.d_model
         self.decoder_layers = self.model.config.decoder_layers
 
-    def forward(self, pixel_values: torch.Tensor) -> DETRInternalState:
+    def forward(self, pixel_values: torch.Tensor, pixel_mask: Optional[torch.Tensor] = None) -> DETRInternalState:
         """
         Forward pass và trích xuất trạng thái nội tại RT-DETR.
         """
         pixel_values = pixel_values.to(self.device)
+        if pixel_mask is None:
+            pixel_mask = torch.ones(
+                (pixel_values.shape[0], pixel_values.shape[2], pixel_values.shape[3]),
+                device=self.device,
+                dtype=torch.long,
+            )
+        else:
+            pixel_mask = pixel_mask.to(self.device)
 
         outputs = self.model(
             pixel_values=pixel_values,
+            pixel_mask=pixel_mask,
             output_attentions=True,
             output_hidden_states=True,
             return_dict=True,
