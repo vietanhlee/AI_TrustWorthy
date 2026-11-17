@@ -1,0 +1,48 @@
+{
+  "n_eval": 50,
+  "branches": {
+    "clean_standard": {
+      "mAP@50": 56.27545216906997,
+      "mAP@75": 35.69514601605946,
+      "mAP@50:95": 32.602123488680284,
+      "fg_spatial_hit_all": 66.8574468990167,
+      "fg_spatial_hit_act": 96.12372635173146,
+      "attn_entropy": 0.7456583917140961,
+      "mean_latency_ms": 30.834498405456547
+    },
+    "clean_gcqs": {
+      "mAP@50": 56.01130706105488,
+      "mAP@75": 35.4030581513679,
+      "mAP@50:95": 32.45758748554708,
+      "fg_spatial_hit_all": 68.20769704381625,
+      "fg_spatial_hit_act": 94.22218066081405,
+      "attn_entropy": 0.7477849864959716,
+      "mean_latency_ms": 40.007562637329094
+    },
+    "aqsm_standard": {
+      "mAP@50": 4.327077246531303,
+      "mAP@75": 3.125300318220052,
+      "mAP@50:95": 3.051342029716019,
+      "fg_spatial_hit_all": 40.219473556460194,
+      "fg_spatial_hit_act": 40.94543880271724,
+      "attn_entropy": 0.743506365219752,
+      "mean_latency_ms": 32.62509346008301
+    },
+    "aqsm_gcqs": {
+      "mAP@50": 3.477683412050552,
+      "mAP@75": 2.277867011882786,
+      "mAP@50:95": 2.3749407969382985,
+      "fg_spatial_hit_all": 40.183667544120304,
+      "fg_spatial_hit_act": 40.90781235972579,
+      "attn_entropy": 0.745432228644689,
+      "mean_latency_ms": 39.22511100769043
+    }
+  },
+  "rsc_guard_monitor": {
+    "threshold_tau_95": 0.3784817159175873,
+    "clean_fpr_pct": 6.0,
+    "aqsm_tpr_pct": 18.0,
+    "clean_mean_score": 0.30718049228191374,
+    "aqsm_mean_score": 0.33735724329948424
+  }
+}

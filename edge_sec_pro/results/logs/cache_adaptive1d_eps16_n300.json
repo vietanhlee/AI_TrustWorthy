@@ -1,0 +1,17 @@
+{
+  "attack": "adaptive1d",
+  "n_eval": 300,
+  "epsilon_num_255": 16,
+  "epsilon": 0.06274509803921569,
+  "alpha": 0.00784313725490196,
+  "steps": 15,
+  "margin": null,
+  "lambda_rank": null,
+  "lambda_supp": null,
+  "evasion_weight": 0.5,
+  "max_linf": 0.0627451241016388,
+  "mean_l2": 16.01030348777771,
+  "std_l2": 0.2846251675520662,
+  "elapsed_sec": 2624.8096685409546,
+  "threads": 5
+}

@@ -1,0 +1,22 @@
+{
+  "Clean Test": {
+    "tv_trigger_rate_pct": 4.0,
+    "jpeg_trigger_rate_pct": 0.0,
+    "avg_latency_ms": 6.09
+  },
+  "AQSM Attack (eps=16)": {
+    "tv_trigger_rate_pct": 12.0,
+    "jpeg_trigger_rate_pct": 32.0,
+    "avg_latency_ms": 6.18
+  },
+  "Gaussian Noise (sigma=16)": {
+    "tv_trigger_rate_pct": 100.0,
+    "jpeg_trigger_rate_pct": 100.0,
+    "avg_latency_ms": 6.15
+  },
+  "Gaussian Blur (5x5)": {
+    "tv_trigger_rate_pct": 0.0,
+    "jpeg_trigger_rate_pct": 0.0,
+    "avg_latency_ms": 6.38
+  }
+}

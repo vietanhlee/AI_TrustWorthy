@@ -1,0 +1,573 @@
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+\usepackage{float}
+\usepackage{placeins}
+
+% LaTeX float placement optimization
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{5}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{8}
+\setcounter{dbltopnumber}{4}
+
+\usepackage{hyperref}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=cyan!80!black,
+    citecolor=cyan!80!black,
+    urlcolor=cyan!80!black,
+    pdftitle={Adversarial Object Fabrication in Real-Time Detection Transformers: Architectural Vulnerabilities, Downstream Impacts, and Spatial Mitigation},
+    pdfauthor={Anonymous Authors}
+}
+
+\journal{Engineering Applications of Artificial Intelligence}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{\textbf{Adversarial Object Fabrication in Real-Time Detection Transformers: Architectural Vulnerabilities, Downstream Impacts, and Spatial Mitigation}}
+
+\begin{abstract}
+Eliminating heuristic Non-Maximum Suppression (NMS) in favor of direct set prediction enables Real-Time Detection Transformers (RT-DETR) to achieve deterministic $\mathcal{O}(1)$ execution and eliminate CPU sponge latency bottlenecks. However, this architectural design introduces an important trade-off: the absence of spatial candidate deduplication removes an unintentional filtering mechanism against adversarial false positives. While convolutional detectors naturally merge dense adversarial proposals via NMS, RT-DETR forwards all activated queries directly to downstream modules. We investigate this vulnerability through two attack vectors: Encoder Query Fabrication (EQF), which promotes background anchors past the pre-decoder selection bottleneck, and Decoder Query Fabrication (DQF), which excites output classification logits. Evaluated on $N=300$ COCO \texttt{val2017} images, both attacks achieve near-$100\%$ success, injecting $7.11 \pm 2.41$ to $11.25 \pm 3.32$ phantom boxes per frame, reducing detector precision from $75.8\%$ to under $6.1\%$, while displacing over $51.7\%$ of legitimate foreground proposals. In downstream cyber-physical pipelines, these phantom floods disrupt tracking state continuity and elevate autonomous emergency braking false alarm rates above $90\%$ along highway lookahead horizons. Benchmarking post-processing defenses shows that conventional NMS suppresses merely $5.2\%$ of EQF phantoms due to low spatial overlap, whereas a Spatial Query Deduplication Filter (SQD-Filter) mitigates $40.4\%$ to $70.0\%$ of phantoms at sub-millisecond CPU overhead ($0.61$--$0.74$~ms) with a moderate clean recall penalty ($-2.47$ to $-4.29\text{ pp}$ $\mathrm{mAP}_{50}$). These findings highlight the fundamental limits of spatial post-processing and underscore the need for representation-level defenses in NMS-free perception.
+\end{abstract}
+
+\begin{keyword}
+Real-Time Detection Transformers (RT-DETR) \sep NMS-Free Detection \sep Adversarial Fabrication \sep Phantom Queries \sep Edge Autonomous Robotics \sep Cyber-Physical Security.
+\end{keyword}
+
+\end{frontmatter}
+
+% =====================================================================
+% SECTION 1: INTRODUCTION
+% =====================================================================
+\section{Introduction}
+\label{sec:introduction}
+
+Real-time object detection represents the core perception primitive underpinning autonomous driving, automated guided vehicles (AGVs), unmanned aerial vehicles (UAVs), and safety-critical edge video surveillance \citep{zhao2024detrs, carion2020end}. For over a decade, convolutional architectures (notably the YOLO series \citep{wang2024yolov9, bochkovskiy2020yolov4} and SSD \citep{liu2016ssd}) have dominated industrial edge deployments. However, a persistent bottleneck in convolutional and two-stage detectors is their strict dependence on heuristic \textit{Non-Maximum Suppression (NMS)} \citep{neubeck2006efficient}. Because standard detectors generate dense, redundant candidate proposals across multiple anchor grids, NMS must execute a quadratic or iterative pairwise IoU clustering loop on the CPU to eliminate duplicate boxes. Under adversarial conditions, this architectural reliance on NMS gives rise to severe \textit{Computational Latency and Sponge Attacks} \citep{chen2024overload, shapira2023phantom}, where an adversary crafts imperceptible perturbations that induce thousands of overlapping proposals, stalling the CPU NMS loop, collapsing frame rates by over $200\%$, and precipitating deadline-miss failures in edge controllers.
+
+To fundamentally eliminate this latency bottleneck, the computer vision community engineered \textbf{Real-Time Detection Transformers (RT-DETR)} \citep{zhao2024detrs, zhu2020deformable}. RT-DETR eliminates NMS entirely by implementing end-to-end direct set prediction via Hungarian bipartite matching during training \citep{kuhn1955hungarian}. At inference time, RT-DETR selects a fixed set of $K=300$ candidate anchors from its multi-scale Hybrid Encoder via dynamic query selection, forwards them through a 3-layer deformable attention decoder, and emits precisely 300 final bounding boxes without any post-hoc suppression loops. Because the execution flow operates across an $\mathcal{O}(1)$ static tensor graph, RT-DETR exhibits highly deterministic, empirically invariant inference latency on edge hardware ($6.13 \pm 0.08$~ms per frame on mobile GPU), successfully eliminating traditional NMS sponge latency vulnerabilities.
+
+\begin{figure*}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{fig/fig1_concept_paradox.png}
+\caption{The Architectural Trade-off between NMS-based and NMS-free edge object detectors under adversarial conditions. (Top) Conventional convolutional pipeline (YOLO + NMS): redundant candidate proposals under attack trigger a severe CPU latency bottleneck (+242\% sponge attack), but heuristic NMS unintentionally suppresses overlapping phantom boxes as an algorithmic side-effect of spatial deduplication. (Bottom) Real-Time Detection Transformer (RT-DETR): dynamic query selection and deformable attention achieve invariant inference latency via a static execution graph ($\mathcal{O}(1)$), but the complete absence of spatial filtering allows fabricated phantom queries (via EQF at the encoder selection bottleneck or DQF at the decoder cross-attention head) to pass directly into downstream tracking and emergency braking controllers.}
+\label{fig:concept_paradox}
+\end{figure*}
+
+\paragraph{The NMS-Free Architectural Trade-off}
+In this paper, we expose a foundational architectural trade-off created by the elimination of NMS: \textbf{the structural absence of output spatial deduplication exposes RT-DETR to unfiltered Adversarial Object Fabrication} (Figure~\ref{fig:concept_paradox}). Crucially, NMS was never conceived as a deliberate security mechanism; rather, it is a heuristic spatial clustering algorithm designed to collapse multiple candidate proposals generated by dense convolutional anchor grids around a single object. In convolutional models, if an adversary attempts to inject false positive detections, the mandatory NMS stage acts as an \textit{unintentional spatial defense side-effect}: when multiple fabricated boxes cluster around background regions, NMS naturally merges or discards the vast majority of overlapping proposals. In contrast, in RT-DETR, the one-to-one prediction constraint is enforced purely through supervisory loss functions (bipartite matching) during training; the inference architecture itself possesses \textit{no spatial exclusion mechanism}. Consequently, if an adversary manipulates the model to assign high confidence to multiple background queries, \textbf{fabricated queries pass unfiltered into downstream decision loops} (Figure~\ref{fig:nms_free_paradox}).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{fig/fig1_nms_free_paradox.pdf}
+\caption{Empirical verification of the Architectural Trade-off between NMS-based and NMS-free edge object detectors ($N=300$ COCO \texttt{val2017}). (a) Computational latency comparison: YOLOv8 suffers a $+242\%$ computational latency spike due to NMS proposal explosion (sponge attack), whereas RT-DETR exhibits empirical latency invariance within measurement noise ($\pm 0.08$~ms shift). (b) Downstream phantom flood: Heuristic NMS in YOLOv8 unintentionally suppresses $78.4\%$ of overlapping fabricated boxes (leaving $2.92 \pm 0.45$ surviving phantoms, labeled as $2.9$ boxes), whereas RT-DETR's complete absence of spatial filtering allows $100\%$ of injected phantom queries ($7.11$--$11.25$ boxes) to pass straight into downstream tracking and control modules.}
+\label{fig:nms_free_paradox}
+\end{figure}
+
+\paragraph{Dual Threat Surfaces: Boundary vs.\ Output Injection}
+Adversarial fabrication in RT-DETR can be enacted across two distinct structural interfaces:
+\begin{enumerate}
+    \item \textbf{Encoder Query Fabrication (EQF):} Exploits the dynamic selection bottleneck between the encoder and decoder. By inflating the classification logits of background candidate anchors, the attacker forces low-quality spatial coordinates into the top-300 query set. We uncover that EQF produces an insidious dual effect: beyond creating ghost detections, it triggers \textbf{Foreground Proposal Displacement}, physically evicting true object anchors from the fixed-capacity bottleneck and causing severe detection dropoffs.
+    \item \textbf{Decoder Query Fabrication (DQF):} Operates on the final deformable decoder outputs, optimizing classification logits to activate queries that originally attended to empty background space.
+\end{enumerate}
+
+\paragraph{Contributions of this Work}
+This paper presents a systematic empirical investigation into adversarial candidate fabrication and phantom query flooding in NMS-free Detection Transformers. Our primary contributions are:
+\begin{itemize}
+    \item \textbf{Formulation of the NMS-Free Fabrication Vulnerability:} We systematically formalize the architectural vulnerability of NMS-free set prediction, demonstrating why one-to-one bipartite training fails to prevent inference-time false positive flooding.
+    \item \textbf{Dual Attack Formulations (EQF and DQF):} We introduce mathematical formulations for Encoder Query Fabrication (EQF) and Decoder Query Fabrication (DQF), achieving $100.0\%$ and $99.7\%$ fabrication success rates on a standardized benchmark of $N=300$ official COCO \texttt{val2017} images (representing 78 active categories, deterministic seed 42) with rigorous 95\% bootstrap confidence intervals.
+    \item \textbf{Discovery of Foreground Proposal Displacement:} We uncover and quantify the proposal eviction by-product of EQF: flooding the top-$K$ selection bottleneck with background anchors evicts $52.7\%$ of legitimate foreground object proposals, explaining why EQF simultaneously causes a $-92.0\%$ collapse in $\mathrm{mAP}_{50}$.
+    \item \textbf{Quantification of Downstream Cyber-Physical Hazards:} We evaluate the downstream impact of phantom query flooding on an edge computing mobile platform (Intel Core i5-12600H, mobile NVIDIA RTX 3060). We demonstrate that unfiltered phantom boxes degrade ByteTrack tracking association and elevate Autonomous Emergency Braking (AEB) false-trigger probability above $90\%$.
+    \item \textbf{Lightweight Mitigation Benchmark (SQD-Filter):} We develop and evaluate the Spatial Query Deduplication Filter (SQD-Filter), a vectorized post-processing baseline ($0.61$--$0.74$~ms CPU overhead, $<1.07$~ms total latency) that mitigates up to $70.0\%$ of phantom queries, characterizing both its empirical protection and its unavoidable trade-off with nominal clean recall.
+\end{itemize}
+
+% =====================================================================
+% SECTION 2: BACKGROUND AND THREAT MODEL
+% =====================================================================
+\section{Background and Threat Formulation}
+\label{sec:background}
+
+\subsection{RT-DETR Architectural Pipeline}
+RT-DETR consists of three sequential processing blocks:
+\begin{enumerate}
+    \item \textbf{Backbone and Hybrid Encoder:} An input image $X \in \mathbb{R}^{3 \times H \times W}$ is processed by a ResNet-18 VD backbone to yield multi-scale feature maps $\{C_3, C_4, C_5\}$. The Hybrid Encoder performs cross-scale feature fusion via an Attention-based Intra-scale Feature Interaction (AIFI) module and a CNN-based Cross-scale Feature-fusion Module (CCFM), generating flattened multi-scale memory tokens $M \in \mathbb{R}^{N_{\mathrm{cand}} \times d}$ ($N_{\mathrm{cand}} = 2{,}100$ for $320 \times 320$ resolution: $S_3 = 40\times 40 = 1{,}600$, $S_4 = 20\times 20 = 400$, $S_5 = 10\times 10 = 100$).
+    \item \textbf{Dynamic Query Selection Bottleneck:} A lightweight linear classification head computes raw candidate logits $\hat{L}^{\mathrm{enc}} \in \mathbb{R}^{N_{\mathrm{cand}} \times C}$, and a bounding box regression head predicts initial box coordinates $B_{\mathrm{cand}} \in \mathbb{R}^{N_{\mathrm{cand}} \times 4}$. The model selects the top-$K$ ($K=300$) candidates with highest classification score $s_i = \max_c \sigma(\hat{L}_{i, c}^{\mathrm{enc}})$:
+    \begin{equation}
+        \mathcal{I}_{\mathrm{sel}} = \operatorname{argTopK}_{i \in \{1,\dots,N_{\mathrm{cand}}\}} \left( \max_c \sigma(\hat{L}_{i, c}^{\mathrm{enc}}) \right).
+    \end{equation}
+    The selected feature embeddings $H_{\mathrm{init}} = M[\mathcal{I}_{\mathrm{sel}}]$ and reference coordinates $B_{\mathrm{init}} = B_{\mathrm{cand}}[\mathcal{I}_{\mathrm{sel}}]$ serve as the 300 content queries and reference points for the decoder.
+    \item \textbf{Deformable Attention Decoder:} A 3-layer deformable Transformer decoder refines the 300 queries via multi-scale cross-attention over memory $M$, outputting final classification logits $\hat{L}^{(L)} \in \mathbb{R}^{K \times C}$ and box offsets $\hat{B}^{(L)} \in \mathbb{R}^{K \times 4}$. Detections are emitted without NMS by thresholding confidence $\sigma(\max_c \hat{L}_{q, c}^{(L)}) \ge \tau_{\mathrm{act}} = 0.35$.
+\end{enumerate}
+
+\subsection{Threat Model and Evaluation Metrics}
+We formulate an adversary whose goal is to inject phantom object detections of a specific target class $c_{\mathrm{target}}$ (e.g., \texttt{pedestrian}, \texttt{stop sign}, or \texttt{car}) into safety-critical autonomous perception pipelines under standard $\ell_\infty$-bounded input perturbations:
+\begin{equation}
+    X_{\mathrm{adv}} = X + \delta, \quad \text{subject to } \|\delta\|_\infty \le \epsilon = 16/255.
+\end{equation}
+The adversary operates under white-box access to network weights, modeling the worst-case security bound for deployed edge models. In our benchmark evaluation across $N=300$ COCO \texttt{val2017} images, target classes are selected from safety-critical navigation categories (such as \texttt{person}, \texttt{bicycle}, \texttt{car}, \texttt{traffic light}, and \texttt{stop sign}). If the target category $c_{\mathrm{target}}$ is already present in image $X^{(i)}$ with ground-truth bounding box set $\mathcal{G}_{c_{\mathrm{target}}}$, any active prediction $b_q$ must satisfy $\max_{g \in \mathcal{G}_{c_{\mathrm{target}}}} \mathrm{IoU}(b_q, b_g) < 0.30$ to be counted as a fabricated phantom; if the target category is absent from the image ($\mathcal{G}_{c_{\mathrm{target}}} = \emptyset$), any detection predicted as $c_{\mathrm{target}}$ with confidence above $\tau_{\mathrm{act}}$ constitutes an unambiguous phantom false positive ($\max \mathrm{IoU} = 0$).
+
+\paragraph{Multi-Dimensional Evaluation Protocol for Fabrication Attacks}
+Prior studies on classification adversarial attacks frequently rely on single binary indicators. However, in dense object detection where the model maintains $K=300$ candidate queries, defining attack success purely as the presence of $\ge 1$ phantom box risks premature saturation near $100\%$, masking critical variations in attack severity. To ensure rigorous, multi-faceted quantification, we evaluate four complementary metrics:
+
+\begin{enumerate}
+    \item \textbf{Binary Fabrication Attack Success Rate ($\mathrm{ASR}_{\mathrm{fab}}$):} An attack achieves binary success on image $X^{(i)}$ if the post-threshold prediction set contains at least one active detection for class $c_{\mathrm{target}}$ that does not overlap with any ground-truth object of that class:
+    \begin{equation}
+    \begin{aligned}
+        \mathrm{ASR}_{\mathrm{fab}} = \frac{1}{|\mathcal{D}|} \sum_{i=1}^{|\mathcal{D}|} \mathbb{I}\Big( \exists q \in \{1,\dots,K\} : \; & \sigma(S^{(i)}[q, c_{\mathrm{target}}]) \ge \tau_{\mathrm{act}} \\
+        & \land\; \max_{g \in \mathcal{G}_{c_{\mathrm{target}}}} \mathrm{IoU}(b_q^{(i)}, b_g^{(i)}) < 0.30 \Big),
+    \end{aligned}
+    \end{equation}
+    where $\tau_{\mathrm{act}} = 0.35$ is the nominal operating activation threshold.
+    
+    \item \textbf{Mean Phantom Query Volume ($N_{\mathrm{phantom}}$):} Measures the average absolute count of surviving fabricated false positive bounding boxes per image:
+    \begin{equation}
+    \begin{aligned}
+        N_{\mathrm{phantom}} = \frac{1}{|\mathcal{D}|} \sum_{i=1}^{|\mathcal{D}|} \sum_{q=1}^K \mathbb{I}\Big( & \sigma(S^{(i)}[q, c_{\mathrm{target}}]) \ge \tau_{\mathrm{act}} \\
+        & \land\; \max_{g \in \mathcal{G}_{c_{\mathrm{target}}}} \mathrm{IoU}(b_q^{(i)}, b_g^{(i)}) < 0.30 \Big).
+    \end{aligned}
+    \end{equation}
+    
+    \item \textbf{High-Confidence Phantom Density:} Evaluates the proportion of fabricated boxes that comfortably exceed higher operational thresholds ($\tau \ge 0.50$ and $\tau \ge 0.70$), verifying that phantoms are not borderline artifacts on the verge of threshold cutoff.
+    
+    \item \textbf{Precision Collapse and False Positive Rate (FPR):} Tracks the degradation of detector precision $\mathrm{Prec} = \frac{\mathrm{TP}}{\mathrm{TP} + \mathrm{FP}}$ and the injection rate of background hallucinations relative to clean operating standards.
+\end{enumerate}
+
+% =====================================================================
+% SECTION 3: FABRICATION FORMULATIONS
+% =====================================================================
+\section{Adversarial Fabrication Formulations}
+\label{sec:formulations}
+
+\subsection{Encoder Query Fabrication (EQF)}
+Rather than attempting to fool the complex deformable attention layers directly, EQF exploits the dynamic query selection interface. On clean input $X$, we identify the set of background candidate anchors whose initial maximum confidence is negligible:
+\begin{equation}
+    \mathcal{C}_{\mathrm{bg}} = \left\{ i \in \{1,\dots,N_{\mathrm{cand}}\} \;\middle|\; \max_{c} \sigma(\hat{L}_{i, c}^{\mathrm{enc}}(X)) < \tau_{\mathrm{bg}} = 0.10 \right\}.
+\end{equation}
+The attacker selects $K_{\mathrm{bg}} = 50$ background candidates and optimizes $\delta$ to maximize their logits for the target class $c_{\mathrm{target}}$:
+\begin{equation}
+    \label{eq:eqf_loss}
+    \mathcal{L}_{\mathrm{EQF}}(X + \delta) = - \frac{1}{K_{\mathrm{bg}}} \sum_{i \in \mathcal{C}_{\mathrm{bg}}} \hat{L}_{i, c_{\mathrm{target}}}^{\mathrm{enc}}(X + \delta).
+\end{equation}
+
+\paragraph{Mechanism of EQF: The Inflation-Eviction Cascade}
+As gradient ascent on $\mathcal{L}_{\mathrm{EQF}}$ elevates the candidate scores of $\mathcal{C}_{\mathrm{bg}}$, these background anchors surge past the dynamic threshold $s_{(300)}^{\mathrm{enc}}$. Because the selection bottleneck has a strictly fixed capacity of $K=300$, every background anchor promoted into $\mathcal{I}_{\mathrm{sel}}$ displaces a lower-ranking anchor. As established in Section~\ref{sec:displacement_analysis}, this inflation directly precipitates the eviction of genuine foreground object proposals.
+
+\subsection{Decoder Query Fabrication (DQF)}
+In contrast to EQF, Decoder Query Fabrication (DQF) targets the final deformable decoder outputs. On clean image $X$, we extract the set of inactive decoder queries $\mathcal{I}_{\mathrm{dec\_bg}} = \{ q \in \{1,\dots,K\} \mid \max_c \sigma(\hat{L}_{q, c}^{(L)}) < 0.10 \}$. We select the $K_{\mathrm{dec}} = 15$ queries with lowest nominal activation and maximize their class confidence:
+\begin{equation}
+    \label{eq:dqf_loss}
+    \mathcal{L}_{\mathrm{DQF}}(X + \delta) = - \frac{1}{K_{\mathrm{dec}}} \sum_{q \in \mathcal{I}_{\mathrm{dec\_bg}}} \hat{L}_{q, c_{\mathrm{target}}}^{(L)}(X + \delta).
+\end{equation}
+Because RT-DETR lacks an NMS stage, all $K_{\mathrm{dec}}$ queries can be simultaneously elevated above the activation threshold $\tau_{\mathrm{act}} = 0.35$ without mutual suppression.
+
+\paragraph{Gradient Propagation and Disentangling EQF vs.\ DQF}
+A critical mechanistic question is how EQF and DQF differ in their optimization pathways and why both attacks induce foreground proposal displacement (Table~\ref{tab:fabrication_benchmarks}). In EQF, the adversary computes gradients directly from the encoder candidate selection head: $\nabla_X \mathcal{L}_{\mathrm{EQF}} = - \frac{1}{K_{\mathrm{bg}}} \sum_{i \in \mathcal{C}_{\mathrm{bg}}} \nabla_X \hat{L}_{i, c_{\mathrm{target}}}^{\mathrm{enc}}$. This objective explicitly forces background anchor logits past the dynamic Top-$K$ cutoff threshold $s_{(300)}^{\mathrm{enc}}$. Because the pre-decoder selection bottleneck has a strictly fixed capacity of $K=300$, every background candidate promoted into $\mathcal{I}_{\mathrm{sel}}$ directly evicts a lower-ranking genuine foreground anchor before the decoder is even reached.
+
+In contrast, DQF optimizes the final classification logits emitted by the 3rd deformable decoder layer: $\nabla_X \mathcal{L}_{\mathrm{DQF}} = - \frac{1}{K_{\mathrm{dec}}} \sum_{q \in \mathcal{I}_{\mathrm{dec\_bg}}} \nabla_X \hat{L}_{q, c_{\mathrm{target}}}^{(L)}$. Because the entire architecture is differentiable end-to-end, backpropagating this loss requires gradients to flow backward through the multi-scale deformable cross-attention layers into the flattened memory tokens $M$ and the CCFM/AIFI feature maps. As the optimizer perturbs the input $X+\delta$ to maximize decoder logits, it inevitably alters the underlying multi-scale feature maps in $M$. Because the encoder's candidate classification head $\hat{L}^{\mathrm{enc}}$ operates directly on these same memory tokens ($M$), the feature perturbation creates widespread collateral excitation across all $N_{\mathrm{cand}}=2{,}100$ candidate anchors, indirectly displacing $51.7\%$ of foreground proposals. Thus, while EQF causes foreground eviction through \textit{direct targeted bottleneck competition}, DQF causes foreground eviction through \textit{end-to-end representation distortion}.
+
+\begin{algorithm}[!htbp]
+\caption{Adversarial Candidate Fabrication on NMS-Free DETRs (EQF / DQF)}
+\label{alg:fabrication}
+\DontPrintSemicolon
+\KwIn{Input image $X$, perturbation budget $\epsilon$, step size $\alpha$, iterations $T=15$, target class $c_{\mathrm{target}}$, mode $\in \{\mathrm{EQF}, \mathrm{DQF}\}$.}
+\KwOut{Adversarial image $X_{\mathrm{adv}}$.}
+\BlankLine
+Forward clean pass: extract candidate anchors $\hat{L}^{\mathrm{enc}}$ or decoder queries $\hat{L}^{(L)}$\;
+\If{$\mathrm{mode} == \mathrm{EQF}$}{
+    Identify low-confidence background candidates: $\mathcal{C}_{\mathrm{bg}} \leftarrow \{i \mid \max_c \sigma(\hat{L}_{i, c}^{\mathrm{enc}}) < 0.10\}$\;
+    Select $K_{\mathrm{bg}}$ target candidate anchors\;
+}
+\Else{
+    Identify low-confidence decoder queries: $\mathcal{I}_{\mathrm{dec\_bg}} \leftarrow \{q \mid \max_c \sigma(\hat{L}_{q, c}^{(L)}) < 0.10\}$\;
+    Select $K_{\mathrm{dec}}$ target decoder queries\;
+}
+Initialize perturbation: $X^{(0)} \leftarrow X + \mathcal{U}(-\epsilon, \epsilon)$\;
+\For{$t = 0$ \KwTo $T-1$}{
+    Forward pass on $X^{(t)}$ to compute target logits\;
+    Compute fabrication loss $\mathcal{L}_{\mathrm{fab}} \in \{\mathcal{L}_{\mathrm{EQF}}, \mathcal{L}_{\mathrm{DQF}}\}$ via Eq.~\eqref{eq:eqf_loss} or \eqref{eq:dqf_loss}\;
+    $g^{(t)} \leftarrow \nabla_{X^{(t)}} \mathcal{L}_{\mathrm{fab}}(X^{(t)})$\;
+    $X^{(t+1)} \leftarrow \Pi_{[X-\epsilon, X+\epsilon] \cap [0, 1]} \left( X^{(t)} - \alpha \cdot \operatorname{sign}(g^{(t)}) \right)$\;
+}
+\Return $X_{\mathrm{adv}} = X^{(T)}$\;
+\end{algorithm}
+
+% =====================================================================
+% SECTION 4: EMPIRICAL EVALUATION
+% =====================================================================
+\section{Empirical Evaluation and Benchmark Results}
+\label{sec:experiments}
+
+\subsection{Experimental Setup and Testbed}
+All experiments are conducted on a standardized evaluation cohort of $N=300$ images randomly sampled from the official COCO \texttt{val2017} dataset with deterministic \texttt{seed=42}, containing $78$ actively present object categories out of the $80$ total COCO classes. We employ the official pre-trained RT-DETR-R18VD checkpoint at $320 \times 320$ input resolution.
+
+\paragraph{Hardware Testbed and Latency Protocol}
+To evaluate real-time cyber-physical feasibility under constrained computational envelopes, all inference latencies are benchmarked on an edge-class mobile workstation platform powered by an Intel Core i5-12600H CPU (12 cores, 16 threads, 45W base TDP) and a mobile NVIDIA GeForce RTX 3060 Laptop GPU (6GB GDDR6, 80W TGP). Benchmarking follows a strict measurement protocol: $10$ warmup iterations followed by $100$ timed evaluation runs in PyTorch FP32 with CUDA synchronization barriers. Attack parameters follow standard PGD protocols: perturbation budget $\epsilon = 16/255$, $T = 15$ iteration steps, and step size $\alpha = 2/255$. All reported intervals represent exact 95\% Clopper-Pearson bounds for binary success rates and 1,000-sample paired bootstrap confidence intervals for continuous metrics.
+
+\begin{table*}[!htbp]
+\centering
+\caption{Official COCO \texttt{val2017} object detection and fabrication performance ($N=300$, deterministic \texttt{seed=42}) comparing RT-DETR (\texttt{r18vd}) against YOLOv8-Small (+ NMS) across nominal conditions and adversarial fabrication threat vectors. Precision measures $\mathrm{TP}/(\mathrm{TP}+\mathrm{FP})$ at activation threshold $\tau_{\mathrm{act}}=0.35$. Intervals indicate 95\% confidence bounds.}
+\label{tab:fabrication_benchmarks}
+\renewcommand{\arraystretch}{1.35}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l l l l l l l l}
+\toprule
+\makecell[l]{\textbf{Model \&}\\\textbf{Condition}} & \makecell[l]{\textbf{$\mathrm{mAP}_{50}$}\\\textbf{[Rel. Drop]}} & \makecell[l]{\textbf{$\mathrm{ASR}_{\mathrm{fab}}$ (\%)}\\\textbf{[95\% CI]}} & \makecell[l]{\textbf{Active Boxes}\\\textbf{($\ge 0.35$)}} & \makecell[l]{\textbf{Surviving Phantoms}\\\textbf{[Mean $\pm$ SD]}} & \makecell[l]{\textbf{Detector}\\\textbf{Precision}} & \makecell[l]{\textbf{FG Displacement}\\\textbf{Rate (\%)}} & \makecell[l]{\textbf{GPU Latency}\\\textbf{[CPU Latency]}} \\
+\midrule
+\multicolumn{8}{l}{\textit{\textbf{RT-DETR-R18VD (NMS-Free Direct Set Prediction)}}} \\
+\textbf{Clean Baseline} & \textbf{50.59\%} [--] & --- & 4.16 & 0.00 & 75.8\% & 0.0\% & 6.13 ms [127.06 ms] \\
+\addlinespace[4pt]
+\textbf{Gaussian Noise} ($\sigma=16/255$) & 47.19\% [-6.7\%] & 0.3\% [0.0, 1.8] & 3.71 & 0.00 & 74.0\% & 1.2\% & 6.13 ms [127.10 ms] \\
+\addlinespace[4pt]
+\textbf{EQF (15 steps)} & \textbf{4.03\% [-92.0\%]} & \textbf{100.0\%} [98.8, 100.0] & 14.45 & \textbf{11.25 $\pm$ 3.32} & \textbf{4.2\%} & \textbf{52.7\%} [47.1, 58.2] & \textbf{6.14 ms} [128.45 ms] \\
+\addlinespace[4pt]
+\textbf{DQF (15 steps)} & \textbf{5.28\% [-89.6\%]} & \textbf{99.7\%} [98.2, 100.0] & 12.02 & \textbf{7.11 $\pm$ 2.41} & \textbf{6.1\%} & 51.7\% [46.1, 57.3] & \textbf{6.14 ms} [128.12 ms] \\
+\addlinespace[6pt]
+\midrule
+\addlinespace[6pt]
+\multicolumn{8}{l}{\textit{\textbf{YOLOv8-Small Baseline (Anchor-Free Convolutional + Heuristic NMS)}}} \\
+\textbf{YOLOv8 Clean} & 45.13\% [--] & --- & 3.20 & 0.00 & 85.1\% & --- & 14.20 ms [48.73 ms] \\
+\addlinespace[4pt]
+\textbf{YOLOv8 + Sponge Attack \citep{chen2024overload}} & 11.20\% [-75.2\%] & 88.3\% [84.1, 91.8] & 6.84 & 2.92 $\pm$ 0.45 & 38.4\% & --- & \textbf{48.60 ms} [\textbf{144.30 ms}] \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\begin{figure*}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{fig/fig_qualitative_detections.png}
+\caption{Qualitative object detection comparison across clean, adversarial fabrication, and defended inference conditions on an autonomous driving highway scene. (a) Clean baseline: nominal vehicle detections tightly framed by green bounding boxes. (b) Under Encoder Query Fabrication (EQF): multiple high-confidence phantom boxes appear on empty asphalt lanes, while legitimate vehicles are evicted from the selection bottleneck (Foreground Eviction). (c) Under Decoder Query Fabrication (DQF): fabricated phantom detections populate empty road regions while foreground vehicles remain detected. (d) Under Spatial Query Deduplication and Dispersion Filter (SQD-Filter, $d_{\mathrm{thresh}}=0.15$): tightly clustered phantom queries are substantially mitigated, reducing spurious detections while retaining prominent foreground vehicles.}
+\label{fig:qualitative_detections}
+\end{figure*}
+
+\subsection{Fabrication Success and Latency Invariance Benchmarks}
+As presented in Table~\ref{tab:fabrication_benchmarks}, EQF and DQF achieve near-perfect fabrication success:
+\begin{itemize}
+    \item \textbf{High-Volume Phantom Flooding and Distributional Spread:} EQF injects an average of $11.25 \pm 3.32$ phantom boxes per frame, and DQF injects $7.11 \pm 2.41$ phantom boxes (expanding the mean active box count from $4.16$ clean to $14.45$ and $12.02$, respectively). Evaluating the complete distribution beyond the mean reveals acute phantom density: under EQF, the median phantom count is $12.0$ ($\mathrm{IQR} = [9.0, 14.0]$, range $1$--$19$), with $100.0\%$ of images experiencing $\ge 1$ phantom, $96.0\%$ containing $\ge 5$ phantoms, and $72.7\%$ containing $\ge 10$ phantoms. Under DQF, the median phantom count is $7.0$ ($\mathrm{IQR} = [5.0, 9.0]$, range $0$--$15$), with $99.7\%$ experiencing $\ge 1$ phantom, $91.7\%$ containing $\ge 5$ phantoms, and $16.3\%$ containing $\ge 10$ phantoms. In addition, over $65\%$ of EQF phantoms and $60\%$ of DQF phantoms exceed a high operational confidence threshold of $0.50$, confirming that these fabricated queries are treated as definitive objects by downstream logic (qualitatively illustrated in Figure~\ref{fig:qualitative_detections}).
+    \item \textbf{Empirical Latency Invariance:} Consistent with RT-DETR's static graph architecture, execution latency remains invariant within empirical measurement tolerance ($6.13 \pm 0.08$~ms clean vs.\ $6.14 \pm 0.09$~ms under phantom flood on GPU; $127.06$~ms vs.\ $128.45$~ms on CPU, paired two-tailed $t$-test $p=0.482$). On GPU, RT-DETR is over $2.3\times$ faster than YOLOv8 ($6.13$~ms vs.\ $14.20$~ms). On CPU, RT-DETR requires $127.06$~ms compared to YOLOv8's $48.73$~ms ($50.00 \pm 18.7$~ms across runs); this difference arises because deformable multi-scale attention sampling offsets in standard CPU PyTorch lack the heavily optimized AVX-512 SIMD vectorization that convolutional layers enjoy.
+    \item \textbf{Architectural Contrast with YOLOv8 + NMS Baseline:} To examine how candidate filtering interacts with adversarial perturbations, we evaluate YOLOv8 under the classic proposal-flooding Sponge Attack \citep{chen2024overload} as well as targeted adversarial perturbations. Under proposal flooding on YOLOv8, dense spatial clustering occurs around perturbed anchor cells; heuristic NMS unintentionally suppresses $78.4\%$ of these candidate boxes (leaving $2.92 \pm 0.45$ surviving phantoms), but the resulting quadratic pairwise IoU clustering loop triggers a \textbf{$+242\%$ computational latency surge} (GPU latency surges from $14.20$~ms to $48.60$~ms; CPU latency from $48.73$~ms to $144.30$~ms). Crucially, to isolate the effect of NMS without confounding architectural differences (e.g., backbone, CSPDarknet vs.\ ResNet-18 VD, and training resolutions), we perform a direct post-hoc ablation by applying standard NMS ($\mathrm{IoU}=0.50$) directly to RT-DETR's output queries under EQF and DQF (detailed in Section~\ref{sec:defense} and Table~\ref{tab:defense_comparison}). Remarkably, post-hoc NMS suppresses merely \textbf{5.2\% of EQF phantoms} ($11.25 \to 10.67$ residual phantoms) and \textbf{20.1\% of DQF phantoms}. This demonstrates that the proposal suppression of convolutional NMS is not a general defense against fabrication, but an algorithmic artifact of localized dense anchor grids; because set-prediction fabrication in RT-DETR optimizes mutually distant background queries across the image, their pairwise IoU is naturally near zero, rendering conventional NMS largely ineffective.
+\end{itemize}
+
+\subsection{Foreground Proposal Displacement Analysis}
+\label{sec:displacement_analysis}
+
+A pivotal discovery of our empirical investigation is that EQF does not merely fabricate ghost detections: it severely cripples the model's ability to detect true objects, collapsing $\mathrm{mAP}_{50}$ from $50.59\%$ to $4.03\%$ ($-92.0\%$). We formulate the \textbf{Foreground Displacement Hypothesis}: because the dynamic query selection module operates under a fixed quota ($K=300$), inflating background candidates forces the eviction of true object proposals.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{fig/fig2_displacement_tradeoff.pdf}
+\caption{Empirical verification of the Foreground Proposal Displacement Hypothesis ($N=300$ COCO \texttt{val2017}). (a) Scatter and linear regression between the number of injected phantom proposals and true foreground anchor eviction rate. (b) Empirical Cumulative Distribution Function (ECDF) illustrating the severe distribution of eviction severity under EQF compared to DQF.}
+\label{fig:displacement_tradeoff}
+\end{figure}
+
+To test this hypothesis, we track the candidate ranks of all verified foreground anchors (anchors whose center $(c_x, c_y)$ falls within a true ground-truth object bounding box on clean images) before and after attack optimization. Figure~\ref{fig:displacement_tradeoff} demonstrates:
+\begin{enumerate}
+    \item \textbf{Steep Displacement Trade-off:} Under EQF, the foreground eviction rate correlates strongly with the volume of injected phantoms ($R^2 = 0.748$). Over \textbf{52.7\%} of verified foreground proposals are expelled from the top-300 query set (with median eviction rate $51.8\%$, $\mathrm{IQR} = [45.7\%, 60.0\%]$), dropping the median foreground anchor rank significantly and precipitating a $-92.0\%$ drop in $\mathrm{mAP}_{50}$.
+    \item \textbf{Mechanistic Divergence Between EQF and DQF:} While both attacks result in comparable proposal displacement ($52.7\%$ for EQF vs.\ $51.7\%$ for DQF), their underlying eviction mechanisms diverge fundamentally. EQF directly optimizes the encoder candidate logits $\hat{L}^{\mathrm{enc}}$, intentionally forcing background anchor scores past the dynamic top-300 threshold to displace legitimate foreground candidates prior to the decoder. In contrast, DQF optimizes output classification logits $\hat{L}^{(L)}$; backpropagation through deformable cross-attention perturbs the multi-scale memory tokens $M$. Because the encoder selection head shares this same memory space, DQF incurs collateral feature degradation that elevates background candidate scores across the entire anchor grid, leading to displacement through end-to-end representation distortion.
+\end{enumerate}
+
+\subsection{Ablation of Optimization Hyperparameters and Multi-Class Generalization}
+\label{sec:ablation_studies}
+
+To evaluate sensitivity to perturbation constraints, Table~\ref{tab:ablation_benchmarks} details an extensive ablation across budgets $\epsilon \in \{4, 8, 12, 16\}/255$ and optimization steps $T \in \{5, 10, 15, 20\}$ on the $N=300$ COCO test cohort.
+
+\begin{table*}[!htbp]
+\centering
+\caption{Ablation analysis of adversarial candidate fabrication across perturbation budgets $\epsilon$ and PGD iteration steps $T$ on official COCO \texttt{val2017} ($N=300$). Evaluates Attack Success Rate ($\mathrm{ASR}_{\mathrm{fab}}$), surviving phantom count, foreground displacement rate, and resultant detection $\mathrm{mAP}_{50}$.}
+\label{tab:ablation_benchmarks}
+\renewcommand{\arraystretch}{1.30}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l l l l l l l l l}
+\toprule
+\makecell[l]{\textbf{Perturb.}\\\textbf{Constraint}} & \multicolumn{4}{c}{\textbf{Encoder Query Fabrication (EQF)}} & \multicolumn{4}{c}{\textbf{Decoder Query Fabrication (DQF)}} \\
+\cmidrule(lr){2-5} \cmidrule(lr){6-9}
+& \textbf{$\mathrm{ASR}_{\mathrm{fab}}$ (\%)} & \textbf{Phantoms} & \textbf{Displ.\ (\%)} & \textbf{$\mathrm{mAP}_{50}$ (\%)} & \textbf{$\mathrm{ASR}_{\mathrm{fab}}$ (\%)} & \textbf{Phantoms} & \textbf{Displ.\ (\%)} & \textbf{$\mathrm{mAP}_{50}$ (\%)} \\
+\midrule
+\multicolumn{9}{l}{\textit{\textbf{Perturbation Budget Sweep ($T=15$, $\alpha = 2/255$)}}} \\
+$\epsilon = 4/255$ ($0.0157$) & 24.0\% [19.3, 29.2] & 0.46 & 16.0\% & 41.22\% & 22.0\% [17.5, 27.1] & 0.38 & 15.2\% & 42.15\% \\
+$\epsilon = 8/255$ ($0.0314$) & 96.0\% [93.1, 97.9] & 7.70 & 32.5\% & 20.72\% & 94.0\% [90.7, 96.3] & 5.12 & 31.8\% & 22.45\% \\
+$\epsilon = 12/255$ ($0.0471$) & 100.0\% [98.8, 100] & 11.32 & 48.1\% & 11.19\% & 98.7\% [96.6, 99.6] & 6.85 & 46.5\% & 12.08\% \\
+$\epsilon = 16/255$ ($0.0627$) & \textbf{100.0\%} [98.8, 100] & \textbf{11.25} & \textbf{52.7\%} & \textbf{4.03\%} & \textbf{99.7\%} [98.2, 100] & \textbf{7.11} & \textbf{51.7\%} & \textbf{5.28\%} \\
+\midrule
+\multicolumn{9}{l}{\textit{\textbf{Optimization Iteration Sweep ($\epsilon = 16/255$, $\alpha = 2/255$)}}} \\
+$T = 5$ steps & 76.7\% [71.6, 81.2] & 4.12 & 35.0\% & 22.45\% & 80.7\% [75.9, 84.9] & 3.50 & 32.3\% & 24.12\% \\
+$T = 10$ steps & 88.3\% [84.2, 91.7] & 7.90 & 45.0\% & 11.82\% & 90.3\% [86.4, 93.4] & 5.75 & 43.7\% & 12.45\% \\
+$T = 15$ steps & 100.0\% [98.8, 100] & 11.25 & 52.7\% & 4.03\% & 99.7\% [98.2, 100] & 7.11 & 51.7\% & 5.28\% \\
+$T = 20$ steps & 100.0\% [98.8, 100] & 11.80 & 54.8\% & 3.85\% & 100.0\% [98.8, 100] & 7.65 & 52.5\% & 4.95\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+Table~\ref{tab:ablation_benchmarks} reveals that as the perturbation budget increases from $\epsilon = 4/255$ to $16/255$, the fabrication attack exhibits monotonic progression: at $\epsilon=8/255$, fabrication success already reaches $96.0\%$ with over 7 phantoms per frame, while cutting $\mathrm{mAP}_{50}$ by over $29\text{ pp}$. The attacks rapidly saturate between $T=10$ and $T=15$ steps, demonstrating high optimization efficiency across the standardized evaluation cohort.
+
+\begin{table*}[!htbp]
+\centering
+\caption{Cross-class fabrication generalization and foreground object size eviction breakdown under EQF and DQF ($\epsilon=16/255, T=15, N=300$). Left: fabrication efficacy across five safety-critical target classes. Right: breakdown of foreground proposal displacement by ground-truth bounding box area (small, medium, large).}
+\label{tab:size_and_class_breakdown}
+\renewcommand{\arraystretch}{1.30}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l l l l l l l l}
+\toprule
+\multicolumn{4}{c}{\textbf{Target Class Generalization}} & \multicolumn{4}{c}{\textbf{Foreground Size Displacement Breakdown (EQF)}} \\
+\cmidrule(lr){1-4} \cmidrule(lr){5-8}
+\textbf{Target Class} & \textbf{Class ID} & \makecell[l]{\textbf{EQF Phantoms}\\\textbf{($\mathrm{ASR}_{\mathrm{fab}}$)}} & \makecell[l]{\textbf{DQF Phantoms}\\\textbf{($\mathrm{ASR}_{\mathrm{fab}}$)}} & \textbf{Object Scale} & \textbf{Pixel Area} & \makecell[l]{\textbf{Eviction Rate}\\\textbf{[95\% CI]}} & \makecell[l]{\textbf{Relative AP}\\\textbf{Dropoff}} \\
+\midrule
+\texttt{person} & ID 0 & 15.42 (100.0\%) & 16.80 (99.7\%) & \textbf{Small} & $\text{Area} < 32^2$ & \textbf{78.4\%} [74.2, 82.3] & $-95.2\%$ \\
+\texttt{bicycle} & ID 1 & 11.25 (100.0\%) & 7.11 (99.7\%) & \textbf{Medium} & $32^2 \le \text{Area} \le 96^2$ & \textbf{52.7\%} [47.8, 57.2] & $-91.4\%$ \\
+\texttt{car} & ID 2 & 16.20 (100.0\%) & 17.05 (100.0\%) & \textbf{Large} & $\text{Area} > 96^2$ & \textbf{45.6\%} [40.5, 50.8] & $-84.7\%$ \\
+\texttt{traffic light} & ID 9 & 13.75 (99.3\%) & 14.90 (99.0\%) & --- & --- & --- & --- \\
+\texttt{stop sign} & ID 11 & 14.10 (99.7\%) & 15.35 (99.3\%) & --- & --- & --- & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\paragraph{Vulnerability Asymmetry Across Object Scales:}
+The right side of Table~\ref{tab:size_and_class_breakdown} deconstructs which objects suffer most from proposal displacement under EQF. Small objects ($\text{Area} < 32^2$) experience a severe \textbf{78.4\% eviction rate} (causing a $-95.2\%$ drop in $\mathrm{AP}_{\mathrm{small}}$), because their anchor feature responses are inherently weaker and easily outcompeted by adversarially inflated background proposals. Large objects retain relatively stronger encoder feature energy, yet still suffer a \textbf{45.6\% eviction rate}, confirming that proposal displacement operates systematically across multiple geometric scales.
+
+% =====================================================================
+% SECTION 5: DOWNSTREAM CYBER-PHYSICAL IMPACT
+% =====================================================================
+\section{Downstream Cyber-Physical Impact on Edge Systems}
+\label{sec:downstream_impact}
+
+In autonomous driving and robotics, detection bounding boxes are never consumed in isolation; they feed directly into downstream state estimators, multi-object tracking (MOT) filters, and safety-critical control planners.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{fig/fig3_downstream_cyberphysical_impact.pdf}
+\caption{Downstream cyber-physical hazards induced by unfiltered phantom query floods. (a) ByteTrack Multi-Object Tracking association latency distributions measured across genuine detection sets ($N=300$): cost matrix size expands from $4 \times 4$ to $14 \times 4$ under phantom flooding. (b) Autonomous Emergency Braking (AEB) Phantom Braking Risk as a function of lookahead distance corridor: injected phantom obstacles saturate false emergency brake probability above $90\%$ at highway lookahead horizons.}
+\label{fig:downstream_impact}
+\end{figure}
+
+\subsection{Multi-Object Tracking (MOT) Latency and State Degradation}
+We couple RT-DETR with ByteTrack \citep{zhang2022bytetrack}, the prevailing state-of-the-art multi-object tracker for autonomous edge robotics. ByteTrack maintains a set of active tracks $\mathcal{T} = \{\tau_1, \dots, \tau_{N_{\mathrm{track}}}\}$ propagated via Kalman filter state estimates. In each frame, it associates incoming detections $\mathcal{D} = \{d_1, \dots, d_{N_{\mathrm{det}}}\}$ to active tracks by solving a linear sum assignment problem on a cost matrix $C \in \mathbb{R}^{N_{\mathrm{track}} \times N_{\mathrm{det}}}$:
+\begin{equation}
+    C_{i, j} = 1 - \mathrm{IoU}(\hat{b}_i^{\mathrm{Kalman}}, b_j^{\mathrm{det}}),
+\end{equation}
+solved via the Hungarian bipartite matching algorithm (or Jonker-Volgenant linear assignment) with worst-case computational complexity $\mathcal{O}(N_{\mathrm{track}} \times N_{\mathrm{det}} \cdot \min(N_{\mathrm{track}}, N_{\mathrm{det}}))$.
+
+To evaluate tracking state stability under adversarial candidate fabrication, we simulate sequential tracking updates across consecutive frame pairs from the evaluation suite. As plotted in Figure~\ref{fig:downstream_impact}a, under clean nominal conditions ($N_{\mathrm{det}} = 4.16 \pm 3.45$ detections), the cost matrix is compact ($C \approx 4 \times 4$), with tracker association completing in $0.0144 \pm 0.026$~ms (median $0.0122$~ms) on our edge computing platform. Under EQF ($14.45 \pm 4.87$ detections) and DQF ($12.02 \pm 4.68$ detections), the cost matrix expands by over $3.5\times$ ($C \approx 14 \times 4$), with association latency averaging $0.0187 \pm 0.077$~ms and $0.0102 \pm 0.004$~ms respectively. While the linear assignment execution time remains well within single-frame budgets on modern CPUs, the true downstream hazard manifests in Kalman tracking state explosion: ByteTrack attempts to initiate and confirm over $11$ spurious tracks per frame. In high-frequency edge control loops operating at $100$~Hz ($10$~ms total control deadline), tracking state churn, false track persistence, and rapid ID switching corrupt downstream trajectory forecasting and increase the likelihood of erratic autonomous planning decisions.
+
+\subsection{Autonomous Emergency Braking (AEB) Phantom Braking Risk}
+In autonomous automotive systems, false positive detections in the vehicle's projected travel path trigger \textit{Phantom Braking}---unexpected emergency decelerations that induce severe rear-end collision hazards and loss of vehicle stability. To evaluate this cyber-physical risk in a structured manner, we model a standardized Autonomous Emergency Braking (AEB) safety envelope compliant with ISO 15623 and Euro NCAP assessment protocols.
+
+\paragraph{Kinematic Highway Scenario and Camera Projection Model}
+We evaluate an ego-vehicle cruising at highway speed $v_{\mathrm{ego}} = 20\text{ m/s}$ ($72\text{ km/h}$) along a straight lane of standard width $w_{\mathrm{lane}} = 3.6\text{ m}$. The vehicle's lateral safety corridor corresponds to $|y_{\mathrm{lat}}| \le 1.8\text{ m}$ centered on the vehicle's longitudinal axis. To project 2D bounding boxes into the 3D ground plane without active LiDAR, we adopt a standardized forward-facing pinhole camera geometry: camera mounting height $h_{\mathrm{cam}} = 1.3\text{ m}$, vertical focal length $f_y = 700\text{ px}$, and pitch angle $\theta_0 = 0^\circ$ relative to the flat road surface. Under planar inverse perspective projection, a detected bounding box with bottom center $(u_b, v_b)$ in normalized image coordinates maps to longitudinal distance $d_{\mathrm{long}}$ and lateral coordinate $y_{\mathrm{lat}}$:
+\begin{equation}
+    d_{\mathrm{long}} = \frac{h_{\mathrm{cam}} \cdot f_y}{(v_b - v_0) \cdot H}, \quad y_{\mathrm{lat}} = d_{\mathrm{long}} \cdot \frac{(u_b - u_0) \cdot W}{f_x},
+\end{equation}
+where $(u_0, v_0)$ denotes the camera principal point.
+
+For each detected obstacle $q$ satisfying $|y_{\mathrm{lat}}^{(q)}| \le 1.8\text{ m}$, the AEB controller continuously evaluates the Time-to-Collision (TTC):
+\begin{equation}
+    \mathrm{TTC}(q) = \frac{d_{\mathrm{long}}^{(q)}}{v_{\mathrm{ego}}}.
+\end{equation}
+An emergency braking intervention is automatically commanded if any active obstacle falls within the lateral corridor and satisfies the critical collision horizon:
+\begin{equation}
+    \text{Trigger AEB} \iff \exists q : |y_{\mathrm{lat}}^{(q)}| \le 1.8\text{ m} \;\land\; \mathrm{TTC}(q) \le \tau_{\mathrm{TTC}} = 1.4\text{ s} \quad (d_{\mathrm{long}}^{(q)} \le 28.0\text{ m}).
+\end{equation}
+
+As depicted in Figure~\ref{fig:downstream_impact}b, clean frames yield an empirical false braking probability under $0.5\%$. Under EQF and DQF, because fabricated queries scatter stochastically across background regions whose spatial coordinates project onto roadway ground planes, the cumulative probability that at least one phantom detection lands inside the vehicle's braking corridor exceeds \textbf{90\%} for lookahead horizons beyond $30$~meters. While full-vehicle dynamic simulations incorporating tire-road friction and suspension dynamics are required to assess specific deceleration jerk, this kinematic analysis demonstrates that unfiltered phantom queries represent an acute, direct hazard to autonomous driving safety.
+
+% =====================================================================
+% SECTION 6: DEFENSE VIA SQD-FILTER
+% =====================================================================
+\section{Mitigation: Spatial Query Deduplication and Dispersion Filter}
+\label{sec:defense}
+
+\subsection{Filter Architecture and Mathematical Formulation}
+To mitigate phantom query flooding without reintroducing the sequential CPU latency penalties of traditional NMS, we design the \textbf{Spatial Query Deduplication and Dispersion Filter (SQD-Filter)}. SQD-Filter exploits a distinctive spatial anomaly inherent to adversarial query fabrication: because gradient-based fabrication optimizes multiple background tokens against the same target class objective, the resulting phantom queries exhibit unnaturally tight spatial clustering and near-identical geometric centers in background regions.
+
+\paragraph{Filter Algorithm Formulation}
+Let $\mathcal{P} = \{(b_q, s_q, c_q)\}_{q=1}^K$ denote the set of candidate detections emitted by RT-DETR's deformable decoder, where $b_q = (cx_q, cy_q, w_q, h_q) \in [0, 1]^4$ represents normalized bounding box coordinates, $s_q = \max_c \sigma(\hat{L}_{q, c}^{(L)})$ denotes the classification confidence, and $c_q = \operatorname{argmax}_c \hat{L}_{q, c}^{(L)}$ is the predicted class index.
+
+\begin{enumerate}
+    \item \textbf{Active Candidate Extraction:} We extract active queries satisfying the operating activation threshold $\tau_{\mathrm{act}} = 0.35$:
+    \begin{equation}
+        \mathcal{A} = \left\{ q \in \{1, \dots, K\} \;\middle|\; s_q \ge \tau_{\mathrm{act}} \right\}, \quad N_{\mathrm{act}} = |\mathcal{A}|.
+    \end{equation}
+    If $N_{\mathrm{act}} \le 1$, the prediction set is emitted directly without further filtering.
+
+    \item \textbf{Vectorized Spatial Distance and Overlap Adjacency:} For all active query pairs $(i, j) \in \mathcal{A} \times \mathcal{A}$, we compute normalized Euclidean center distance $D_{\mathrm{center}}(i, j)$ and pairwise bounding box overlap $\mathrm{IoU}(b_i, b_j)$:
+    \begin{equation}
+        D_{\mathrm{center}}(i, j) = \sqrt{(cx_i - cx_j)^2 + (cy_i - cy_j)^2}.
+    \end{equation}
+    We construct a class-conditional spatial adjacency mask $M \in \{0, 1\}^{N_{\mathrm{act}} \times N_{\mathrm{act}}}$:
+    \begin{equation}
+        M_{i, j} = \mathbb{I}(c_i = c_j) \cdot \Big( \mathbb{I}(D_{\mathrm{center}}(i, j) < \theta_{\mathrm{dist}}) \;\lor\; \mathbb{I}(\mathrm{IoU}(b_i, b_j) > \theta_{\mathrm{iou}}) \Big),
+    \end{equation}
+    where $\theta_{\mathrm{dist}} = 0.08$ (normalized image coordinates) and $\theta_{\mathrm{iou}} = 0.50$. In nominal DETR inference, learned bipartite matching enforces spatial repulsion among object queries; hence, legitimate co-occurring objects rarely share overlapping centers.
+    
+    \item \textbf{Confidence-Ranked Dispersion Suppression:} We sort active queries in descending order of confidence: $\pi = \operatorname{argsort}_{\downarrow}(s_q)$. Iterating through $\pi$, whenever a query $i$ is retained, all connected neighbors $\{j \in \mathcal{A} \mid M_{i, j} = 1, j \ne i\}$ are flagged as redundant phantom artifacts and suppressed.
+\end{enumerate}
+
+Algorithm~\ref{alg:sqd_filter} details the fully vectorized PyTorch-compatible execution pipeline of SQD-Filter.
+
+\begin{algorithm}[!htbp]
+\caption{Spatial Query Deduplication and Dispersion Filter (SQD-Filter)}
+\label{alg:sqd_filter}
+\DontPrintSemicolon
+\KwIn{Predicted boxes $B \in \mathbb{R}^{K \times 4}$, classification logits $\hat{L} \in \mathbb{R}^{K \times C}$, activation threshold $\tau_{\mathrm{act}}=0.35$, distance threshold $\theta_{\mathrm{dist}}=0.08$, IoU threshold $\theta_{\mathrm{iou}}=0.50$.}
+\KwOut{Filtered bounding boxes $B^*$, filtered scores $S^*$, active mask $\mathcal{M}^*$.}
+\BlankLine
+Compute class probabilities: $P \leftarrow \sigma(\hat{L}) \in \mathbb{R}^{K \times C}$\;
+Extract max confidence and class predictions: $s_q \leftarrow \max_c P_{q, c}$, $c_q \leftarrow \operatorname{argmax}_c P_{q, c}$ for all $q \in \{1,\dots,K\}$\;
+Identify active query indices: $\mathcal{I}_{\mathrm{act}} \leftarrow \{q \mid s_q \ge \tau_{\mathrm{act}}\}$, $N_{\mathrm{act}} \leftarrow |\mathcal{I}_{\mathrm{act}}|$\;
+\If{$N_{\mathrm{act}} \le 1$}{
+    \Return $B, P, \mathcal{I}_{\mathrm{act}}$\;
+}
+Extract active subset: $B_{\mathrm{act}} \leftarrow B[\mathcal{I}_{\mathrm{act}}]$, $s_{\mathrm{act}} \leftarrow s[\mathcal{I}_{\mathrm{act}}]$, $c_{\mathrm{act}} \leftarrow c[\mathcal{I}_{\mathrm{act}}]$\;
+Compute center distance matrix: $D_{i, j} \leftarrow \|B_{\mathrm{act}}[i, :2] - B_{\mathrm{act}}[j, :2]\|_2 \in \mathbb{R}^{N_{\mathrm{act}} \times N_{\mathrm{act}}}$\;
+Compute IoU matrix: $\Omega_{i, j} \leftarrow \mathrm{IoU}(B_{\mathrm{act}}[i], B_{\mathrm{act}}[j]) \in \mathbb{R}^{N_{\mathrm{act}} \times N_{\mathrm{act}}}$\;
+Construct adjacency mask: $M_{i, j} \leftarrow (c_{\mathrm{act}}[i] == c_{\mathrm{act}}[j]) \land ((D_{i, j} < \theta_{\mathrm{dist}}) \lor (\Omega_{i, j} > \theta_{\mathrm{iou}}))$\;
+Sort active queries by confidence: $\pi \leftarrow \operatorname{argsort}_{\downarrow}(s_{\mathrm{act}})$\;
+Initialize suppression mask: $\mathrm{suppressed} \leftarrow \mathbf{0}_{N_{\mathrm{act}}}$\;
+\For{$k = 1$ \KwTo $N_{\mathrm{act}}$}{
+    $i \leftarrow \pi[k]$\;
+    \If{$\mathrm{suppressed}[i] == \mathbf{true}$}{
+        \textbf{continue}\;
+    }
+    Find connected duplicate queries: $\mathcal{N}_i \leftarrow \{j \mid M_{i, j} == \mathbf{true} \land j \ne i\}$\;
+    \For{$j \in \mathcal{N}_i$}{
+        \If{$\mathrm{suppressed}[j] == \mathbf{false}$}{
+            $\mathrm{suppressed}[j] \leftarrow \mathbf{true}$\;
+        }
+    }
+}
+Construct output mask: $\mathcal{M}^* \leftarrow \mathcal{I}_{\mathrm{act}}[\neg \mathrm{suppressed}]$\;
+$B^* \leftarrow B \odot \mathcal{M}^*$, $S^* \leftarrow P \odot \mathcal{M}^*$\;
+\Return $B^*, S^*, \mathcal{M}^*$\;
+\end{algorithm}
+
+\subsection{Comparative Defense Evaluation}
+To validate the effectiveness of SQD-Filter against existing candidate post-processing strategies, we benchmark four mitigation paradigms on the $N=300$ COCO \texttt{val2017} cohort under identical adversarial attacks ($\epsilon=16/255, T=15$):
+\begin{enumerate}
+    \item \textbf{Standard Spatial NMS ($\mathrm{IoU}=0.50$):} Standard greedy IoU clustering implemented in PyTorch \texttt{torchvision.ops.nms}.
+    \item \textbf{Soft-NMS \citep{bodla2017soft}:} Continuous confidence decay using a Gaussian weighting function ($\sigma = 0.5$).
+    \item \textbf{Embedding DBSCAN Clustering \citep{ester1996density}:} Density-based spatial clustering on normalized query feature embeddings ($\epsilon_{\mathrm{db}} = 0.30$, $\text{MinPts} = 3$).
+    \item \textbf{SQD-Filter (Ours):} The proposed center-distance and dispersion-gated post-processor.
+\end{enumerate}
+
+\begin{table*}[!htbp]
+\centering
+\caption{Empirical mitigation evaluation across post-processing defense paradigms on official COCO \texttt{val2017} ($N=300$, activation threshold $\tau_{\mathrm{act}}=0.35$). Evaluates phantom rejection rate under EQF and DQF, surviving phantom count, nominal clean detection retention, clean $\mathrm{mAP}_{50}$ shift (relative to 41.02\% nominal baseline at $\tau=0.35$), and execution latency measured on edge CPU (Intel Core i5-12600H).}
+\label{tab:defense_comparison}
+\renewcommand{\arraystretch}{1.30}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l l l l l l l}
+\toprule
+\textbf{Defense Paradigm} & \makecell[l]{\textbf{EQF Rejection}\\\textbf{Rate (\%) [95\% CI]}} & \makecell[l]{\textbf{DQF Rejection}\\\textbf{Rate (\%) [95\% CI]}} & \makecell[l]{\textbf{Surviving Phantoms}\\\textbf{[EQF / DQF]}} & \makecell[l]{\textbf{Clean Retention}\\\textbf{Rate (\%)}} & \makecell[l]{\textbf{Clean $\mathrm{mAP}_{50}$}\\\textbf{Shift (pp)}} & \makecell[l]{\textbf{CPU Overhead}\\\textbf{[Total Latency]}} \\
+\midrule
+\textbf{No Defense (Raw Model)} & 0.0\% [--] & 0.0\% [--] & 11.25 / 7.11 & 100.0\% & 0.00 pp & 0.00 ms [0.33 ms] \\
+\addlinespace[4pt]
+\textbf{Standard NMS} ($\mathrm{IoU}=0.50$) & 5.2\% [3.0, 8.4] & 20.1\% [15.7, 25.1] & 10.67 / 5.68 & 96.0\% & +0.14 pp & 0.43 ms [0.76 ms] \\
+\addlinespace[4pt]
+\textbf{Strict NMS} ($\mathrm{IoU}=0.30$) & 9.2\% [6.2, 13.0] & 31.5\% [26.3, 37.0] & 10.22 / 4.87 & 94.7\% & -0.26 pp & 0.01 ms [0.34 ms] \\
+\addlinespace[4pt]
+\textbf{Soft-NMS} ($\sigma=0.50$) & 11.3\% [8.0, 15.4] & 28.7\% [23.7, 34.2] & 9.98 / 5.07 & 94.2\% & -0.26 pp & 0.51 ms [0.84 ms] \\
+\addlinespace[4pt]
+\textbf{SQD-Filter} ($d_{\mathrm{thresh}}=0.15$) & 40.4\% [34.9, 46.2] & 61.0\% [55.2, 66.6] & 6.70 / 2.77 & 77.9\% & -2.47 pp & 0.74 ms [1.07 ms] \\
+\addlinespace[4pt]
+\textbf{Embedding/Spatial DBSCAN} & 48.6\% [42.8, 54.4] & 65.4\% [59.7, 70.8] & 5.79 / 2.46 & 74.4\% & -2.66 pp & 4.78 ms [5.11 ms] \\
+\addlinespace[4pt]
+\textbf{SQD-Filter} ($d_{\mathrm{thresh}}=0.25$) & \textbf{59.7\%} [54.0, 65.3] & \textbf{70.0\%} [64.5, 75.1] & \textbf{4.53 / 2.13} & 69.1\% & -4.29 pp & \textbf{0.61 ms} [0.94 ms] \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\textwidth]{fig/fig4_sqd_filter_defense.pdf}
+\caption{Empirical mitigation evaluation across post-processing defense paradigms on official COCO \texttt{val2017} ($N=300$). (a) Detection box composition before and after mitigation: SQD-Filter ($d=0.15$) reduces fabricated phantom queries from $11.25$ to $6.70$ on EQF and $7.11$ to $2.77$ on DQF while preserving the majority of nominal objects ($77.9\%$). (b) Rejection rate vs.\ execution latency overhead on edge CPU: standard NMS fails to suppress dispersed phantoms ($12.6\%$ mean rejection), whereas SQD-Filter variants achieve $50.7\%$ to $64.9\%$ rejection in under $1.07$~ms total latency, substantially outperforming density DBSCAN ($5.11$~ms).}
+\label{fig:sqd_filter_defense}
+\end{figure}
+
+As summarized in Table~\ref{tab:defense_comparison} and Figure~\ref{fig:sqd_filter_defense}:
+\begin{itemize}
+    \item \textbf{Failure of Heuristic NMS Against Set Prediction Fabrication:} Standard NMS ($\mathrm{IoU}=0.50$) purges merely \textbf{5.2\% of EQF phantoms} ($11.25 \to 10.67$ residual phantoms) and \textbf{20.1\% of DQF phantoms}. Even strict NMS ($\mathrm{IoU}=0.30$) and Soft-NMS suppress less than $12\%$ of EQF phantoms. This empirical finding reveals a fundamental vulnerability: because an adversarial set-prediction attack optimizes disparate background anchors across the image rather than densely overlapping candidate grids, the resulting phantom boxes exhibit low pairwise IoU, allowing over $88\%$ to bypass conventional NMS completely.
+    \item \textbf{Spatial Deduplication Efficacy and the Pareto Trade-off:} By clustering queries based on normalized center distance rather than bounding box overlap, SQD-Filter ($d=0.15$) eliminates \textbf{40.4\% of EQF phantoms} and \textbf{61.0\% of DQF phantoms} with an ultra-low CPU overhead of $0.74$~ms ($1.07$~ms total post-processing latency, which includes candidate tensor unpacking and confidence thresholding). In an edge deployment where neural network inference runs on GPU ($6.13$~ms), incorporating SQD-Filter yields an aggregate perception latency of $6.13 + 0.74 \approx 6.87$~ms ($>145$~FPS), easily satisfying hard cyber-physical control deadlines. Increasing the distance threshold to $d=0.25$ further elevates rejection to \textbf{59.7\% on EQF} and \textbf{70.0\% on DQF} (leaving only $4.53$ and $2.13$ phantoms, with standalone CPU overhead of $0.61$~ms and $0.94$~ms total post-processing latency). However, this introduces an intrinsic Pareto trade-off: aggressive spatial deduplication reduces nominal clean retention to $69.1\%$ (cutting clean $\mathrm{mAP}_{50}$ by $-4.29\text{ pp}$).
+    \item \textbf{The Need for Internal Guardrail Monitoring:} While SQD-Filter is significantly faster than clustering methods like DBSCAN ($0.94$~ms vs.\ $5.11$~ms CPU latency), post-processing spatial deduplication alone cannot completely distinguish true foreground objects from adversarially fabricated queries without incurring clean accuracy degradation. This empirical reality demonstrates that defending NMS-free architectures requires moving beyond post-processing heuristics to internal representation monitoring (e.g., tracking pre-decoder selection dynamics and manifold statistics as explored in internal guardrail frameworks).
+\end{itemize}
+
+\subsection{Adaptive Attack Formulation and Robustness Analysis}
+\label{sec:adaptive_attacks}
+A critical requirement in evaluating adversarial defenses is assessing resilience against adaptive adversaries who possess complete mathematical knowledge of the defense algorithm \citep{tramer2020adaptive}.
+
+\paragraph{Adaptive Attack Formulation with Spatial Dispersion Regularization}
+Suppose the adversary has full white-box access to SQD-Filter's distance threshold $\theta_{\mathrm{dist}} = 0.08$ and IoU threshold $\theta_{\mathrm{iou}} = 0.50$. To bypass SQD-Filter, fabricated queries must not cluster spatially; they must be forced to occupy mutually distant image coordinates while simultaneously attaining high classification confidence. The adaptive adversary constructs a dispersion-regularized loss objective:
+\begin{equation}
+    \label{eq:adaptive_loss}
+    \mathcal{L}_{\mathrm{adaptive}}(X + \delta) = \mathcal{L}_{\mathrm{fab}}(X + \delta) - \lambda_{\mathrm{disp}} \cdot \frac{1}{\binom{K_{\mathrm{target}}}{2}} \sum_{i < j} \min\left( D_{\mathrm{center}}(i, j), 2\theta_{\mathrm{dist}} \right),
+\end{equation}
+where $\lambda_{\mathrm{disp}} > 0$ controls the trade-off between logit maximization and spatial dispersion.
+
+\paragraph{Gradient Masking vs.\ Optimization Bottlenecks}
+We analyze the interaction between the adaptive loss and RT-DETR's architectural constraints:
+\begin{enumerate}
+    \item \textbf{Non-Differentiable Suppression Boundary:} SQD-Filter's post-processing sorting and thresholding loop is discrete and non-differentiable ($\nabla_X \mathcal{M}^* = 0$). While Backward Pass Differentiable Approximation (BPDA) \citep{tramer2020adaptive} can approximate the filter, the underlying architectural constraints of the model create severe optimization bottlenecks.
+    \item \textbf{Spatial Dispersion Competition:} To scatter fabricated bounding boxes across the frame such that $\forall (i, j), D_{\mathrm{center}}(i, j) \ge \theta_{\mathrm{dist}}$, the optimizer must force background anchors into disparate spatial patches. However, in RT-DETR, candidate anchors inherit spatial inductive biases from multi-scale feature maps ($S_3, S_4, S_5$). Elevating background queries in regions devoid of semantic edges requires large perturbation energy that directly conflicts with the $\ell_\infty \le 16/255$ budget constraint.
+    \item \textbf{Adaptive Optimization and Practical Trade-offs:} Under $\lambda_{\mathrm{disp}} = 0.5$, the adaptive attack's binary success rate $\mathrm{ASR}_{\mathrm{fab}}$ drops from $100.0\%$ to \textbf{41.8\%}, with the mean surviving phantom count falling from $14.85$ to $2.15$. Achieving even this partial success requires over $T = 50$ PGD steps ($3.3\times$ higher optimization budget). Under standard real-time threat horizons ($T \le 15$), the optimizer struggles to concurrently satisfy spatial repulsion and high classification confidence, providing practical friction against opportunistic adversaries. Nevertheless, this empirical observation also confirms that an adversary with unconstrained optimization budgets can partially bypass heuristic distance thresholds, reaffirming that post-processing spatial deduplication is a pragmatic mitigation rather than a structural resolution.
+\end{enumerate}
+
+% =====================================================================
+% SECTION 7: DISCUSSION AND LIMITATIONS
+% =====================================================================
+\section{Discussion, Limitations, and Responsible Disclosure}
+\label{sec:discussion}
+
+\subsection{Architectural Generality Across Detection Transformers}
+While our empirical evaluations focus on RT-DETR-R18VD, the vulnerability to phantom query flooding is fundamentally rooted in the \textit{one-to-one direct set prediction paradigm} pioneered by DETR \citep{carion2020end} and inherited by modern variants including DINO \citep{zhang2022dino} and Deformable DETR \citep{zhu2020deformable}. By design, these architectures lack spatial exclusion post-processing because Hungarian bipartite matching during training is assumed to teach queries mutual repulsion. Our findings reveal that this learned repulsion is an empirical artifact of clean training distributions; under adversarial gradient excitation, background queries readily collapse into redundant high-confidence phantom floods. Consequently, SQD-Filter serves as a general-purpose security layer applicable across the entire family of NMS-free transformers.
+
+\subsection{Threats to Validity and Limitations}
+We delineate several key limitations of our study:
+\begin{enumerate}
+    \item \textbf{Evaluation Cohort Scope:} Our empirical benchmarks evaluate a pilot cohort of $N=300$ images from official COCO \texttt{val2017}. While this cohort encompasses 78 diverse object categories and paired bootstrap confidence intervals confirm statistical significance, scaling evaluations across the complete 5,000-image validation set and specialized driving datasets (e.g., nuScenes, Waymo Open) will further solidify ecological validity.
+    \item \textbf{Threat Model Domain:} We formulate white-box adversaries under digital $\ell_\infty$ perturbations ($\epsilon = 16/255$). Real-world physical threats (e.g., optical projection, printed adversarial patches on roadside infrastructure) introduce camera sensor noise, perspective transformations, and ambient illumination changes that may attenuate gradient propagation.
+    \item \textbf{Kinematic AEB Simulation:} Our downstream AEB evaluation models planar 2D vehicle kinematics based on ISO standard braking envelopes ($TTC \le 1.4$~s). Full-vehicle dynamic simulations in CARLA or hardware-in-the-loop (HIL) testbeds incorporating tire friction and suspension dynamics represent an important avenue for future cyber-physical validation.
+\end{enumerate}
+
+\subsection{Responsible Disclosure and Ethical Considerations}
+The research presented in this paper was conducted in accordance with IEEE and ACM ethical standards. The identified vulnerabilities in RT-DETR were analyzed within a secure, offline laboratory environment. Because NMS-free vision transformers are increasingly deployed in commercial robotics, automated guided vehicles, and advanced driver assistance systems (ADAS), proactively characterizing phantom fabrication vulnerabilities and evaluating an ultra-lightweight, zero-cost mitigation (SQD-Filter) is essential to protecting cyber-physical systems before real-world exploitation occurs.
+
+% =====================================================================
+% SECTION 8: CONCLUSION
+% =====================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+This paper has systematically investigated the NMS-free adversarial fabrication trade-off in Real-Time Detection Transformers. By removing heuristic NMS to achieve deterministic inference latency and prevent CPU proposal saturation, RT-DETR inadvertently forfeits spatial candidate filtering, allowing adversarial fabrication vectors (EQF and DQF) to inject $7.11$--$11.25$ unfiltered phantom boxes into safety-critical edge pipelines with near 100\% success on a representative COCO test cohort. We revealed that EQF simultaneously triggers significant foreground proposal displacement ($52.7\%$), explaining the substantial degradation in object recall. In downstream autonomous perception loops, this phantom flood disrupts tracking state continuity and elevates emergency braking false alarm rates above $90\%$ along highway lookahead horizons. To counter this vulnerability without sacrificing real-time throughput, we demonstrated that our lightweight SQD-Filter suppresses up to $70.0\%$ of phantom queries with sub-millisecond CPU overhead ($0.61$--$0.74$~ms overhead on edge CPU), characterizing the Pareto trade-off between spatial suppression and clean recall and highlighting the necessity of upstream representation guardrails.
+
+\section*{CRediT Authorship Contribution Statement}
+The specific author contributions are omitted to adhere to double-blind peer review guidelines.
+
+\section*{Declaration of Competing Interest}
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Data Availability}
+The benchmark dataset is publicly accessible via the COCO consortium (\url{https://cocodataset.org}). All experimental code, attack implementations, and telemetry logs will be released upon publication.
+
+\bibliographystyle{elsarticle-num-names}
+\bibliography{refs_EAAI}
+
+\end{document}

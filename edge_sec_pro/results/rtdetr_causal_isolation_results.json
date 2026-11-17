@@ -1,0 +1,49 @@
+{
+  "num_eval_images": 35,
+  "causal_intervention_map": {
+    "Arm_A_Clean_Baseline": {
+      "mAP@50": 100.0,
+      "mAP@75": 100.0,
+      "mAP@50:95": 100.0
+    },
+    "Arm_B_AQSM_Attack": {
+      "mAP@50": 10.92065903960365,
+      "mAP@75": 5.557559122217719,
+      "mAP@50:95": 5.7680988894838485
+    },
+    "Arm_C_Oracle_Selection_Swap": {
+      "mAP@50": 16.47220885094479,
+      "mAP@75": 8.251927671291382,
+      "mAP@50:95": 9.162795355836053
+    },
+    "Arm_D_Reverse_Poisoned_Selection": {
+      "mAP@50": 96.09155859458761,
+      "mAP@75": 95.52704396101866,
+      "mAP@50:95": 94.23898572161995
+    },
+    "recovery_percentage_map50": 6.232140641688506,
+    "starvation_drop_percentage_map50": 3.9084414054123897
+  },
+  "gt_proposal_eviction": {
+    "mean_top300_eviction_rate_pct": 56.438095238095244,
+    "mean_queries_evicted": 169.31428571428572,
+    "mean_queries_preserved": 130.68571428571428
+  },
+  "loss_ablation": {
+    "pure_ranking_margin": {
+      "mAP@50": 21.62575271122379,
+      "mAP@75": 10.87697103043638,
+      "mAP@50:95": 12.20740746461186
+    },
+    "pure_suppression": {
+      "mAP@50": 12.998288968601504,
+      "mAP@75": 10.754754046833256,
+      "mAP@50:95": 8.70046899827703
+    },
+    "full_combined_aqsm": {
+      "mAP@50": 10.92065903960365,
+      "mAP@75": 5.557559122217719,
+      "mAP@50:95": 5.7680988894838485
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "num_eval_images": 35,
+  "factorial_arms": {
+    "Arm_A_Clean": {
+      "mAP@50": 100.0,
+      "mAP@75": 100.0,
+      "mAP@50:95": 100.0
+    },
+    "Arm_B_AQSM": {
+      "mAP@50": 10.92065903960365,
+      "mAP@75": 5.557559122217719,
+      "mAP@50:95": 5.7680988894838485
+    },
+    "Arm_C_full_clean_prior_on_adv_memory": {
+      "mAP@50": 27.690373167422116,
+      "mAP@75": 16.06460486231772,
+      "mAP@50:95": 15.532243015500196
+    },
+    "Arm_C_index_clean_indices_on_adv_memory": {
+      "mAP@50": 16.47220885094479,
+      "mAP@75": 8.251927671291382,
+      "mAP@50:95": 9.162795355836053
+    },
+    "Arm_D_full_adv_prior_on_clean_memory": {
+      "mAP@50": 89.92390905473523,
+      "mAP@75": 78.89659295127794,
+      "mAP@50:95": 75.58910925914304
+    },
+    "Arm_D_index_adv_indices_on_clean_memory": {
+      "mAP@50": 96.09155859458761,
+      "mAP@75": 95.52704396101866,
+      "mAP@50:95": 94.23898572161995
+    }
+  },
+  "gt_proposal_eviction": {
+    "mean_pct": 56.438095238095244,
+    "std_pct": 8.908626612329975,
+    "median_pct": 54.666666666666664,
+    "min_pct": 42.333333333333336,
+    "max_pct": 76.66666666666667,
+    "mean_evicted_queries": 169.31428571428575
+  },
+  "variance_decomposition": {
+    "delta_total": 89.07934096039635,
+    "memory_direct_loss_pct": 72.30962683257789,
+    "memory_loss_share_pct": 81.17440705440998,
+    "query_prior_recovery_pct": 16.769714127818467,
+    "query_prior_direct_loss_pct": 10.076090945264767,
+    "query_loss_share_pct": 11.31136673961753
+  },
+  "loss_ablation": {
+    "pure_ranking_margin": {
+      "mAP@50": 21.625,
+      "mAP@50:95": 12.207
+    },
+    "pure_suppression": {
+      "mAP@50": 12.998,
+      "mAP@50:95": 8.7
+    },
+    "combined_aqsm": {
+      "mAP@50": 10.92,
+      "mAP@50:95": 5.768
+    }
+  }
+}

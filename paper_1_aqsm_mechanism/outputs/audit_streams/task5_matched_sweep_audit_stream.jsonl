@@ -1,0 +1,11 @@
+{"record_type": "METADATA", "task_name": "task5_matched_sweep", "timestamp": "2026-11-17 10:35:00", "experiment_config": {"epsilons": ["4/255", "8/255", "16/255"], "attacks": ["AQSM", "Vanishing", "Task PGD"]}}
+{"record_type": "SWEEP_POINT", "attack": "aqsm", "epsilon_label": "4/255", "epsilon_val": 0.015686, "mAP50": 8.696691, "mAP50_95": 4.037757}
+{"record_type": "SWEEP_POINT", "attack": "task_pgd", "epsilon_label": "4/255", "epsilon_val": 0.015686, "mAP50": 0.026203, "mAP50_95": 0.012372}
+{"record_type": "SWEEP_POINT", "attack": "vanishing", "epsilon_label": "4/255", "epsilon_val": 0.015686, "mAP50": 11.464986, "mAP50_95": 6.582076}
+{"record_type": "SWEEP_POINT", "attack": "aqsm", "epsilon_label": "8/255", "epsilon_val": 0.031373, "mAP50": 2.243229, "mAP50_95": 1.120488}
+{"record_type": "SWEEP_POINT", "attack": "task_pgd", "epsilon_label": "8/255", "epsilon_val": 0.031373, "mAP50": 0.027563, "mAP50_95": 0.005817}
+{"record_type": "SWEEP_POINT", "attack": "vanishing", "epsilon_label": "8/255", "epsilon_val": 0.031373, "mAP50": 3.637164, "mAP50_95": 1.511759}
+{"record_type": "SWEEP_POINT", "attack": "aqsm", "epsilon_label": "16/255", "epsilon_val": 0.062745, "mAP50": 2.031549, "mAP50_95": 1.132656}
+{"record_type": "SWEEP_POINT", "attack": "task_pgd", "epsilon_label": "16/255", "epsilon_val": 0.062745, "mAP50": 0.0, "mAP50_95": 0.0}
+{"record_type": "SWEEP_POINT", "attack": "vanishing", "epsilon_label": "16/255", "epsilon_val": 0.062745, "mAP50": 3.092263, "mAP50_95": 1.506138}
+{"record_type": "TASK_COMPLETED", "total_duration_sec": 240.0, "timestamp": "2026-11-17 10:39:00"}

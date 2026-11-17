@@ -1,0 +1,17 @@
+{
+  "attack": "dqf",
+  "n_eval": 300,
+  "epsilon_num_255": 16,
+  "epsilon": 0.06274509803921569,
+  "alpha": 0.00784313725490196,
+  "steps": 15,
+  "margin": null,
+  "lambda_rank": null,
+  "lambda_supp": null,
+  "evasion_weight": null,
+  "max_linf": 0.0627451241016388,
+  "mean_l2": 16.037901061375937,
+  "std_l2": 0.2797607180718703,
+  "elapsed_sec": 2702.197053194046,
+  "threads": 5
+}

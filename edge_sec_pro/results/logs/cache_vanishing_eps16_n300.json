@@ -1,0 +1,16 @@
+{
+  "attack": "vanishing",
+  "n_eval": 300,
+  "epsilon_num_255": 16,
+  "epsilon": 0.06274509803921569,
+  "alpha": 0.00784313725490196,
+  "steps": 15,
+  "margin": null,
+  "lambda_rank": null,
+  "lambda_supp": null,
+  "max_linf": 0.0627451241016388,
+  "mean_l2": 15.948711973826091,
+  "std_l2": 0.2667749948410029,
+  "elapsed_sec": 3280.2149097919464,
+  "threads": 5
+}

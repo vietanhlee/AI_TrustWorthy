@@ -1,0 +1,40 @@
+# ==========================================
+# Git Ignore Configuration for Edge_Sec
+# ==========================================
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+
+# Large Datasets & Large Binary Caches
+edge_sec_pro/data/coco5k/
+*.npz
+*.pt
+
+# LaTeX Build Auxiliary Files
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
+*.toc
+*.spl
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# OS & IDE Temporary Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
