@@ -1,6 +1,6 @@
 {
   "experiment": "step11_mcnemar_tests",
-  "timestamp": "2026-11-17 19:09:36",
+  "timestamp": "2026-11-17 23:23:18",
   "comparisons": {
     "AQSM: ESM Drop vs. Top1Mean": {
       "N": 300,
@@ -94,6 +94,6 @@
     }
   },
   "artifacts": {
-    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step11_mcnemar_tests_20261117_190936.log"
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step11_mcnemar_tests_20261117_232318.log"
   }
 }
