@@ -1,0 +1,46 @@
+{
+  "target_fpr_pct": 5.0,
+  "empirical_clean_fpr_pct": 26.67,
+  "n_cal": 15,
+  "n_test": 15,
+  "fused_threshold": 0.9333,
+  "attacks": {
+    "aqsm": {
+      "tpr_detection_rate_pct": 80.0,
+      "auroc": 0.88,
+      "mean_anomaly_score": 0.9022
+    },
+    "vanishing": {
+      "tpr_detection_rate_pct": 53.33,
+      "auroc": 0.7111,
+      "mean_anomaly_score": 0.76
+    },
+    "task_pgd": {
+      "tpr_detection_rate_pct": 53.33,
+      "auroc": 0.7511,
+      "mean_anomaly_score": 0.8044
+    }
+  },
+  "adaptive_evasion": {
+    "lambda_0.2": {
+      "evasion_weight_lambda": 0.2,
+      "detected_tpr_pct": 46.67,
+      "evasion_success_pct": 53.33
+    },
+    "lambda_0.5": {
+      "evasion_weight_lambda": 0.5,
+      "detected_tpr_pct": 53.33,
+      "evasion_success_pct": 46.67
+    },
+    "lambda_1.0": {
+      "evasion_weight_lambda": 1.0,
+      "detected_tpr_pct": 53.33,
+      "evasion_success_pct": 46.67
+    },
+    "lambda_2.0": {
+      "evasion_weight_lambda": 2.0,
+      "detected_tpr_pct": 53.33,
+      "evasion_success_pct": 46.67
+    }
+  }
+}

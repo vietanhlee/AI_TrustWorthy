@@ -1,0 +1,73 @@
+{
+  "experiment": "step10_epsilon_sweep",
+  "timestamp": "2026-11-18 23:07:31",
+  "hardware": {
+    "device": "cpu",
+    "num_threads": 4
+  },
+  "cohort_size": 25,
+  "sweep_data": {
+    "clean_baseline": {
+      "mAP@50": 100.0,
+      "mAP@75": 100.0,
+      "mAP@50:95": 100.0,
+      "active_classes": 23
+    },
+    "aqsm": {
+      "eps_2": {
+        "epsilon": 0.00784313725490196,
+        "mAP@50": 56.835384349377996,
+        "mean_dropoff": 27.814429779052734,
+        "tpr_esm": 20.0
+      },
+      "eps_4": {
+        "epsilon": 0.01568627450980392,
+        "mAP@50": 30.198146146788456,
+        "mean_dropoff": 19.563160171508787,
+        "tpr_esm": 40.0
+      },
+      "eps_8": {
+        "epsilon": 0.03137254901960784,
+        "mAP@50": 28.123192203480347,
+        "mean_dropoff": 21.840240592956544,
+        "tpr_esm": 28.000000000000004
+      },
+      "eps_16": {
+        "epsilon": 0.06274509803921569,
+        "mAP@50": 16.223904963719153,
+        "mean_dropoff": 17.491536769866944,
+        "tpr_esm": 44.0
+      }
+    },
+    "query_vanishing": {
+      "eps_2": {
+        "epsilon": 0.00784313725490196,
+        "mAP@50": 60.888550406576115,
+        "mean_active_queries": 3.0,
+        "tpr_active_q": 40.0
+      },
+      "eps_4": {
+        "epsilon": 0.01568627450980392,
+        "mAP@50": 21.708502037379642,
+        "mean_active_queries": 3.6,
+        "tpr_active_q": 24.0
+      },
+      "eps_8": {
+        "epsilon": 0.03137254901960784,
+        "mAP@50": 19.40186200604034,
+        "mean_active_queries": 3.64,
+        "tpr_active_q": 28.000000000000004
+      },
+      "eps_16": {
+        "epsilon": 0.06274509803921569,
+        "mAP@50": 10.836348721567504,
+        "mean_active_queries": 3.56,
+        "tpr_active_q": 24.0
+      }
+    }
+  },
+  "artifacts": {
+    "history_csv": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\step10_epsilon_sweep_history.csv",
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step10_epsilon_sweep_20261118_223438.log"
+  }
+}

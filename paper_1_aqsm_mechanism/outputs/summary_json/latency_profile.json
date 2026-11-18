@@ -1,0 +1,66 @@
+{
+  "experiment": "Table 10: Hardware Execution Latency Breakdown & Profiling",
+  "n_runs": 3,
+  "device_type": "cpu",
+  "hardware_metadata": {
+    "cpu_threads": 8,
+    "cpu_cores": 16,
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel"
+  },
+  "throughput_fps": 3.01,
+  "stages": {
+    "Backbone": {
+      "mean_ms": 163.586,
+      "std_ms": 0.261,
+      "median_ms": 163.562,
+      "p95_ms": 163.829,
+      "p99_ms": 163.853,
+      "min_ms": 163.339,
+      "max_ms": 163.859
+    },
+    "Hybrid_Encoder": {
+      "mean_ms": 95.105,
+      "std_ms": 7.924,
+      "median_ms": 97.719,
+      "p95_ms": 101.024,
+      "p99_ms": 101.318,
+      "min_ms": 86.204,
+      "max_ms": 101.391
+    },
+    "Query_Selection": {
+      "mean_ms": 16.827,
+      "std_ms": 0.515,
+      "median_ms": 16.838,
+      "p95_ms": 17.286,
+      "p99_ms": 17.326,
+      "min_ms": 16.307,
+      "max_ms": 17.336
+    },
+    "Deformable_Decoder": {
+      "mean_ms": 56.195,
+      "std_ms": 6.362,
+      "median_ms": 56.473,
+      "p95_ms": 61.82,
+      "p99_ms": 62.295,
+      "min_ms": 49.699,
+      "max_ms": 62.414
+    },
+    "End_to_End_Total": {
+      "mean_ms": 331.742,
+      "std_ms": 2.908,
+      "median_ms": 331.785,
+      "p95_ms": 334.344,
+      "p99_ms": 334.571,
+      "min_ms": 328.812,
+      "max_ms": 334.628
+    }
+  },
+  "percentage_breakdown": {
+    "Backbone_pct": 49.31,
+    "Hybrid_Encoder_pct": 28.67,
+    "Query_Selection_pct": 5.07,
+    "Deformable_Decoder_pct": 16.94
+  },
+  "timing_invariance_note": "RT-DETR eliminates NMS sponge attacks; computational latency remains deterministic across clean and perturbed inputs.",
+  "timestamp": "2026-11-19 00:48:06"
+}

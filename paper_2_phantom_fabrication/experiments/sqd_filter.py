@@ -9,6 +9,7 @@ and dispersion entropy without invoking heavy quadratic IoU clustering loops.
 
 import torch
 import torch.nn as nn
+import numpy as np
 from typing import Dict, Any, Tuple, List, Optional
 
 
@@ -95,3 +96,63 @@ class SpatialQueryDeduplicationFilter(nn.Module):
         }
 
         return filtered_boxes, filtered_probs, telemetry
+
+
+def apply_sqd_filter(
+    logits: torch.Tensor,
+    pred_boxes: torch.Tensor,
+    score_thresh: float = 0.35,
+    dist_thresh: float = 0.15,
+) -> List[Dict[str, np.ndarray]]:
+    """
+    Hàm tiện ích chạy Spatial Query Deduplication Filter trên dự đoán RT-DETR.
+    Nhận:
+        logits: [B, K, C] hoặc tensor logits
+        pred_boxes: [B, K, 4] dạng cxcywh [0, 1]
+    Trả về:
+        List[Dict[str, np.ndarray]] chứa boxes (xyxy [0, 1]), scores, labels
+    """
+    from paper_2_phantom_fabrication.core.coco_gt import box_cxcywh_to_xyxy
+    
+    probs = torch.sigmoid(logits.detach().cpu())
+    max_p, pred_cls = probs.max(dim=-1)
+    boxes_xyxy = box_cxcywh_to_xyxy(pred_boxes.detach().cpu()).clamp(0.0, 1.0)
+    
+    bsz = len(logits)
+    results = []
+    
+    for b in range(bsz):
+        act_mask = max_p[b] >= score_thresh
+        b_boxes = boxes_xyxy[b, act_mask].numpy()
+        b_scores = max_p[b, act_mask].numpy()
+        b_labels = pred_cls[b, act_mask].numpy()
+        
+        if len(b_boxes) <= 1:
+            results.append({"boxes": b_boxes, "scores": b_scores, "labels": b_labels})
+            continue
+            
+        centers = np.stack([(b_boxes[:, 0] + b_boxes[:, 2]) / 2.0, (b_boxes[:, 1] + b_boxes[:, 3]) / 2.0], axis=1)
+        diff = centers[:, None, :] - centers[None, :, :]
+        dists = np.sqrt(np.sum(diff ** 2, axis=-1))
+        
+        order = np.argsort(-b_scores)
+        suppressed = np.zeros(len(b_boxes), dtype=bool)
+        keep = []
+        
+        for idx in order:
+            if suppressed[idx]:
+                continue
+            keep.append(idx)
+            same_cls = (b_labels == b_labels[idx])
+            within_dist = (dists[idx] < dist_thresh)
+            suppressed |= (same_cls & within_dist)
+            
+        keep = sorted(keep)
+        results.append({
+            "boxes": b_boxes[keep],
+            "scores": b_scores[keep],
+            "labels": b_labels[keep],
+        })
+        
+    return results
+

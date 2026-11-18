@@ -33,6 +33,7 @@ MECHANISM_NPZ_PATH = CHECKPOINTS_DIR / "raw_mechanism_analysis_n300.npz"
 FIG_DIRS = [
     WORKSPACE_DIR / "paper_1_aqsm_mechanism" / "fig",
     WORKSPACE_DIR / "paper_1_aqsm_mechanism" / "ieee" / "fig",
+    WORKSPACE_DIR / "paper_3_defense_guardrail" / "fig",
     SCRIPT_DIR / "paper" / "fig",
     SCRIPT_DIR / "paper_ieee" / "fig",
     SCRIPT_DIR / "slides",

@@ -1,0 +1,140 @@
+{
+  "experiment": "step9_defensive_baselines",
+  "timestamp": "2026-11-18 22:10:08",
+  "hardware": {
+    "device": "cpu",
+    "num_threads": 4
+  },
+  "eval_cohort_size": 25,
+  "calibration_size": 100,
+  "results": {
+    "Clean Test": {
+      "ground_truth_class": 0,
+      "sample_count": 25,
+      "tv_detector": {
+        "trigger_rate_pct": 4.0,
+        "ci_95": [
+          0.1,
+          20.35
+        ],
+        "threshold": 0.11938,
+        "latency_per_frame_ms": 3.0
+      },
+      "jpeg_diff": {
+        "trigger_rate_pct": 0.0,
+        "ci_95": [
+          0.0,
+          13.72
+        ],
+        "threshold": 0.02684,
+        "latency_per_frame_ms": 10.91
+      },
+      "calibrated_max_or": {
+        "trigger_rate_pct": 12.0,
+        "ci_95": [
+          2.55,
+          31.22
+        ],
+        "threshold": 0.98417,
+        "latency_per_frame_ms": 236.24
+      }
+    },
+    "AQSM Attack (eps=16)": {
+      "ground_truth_class": 1,
+      "sample_count": 25,
+      "tv_detector": {
+        "trigger_rate_pct": 12.0,
+        "ci_95": [
+          2.55,
+          31.22
+        ],
+        "threshold": 0.11938,
+        "latency_per_frame_ms": 1.24
+      },
+      "jpeg_diff": {
+        "trigger_rate_pct": 32.0,
+        "ci_95": [
+          14.95,
+          53.5
+        ],
+        "threshold": 0.02684,
+        "latency_per_frame_ms": 9.42
+      },
+      "calibrated_max_or": {
+        "trigger_rate_pct": 48.0,
+        "ci_95": [
+          27.8,
+          68.69
+        ],
+        "threshold": 0.98417,
+        "latency_per_frame_ms": 235.88
+      }
+    },
+    "Gaussian Noise (sigma=16)": {
+      "ground_truth_class": 0,
+      "sample_count": 25,
+      "tv_detector": {
+        "trigger_rate_pct": 100.0,
+        "ci_95": [
+          86.28,
+          100.0
+        ],
+        "threshold": 0.11938,
+        "latency_per_frame_ms": 0.84
+      },
+      "jpeg_diff": {
+        "trigger_rate_pct": 100.0,
+        "ci_95": [
+          86.28,
+          100.0
+        ],
+        "threshold": 0.02684,
+        "latency_per_frame_ms": 9.16
+      },
+      "calibrated_max_or": {
+        "trigger_rate_pct": 8.0,
+        "ci_95": [
+          0.98,
+          26.03
+        ],
+        "threshold": 0.98417,
+        "latency_per_frame_ms": 218.66
+      }
+    },
+    "Gaussian Blur (5x5)": {
+      "ground_truth_class": 0,
+      "sample_count": 25,
+      "tv_detector": {
+        "trigger_rate_pct": 0.0,
+        "ci_95": [
+          0.0,
+          13.72
+        ],
+        "threshold": 0.11938,
+        "latency_per_frame_ms": 0.64
+      },
+      "jpeg_diff": {
+        "trigger_rate_pct": 0.0,
+        "ci_95": [
+          0.0,
+          13.72
+        ],
+        "threshold": 0.02684,
+        "latency_per_frame_ms": 7.37
+      },
+      "calibrated_max_or": {
+        "trigger_rate_pct": 8.0,
+        "ci_95": [
+          0.98,
+          26.03
+        ],
+        "threshold": 0.98417,
+        "latency_per_frame_ms": 214.74
+      }
+    }
+  },
+  "artifacts": {
+    "samples_csv": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\step9_defensive_baselines_samples.csv",
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step9_defensive_baselines_20261118_220552.log"
+  }
+}

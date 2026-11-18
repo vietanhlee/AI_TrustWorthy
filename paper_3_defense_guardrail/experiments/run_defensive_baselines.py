@@ -20,6 +20,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
+from tqdm import tqdm
 
 # Đảm bảo import đúng workspace
 EXPERIMENTS_DIR = Path(__file__).resolve().parent
@@ -141,7 +142,7 @@ def run_experiment():
     logger.info(f"{'Tập Đánh Giá':<28} | {'TV Detector (%)':<18} | {'JPEG-diff (%)':<18} | {'Calibrated Max-OR (%)':<22} | {'Trễ (ms)':<10}")
     logger.info("-" * 95)
 
-    for cond_name, (data_tensor, gt_label) in datasets.items():
+    for cond_name, (data_tensor, gt_label) in tqdm(datasets.items(), desc="  Đánh giá Defensive Baselines", unit="cond", dynamic_ncols=True):
         # Đo độ trễ và điểm TV
         t0_tv = time.time()
         tv_scores = compute_total_variation(data_tensor)

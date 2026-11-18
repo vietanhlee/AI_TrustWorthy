@@ -22,8 +22,8 @@ from paper_1_aqsm_mechanism.experiments.config import (
     DATA_DIR,
     IMG_SIZE,
 )
-N_CALIBRATION_SAMPLES = 500
-N_TEST_CLEAN_SAMPLES = 300
+N_CALIBRATION_SAMPLES = 1200
+N_TEST_CLEAN_SAMPLES = 600
 
 COCO_ANN_PATH: Path = DATA_DIR / "coco5k" / "annotations" / "instances_val2017.json"
 

@@ -88,27 +88,60 @@ def run_mcnemar():
     logger, log_file = setup_experiment_logger("step11_mcnemar_tests")
     logger.info("BƯỚC 11: KIỂM ĐỊNH THỐNG KÊ GHÉP CẶP MCNEMAR (PAIRED HYPOTHESIS TESTING)")
 
-    npz_file = RESULTS_DIR / "rtdetr_advanced_defense_raw_scores.npz" if (RESULTS_DIR / "rtdetr_advanced_defense_raw_scores.npz").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_raw_scores.npz")
-    json_file = RESULTS_DIR / "rtdetr_advanced_defense_results.json" if (RESULTS_DIR / "rtdetr_advanced_defense_results.json").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_results.json")
+    csv_step4 = RESULTS_DIR / "step4_aqsm_esm_samples.csv"
+    csv_step5 = RESULTS_DIR / "step5_query_attacks_samples.csv"
 
-    if not npz_file.exists() or not json_file.exists():
-        err_msg = f"Không tìm thấy file kết quả thô: {npz_file} hoặc {json_file}"
-        logger.error(err_msg)
-        raise FileNotFoundError(err_msg)
+    use_fresh_csv = csv_step4.exists() and csv_step5.exists()
+    data = None
+    thresholds = {}
 
-    data = np.load(npz_file, allow_pickle=True)
-    with open(json_file, "r", encoding="utf-8") as f:
-        meta = json.load(f)
+    if use_fresh_csv:
+        logger.info(f"-> Nạp dữ liệu mẫu tươi trực tiếp từ: {csv_step4.name} và {csv_step5.name}")
+        import csv
 
-    thresholds = meta["cal_thresholds"]
-    logger.info(f"Ngưỡng hiệu chuẩn phân vị danh định 5.0%: {thresholds}")
+        # 1. Đọc dữ liệu mẫu AQSM từ Step 4
+        step4_preds = {}
+        with open(csv_step4, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                for k, v in row.items():
+                    if k.startswith("pred_"):
+                        det = k[5:]
+                        step4_preds.setdefault(det, []).append(int(v))
+
+        # 2. Đọc dữ liệu mẫu Query Vanishing từ Step 5
+        step5_vanish_preds = {}
+        with open(csv_step5, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if row.get("condition") == "query_vanishing":
+                    for k, v in row.items():
+                        if k.startswith("pred_"):
+                            det = k[5:]
+                            step5_vanish_preds.setdefault(det, []).append(int(v))
+
+    else:
+        npz_file = RESULTS_DIR / "rtdetr_advanced_defense_raw_scores.npz" if (RESULTS_DIR / "rtdetr_advanced_defense_raw_scores.npz").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_raw_scores.npz")
+        json_file = RESULTS_DIR / "rtdetr_advanced_defense_results.json" if (RESULTS_DIR / "rtdetr_advanced_defense_results.json").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "results" / "rtdetr_advanced_defense_results.json")
+
+        if not npz_file.exists() or not json_file.exists():
+            err_msg = f"Không tìm thấy file kết quả thô: {npz_file} hoặc {json_file}"
+            logger.error(err_msg)
+            raise FileNotFoundError(err_msg)
+
+        logger.info(f"-> Nạp từ kho điểm thô: {npz_file.name}")
+        data = np.load(npz_file, allow_pickle=True)
+        with open(json_file, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        thresholds = meta.get("cal_thresholds", {})
+        logger.info(f"Ngưỡng hiệu chuẩn phân vị danh định 5.0%: {thresholds}")
 
     comparisons = [
-        ("Attack__Query_Selection_Manipulation_AQSM", "ESM_Dropoff", "Top1Mean_Split", "AQSM: ESM Drop vs. Top1Mean"),
-        ("Attack__Query_Selection_Manipulation_AQSM", "ESM_Margin", "Top1Mean_Split", "AQSM: ESM Margin vs. Top1Mean"),
-        ("Attack__Query_Selection_Manipulation_AQSM", "ESM_Dropoff", "ActiveQ_Split", "AQSM: ESM Drop vs. ActiveQ"),
-        ("Attack__PGD_Query_Vanishing_15_steps", "ActiveQ_Split", "Top1Mean_Split", "Vanishing: ActiveQ vs. Top1Mean"),
-        ("Attack__PGD_Query_Vanishing_15_steps", "ActiveQ_Split", "ESM_Dropoff", "Vanishing: ActiveQ vs. ESM Drop"),
+        ("AQSM", "ESM_Dropoff", "Top1Mean_Split", "AQSM: ESM Drop vs. Top1Mean"),
+        ("AQSM", "ESM_Margin", "Top1Mean_Split", "AQSM: ESM Margin vs. Top1Mean"),
+        ("AQSM", "ESM_Dropoff", "ActiveQ_Split", "AQSM: ESM Drop vs. ActiveQ"),
+        ("Vanishing", "ActiveQ_Split", "Top1Mean_Split", "Vanishing: ActiveQ vs. Top1Mean"),
+        ("Vanishing", "ActiveQ_Split", "ESM_Dropoff", "Vanishing: ActiveQ vs. ESM Drop"),
     ]
 
     results = {}
@@ -118,20 +151,30 @@ def run_mcnemar():
     logger.info(f"{'So Sánh Kênh Giám Sát':<35} | {'TPR A':<8} | {'TPR B':<8} | {'Chi2':<8} | {'Exact p-value':<14} | {'Ý Nghĩa'}")
     logger.info("-" * 90)
 
-    for prefix, ch_a, ch_b, label in comparisons:
-        key_a = f"{prefix}__{ch_a}"
-        key_b = f"{prefix}__{ch_b}"
-        if key_a not in data or key_b not in data:
-            logger.warning(f"Warning: {key_a} hoặc {key_b} không có trong file NPZ!")
+    for target_atk, ch_a, ch_b, label in comparisons:
+        bin_a = None
+        bin_b = None
+
+        if use_fresh_csv:
+            if target_atk == "AQSM":
+                if ch_a in step4_preds and ch_b in step4_preds:
+                    bin_a = np.array(step4_preds[ch_a], dtype=int)
+                    bin_b = np.array(step4_preds[ch_b], dtype=int)
+            elif target_atk == "Vanishing":
+                if ch_a in step5_vanish_preds and ch_b in step5_vanish_preds:
+                    bin_a = np.array(step5_vanish_preds[ch_a], dtype=int)
+                    bin_b = np.array(step5_vanish_preds[ch_b], dtype=int)
+        else:
+            prefix = "Attack__Query_Selection_Manipulation_AQSM" if target_atk == "AQSM" else "Attack__PGD_Query_Vanishing_15_steps"
+            key_a = f"{prefix}__{ch_a}"
+            key_b = f"{prefix}__{ch_b}"
+            if key_a in data and key_b in data and ch_a in thresholds and ch_b in thresholds:
+                bin_a = (data[key_a] >= thresholds[ch_a]).astype(int)
+                bin_b = (data[key_b] >= thresholds[ch_b]).astype(int)
+
+        if bin_a is None or bin_b is None:
+            logger.warning(f"Warning: Không đủ dữ liệu nhị phân cho cặp {label}!")
             continue
-
-        scores_a = data[key_a]
-        scores_b = data[key_b]
-        th_a = thresholds[ch_a]
-        th_b = thresholds[ch_b]
-
-        bin_a = (scores_a >= th_a).astype(int)
-        bin_b = (scores_b >= th_b).astype(int)
 
         res = mcnemar_test(bin_a, bin_b)
         results[label] = res

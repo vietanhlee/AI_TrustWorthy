@@ -1,0 +1,271 @@
+# -*- coding: utf-8 -*-
+"""
+Module: paper_1_aqsm_mechanism.experiments.tasks.task8_defense_evaluation
+Mục đích: Task độc lập đánh giá cơ chế phòng thủ Encoder Selection Monitor (ESM)
+và Calibrated Guardrail trên tập COCO val2017 -> Phục vụ Table 11 & Figure 9:
+  1. Hiệu chuẩn FPR danh định 5.0% trên N_cal ảnh sạch đầu tiên (Zero Data Leakage).
+  2. Đo đạc tỷ lệ phát hiện (TPR @ 5% FPR) trước AQSM, Query Vanishing, Task PGD.
+  3. Đánh giá khả năng chống chịu tấn công thích ứng (White-box Adaptive PGD theo Carlini-Tramèr).
+  4. Xuất summary JSON và raw CSV phục vụ kiểm toán và vẽ biểu đồ trong bài báo.
+
+Đặc tính chuẩn công nghiệp (Production Standards):
+  - Nhận tham số linh hoạt `--folder_image`, `--annotations`, `--output_dir`, `--cache_dir`.
+  - Nạp ảnh theo lô lười (Lazy Batch Loading) chống tràn RAM khi chạy quy mô 5,000 ảnh.
+"""
+
+import argparse
+import csv
+import json
+import logging
+import os
+import sys
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from tqdm import tqdm
+
+WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+if str(WORKSPACE_DIR) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_DIR))
+
+from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
+from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
+from paper_1_aqsm_mechanism.core.defense_engine import EncoderSelectionMonitor, evaluate_defense_cohort
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
+from paper_1_aqsm_mechanism.experiments.config import (
+    ADV_CACHE_DIR,
+    COCO_ANN_FILE,
+    COCO_VAL_DIR,
+    LOGS_DIR,
+    MODEL_NAME,
+    OUTPUTS_DIR,
+    RANDOM_SEED,
+    RAW_CSV_DIR,
+    SUMMARY_JSON_DIR,
+    configure_cpu_threads,
+    detect_hardware_environment,
+    get_device,
+    update_experiment_paths,
+)
+
+
+def run_adaptive_evasion_test(
+    wrapper: RTDETRModelWrapper,
+    clean_imgs: Any,
+    esm_monitor: EncoderSelectionMonitor,
+    n_samples: int = 15,
+    lambdas: List[float] = [0.2, 0.5, 1.0, 2.0],
+) -> Dict[str, Any]:
+    """
+    Thực nghiệm tấn công thích ứng White-Box Adaptive PGD (Carlini-Tramèr):
+    Kẻ tấn công vừa dìm detection mAP vừa tối ưu để né tránh ngưỡng phát hiện của ESM.
+    """
+    model = wrapper.model
+    device = wrapper.device
+    test_sub = clean_imgs[:n_samples]
+    if hasattr(test_sub, "to"):
+        test_sub = test_sub.to(device)
+
+    results = {}
+    print("\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM...")
+    for lam in lambdas:
+        adv = test_sub.clone().detach().requires_grad_(True)
+        step_alpha = 2.0 / 255.0
+        eps = 16.0 / 255.0
+
+        for _ in range(5):
+            adv_var = adv.clone().detach().requires_grad_(True)
+            mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
+            out = model(pixel_values=adv_var, pixel_mask=mask)
+            enc_logits = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
+            probs = torch.sigmoid(enc_logits)
+            max_probs, _ = probs.max(dim=-1)
+
+            # Task Loss (Dìm điểm các query có xác suất cao)
+            k = min(15, max_probs.shape[1])
+            top_probs, _ = torch.topk(max_probs, k=k, dim=-1)
+            task_loss = (top_probs ** 2).mean()
+
+            # Evasion Loss (Né tránh ngưỡng ESM)
+            topk_vals, _ = torch.topk(max_probs, k=min(300, max_probs.shape[1]), dim=-1)
+            top1_val = topk_vals[:, 0]
+            top300_val = topk_vals[:, -1]
+            diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
+
+            # Phạt nếu dropoff vượt ngoài biên độ sạch
+            target_drop = 30.0
+            evasion_loss = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
+
+            total_loss = task_loss + lam * evasion_loss
+
+            model.zero_grad()
+            if adv_var.grad is not None:
+                adv_var.grad.zero_()
+            total_loss.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_var.grad.sign() if adv_var.grad is not None else torch.zeros_like(adv_var)
+                adv = adv - step_alpha * grad_sign
+                delta = torch.clamp(adv - test_sub, min=-eps, max=eps)
+                adv = torch.clamp(test_sub + delta, min=0.0, max=1.0).detach()
+
+        with torch.no_grad():
+            final_out = model(adv)
+            final_logits = final_out.enc_outputs_class if hasattr(final_out, "enc_outputs_class") and final_out.enc_outputs_class is not None else final_out.logits
+            preds = esm_monitor.predict(final_logits.cpu())
+            tpr_evade = float(np.mean(preds)) * 100.0
+
+        results[f"lambda_{lam}"] = {
+            "evasion_weight_lambda": lam,
+            "detected_tpr_pct": round(tpr_evade, 2),
+            "evasion_success_pct": round(100.0 - tpr_evade, 2),
+        }
+        print(f"   + Lambda = {lam:3.1f} | Detection TPR = {tpr_evade:5.1f}% | Evasion Success = {100.0 - tpr_evade:5.1f}%")
+
+    return results
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Task 8: Empirical Defense & Adaptive Evasion Evaluation (Table 11)")
+    parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
+    parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
+    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả")
+    parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục cache đối kháng")
+    parser.add_argument("--batch_size", type=int, default=None, help="Batch size suy luận")
+    parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU cho task này")
+    parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
+    parser.add_argument("--cal_ratio", type=float, default=0.3, help="Tỷ lệ tập calibration không chồng lấn (mặc định 30%)")
+    args = parser.parse_args()
+
+    update_experiment_paths(
+        folder_image=args.folder_image,
+        annotations=args.annotations,
+        output_dir=args.output_dir,
+        cache_dir=args.cache_dir,
+    )
+
+    configure_cpu_threads(args.threads)
+    hw_info = detect_hardware_environment(preferred_device=args.device)
+    device = get_device(preferred=args.device)
+    batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
+
+    audit_logger = ExperimentAuditLogger(task_name="task8_defense_evaluation")
+
+    # Nạp mô hình RT-DETR
+    wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
+    wrapper.eval()
+
+    # Nạp dataset linh hoạt
+    dataset = FlexibleCOCODataset(
+        folder_image=args.folder_image,
+        annotations_file=args.annotations,
+        img_size=640,
+        id2label=wrapper.model.config.id2label,
+        lazy_tensors=True,
+        device=device,
+    )
+
+    clean_imgs = dataset.tensors
+    image_ids = dataset.image_ids
+    n_actual = len(dataset)
+
+    audit_logger.log_metadata({
+        "folder_image": str(args.folder_image),
+        "total_images": n_actual,
+        "batch_size": batch_size,
+        "threads": args.threads,
+        "device": str(device),
+        "hardware_info": hw_info,
+        "random_seed": RANDOM_SEED,
+        "model_name": MODEL_NAME,
+        "defense_name": "EncoderSelectionMonitor (ESM)",
+    })
+
+    print("\n==================================================================")
+    print(f" [Task 8: Defense Evaluation] Đánh giá Hệ thống Phòng thủ ESM & Guardrail")
+    print(f" N={n_actual} ảnh COCO val2017")
+    print("==================================================================")
+
+    # Nạp các tập mẫu đối kháng
+    adv_dict = {}
+    for atk in ["aqsm", "vanishing", "taskpgd"]:
+        adv_imgs, _ = load_cached_adv_images(
+            attack=atk,
+            eps_num=16,
+            n_eval=n_actual,
+            clean_imgs=clean_imgs,
+            expected_image_ids=image_ids,
+            cache_dir=args.cache_dir,
+        )
+        adv_dict[atk] = adv_imgs
+
+    # Xác định n_cal theo tỷ lệ hoặc tối đa 1000 ảnh
+    n_cal = min(1000, max(50, int(n_actual * args.cal_ratio)))
+    if n_actual <= 100:
+        n_cal = max(10, n_actual // 2)
+
+    # Đánh giá TPR @ 5% FPR trên Clean vs Adversarial
+    defense_results = evaluate_defense_cohort(
+        model_wrapper=wrapper,
+        clean_tensors=clean_imgs,
+        adv_tensors_dict=adv_dict,
+        target_fpr=0.05,
+        n_cal=n_cal,
+    )
+
+    # Khởi tạo ESM đã fit trên n_cal ảnh đầu để test adaptive evasion
+    cal_logits = []
+    with torch.no_grad():
+        for i in range(0, n_cal, 10):
+            end_i = min(i + 10, n_cal)
+            b = clean_imgs[i : end_i]
+            if hasattr(b, "to"):
+                b = b.to(device)
+            out = wrapper.model(b)
+            lgt = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
+            cal_logits.append(lgt.cpu())
+
+    esm_fitted = EncoderSelectionMonitor(target_fpr=0.05)
+    esm_fitted.fit(cal_logits)
+
+    # Đánh giá tấn công thích ứng White-Box Adaptive Evasion
+    n_adapt = min(20, n_actual - n_cal) if (n_actual - n_cal) > 0 else min(20, n_actual)
+    test_adaptive_imgs = clean_imgs[n_cal : n_cal + n_adapt]
+    adaptive_results = run_adaptive_evasion_test(
+        wrapper=wrapper,
+        clean_imgs=test_adaptive_imgs,
+        esm_monitor=esm_fitted,
+        n_samples=len(test_adaptive_imgs),
+        lambdas=[0.2, 0.5, 1.0, 2.0],
+    )
+    defense_results["adaptive_evasion"] = adaptive_results
+
+    # Lưu kết quả JSON Table 11
+    summary_path = SUMMARY_JSON_DIR / "defense_esm_evaluation.json"
+    with open(summary_path, mode="w", encoding="utf-8") as f:
+        json.dump(defense_results, f, indent=2, ensure_ascii=False)
+    print(f"\n>>> Đã lưu kết quả thực nghiệm phòng thủ Table 11 ra: {summary_path}")
+
+    # Ghi nhận audit log
+    audit_logger.log_step(
+        step_name="Defense_Evaluation_Complete",
+        step_idx=1,
+        total_steps=1,
+        metrics={
+            "clean_fpr": defense_results["empirical_clean_fpr_pct"],
+            "aqsm_tpr": defense_results["attacks"]["aqsm"]["tpr_detection_rate_pct"],
+            "vanishing_tpr": defense_results["attacks"]["vanishing"]["tpr_detection_rate_pct"],
+            "task_pgd_tpr": defense_results["attacks"]["taskpgd"]["tpr_detection_rate_pct"],
+        },
+    )
+    audit_logger.close()
+    print("[HOÀN THÀNH TOÀN BỘ] Task 8: Defense Evaluation thành công!")
+
+
+if __name__ == "__main__":
+    main()

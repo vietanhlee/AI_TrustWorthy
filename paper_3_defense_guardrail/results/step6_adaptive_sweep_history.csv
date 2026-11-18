@@ -1,0 +1,2 @@
+timestamp,elapsed_seconds,epoch,step,total_steps,loss,task_loss,reg_loss,asr,learning_rate,lambda,tpr_active_q,tpr_layer_maha,tpr_calibrated_max_or
+2026-11-18 23:18:25,4427.34,1,1,5,0.0,,,1.0,,0.1,0.05,0.11667,0.05

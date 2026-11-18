@@ -105,7 +105,7 @@ def run_step2():
         c_feats = []
         num_batches = int(np.ceil(len(c_imgs) / batch_size))
 
-        for b_idx in range(num_batches):
+        for b_idx in tqdm(range(num_batches), desc=f"  Trích xuất {cond_tag}", unit="batch", dynamic_ncols=True):
             b = c_imgs[b_idx * batch_size : (b_idx + 1) * batch_size].to(device)
             with torch.no_grad():
                 st = wrapper(b)

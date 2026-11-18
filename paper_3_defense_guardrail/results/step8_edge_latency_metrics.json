@@ -1,6 +1,6 @@
 {
   "experiment": "step8_edge_latency",
-  "timestamp": "2026-11-17 19:09:48",
+  "timestamp": "2026-11-18 22:06:19",
   "platform_info": {
     "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
     "python_version": "3.10.20",
@@ -11,31 +11,31 @@
   "input_resolution": "320x320",
   "latency_metrics": {
     "rtdetr_base_ms": {
-      "mean": 163.05,
-      "std": 34.21,
-      "fps": 6.13
+      "mean": 360.71,
+      "std": 86.81,
+      "fps": 2.77
     },
     "tensor_extraction_ms": {
-      "mean": 4.11,
-      "std": 0.78
+      "mean": 10.46,
+      "std": 4.72
     },
     "decision_scoring_ms": {
-      "mean": 0.2178,
-      "std": 0.0379
+      "mean": 0.5446,
+      "std": 0.3009
     },
     "total_guardrail_ms": {
-      "mean": 4.33,
-      "std": 0.79
+      "mean": 11.0,
+      "std": 4.88
     },
     "combined_inference_ms": {
-      "mean": 167.37,
-      "std": 34.66,
-      "fps": 5.97
+      "mean": 371.72,
+      "std": 89.05,
+      "fps": 2.69
     },
-    "relative_overhead_percentage": 2.65
+    "relative_overhead_percentage": 3.05
   },
   "artifacts": {
     "runs_csv": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\step8_latency_runs_history.csv",
-    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step8_edge_latency_20261117_190936.log"
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step8_edge_latency_20261118_220552.log"
   }
 }

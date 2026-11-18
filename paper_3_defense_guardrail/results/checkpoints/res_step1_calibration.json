@@ -1,6 +1,16 @@
 {
-  "N_cal": 1200,
-  "N_test": 600,
+  "experiment": "step1_calibration",
+  "timestamp": "2026-11-18 21:57:55",
+  "hardware": {
+    "device": "cpu",
+    "num_threads": 4
+  },
+  "dataset": {
+    "N_cal": 1200,
+    "N_test": 600,
+    "img_size": 320,
+    "seed": 42
+  },
   "cal_thresholds": {
     "ActiveQ_Split": 0.9492499999999999,
     "Top1Mean_Split": 0.9492499999999999,
@@ -9,54 +19,153 @@
     "Layer_Maha": 2.5789134583224316,
     "Calibrated_Max_OR": 0.9841666666666666
   },
+  "clean_stats": {
+    "mu_act": 0.013580555672136447,
+    "sd_act": 0.01132123503893208,
+    "mu_top1": 0.055596725737365585,
+    "sd_top1": 0.030943459045581975,
+    "bounds_act_95": [
+      0.0033333334140479565,
+      0.043416666332631845
+    ],
+    "bounds_top1_95": [
+      0.014880729536525906,
+      0.12268101833760739
+    ],
+    "bounds_dropoff_95": [
+      11.648308516921082,
+      138.80835527769085
+    ],
+    "bounds_margin_95": [
+      0.015109849668806418,
+      0.11497574634850015
+    ]
+  },
   "clean_test_fprs": {
     "ActiveQ_Split": {
       "fpr": 0.05,
-      "ci": [
-        0.033985547215375486,
-        0.07061140603267449
+      "ci_95": [
+        0.03399,
+        0.07061
       ],
-      "count": 30
+      "false_alarm_count": 30,
+      "total_samples": 600,
+      "confusion": {
+        "tp": 0,
+        "fp": 30,
+        "tn": 570,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "accuracy": 0.95,
+        "specificity": 0.95
+      }
     },
     "Top1Mean_Split": {
-      "fpr": 0.06666666666666667,
-      "ci": [
-        0.048051237033860564,
-        0.0896775321709025
+      "fpr": 0.06667,
+      "ci_95": [
+        0.04805,
+        0.08968
       ],
-      "count": 40
+      "false_alarm_count": 40,
+      "total_samples": 600,
+      "confusion": {
+        "tp": 0,
+        "fp": 40,
+        "tn": 560,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "accuracy": 0.9333,
+        "specificity": 0.9333
+      }
     },
     "ESM_Dropoff": {
       "fpr": 0.05,
-      "ci": [
-        0.033985547215375486,
-        0.07061140603267449
+      "ci_95": [
+        0.03399,
+        0.07061
       ],
-      "count": 30
+      "false_alarm_count": 30,
+      "total_samples": 600,
+      "confusion": {
+        "tp": 0,
+        "fp": 30,
+        "tn": 570,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "accuracy": 0.95,
+        "specificity": 0.95
+      }
     },
     "ESM_Margin": {
-      "fpr": 0.058333333333333334,
-      "ci": [
-        0.04096395784509835,
-        0.08019689210659733
+      "fpr": 0.05833,
+      "ci_95": [
+        0.04096,
+        0.0802
       ],
-      "count": 35
+      "false_alarm_count": 35,
+      "total_samples": 600,
+      "confusion": {
+        "tp": 0,
+        "fp": 35,
+        "tn": 565,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "accuracy": 0.9417,
+        "specificity": 0.9417
+      }
     },
     "Layer_Maha": {
       "fpr": 0.065,
-      "ci": [
-        0.04662605938356827,
-        0.08778886504413459
+      "ci_95": [
+        0.04663,
+        0.08779
       ],
-      "count": 39
+      "false_alarm_count": 39,
+      "total_samples": 600,
+      "confusion": {
+        "tp": 0,
+        "fp": 39,
+        "tn": 561,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "accuracy": 0.935,
+        "specificity": 0.935
+      }
     },
     "Calibrated_Max_OR": {
-      "fpr": 0.051666666666666666,
-      "ci": [
-        0.03537138076815317,
-        0.07253795599311105
+      "fpr": 0.05167,
+      "ci_95": [
+        0.03537,
+        0.07254
       ],
-      "count": 31
+      "false_alarm_count": 31,
+      "total_samples": 600,
+      "confusion": {
+        "tp": 0,
+        "fp": 31,
+        "tn": 569,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1_score": 0.0,
+        "accuracy": 0.9483,
+        "specificity": 0.9483
+      }
     }
+  },
+  "artifacts": {
+    "checkpoint_pkl": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\checkpoints\\calibration_and_detectors.pkl",
+    "samples_csv": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\step1_calibration_samples.csv",
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step1_calibration_20261118_215247.log"
   }
 }

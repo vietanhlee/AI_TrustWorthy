@@ -2,16 +2,21 @@
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task1_causal_surgery
 Mục đích: Task độc lập chạy phẫu thuật can thiệp nhân quả 2x2 Factorial Tensor-Swap (6 arms)
-trên N=300 ảnh COCO val2017 cho các đòn tấn công: AQSM, Query Vanishing, Standard Task PGD.
-Có thể chạy độc lập hoặc chạy song song trong hồ bơi đa tiến trình (Multi-process Worker Pool).
+trên toàn bộ tập ảnh chỉ định (COCO val2017) cho các đòn tấn công: AQSM, Query Vanishing, Standard Task PGD.
+
+Đặc tính chuẩn công nghiệp (Production Standards):
+  - Nhận tham số linh hoạt `--folder_image`, `--annotations`, `--output_dir`, `--cache_dir`.
+  - Nạp ảnh theo lô lười (Lazy Batch Loading) chống tràn RAM khi chạy quy mô 5,000 ảnh.
+  - Phân tích ANOVA lặp lại 2x2 chuẩn mực (Repeated-Measures ANOVA) và Paired Bootstrap 95% CI.
+  - Ghi nhận raw CSV từng ảnh và summary JSON đầy đủ ngữ cảnh phục vụ điền bài báo.
 """
 
 import argparse
-import logging
 import os
 import sys
 import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -20,77 +25,99 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from paper_1_aqsm_mechanism.core.coco_gt import load_coco_val2017_gt_cohort
+from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
-from paper_1_aqsm_mechanism.experiments.attack_engine import DiagnosticAttackEngine
 from paper_1_aqsm_mechanism.experiments.causal_surgery_engine import run_causal_surgery
 from paper_1_aqsm_mechanism.experiments.config import (
     ADV_CACHE_DIR,
-    COHORT_SIZE,
-    EPSILON_L_INF,
+    COCO_ANN_FILE,
+    COCO_VAL_DIR,
     LOGS_DIR,
     MODEL_NAME,
-    PGD_NUM_STEPS,
-    PGD_STEP_SIZE,
+    OUTPUTS_DIR,
     RANDOM_SEED,
     configure_cpu_threads,
+    detect_hardware_environment,
     get_device,
+    update_experiment_paths,
 )
-
-
-def load_adv_images_helper(atk_name: str, eps_num: int, n_eval: int, clean_imgs: torch.Tensor) -> torch.Tensor:
-    cache_dir = ADV_CACHE_DIR
-    cf = cache_dir / f"adv_cache_{atk_name}_eps{eps_num}_n{n_eval}.npz"
-    if not cf.exists():
-        cf = cache_dir / f"adv_cache_{atk_name}_eps{eps_num}_n300.npz"
-    if cf.exists():
-        data = np.load(cf)
-        deltas = torch.from_numpy(data["delta_f16"][:n_eval].astype(np.float32)).to(clean_imgs.device)
-        return torch.clamp(clean_imgs[:n_eval] + deltas, 0.0, 1.0)
-    raise FileNotFoundError(f"Không tìm thấy cache cho {atk_name} tại {cf}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Task 1: Causal Surgery 2x2 Factorial Swap")
-    parser.add_argument("--cohort_size", type=int, default=COHORT_SIZE, help="Số lượng ảnh COCO val2017")
-    parser.add_argument("--batch_size", type=int, default=10, help="Batch size suy luận")
-    parser.add_argument("--threads", type=int, default=4, help="Số luồng CPU cho task này")
+    parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
+    parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
+    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả")
+    parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục cache đối kháng")
+    parser.add_argument("--batch_size", type=int, default=None, help="Batch size suy luận (tự động nếu None)")
+    parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU cho task này")
+    parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
     parser.add_argument("--attacks", type=str, default="aqsm,vanishing,taskpgd", help="Danh sách đòn tấn công cách nhau bởi dấu phẩy")
     args = parser.parse_args()
 
+    update_experiment_paths(
+        folder_image=args.folder_image,
+        annotations=args.annotations,
+        output_dir=args.output_dir,
+        cache_dir=args.cache_dir,
+    )
+
     configure_cpu_threads(args.threads)
-    device = get_device()
+    hw_info = detect_hardware_environment(preferred_device=args.device)
+    device = get_device(preferred=args.device)
+    batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
 
     audit_logger = ExperimentAuditLogger(task_name="task1_causal_surgery")
+
+    # Nạp mô hình RT-DETR
+    wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
+    wrapper.eval()
+
+    # Nạp dataset linh hoạt
+    dataset = FlexibleCOCODataset(
+        folder_image=args.folder_image,
+        annotations_file=args.annotations,
+        img_size=640,
+        id2label=wrapper.model.config.id2label,
+        lazy_tensors=True,
+        device=device,
+    )
+
+    clean_imgs = dataset.tensors
+    gt_list = dataset.gt_list
+    image_ids = dataset.image_ids
+    n_actual = len(dataset)
+
     audit_logger.log_metadata({
-        "cohort_size": args.cohort_size,
-        "batch_size": args.batch_size,
+        "folder_image": str(args.folder_image),
+        "total_images": n_actual,
+        "batch_size": batch_size,
         "threads": args.threads,
+        "device": str(device),
+        "hardware_info": hw_info,
         "attacks": args.attacks,
         "random_seed": RANDOM_SEED,
         "model_name": MODEL_NAME,
     })
 
-    # Nạp mô hình & dữ liệu
-    wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
-    wrapper.eval()
-
-    cohort_data = load_coco_val2017_gt_cohort(n_eval=args.cohort_size, seed=RANDOM_SEED)
-    clean_imgs = cohort_data["tensors"].to(device)
-    gt_list = cohort_data["gt_list"]
-    n_actual = len(gt_list)
-
     attack_list = [a.strip().lower() for a in args.attacks.split(",") if a.strip()]
-
     all_results = {}
+
     for atk in attack_list:
         audit_logger.logger.info(f"\n=======================================================")
-        audit_logger.logger.info(f"=== Đang thực hiện Causal Surgery cho: {atk.upper()} ===")
+        audit_logger.logger.info(f"=== Đang thực hiện Causal Surgery cho: {atk.upper()} (N={n_actual}) ===")
         audit_logger.logger.info(f"=======================================================")
 
-        adv_imgs = load_adv_images_helper(atk, 16, n_actual, clean_imgs)
+        adv_imgs, meta = load_cached_adv_images(
+            attack=atk,
+            eps_num=16,
+            n_eval=n_actual,
+            clean_imgs=clean_imgs,
+            expected_image_ids=image_ids,
+            cache_dir=args.cache_dir,
+        )
 
         res = run_causal_surgery(
             wrapper=wrapper,
@@ -98,7 +125,7 @@ def main():
             adv_imgs=adv_imgs,
             gt_list=gt_list,
             attack_name=atk.upper(),
-            batch_size=args.batch_size,
+            batch_size=batch_size,
             audit_logger=audit_logger,
         )
         all_results[atk] = res
@@ -114,7 +141,7 @@ def main():
         audit_logger.logger.info(f"Hoàn thành {atk.upper()}: ANOVA eta_p^2(Q)={eta_q:.4f}, eta_p^2(M)={eta_m:.4f}")
 
     audit_logger.close()
-    print("[HOÀN THÀNH TOÀN BỘ] Task 1: Causal Surgery!")
+    print("\n[HOÀN THÀNH TOÀN BỘ] Task 1: Causal Surgery 2x2 Factorial Swap thành công!")
 
 
 if __name__ == "__main__":

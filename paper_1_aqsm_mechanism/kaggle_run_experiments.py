@@ -1,0 +1,105 @@
+# -*- coding: utf-8 -*-
+"""
+Script: kaggle_run_experiments.py
+Mục đích: Chạy toàn bộ chuỗi thực nghiệm Paper 1 trên môi trường GPU (Kaggle T4 x 2, P100 hoặc Google Colab).
+Tự động kích hoạt CUDA, gọi Master Orchestrator (run_all_experiments.py),
+và tự động nén thư mục outputs thành `paper1_experiment_results.zip` để người dùng tải về chỉ với 1 click.
+"""
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import time
+import zipfile
+from pathlib import Path
+
+# Thêm thư mục gốc vào PYTHONPATH
+WORKSPACE_DIR = Path(__file__).resolve().parent.parent
+if str(WORKSPACE_DIR) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_DIR))
+
+import torch
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Kaggle/Colab GPU Master Experiment Runner")
+    parser.add_argument("--folder_image", type=str, default=None, help="Đường dẫn thư mục ảnh COCO val2017")
+    parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file instances_val2017.json")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
+    parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
+    args = parser.parse_args()
+
+    print("================================================================================")
+    print(" [KAGGLE/COLAB GPU RUNNER] KHỞI CHẠY MASTER ORCHESTRATOR TRÊN GPU")
+    print("================================================================================")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f">>> Thiết bị phát hiện: {device.upper()}")
+    if device == "cuda":
+        gpu_count = torch.cuda.device_count()
+        gpu_name = torch.cuda.get_device_name(0)
+        vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+        print(f">>> GPU Hardware: {gpu_count}x {gpu_name} ({vram_gb:.2f} GB VRAM)")
+        print(">>> Tốc độ dự kiến: Tăng tốc ~15x so với CPU!")
+    else:
+        print(">>> [CẢNH BÁO] Không tìm thấy GPU, đang chạy trên CPU.")
+
+    paper_dir = WORKSPACE_DIR / "paper_1_aqsm_mechanism"
+    output_dir = paper_dir / "outputs"
+    fig_dir = paper_dir / "fig"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig_dir.mkdir(parents=True, exist_ok=True)
+
+    # Chuẩn bị lệnh gọi run_all_experiments.py
+    cmd = [
+        sys.executable,
+        str(paper_dir / "run_all_experiments.py"),
+        "--device", device,
+        "--batch_size", str(args.batch_size),
+        "--output_dir", str(output_dir),
+        "--fig_dir", str(fig_dir),
+    ]
+
+    if args.folder_image:
+        cmd.extend(["--folder_image", str(args.folder_image)])
+    if args.annotations:
+        cmd.extend(["--annotations", str(args.annotations)])
+    if args.skip_cache_gen:
+        cmd.append("--skip_cache_gen")
+
+    start_time = time.time()
+    print(f"\n>>> Đang thực thi lệnh: {' '.join(cmd)}\n")
+    result = subprocess.run(cmd, cwd=str(WORKSPACE_DIR))
+
+    if result.returncode != 0:
+        print(f"\n[LỖI] Thực nghiệm thất bại với mã thoát: {result.returncode}")
+        sys.exit(result.returncode)
+
+    elapsed = time.time() - start_time
+    print(f"\n>>> Toàn bộ thực nghiệm hoàn thành xuất sắc trong: {elapsed:.2f}s ({elapsed/60:.2f} phút)!")
+
+    # Đóng gói thư mục outputs và fig thành file ZIP
+    zip_path = WORKSPACE_DIR / "paper1_experiment_results.zip"
+    print(f"\n>>> Đang đóng gói kết quả vào file ZIP: {zip_path.name}...")
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # Thêm outputs
+        for root, dirs, files in os.walk(output_dir):
+            for file in files:
+                file_full = Path(root) / file
+                arcname = file_full.relative_to(paper_dir)
+                zipf.write(file_full, arcname)
+        # Thêm figures
+        for root, dirs, files in os.walk(fig_dir):
+            for file in files:
+                file_full = Path(root) / file
+                arcname = file_full.relative_to(paper_dir)
+                zipf.write(file_full, arcname)
+
+    print(f">>> [HOÀN TẤT] File kết quả đã sẵn sàng tải về: {zip_path.resolve()} ({zip_path.stat().st_size / 1e6:.1f} MB)")
+    print(">>> Bạn chỉ cần tải file `paper1_experiment_results.zip` về máy và đưa vào thư mục dự án.")
+
+
+if __name__ == "__main__":
+    main()

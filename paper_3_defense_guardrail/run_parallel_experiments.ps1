@@ -1,5 +1,6 @@
 ﻿# ==============================================================================
 # PowerShell Parallel Runner: Chay Toan Bo Thuc Nghiem Paper 3 (Max 4 Workers)
+# Tich hop Live Heartbeat Ticker va Hien thi Tien do theo Thoi gian Thuc
 # ==============================================================================
 param (
     [int]$MaxWorkers = 4,
@@ -30,13 +31,13 @@ Write-Host "====================================================================
 
 $TotalStartTime = Get-Date
 
-# Function chay don le dong bo (Synchronous)
+# Function chay don le dong bo (Synchronous) voi Live Output
 function Run-StepSynchronous {
     param (
         [string]$TaskName,
         [string]$ScriptPath
     )
-    Write-Host "`n>>> [DONG BO] DANG KHOI CHAY: $TaskName..." -ForegroundColor Yellow
+    Write-Host "`n>>> [DONG BO] DANG KHOI CHAY LIVE TQDM: $TaskName..." -ForegroundColor Yellow
     $t_start = Get-Date
     & $PythonExe $ScriptPath
     if ($LASTEXITCODE -ne 0) {
@@ -79,6 +80,7 @@ Write-Host "====================================================================
 
 $ActiveJobs = [System.Collections.Generic.List[hashtable]]::new()
 $CompletedJobs = [System.Collections.Generic.List[hashtable]]::new()
+$LastHeartbeat = Get-Date
 
 while ($TasksQueue.Count -gt 0 -or $ActiveJobs.Count -gt 0) {
     # 1. Day them job vao active slot neu con cho trong
@@ -103,7 +105,7 @@ while ($TasksQueue.Count -gt 0 -or $ActiveJobs.Count -gt 0) {
         })
     }
 
-    Start-Sleep -Milliseconds 500
+    Start-Sleep -Milliseconds 800
 
     # 2. Kiem tra cac tien trinh da hoan tat
     for ($i = $ActiveJobs.Count - 1; $i -ge 0; $i--) {
@@ -113,9 +115,9 @@ while ($TasksQueue.Count -gt 0 -or $ActiveJobs.Count -gt 0) {
             $dur = [math]::Round(((Get-Date) - $job.StartTime).TotalSeconds, 1)
 
             if ($exitCode -eq 0) {
-                Write-Host "  [+] [SUCCESS] $($job.Name) hoan tat thanh cong trong [${dur}s]!" -ForegroundColor Green
+                Write-Host "  [+] [SUCCESS] ($($CompletedJobs.Count + 1)/$TotalParallelTasks) $($job.Name) hoan tat thanh cong trong [${dur}s]!" -ForegroundColor Green
             } else {
-                Write-Host "  [!] [FAILED]  $($job.Name) that bai voi ma loi $exitCode sau [${dur}s]!" -ForegroundColor Red
+                Write-Host "  [!] [FAILED]  ($($CompletedJobs.Count + 1)/$TotalParallelTasks) $($job.Name) that bai voi ma loi $exitCode sau [${dur}s]!" -ForegroundColor Red
                 if (Test-Path $job.ErrFile) {
                     Get-Content $job.ErrFile -Tail 10 | Write-Host -ForegroundColor DarkRed
                 }
@@ -126,6 +128,26 @@ while ($TasksQueue.Count -gt 0 -or $ActiveJobs.Count -gt 0) {
             $CompletedJobs.Add($job)
             $ActiveJobs.RemoveAt($i)
         }
+    }
+
+    # 3. Heartbeat Monitor: In ra trang thai tien do dinh ky moi 4 giay
+    if ($ActiveJobs.Count -gt 0 -and ((Get-Date) - $LastHeartbeat).TotalSeconds -ge 4.0) {
+        $LastHeartbeat = Get-Date
+        $statusList = @()
+        foreach ($j in $ActiveJobs) {
+            $curSec = [math]::Round(((Get-Date) - $j.StartTime).TotalSeconds, 0)
+            $lastLog = "Dang chay..."
+            if (Test-Path $j.OutFile) {
+                $lines = Get-Content $j.OutFile -Tail 3 -ErrorAction SilentlyContinue
+                if ($lines -and $lines.Count -gt 0) {
+                    $raw = ($lines | Select-Object -Last 1).Trim()
+                    if ($raw.Length -gt 50) { $raw = $raw.Substring(0, 47) + "..." }
+                    $lastLog = $raw
+                }
+            }
+            $statusList += "[$($j.Name) (${curSec}s): $lastLog]"
+        }
+        Write-Host ("    >>> [TIEN DO: $($CompletedJobs.Count)/$TotalParallelTasks Hoan tat] " + ($statusList -join " | ")) -ForegroundColor DarkYellow
     }
 }
 

@@ -87,7 +87,7 @@ def train_patch_with_logging(
         perm = torch.randperm(B_cal)
         epoch_losses = []
 
-        for b_idx in range(num_batches):
+        for b_idx in tqdm(range(num_batches), desc=f"  Tối ưu Patch Epoch {epoch}/{num_epochs}", unit="batch", dynamic_ncols=True):
             step_counter += 1
             indices = perm[b_idx * batch_size : (b_idx + 1) * batch_size]
             batch_imgs = cal_images[indices].clone().to(device)
@@ -197,7 +197,7 @@ def run_step3():
     adv_logits_l = []
     clean_logits_l = []
 
-    for i in range(0, N_eval, batch_size):
+    for i in tqdm(range(0, N_eval, batch_size), desc="  Trích xuất Patch 48x48", unit="batch", dynamic_ncols=True):
         b_clean = eval_imgs[i : i + batch_size].to(device)
         b_adv = adv_patch_imgs[i : i + batch_size].to(device)
         with torch.no_grad():
@@ -305,7 +305,7 @@ def run_step3():
         adv_s = attacker.apply_adversarial_patch(sweep_imgs, p_s, patch_loc="random", seed=1337)
 
         s_feats = []
-        for i in range(0, N_sweep, batch_size):
+        for i in tqdm(range(0, N_sweep, batch_size), desc=f"    Trích xuất Patch {s}x{s}", unit="batch", dynamic_ncols=True, leave=False):
             b = adv_s[i : i + batch_size].to(device)
             with torch.no_grad():
                 st = wrapper(b)

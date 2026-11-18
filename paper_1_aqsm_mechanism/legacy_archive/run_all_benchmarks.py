@@ -115,7 +115,7 @@ def main():
     # 2. Nạp dữ liệu COCO val2017
     logger.info(f">>> Đang nạp cohort N={args.cohort_size} ảnh và annotations COCO...")
     cohort_data = load_coco_val2017_gt_cohort(n_eval=args.cohort_size, seed=RANDOM_SEED)
-    clean_imgs = cohort_data["tensors"].to(device)  # Tensor [N, 3, 320, 320]
+    clean_imgs = cohort_data["tensors"].to(device)  # Tensor [N, 3, 640, 640]
     gt_list = cohort_data["gt_list"]
     n_actual = len(gt_list)
     logger.info(f">>> Đã nạp thành công {n_actual} ảnh chuẩn (Chứa đầy đủ Ground Truth COCO).")

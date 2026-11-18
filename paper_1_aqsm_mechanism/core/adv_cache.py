@@ -1,17 +1,25 @@
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.core.adv_cache
-Mục đích: Quản lý đọc nạp bộ nhớ đệm mẫu đối kháng (adversarial image cache)
+Mục đích: Quản lý đọc nạp và lưu trữ bộ nhớ đệm mẫu đối kháng (adversarial image cache)
 đảm bảo 100% tính nhất quán thực nghiệm qua các task phân tích độc lập.
+Hỗ trợ:
+  1. Caching linh hoạt theo mọi quy mô dataset (N ảnh bất kỳ).
+  2. Nạp proxy lười (LazyAdvImageBatchProxy) để tiết kiệm bộ nhớ RAM khi chạy quy mô lớn.
+  3. Kiểm tra toàn vẹn định danh ảnh (Image ID Verification) chống lệch dữ liệu.
 """
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
 from paper_1_aqsm_mechanism.experiments.config import ADV_CACHE_DIR
+from paper_1_aqsm_mechanism.core.dataset_loader import (
+    LazyAdvImageBatchProxy,
+    LazyImageBatchProxy,
+)
 
 DEFAULT_CACHE_DIR: Path = ADV_CACHE_DIR
 
@@ -21,45 +29,115 @@ def eps_tag(eps_num: int) -> str:
     return f"eps{eps_num}"
 
 
-def cache_path(
+def find_cache_file(
     attack: str,
     eps_num: int,
     n_eval: int,
     cache_dir: Optional[Union[str, Path]] = None,
 ) -> Path:
-    """Xây dựng đường dẫn file nén npz chứa perturbation delta."""
+    """
+    Tìm kiếm file cache phù hợp nhất trong thư mục cache:
+    1. Ưu tiên file đúng tên: adv_cache_{attack}_eps{eps_num}_n{n_eval}.npz
+    2. Nếu không thấy, tìm file chứa số ảnh >= n_eval
+    3. Tìm file alias chung: adv_cache_{attack}_eps{eps_num}.npz
+    """
     cdir = Path(cache_dir) if cache_dir is not None else DEFAULT_CACHE_DIR
-    return cdir / f"adv_cache_{attack}_{eps_tag(eps_num)}_n{n_eval}.npz"
+    target = cdir / f"adv_cache_{attack}_{eps_tag(eps_num)}_n{n_eval}.npz"
+    if target.exists():
+        return target
+
+    # Tìm các file tiềm năng khác
+    pattern = f"adv_cache_{attack}_{eps_tag(eps_num)}*.npz"
+    candidates = sorted(list(cdir.glob(pattern)), key=lambda p: p.stat().st_size, reverse=True)
+    for cand in candidates:
+        try:
+            with np.load(cand, mmap_mode="r") as data:
+                if len(data["image_ids"]) >= n_eval:
+                    return cand
+        except Exception:
+            continue
+
+    return target
+
+
+def load_cached_adv_proxy(
+    attack: str,
+    eps_num: int,
+    n_eval: int,
+    clean_proxy: LazyImageBatchProxy,
+    expected_image_ids: Sequence[int],
+    cache_dir: Optional[Union[str, Path]] = None,
+) -> Tuple[LazyAdvImageBatchProxy, Dict[str, Any]]:
+    """
+    Nạp đối tượng Proxy lười cho ảnh đối kháng từ cache npz trên đĩa.
+    """
+    fpath = find_cache_file(attack, eps_num, n_eval, cache_dir=cache_dir)
+    if not fpath.exists():
+        raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
+
+    data = np.load(fpath, allow_pickle=False)
+    cached_ids = data["image_ids"].tolist()
+
+    # Kiểm tra tính khớp của image_ids
+    expected_ids = list(expected_image_ids)[:n_eval]
+    cached_subset = cached_ids[:n_eval]
+    if cached_subset != expected_ids:
+        raise ValueError(
+            f"Image IDs không khớp giữa cache {fpath.name} và cohort hiện tại! "
+            f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
+        )
+
+    delta_all = data["delta_f16"][:n_eval]
+    meta = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
+
+    adv_proxy = LazyAdvImageBatchProxy(clean_proxy, delta_all, device=clean_proxy.device)
+    return adv_proxy, meta
 
 
 def load_cached_adv_images(
     attack: str,
     eps_num: int,
     n_eval: int,
-    clean_imgs: torch.Tensor,
-    expected_image_ids: List[int],
+    clean_imgs: Union[torch.Tensor, LazyImageBatchProxy],
+    expected_image_ids: Sequence[int],
     cache_dir: Optional[Union[str, Path]] = None,
-) -> Tuple[torch.Tensor, Dict]:
+) -> Tuple[Union[torch.Tensor, LazyAdvImageBatchProxy], Dict[str, Any]]:
     """
-    Nạp ảnh đối kháng từ file cache npz trên đĩa và cộng trực tiếp vào tập ảnh sạch.
+    Nạp ảnh đối kháng từ file cache npz trên đĩa.
+    Hỗ trợ cả Tensor PyTorch chuẩn lẫn LazyImageBatchProxy.
     """
-    fpath = cache_path(attack, eps_num, n_eval, cache_dir=cache_dir)
+    if isinstance(clean_imgs, LazyImageBatchProxy):
+        return load_cached_adv_proxy(
+            attack=attack,
+            eps_num=eps_num,
+            n_eval=n_eval,
+            clean_proxy=clean_imgs,
+            expected_image_ids=expected_image_ids,
+            cache_dir=cache_dir,
+        )
+
+    fpath = find_cache_file(attack, eps_num, n_eval, cache_dir=cache_dir)
     if not fpath.exists():
-        raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng tại: {fpath}")
+        raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
     data = np.load(fpath, allow_pickle=False)
     cached_ids = data["image_ids"].tolist()
-    if cached_ids != list(expected_image_ids):
+    expected_ids = list(expected_image_ids)[:n_eval]
+    cached_subset = cached_ids[:n_eval]
+    if cached_subset != expected_ids:
         raise ValueError(
             f"Image IDs không khớp giữa cache {fpath.name} và cohort hiện tại! "
-            f"Cache có {len(cached_ids)} ảnh, cohort có {len(expected_image_ids)} ảnh."
+            f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
         )
 
-    delta = torch.from_numpy(data["delta_f16"].astype(np.float32))
-    # Đảm bảo device khớp với clean_imgs
+    delta = torch.from_numpy(data["delta_f16"][:n_eval].astype(np.float32))
+    if delta.shape[-2:] != clean_imgs.shape[-2:]:
+        raise ValueError(
+            f"Kích thước không gian không khớp giữa delta {delta.shape[-2:]} và clean {clean_imgs.shape[-2:]}!"
+        )
     if clean_imgs.device != delta.device:
         delta = delta.to(clean_imgs.device)
 
-    adv = torch.clamp(clean_imgs + delta, 0.0, 1.0)
-    meta = json.loads(str(data["meta_json"]))
+    adv = torch.clamp(clean_imgs[:n_eval] + delta, 0.0, 1.0)
+    meta = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
     return adv, meta

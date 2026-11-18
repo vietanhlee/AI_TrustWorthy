@@ -144,6 +144,8 @@ def run_mechanism_telemetry_cohort(
     for start in tqdm(range(0, n_eval, batch_size), desc="Clean Telemetry"):
         end = min(n_eval, start + batch_size)
         c_sub = clean_imgs[start:end]
+        if hasattr(c_sub, "to"):
+            c_sub = c_sub.to(model.device)
 
         with capture_deformable_attention_internals(model) as hooks:
             with torch.no_grad():
@@ -203,6 +205,8 @@ def run_mechanism_telemetry_cohort(
         for start in tqdm(range(0, n_eval, batch_size), desc=f"{cond} Telemetry"):
             end = min(n_eval, start + batch_size)
             a_sub = adv_tensor[start:end]
+            if hasattr(a_sub, "to"):
+                a_sub = a_sub.to(model.device)
 
             with capture_deformable_attention_internals(model) as hooks:
                 with torch.no_grad():

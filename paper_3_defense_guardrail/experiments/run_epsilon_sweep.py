@@ -18,6 +18,7 @@ from typing import Dict, Any, List, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 # Đảm bảo import đúng workspace
 EXPERIMENTS_DIR = Path(__file__).resolve().parent
@@ -108,7 +109,7 @@ def run_epsilon_sweep(n_eval: int = 25):
         aqsm_preds = {"boxes": [], "scores": [], "labels": []}
         aqsm_drops = []
         aqsm_det_esm = []
-        for i in range(n_eval):
+        for i in tqdm(range(n_eval), desc=f"    AQSM ({label})", unit="img", dynamic_ncols=True, leave=False):
             x = eval_tensor[i : i + 1]
             adv_x = attacker.generate_query_selection_attack(x, steps=15, alpha=step_alpha, margin=0.20, lambda_rank=1.0)
             with torch.no_grad():
@@ -139,7 +140,7 @@ def run_epsilon_sweep(n_eval: int = 25):
         vanish_preds = {"boxes": [], "scores": [], "labels": []}
         vanish_active_qs = []
         vanish_det_act = []
-        for i in range(n_eval):
+        for i in tqdm(range(n_eval), desc=f"    Vanishing ({label})", unit="img", dynamic_ncols=True, leave=False):
             x = eval_tensor[i : i + 1]
             adv_x = attacker.generate_vanishing_attack(x, steps=15, alpha=step_alpha)
             with torch.no_grad():

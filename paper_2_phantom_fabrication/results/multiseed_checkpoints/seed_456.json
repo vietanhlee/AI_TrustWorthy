@@ -1,0 +1,146 @@
+{
+  "seed": 456,
+  "n_samples": 15,
+  "rtdetr_metrics": {
+    "Clean": {
+      "mAP50_benchmark": 74.93749970067572,
+      "mAP50_operational": 70.02700270027003,
+      "active_mean": 3.7333333333333334,
+      "phantoms_mean": 0.0,
+      "precision_mean": 62.38624338624338,
+      "recall_mean": 70.6111111111111,
+      "asr_fab_pct": 0.0,
+      "displacement_rate_mean": 0.0,
+      "latency_ms": 381.731653213501
+    },
+    "Gaussian_Noise": {
+      "mAP50_benchmark": 82.08798076425681,
+      "mAP50_operational": 69.47794779477947,
+      "active_mean": 3.533333333333333,
+      "phantoms_mean": 0.0,
+      "precision_mean": 60.48148148148148,
+      "recall_mean": 67.27777777777779,
+      "asr_fab_pct": 0.0,
+      "displacement_rate_mean": 23.088888888888892,
+      "latency_ms": 402.01975504557294
+    },
+    "Untargeted_PGD": {
+      "mAP50_benchmark": 21.59000680983386,
+      "mAP50_operational": 16.741674167416743,
+      "active_mean": 0.8666666666666667,
+      "phantoms_mean": 0.0,
+      "precision_mean": 76.66666666666667,
+      "recall_mean": 17.916666666666668,
+      "asr_fab_pct": 0.0,
+      "displacement_rate_mean": 71.7111111111111,
+      "latency_ms": 401.08315149943036
+    },
+    "EQF": {
+      "mAP50_benchmark": 12.146333116723994,
+      "mAP50_operational": 11.971197119711972,
+      "active_mean": 25.666666666666668,
+      "phantoms_mean": 18.733333333333334,
+      "precision_mean": 1.2767676767676768,
+      "recall_mean": 13.055555555555554,
+      "asr_fab_pct": 100.0,
+      "displacement_rate_mean": 65.0888888888889,
+      "latency_ms": 384.5172564188639
+    },
+    "DQF": {
+      "mAP50_benchmark": 29.42190647636192,
+      "mAP50_operational": 26.46532510393897,
+      "active_mean": 28.133333333333333,
+      "phantoms_mean": 17.733333333333334,
+      "precision_mean": 3.0388995881515055,
+      "recall_mean": 29.444444444444443,
+      "asr_fab_pct": 100.0,
+      "displacement_rate_mean": 64.46666666666665,
+      "latency_ms": 390.99084536234534
+    }
+  },
+  "yolov8_metrics": {
+    "Clean": {
+      "mAP50": 56.14311431143114,
+      "active_mean": 2.4,
+      "precision_mean": 72.77777777777777,
+      "recall_mean": 55.80555555555555
+    },
+    "Targeted_Fabrication": {
+      "mAP50": 0.8252700270027002,
+      "pre_nms_mean": 46.8,
+      "post_nms_mean": 5.0,
+      "nms_rejection_rate_mean": 89.25618039543046,
+      "phantoms_mean": 5.0,
+      "precision_mean": 3.020757020757021,
+      "recall_mean": 7.499999999999999,
+      "asr_fab_pct": 100.0
+    }
+  },
+  "defenses": [
+    {
+      "name": "No Defense (Raw Model)",
+      "eqf_rejection_pct": 0.0,
+      "dqf_rejection_pct": 0.0,
+      "surviving_eqf": 18.73,
+      "surviving_dqf": 17.73,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 100.0,
+      "clean_retention_pct": 100.0,
+      "clean_map50": 70.03,
+      "clean_map50_shift": 0.0,
+      "cpu_latency_ms": 0.376
+    },
+    {
+      "name": "Standard NMS (IoU=0.50)",
+      "eqf_rejection_pct": 6.4,
+      "dqf_rejection_pct": 22.6,
+      "surviving_eqf": 17.53,
+      "surviving_dqf": 13.73,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 100.0,
+      "clean_retention_pct": 94.6,
+      "clean_map50": 70.03,
+      "clean_map50_shift": 0.0,
+      "cpu_latency_ms": 0.271
+    },
+    {
+      "name": "Threshold Elevation (tau=0.50)",
+      "eqf_rejection_pct": 54.4,
+      "dqf_rejection_pct": 48.1,
+      "surviving_eqf": 8.53,
+      "surviving_dqf": 9.2,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 100.0,
+      "clean_retention_pct": 57.1,
+      "clean_map50": 63.03,
+      "clean_map50_shift": -7.0,
+      "cpu_latency_ms": 0.11
+    },
+    {
+      "name": "Spatial DBSCAN (eps=0.15)",
+      "eqf_rejection_pct": 69.0,
+      "dqf_rejection_pct": 77.1,
+      "surviving_eqf": 5.8,
+      "surviving_dqf": 4.07,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 100.0,
+      "clean_retention_pct": 78.6,
+      "clean_map50": 66.56,
+      "clean_map50_shift": -3.47,
+      "cpu_latency_ms": 10.111
+    },
+    {
+      "name": "SQD-Filter (dist=0.15)",
+      "eqf_rejection_pct": 53.0,
+      "dqf_rejection_pct": 68.0,
+      "surviving_eqf": 8.8,
+      "surviving_dqf": 5.67,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 100.0,
+      "clean_retention_pct": 78.6,
+      "clean_map50": 66.56,
+      "clean_map50_shift": -3.47,
+      "cpu_latency_ms": 0.761
+    }
+  ]
+}

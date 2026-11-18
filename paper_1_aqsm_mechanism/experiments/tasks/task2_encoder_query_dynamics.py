@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task2_encoder_query_dynamics
-Mục đích: Đánh giá thực nghiệm động lực học Encoder Memory & Query Selection trên N=300 ảnh COCO val2017:
-  1. Phân rã độ biến đổi Multi-Scale Cosine Similarity qua các tầng S3 (40x40), S4 (20x20), S5 (10x10)
-     và phân tầng không gian Foreground (vật thể) vs Background (nền).
+Mục đích: Đánh giá thực nghiệm động lực học Encoder Memory & Query Selection trên toàn bộ tập ảnh COCO val2017:
+  1. Phân rã độ biến đổi Multi-Scale Cosine Similarity qua các tầng S3 (80x80), S4 (40x40), S5 (20x20)
+     và phân tầng không gian Foreground (vật thể) vs Background (nền) -> Phục vụ Table 5.
   2. Phân tích độ xáo trộn thứ hạng Top-K Query Selection: Overlap Top-300, Top-100, Top-50, Top-15,
-     tỷ lệ trục xuất (evicted ratio), độ dịch chuyển trung vị (median rank shift), tương quan Spearman rho và Kendall tau.
+     tỷ lệ trục xuất (evicted ratio), độ dịch chuyển trung vị (median rank shift), tương quan Spearman rho và Kendall tau -> Phục vụ Table 6.
   3. Kiểm chứng thực nghiệm giả thuyết Proposal Starvation (Object Coverage IoU >= 0.30, IoU >= 0.50, Center-in-GT).
   4. Đo phổ điểm tuyển chọn Proposal Score Spectrum (s^(1), s^(50), s^(300)), Dropoff margin và Query Logit distribution.
 
-Được thực thi độc lập và lưu log đầy đủ, xuất file CSV per-image raw metrics và file JSON tổng hợp thống kê.
+Đặc tính chuẩn công nghiệp (Production Standards):
+  - Nhận tham số linh hoạt `--folder_image`, `--annotations`, `--output_dir`, `--cache_dir`.
+  - Nạp ảnh theo lô lười (Lazy Batch Loading) chống tràn RAM khi chạy quy mô 5,000 ảnh.
+  - Ghi nhận raw CSV từng ảnh và summary JSON đầy đủ ngữ cảnh phục vụ điền bài báo.
 """
 
 import argparse
@@ -20,7 +23,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
@@ -30,9 +33,9 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from paper_1_aqsm_mechanism.core.coco_gt import load_coco_val2017_gt_cohort
-from paper_1_aqsm_mechanism.core.metrics import clopper_pearson_interval, make_serializable
+from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
+from paper_1_aqsm_mechanism.core.metrics import clopper_pearson_interval, make_serializable
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
     SCALE_NAMES,
@@ -43,98 +46,127 @@ from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
     ADV_CACHE_DIR,
-    COHORT_SIZE,
+    COCO_ANN_FILE,
+    COCO_VAL_DIR,
     LOGS_DIR,
     MODEL_NAME,
+    OUTPUTS_DIR,
+    RANDOM_SEED,
     RAW_CSV_DIR,
     SUMMARY_JSON_DIR,
     configure_cpu_threads,
+    detect_hardware_environment,
     get_device,
+    update_experiment_paths,
 )
 
 
-def load_adv_images_helper(atk_name: str, eps_num: int, n_eval: int, clean_imgs: torch.Tensor) -> torch.Tensor:
-    cache_dir = ADV_CACHE_DIR
-    cf = cache_dir / f"adv_cache_{atk_name}_eps{eps_num}_n{n_eval}.npz"
-    if not cf.exists():
-        cf = cache_dir / f"adv_cache_{atk_name}_eps{eps_num}_n300.npz"
-    if cf.exists():
-        data = np.load(cf)
-        deltas = torch.from_numpy(data["delta_f16"][:n_eval].astype(np.float32)).to(clean_imgs.device)
-        return torch.clamp(clean_imgs[:n_eval] + deltas, 0.0, 1.0)
-    raise FileNotFoundError(f"Không tìm thấy cache cho {atk_name} tại {cf}")
-
-
 def _summarize_list(arr: Sequence[float]) -> Dict[str, float]:
-
+    """Tính toán bộ chỉ số thống kê mô tả (Mean, Std, Median, Min, Max, 95% CI)."""
     a = np.asarray(arr, dtype=np.float64)
-    a = a[~np.isnan(a)]
-    if len(a) == 0:
-        return {"mean": 0.0, "std": 0.0, "median": 0.0, "q25": 0.0, "q75": 0.0}
+    valid = a[~np.isnan(a)]
+    if len(valid) == 0:
+        return {"mean": float("nan"), "std": float("nan"), "median": float("nan"), "ci_95": [float("nan"), float("nan")]}
+    mean = float(np.mean(valid))
+    std = float(np.std(valid, ddof=1)) if len(valid) > 1 else 0.0
+    med = float(np.median(valid))
+    ci_low = float(np.percentile(valid, 2.5))
+    ci_high = float(np.percentile(valid, 97.5))
     return {
-        "mean": float(np.mean(a)),
-        "std": float(np.std(a, ddof=1)) if len(a) > 1 else 0.0,
-        "median": float(np.median(a)),
-        "q25": float(np.percentile(a, 25)),
-        "q75": float(np.percentile(a, 75)),
+        "mean": round(mean, 4),
+        "std": round(std, 4),
+        "median": round(med, 4),
+        "ci_95": [round(ci_low, 4), round(ci_high, 4)],
     }
 
 
-def run_encoder_query_dynamics(
-    cohort_size: int = COHORT_SIZE,
-    batch_size: int = 10,
-    threads: int = 4,
-):
-    configure_cpu_threads(threads)
-    device = get_device()
+def main():
+    parser = argparse.ArgumentParser(description="Task 2: Encoder Memory & Query Selection Dynamics")
+    parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
+    parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
+    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả")
+    parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục cache đối kháng")
+    parser.add_argument("--batch_size", type=int, default=None, help="Batch size suy luận")
+    parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU cho task này")
+    parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
+    parser.add_argument("--attacks", type=str, default="aqsm,vanishing,taskpgd", help="Danh sách đòn tấn công")
+    args = parser.parse_args()
+
+    update_experiment_paths(
+        folder_image=args.folder_image,
+        annotations=args.annotations,
+        output_dir=args.output_dir,
+        cache_dir=args.cache_dir,
+    )
+
+    configure_cpu_threads(args.threads)
+    hw_info = detect_hardware_environment(preferred_device=args.device)
+    device = get_device(preferred=args.device)
+    batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
 
     audit_logger = ExperimentAuditLogger(task_name="task2_encoder_query_dynamics")
-    audit_logger.log_metadata({
-        "cohort_size": cohort_size,
-        "batch_size": batch_size,
-        "threads": threads,
-        "random_seed": 42,
-        "model_name": MODEL_NAME,
-        "attacks": ["aqsm", "vanishing", "taskpgd"],
-    })
 
+    # Nạp mô hình RT-DETR
     wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
     wrapper.eval()
     model = wrapper.model
 
-    audit_logger.logger.info("Nạp COCO val2017 cohort...")
-    cohort = load_coco_val2017_gt_cohort(
-        n_cal=1200,
-        n_test=600,
-        eval_start=0,
-        n_eval=cohort_size,
-        seed=42,
+    # Nạp dataset linh hoạt
+    dataset = FlexibleCOCODataset(
+        folder_image=args.folder_image,
+        annotations_file=args.annotations,
+        img_size=640,
         id2label=model.config.id2label,
-        load_tensors=True,
+        lazy_tensors=True,
+        device=device,
     )
-    clean_imgs: torch.Tensor = cohort["tensors"]
-    gt_list = cohort["gt_list"]
+
+    clean_imgs = dataset.tensors
+    gt_list = dataset.gt_list
+    image_ids = dataset.image_ids
+    n_total = len(dataset)
     gt_boxes_batch = [gt.get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32)) for gt in gt_list]
 
-    # Các đòn tấn công cần so sánh
-    attacks_to_eval = ["aqsm", "vanishing", "taskpgd"]
-    results_by_attack: Dict[str, Any] = {}
+    audit_logger.log_metadata({
+        "folder_image": str(args.folder_image),
+        "total_images": n_total,
+        "batch_size": batch_size,
+        "threads": args.threads,
+        "device": str(device),
+        "hardware_info": hw_info,
+        "random_seed": RANDOM_SEED,
+        "model_name": MODEL_NAME,
+        "attacks": args.attacks,
+    })
 
-    # CSV Raw writer
+    attacks_to_eval = [a.strip().lower() for a in args.attacks.split(",") if a.strip()]
+    results_by_attack: Dict[str, Any] = {}
+    memory_results_by_attack: Dict[str, Any] = {}
+
     raw_csv_path = RAW_CSV_DIR / "encoder_query_dynamics_raw.csv"
     csv_rows = []
 
     for atk_name in attacks_to_eval:
-        logging.info(f"--> Đang phân tích cơ chế nội tại cho đòn tấn công: {atk_name.upper()}...")
-        adv_imgs = load_adv_images_helper(atk_name, 16, cohort_size, clean_imgs)
+        print(f"\n=======================================================")
+        print(f"--> [Task 2] Phân tích cơ chế cho đòn: {atk_name.upper()} (N={n_total})...")
+        print(f"=======================================================")
+
+        adv_imgs, meta = load_cached_adv_images(
+            attack=atk_name,
+            eps_num=16,
+            n_eval=n_total,
+            clean_imgs=clean_imgs,
+            expected_image_ids=image_ids,
+            cache_dir=args.cache_dir,
+        )
 
         all_mem_records: List[Dict[str, Any]] = []
         all_query_records: List[Dict[str, Any]] = []
 
-        n_batches = int(np.ceil(cohort_size / batch_size))
+        n_batches = int(np.ceil(n_total / batch_size))
         for b_idx in tqdm(range(n_batches), desc=f"Dynamics {atk_name.upper()}"):
             start_i = b_idx * batch_size
-            end_i = min(start_i + batch_size, cohort_size)
+            end_i = min(start_i + batch_size, n_total)
 
             b_clean = clean_imgs[start_i:end_i].to(device)
             b_adv = adv_imgs[start_i:end_i].to(device)
@@ -150,8 +182,7 @@ def run_encoder_query_dynamics(
             all_mem_records.extend(mem_batch)
             all_query_records.extend(query_batch)
 
-        # Tổng hợp thống kê
-        # 1. Cosine similarity
+        # 1. Tổng hợp Table 5: Encoder Memory Cosine Similarity & Relative L2
         s3_cos = [r["per_scale"]["S3"]["cosine"] for r in all_mem_records]
         s4_cos = [r["per_scale"]["S4"]["cosine"] for r in all_mem_records]
         s5_cos = [r["per_scale"]["S5"]["cosine"] for r in all_mem_records]
@@ -159,118 +190,175 @@ def run_encoder_query_dynamics(
         bg_cos = [r["bg_cosine"] for r in all_mem_records]
         all_cos = [r["all_cosine"] for r in all_mem_records]
 
-        # 2. Query selection overlap & eviction
-        top300_ov = [r["top300_overlap"] for r in all_query_records]
-        top50_ov = [r["top50_overlap"] for r in all_query_records]
-        top15_evict = [r["evicted_top15_ratio"] for r in all_query_records]
-        sp_2100 = [r["spearman_2100"] for r in all_query_records]
-        cov_center_adv = [r["cov_center_adv"] for r in all_query_records]
-        cov_iou30_adv = [r["cov_iou30_adv"] for r in all_query_records]
-        cov_iou50_adv = [r["cov_iou50_adv"] for r in all_query_records]
+        s3_l2 = [r["per_scale"]["S3"]["rel_l2"] for r in all_mem_records]
+        s4_l2 = [r["per_scale"]["S4"]["rel_l2"] for r in all_mem_records]
+        s5_l2 = [r["per_scale"]["S5"]["rel_l2"] for r in all_mem_records]
+        fg_l2 = [r["fg_rel_l2"] for r in all_mem_records]
+        bg_l2 = [r["bg_rel_l2"] for r in all_mem_records]
+        all_l2 = [r["all_rel_l2"] for r in all_mem_records]
 
-        cov_center_clean = [r["cov_center_clean"] for r in all_query_records]
-        cov_iou30_clean = [r["cov_iou30_clean"] for r in all_query_records]
-        cov_iou50_clean = [r["cov_iou50_clean"] for r in all_query_records]
-
-        # 3. Score spectrum
-        clean_s1 = [r["clean_s1"] for r in all_query_records]
-        clean_s50 = [r["clean_s50"] for r in all_query_records]
-        clean_s300 = [r["clean_s300"] for r in all_query_records]
-        clean_drop = [r["clean_dropoff"] for r in all_query_records]
-
-        adv_s1 = [r["adv_s1"] for r in all_query_records]
-        adv_s50 = [r["adv_s50"] for r in all_query_records]
-        adv_s300 = [r["adv_s300"] for r in all_query_records]
-        adv_drop = [r["adv_dropoff"] for r in all_query_records]
-
-        summary = {
-            "attack": atk_name,
-            "n_eval": cohort_size,
+        memory_results_by_attack[atk_name] = {
             "cosine_similarity": {
                 "S3": _summarize_list(s3_cos),
                 "S4": _summarize_list(s4_cos),
                 "S5": _summarize_list(s5_cos),
-                "foreground": _summarize_list(fg_cos),
-                "background": _summarize_list(bg_cos),
-                "overall": _summarize_list(all_cos),
+                "Foreground": _summarize_list(fg_cos),
+                "Background": _summarize_list(bg_cos),
+                "Overall": _summarize_list(all_cos),
             },
-            "query_selection_overlap": {
-                "top300_overlap_count": _summarize_list(top300_ov),
-                "top300_overlap_pct": {
-                    "mean": float(np.mean(top300_ov)) / 300.0 * 100.0,
-                    "std": float(np.std(top300_ov)) / 300.0 * 100.0,
-                },
-                "top50_overlap_count": _summarize_list(top50_ov),
-                "top15_evicted_ratio": _summarize_list(top15_evict),
-                "spearman_2100": _summarize_list(sp_2100),
-            },
-            "starvation_hypothesis": {
-                "center_in_gt_clean": _summarize_list(cov_center_clean),
-                "center_in_gt_adv": _summarize_list(cov_center_adv),
-                "iou30_clean": _summarize_list(cov_iou30_clean),
-                "iou30_adv": _summarize_list(cov_iou30_adv),
-                "iou50_clean": _summarize_list(cov_iou50_clean),
-                "iou50_adv": _summarize_list(cov_iou50_adv),
-            },
-            "score_spectrum": {
-                "clean_s1": _summarize_list(clean_s1),
-                "clean_s50": _summarize_list(clean_s50),
-                "clean_s300": _summarize_list(clean_s300),
-                "clean_dropoff_ratio": _summarize_list(clean_drop),
-                "adv_s1": _summarize_list(adv_s1),
-                "adv_s50": _summarize_list(adv_s50),
-                "adv_s300": _summarize_list(adv_s300),
-                "adv_dropoff_ratio": _summarize_list(adv_drop),
+            "relative_l2_perturbation": {
+                "S3": _summarize_list(s3_l2),
+                "S4": _summarize_list(s4_l2),
+                "S5": _summarize_list(s5_l2),
+                "Foreground": _summarize_list(fg_l2),
+                "Background": _summarize_list(bg_l2),
+                "Overall": _summarize_list(all_l2),
             },
         }
 
-        results_by_attack[atk_name] = summary
+        # 2. Tổng hợp Table 6: Query Selection Overlap, Eviction & Coverage
+        top300_ov = [r["top300_overlap"] * 100.0 for r in all_query_records]
+        top100_ov = [r["top100_overlap"] * 100.0 for r in all_query_records]
+        top50_ov = [r["top50_overlap"] * 100.0 for r in all_query_records]
+        evicted = [r["evicted_top15_ratio"] * 100.0 for r in all_query_records]
+        rank_shift_top15 = [r["median_rank_shift_top15"] for r in all_query_records]
+        rank_shift_fg = [r["median_rank_shift_fg_tokens"] for r in all_query_records]
+        sp_rho = [r["spearman_2100"] for r in all_query_records]
+        kt_tau = [r["kendall_2100"] for r in all_query_records]
 
-        # Thu thập rows cho raw CSV
-        for i in range(cohort_size):
-            csv_rows.append({
-            audit_record = {
-                "record_type": "IMAGE_DYNAMICS",
-                "attack": atk_name,
-                "image_index": i,
-                "s3_cosine": float(s3_cos[i]),
-                "s4_cosine": float(s4_cos[i]),
-                "s5_cosine": float(s5_cos[i]),
-                "fg_cosine": float(fg_cos[i]),
-                "bg_cosine": float(bg_cos[i]),
-                "top300_overlap": int(top300_ov[i]),
-                "top15_evicted": float(top15_evict[i]),
-                "cov_center_adv": float(cov_center_adv[i]),
-                "cov_iou30_adv": float(cov_iou30_adv[i]),
-                "adv_s1": float(adv_s1[i]),
-                "adv_s50": float(adv_s50[i]),
-                "adv_s300": float(adv_s300[i]),
-                "adv_dropoff": float(adv_drop[i]),
-            }
-            csv_rows.append(audit_record)
-            audit_logger.write_audit_record(audit_record)
+        cov_center_c = [r["cov_center_clean"] * 100.0 for r in all_query_records]
+        cov_center_a = [r["cov_center_adv"] * 100.0 for r in all_query_records]
+        cov_iou50_c = [r["cov_iou50_clean"] * 100.0 for r in all_query_records]
+        cov_iou50_a = [r["cov_iou50_adv"] * 100.0 for r in all_query_records]
+        cov_iou30_c = [r["cov_iou30_clean"] * 100.0 for r in all_query_records]
+        cov_iou30_a = [r["cov_iou30_adv"] * 100.0 for r in all_query_records]
 
-    # Ghi file CSV raw & JSON summary thông qua audit_logger
-    audit_logger.export_raw_csv("encoder_query_dynamics_raw.csv", csv_rows)
-    audit_logger.export_summary_json("encoder_query_dynamics.json", results_by_attack)
+        results_by_attack[atk_name] = {
+            "top300_overlap_pct": _summarize_list(top300_ov),
+            "top100_overlap_pct": _summarize_list(top100_ov),
+            "top50_overlap_pct": _summarize_list(top50_ov),
+            "evicted_top15_fg_pct": _summarize_list(evicted),
+            "median_rank_shift_top15": _summarize_list(rank_shift_top15),
+            "median_rank_shift_fg_tokens": _summarize_list(rank_shift_fg),
+            "spearman_rho_2100": _summarize_list(sp_rho),
+            "kendall_tau_2100": _summarize_list(kt_tau),
+            "object_coverage": {
+                "center_in_gt_clean_pct": _summarize_list(cov_center_c),
+                "center_in_gt_adv_pct": _summarize_list(cov_center_a),
+                "iou50_clean_pct": _summarize_list(cov_iou50_c),
+                "iou50_adv_pct": _summarize_list(cov_iou50_a),
+                "iou30_clean_pct": _summarize_list(cov_iou30_c),
+                "iou30_adv_pct": _summarize_list(cov_iou30_a),
+            },
+            "score_spectrum": {
+                "clean_s1": _summarize_list([r["clean_s1"] for r in all_query_records]),
+                "clean_s50": _summarize_list([r["clean_s50"] for r in all_query_records]),
+                "clean_s300": _summarize_list([r["clean_s300"] for r in all_query_records]),
+                "clean_dropoff": _summarize_list([r["clean_dropoff"] for r in all_query_records]),
+                "clean_margin": _summarize_list([r["clean_enc_margin"] for r in all_query_records]),
+                "adv_s1": _summarize_list([r["adv_s1"] for r in all_query_records]),
+                "adv_s50": _summarize_list([r["adv_s50"] for r in all_query_records]),
+                "adv_s300": _summarize_list([r["adv_s300"] for r in all_query_records]),
+                "adv_dropoff": _summarize_list([r["adv_dropoff"] for r in all_query_records]),
+                "adv_margin": _summarize_list([r["adv_enc_margin"] for r in all_query_records]),
+            },
+        }
+
+        # Lưu dữ liệu thô từng ảnh
+        for i in range(n_total):
+            m_r = all_mem_records[i]
+            q_r = all_query_records[i]
+            csv_rows.append([
+                atk_name,
+                i,
+                image_ids[i],
+                m_r["per_scale"]["S3"]["cosine"],
+                m_r["per_scale"]["S4"]["cosine"],
+                m_r["per_scale"]["S5"]["cosine"],
+                m_r["fg_cosine"],
+                m_r["bg_cosine"],
+                m_r["all_cosine"],
+                q_r["top300_overlap"],
+                q_r["top100_overlap"],
+                q_r["top50_overlap"],
+                q_r["evicted_top15_ratio"],
+                q_r["median_rank_shift_top15"],
+                q_r["spearman_2100"],
+                q_r["kendall_2100"],
+                q_r["cov_center_clean"],
+                q_r["cov_center_adv"],
+                q_r["cov_iou50_clean"],
+                q_r["cov_iou50_adv"],
+                q_r["clean_dropoff"],
+                q_r["adv_dropoff"],
+            ])
+
+    # Ghi file raw CSV
+    with open(raw_csv_path, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "attack",
+            "image_index",
+            "image_id",
+            "cos_s3",
+            "cos_s4",
+            "cos_s5",
+            "cos_fg",
+            "cos_bg",
+            "cos_all",
+            "top300_overlap",
+            "top100_overlap",
+            "top50_overlap",
+            "evicted_top15",
+            "rank_shift_top15",
+            "spearman_2100",
+            "kendall_2100",
+            "cov_center_clean",
+            "cov_center_adv",
+            "cov_iou50_clean",
+            "cov_iou50_adv",
+            "clean_dropoff",
+            "adv_dropoff",
+        ])
+        writer.writerows(csv_rows)
+    print(f"\n>>> Đã ghi nhận số liệu thô per-image: {raw_csv_path}")
+
+    # Xuất JSON Table 5: Encoder Memory Analysis
+    json_path_mem = SUMMARY_JSON_DIR / "encoder_memory_analysis.json"
+    with open(json_path_mem, mode="w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "experiment": "Table 5: Multi-Scale Encoder Memory Deformation",
+                "n_images": n_total,
+                "model": MODEL_NAME,
+                "device": str(device),
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "results": memory_results_by_attack,
+            },
+            f,
+            indent=2,
+        )
+    print(f">>> Đã xuất JSON Table 5: {json_path_mem}")
+
+    # Xuất JSON Table 6: Query Selection Dynamics
+    json_path_query = SUMMARY_JSON_DIR / "query_selection_dynamics.json"
+    with open(json_path_query, mode="w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "experiment": "Table 6: Query Selection Perturbation Dynamics",
+                "n_images": n_total,
+                "model": MODEL_NAME,
+                "device": str(device),
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "results": results_by_attack,
+            },
+            f,
+            indent=2,
+        )
+    print(f">>> Đã xuất JSON Table 6: {json_path_query}")
+
     audit_logger.close()
-
-    print("[HOÀN THÀNH] Task 2: Encoder Memory & Query Dynamics!")
-    return results_by_attack
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Task 2: Encoder Memory & Query Selection Dynamics")
-    parser.add_argument("--cohort_size", type=int, default=COHORT_SIZE)
-    parser.add_argument("--batch_size", type=int, default=10)
-    parser.add_argument("--threads", type=int, default=4)
-    args = parser.parse_args()
-
-    run_encoder_query_dynamics(
-        cohort_size=args.cohort_size,
-        batch_size=args.batch_size,
-        threads=args.threads,
-    )
+    print("\n[HOÀN THÀNH TOÀN BỘ] Task 2: Encoder Memory & Query Selection Dynamics thành công!")
 
 
 if __name__ == "__main__":

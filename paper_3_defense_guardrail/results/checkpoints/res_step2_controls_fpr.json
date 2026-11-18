@@ -1,334 +1,671 @@
 {
-  "Control: Gaussian Noise (sigma=16/255)": {
-    "N": 300,
-    "metrics": {
-      "ActiveQ_Split": {
-        "fpr": 0.05,
-        "fpr_ci": [
-          0.028251201968496384,
-          0.08112735717076422
-        ],
-        "count": 15,
-        "auroc": 0.47707222222222223,
-        "auroc_ci": [
-          0.4382303864767937,
-          0.5131444361460789
-        ]
-      },
-      "Top1Mean_Split": {
-        "fpr": 0.056666666666666664,
-        "fpr_ci": [
-          0.03335331151668461,
-          0.08918040443416297
-        ],
-        "count": 17,
-        "auroc": 0.4904277777777778,
-        "auroc_ci": [
-          0.45424146553187883,
-          0.5297217319270943
-        ]
-      },
-      "ESM_Dropoff": {
-        "fpr": 0.06333333333333334,
-        "fpr_ci": [
-          0.03855801982837607,
-          0.0971381966071202
-        ],
-        "count": 19,
-        "auroc": 0.5107527777777778,
-        "auroc_ci": [
-          0.47186066461042225,
-          0.5510481700398027
-        ]
-      },
-      "ESM_Margin": {
-        "fpr": 0.06,
-        "fpr_ci": [
-          0.0359438744151388,
-          0.09317029607198864
-        ],
-        "count": 18,
-        "auroc": 0.5012083333333334,
-        "auroc_ci": [
-          0.46320904103127863,
-          0.5378847944791292
-        ]
-      },
-      "Layer_Maha": {
-        "fpr": 0.08,
-        "fpr_ci": [
-          0.05192863933660696,
-          0.11669591648491244
-        ],
-        "count": 24,
-        "auroc": 0.49846666666666667,
-        "auroc_ci": [
-          0.45483858093014023,
-          0.5391516115266921
-        ]
-      },
-      "Calibrated_Max_OR": {
-        "fpr": 0.06,
-        "fpr_ci": [
-          0.0359438744151388,
-          0.09317029607198864
-        ],
-        "count": 18,
-        "auroc": 0.5146555555555555,
-        "auroc_ci": [
-          0.47282033237540333,
-          0.5583538769925557
-        ]
+  "experiment": "step2_controls_and_fpr",
+  "timestamp": "2026-11-18 22:05:33",
+  "hardware": {
+    "device": "cpu",
+    "num_threads": 4
+  },
+  "eval_cohort_size": 300,
+  "macro_mean_fpr": {
+    "ActiveQ_Split": 0.04667,
+    "Top1Mean_Split": 0.04417,
+    "ESM_Dropoff": 0.06,
+    "ESM_Margin": 0.04833,
+    "Layer_Maha": 0.0625,
+    "Calibrated_Max_OR": 0.05333
+  },
+  "conditions": {
+    "gaussian_noise": {
+      "condition_name": "Control: Gaussian Noise (sigma=16/255)",
+      "sample_count": 300,
+      "metrics": {
+        "ActiveQ_Split": {
+          "fpr": 0.05,
+          "fpr_ci": [
+            0.02825,
+            0.08113
+          ],
+          "fa_count": 15,
+          "total_samples": 300,
+          "auroc": 0.4837,
+          "auroc_ci": [
+            0.4457,
+            0.5228
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 15,
+            "tn": 285,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.95,
+            "specificity": 0.95
+          }
+        },
+        "Top1Mean_Split": {
+          "fpr": 0.05667,
+          "fpr_ci": [
+            0.03335,
+            0.08918
+          ],
+          "fa_count": 17,
+          "total_samples": 300,
+          "auroc": 0.496,
+          "auroc_ci": [
+            0.459,
+            0.5344
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 17,
+            "tn": 283,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9433,
+            "specificity": 0.9433
+          }
+        },
+        "ESM_Dropoff": {
+          "fpr": 0.07,
+          "fpr_ci": [
+            0.04385,
+            0.10501
+          ],
+          "fa_count": 21,
+          "total_samples": 300,
+          "auroc": 0.5124,
+          "auroc_ci": [
+            0.4705,
+            0.5506
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 21,
+            "tn": 279,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.93,
+            "specificity": 0.93
+          }
+        },
+        "ESM_Margin": {
+          "fpr": 0.05333,
+          "fpr_ci": [
+            0.03079,
+            0.08517
+          ],
+          "fa_count": 16,
+          "total_samples": 300,
+          "auroc": 0.5038,
+          "auroc_ci": [
+            0.4651,
+            0.5411
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 16,
+            "tn": 284,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9467,
+            "specificity": 0.9467
+          }
+        },
+        "Layer_Maha": {
+          "fpr": 0.07,
+          "fpr_ci": [
+            0.04385,
+            0.10501
+          ],
+          "fa_count": 21,
+          "total_samples": 300,
+          "auroc": 0.4902,
+          "auroc_ci": [
+            0.4481,
+            0.5304
+          ],
+          "threshold": 2.5789,
+          "confusion": {
+            "tp": 0,
+            "fp": 21,
+            "tn": 279,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.93,
+            "specificity": 0.93
+          }
+        },
+        "Calibrated_Max_OR": {
+          "fpr": 0.05333,
+          "fpr_ci": [
+            0.03079,
+            0.08517
+          ],
+          "fa_count": 16,
+          "total_samples": 300,
+          "auroc": 0.5103,
+          "auroc_ci": [
+            0.4666,
+            0.5497
+          ],
+          "threshold": 0.9842,
+          "confusion": {
+            "tp": 0,
+            "fp": 16,
+            "tn": 284,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9467,
+            "specificity": 0.9467
+          }
+        }
+      }
+    },
+    "random_patch": {
+      "condition_name": "Control: Random Patch (48x48 Random Pos)",
+      "sample_count": 300,
+      "metrics": {
+        "ActiveQ_Split": {
+          "fpr": 0.04667,
+          "fpr_ci": [
+            0.02574,
+            0.07706
+          ],
+          "fa_count": 14,
+          "total_samples": 300,
+          "auroc": 0.4985,
+          "auroc_ci": [
+            0.4609,
+            0.5369
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 14,
+            "tn": 286,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9533,
+            "specificity": 0.9533
+          }
+        },
+        "Top1Mean_Split": {
+          "fpr": 0.04667,
+          "fpr_ci": [
+            0.02574,
+            0.07706
+          ],
+          "fa_count": 14,
+          "total_samples": 300,
+          "auroc": 0.4832,
+          "auroc_ci": [
+            0.4463,
+            0.5198
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 14,
+            "tn": 286,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9533,
+            "specificity": 0.9533
+          }
+        },
+        "ESM_Dropoff": {
+          "fpr": 0.04667,
+          "fpr_ci": [
+            0.02574,
+            0.07706
+          ],
+          "fa_count": 14,
+          "total_samples": 300,
+          "auroc": 0.5018,
+          "auroc_ci": [
+            0.4646,
+            0.541
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 14,
+            "tn": 286,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9533,
+            "specificity": 0.9533
+          }
+        },
+        "ESM_Margin": {
+          "fpr": 0.05,
+          "fpr_ci": [
+            0.02825,
+            0.08113
+          ],
+          "fa_count": 15,
+          "total_samples": 300,
+          "auroc": 0.4926,
+          "auroc_ci": [
+            0.4543,
+            0.5299
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 15,
+            "tn": 285,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.95,
+            "specificity": 0.95
+          }
+        },
+        "Layer_Maha": {
+          "fpr": 0.05,
+          "fpr_ci": [
+            0.02825,
+            0.08113
+          ],
+          "fa_count": 15,
+          "total_samples": 300,
+          "auroc": 0.4719,
+          "auroc_ci": [
+            0.4286,
+            0.5131
+          ],
+          "threshold": 2.5789,
+          "confusion": {
+            "tp": 0,
+            "fp": 15,
+            "tn": 285,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.95,
+            "specificity": 0.95
+          }
+        },
+        "Calibrated_Max_OR": {
+          "fpr": 0.04333,
+          "fpr_ci": [
+            0.02327,
+            0.07296
+          ],
+          "fa_count": 13,
+          "total_samples": 300,
+          "auroc": 0.4893,
+          "auroc_ci": [
+            0.4472,
+            0.5315
+          ],
+          "threshold": 0.9842,
+          "confusion": {
+            "tp": 0,
+            "fp": 13,
+            "tn": 287,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9567,
+            "specificity": 0.9567
+          }
+        }
+      }
+    },
+    "gaussian_blur": {
+      "condition_name": "Clean Shift: Gaussian Blur (5x5, sigma=1.5)",
+      "sample_count": 300,
+      "metrics": {
+        "ActiveQ_Split": {
+          "fpr": 0.04333,
+          "fpr_ci": [
+            0.02327,
+            0.07296
+          ],
+          "fa_count": 13,
+          "total_samples": 300,
+          "auroc": 0.4662,
+          "auroc_ci": [
+            0.4264,
+            0.5043
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 13,
+            "tn": 287,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9567,
+            "specificity": 0.9567
+          }
+        },
+        "Top1Mean_Split": {
+          "fpr": 0.01667,
+          "fpr_ci": [
+            0.00543,
+            0.03846
+          ],
+          "fa_count": 5,
+          "total_samples": 300,
+          "auroc": 0.4441,
+          "auroc_ci": [
+            0.4073,
+            0.4802
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 5,
+            "tn": 295,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9833,
+            "specificity": 0.9833
+          }
+        },
+        "ESM_Dropoff": {
+          "fpr": 0.06333,
+          "fpr_ci": [
+            0.03856,
+            0.09714
+          ],
+          "fa_count": 19,
+          "total_samples": 300,
+          "auroc": 0.5112,
+          "auroc_ci": [
+            0.4737,
+            0.55
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 19,
+            "tn": 281,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9367,
+            "specificity": 0.9367
+          }
+        },
+        "ESM_Margin": {
+          "fpr": 0.03667,
+          "fpr_ci": [
+            0.01844,
+            0.06466
+          ],
+          "fa_count": 11,
+          "total_samples": 300,
+          "auroc": 0.4674,
+          "auroc_ci": [
+            0.4319,
+            0.506
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 11,
+            "tn": 289,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9633,
+            "specificity": 0.9633
+          }
+        },
+        "Layer_Maha": {
+          "fpr": 0.05,
+          "fpr_ci": [
+            0.02825,
+            0.08113
+          ],
+          "fa_count": 15,
+          "total_samples": 300,
+          "auroc": 0.5017,
+          "auroc_ci": [
+            0.4584,
+            0.5419
+          ],
+          "threshold": 2.5789,
+          "confusion": {
+            "tp": 0,
+            "fp": 15,
+            "tn": 285,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.95,
+            "specificity": 0.95
+          }
+        },
+        "Calibrated_Max_OR": {
+          "fpr": 0.05667,
+          "fpr_ci": [
+            0.03335,
+            0.08918
+          ],
+          "fa_count": 17,
+          "total_samples": 300,
+          "auroc": 0.4843,
+          "auroc_ci": [
+            0.4434,
+            0.5235
+          ],
+          "threshold": 0.9842,
+          "confusion": {
+            "tp": 0,
+            "fp": 17,
+            "tn": 283,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9433,
+            "specificity": 0.9433
+          }
+        }
+      }
+    },
+    "brightness_shift": {
+      "condition_name": "Clean Shift: Brightness (-30%)",
+      "sample_count": 300,
+      "metrics": {
+        "ActiveQ_Split": {
+          "fpr": 0.04667,
+          "fpr_ci": [
+            0.02574,
+            0.07706
+          ],
+          "fa_count": 14,
+          "total_samples": 300,
+          "auroc": 0.4881,
+          "auroc_ci": [
+            0.4497,
+            0.5268
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 14,
+            "tn": 286,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9533,
+            "specificity": 0.9533
+          }
+        },
+        "Top1Mean_Split": {
+          "fpr": 0.05667,
+          "fpr_ci": [
+            0.03335,
+            0.08918
+          ],
+          "fa_count": 17,
+          "total_samples": 300,
+          "auroc": 0.4952,
+          "auroc_ci": [
+            0.4589,
+            0.5315
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 17,
+            "tn": 283,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9433,
+            "specificity": 0.9433
+          }
+        },
+        "ESM_Dropoff": {
+          "fpr": 0.06,
+          "fpr_ci": [
+            0.03594,
+            0.09317
+          ],
+          "fa_count": 18,
+          "total_samples": 300,
+          "auroc": 0.514,
+          "auroc_ci": [
+            0.4752,
+            0.5516
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 18,
+            "tn": 282,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.94,
+            "specificity": 0.94
+          }
+        },
+        "ESM_Margin": {
+          "fpr": 0.05333,
+          "fpr_ci": [
+            0.03079,
+            0.08517
+          ],
+          "fa_count": 16,
+          "total_samples": 300,
+          "auroc": 0.5027,
+          "auroc_ci": [
+            0.4629,
+            0.5393
+          ],
+          "threshold": 0.9492,
+          "confusion": {
+            "tp": 0,
+            "fp": 16,
+            "tn": 284,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.9467,
+            "specificity": 0.9467
+          }
+        },
+        "Layer_Maha": {
+          "fpr": 0.08,
+          "fpr_ci": [
+            0.05193,
+            0.1167
+          ],
+          "fa_count": 24,
+          "total_samples": 300,
+          "auroc": 0.4938,
+          "auroc_ci": [
+            0.4512,
+            0.5382
+          ],
+          "threshold": 2.5789,
+          "confusion": {
+            "tp": 0,
+            "fp": 24,
+            "tn": 276,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.92,
+            "specificity": 0.92
+          }
+        },
+        "Calibrated_Max_OR": {
+          "fpr": 0.06,
+          "fpr_ci": [
+            0.03594,
+            0.09317
+          ],
+          "fa_count": 18,
+          "total_samples": 300,
+          "auroc": 0.5051,
+          "auroc_ci": [
+            0.4616,
+            0.5466
+          ],
+          "threshold": 0.9842,
+          "confusion": {
+            "tp": 0,
+            "fp": 18,
+            "tn": 282,
+            "fn": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "accuracy": 0.94,
+            "specificity": 0.94
+          }
+        }
       }
     }
   },
-  "Control: Random Patch (48x48 Random Pos)": {
-    "N": 300,
-    "metrics": {
-      "ActiveQ_Split": {
-        "fpr": 0.04666666666666667,
-        "fpr_ci": [
-          0.02574464946723095,
-          0.07705983810635875
-        ],
-        "count": 14,
-        "auroc": 0.5024972222222223,
-        "auroc_ci": [
-          0.4655636219226664,
-          0.541123893994084
-        ]
-      },
-      "Top1Mean_Split": {
-        "fpr": 0.04666666666666667,
-        "fpr_ci": [
-          0.02574464946723095,
-          0.07705983810635875
-        ],
-        "count": 14,
-        "auroc": 0.48290555555555553,
-        "auroc_ci": [
-          0.4446414299449879,
-          0.5195318993072665
-        ]
-      },
-      "ESM_Dropoff": {
-        "fpr": 0.04666666666666667,
-        "fpr_ci": [
-          0.02574464946723095,
-          0.07705983810635875
-        ],
-        "count": 14,
-        "auroc": 0.5031416666666666,
-        "auroc_ci": [
-          0.46483306829552423,
-          0.54049825226823
-        ]
-      },
-      "ESM_Margin": {
-        "fpr": 0.04,
-        "fpr_ci": [
-          0.020836576306413706,
-          0.0688289881894961
-        ],
-        "count": 12,
-        "auroc": 0.4932083333333333,
-        "auroc_ci": [
-          0.4544831584415662,
-          0.5307035907148091
-        ]
-      },
-      "Layer_Maha": {
-        "fpr": 0.05333333333333334,
-        "fpr_ci": [
-          0.030788319773478057,
-          0.08516676490951425
-        ],
-        "count": 16,
-        "auroc": 0.4797,
-        "auroc_ci": [
-          0.4352049673475528,
-          0.5194335036531971
-        ]
-      },
-      "Calibrated_Max_OR": {
-        "fpr": 0.043333333333333335,
-        "fpr_ci": [
-          0.02327184100468237,
-          0.07296146422028219
-        ],
-        "count": 13,
-        "auroc": 0.4935027777777778,
-        "auroc_ci": [
-          0.4486542852125044,
-          0.5338776459495946
-        ]
-      }
-    }
-  },
-  "Clean Shift: Gaussian Blur (5x5, sigma=1.5)": {
-    "N": 300,
-    "metrics": {
-      "ActiveQ_Split": {
-        "fpr": 0.043333333333333335,
-        "fpr_ci": [
-          0.02327184100468237,
-          0.07296146422028219
-        ],
-        "count": 13,
-        "auroc": 0.4661888888888889,
-        "auroc_ci": [
-          0.4264074853527421,
-          0.5043171754313461
-        ]
-      },
-      "Top1Mean_Split": {
-        "fpr": 0.016666666666666666,
-        "fpr_ci": [
-          0.005433205315105252,
-          0.03846374496499645
-        ],
-        "count": 5,
-        "auroc": 0.44405,
-        "auroc_ci": [
-          0.40729966677531176,
-          0.48016844730155583
-        ]
-      },
-      "ESM_Dropoff": {
-        "fpr": 0.06333333333333334,
-        "fpr_ci": [
-          0.03855801982837607,
-          0.0971381966071202
-        ],
-        "count": 19,
-        "auroc": 0.5111583333333334,
-        "auroc_ci": [
-          0.4736560182591054,
-          0.5499845919713741
-        ]
-      },
-      "ESM_Margin": {
-        "fpr": 0.03666666666666667,
-        "fpr_ci": [
-          0.018443460812459775,
-          0.06465851819629824
-        ],
-        "count": 11,
-        "auroc": 0.46737222222222224,
-        "auroc_ci": [
-          0.43189810913618826,
-          0.5059575659882442
-        ]
-      },
-      "Layer_Maha": {
-        "fpr": 0.05,
-        "fpr_ci": [
-          0.028251201968496384,
-          0.08112735717076422
-        ],
-        "count": 15,
-        "auroc": 0.5017444444444444,
-        "auroc_ci": [
-          0.4584316004880175,
-          0.5419362517217721
-        ]
-      },
-      "Calibrated_Max_OR": {
-        "fpr": 0.056666666666666664,
-        "fpr_ci": [
-          0.03335331151668461,
-          0.08918040443416297
-        ],
-        "count": 17,
-        "auroc": 0.4843166666666667,
-        "auroc_ci": [
-          0.4434439790078859,
-          0.5234913382063204
-        ]
-      }
-    }
-  },
-  "Clean Shift: Brightness (-30%)": {
-    "N": 300,
-    "metrics": {
-      "ActiveQ_Split": {
-        "fpr": 0.04666666666666667,
-        "fpr_ci": [
-          0.02574464946723095,
-          0.07705983810635875
-        ],
-        "count": 14,
-        "auroc": 0.48809444444444444,
-        "auroc_ci": [
-          0.449703429150722,
-          0.5267655615606562
-        ]
-      },
-      "Top1Mean_Split": {
-        "fpr": 0.056666666666666664,
-        "fpr_ci": [
-          0.03335331151668461,
-          0.08918040443416297
-        ],
-        "count": 17,
-        "auroc": 0.49522499999999997,
-        "auroc_ci": [
-          0.458859144086065,
-          0.5314803743019908
-        ]
-      },
-      "ESM_Dropoff": {
-        "fpr": 0.06,
-        "fpr_ci": [
-          0.0359438744151388,
-          0.09317029607198864
-        ],
-        "count": 18,
-        "auroc": 0.5139888888888888,
-        "auroc_ci": [
-          0.47515832112101586,
-          0.5515986751379038
-        ]
-      },
-      "ESM_Margin": {
-        "fpr": 0.05333333333333334,
-        "fpr_ci": [
-          0.030788319773478057,
-          0.08516676490951425
-        ],
-        "count": 16,
-        "auroc": 0.5027194444444445,
-        "auroc_ci": [
-          0.46291153110097744,
-          0.5392543104973314
-        ]
-      },
-      "Layer_Maha": {
-        "fpr": 0.08,
-        "fpr_ci": [
-          0.05192863933660696,
-          0.11669591648491244
-        ],
-        "count": 24,
-        "auroc": 0.4937888888888889,
-        "auroc_ci": [
-          0.4511798487147814,
-          0.5382097150808876
-        ]
-      },
-      "Calibrated_Max_OR": {
-        "fpr": 0.06,
-        "fpr_ci": [
-          0.0359438744151388,
-          0.09317029607198864
-        ],
-        "count": 18,
-        "auroc": 0.5050666666666667,
-        "auroc_ci": [
-          0.4615761644017355,
-          0.546595696500049
-        ]
-      }
-    }
+  "artifacts": {
+    "samples_csv": "G:\\Edge_Sec\\paper_3_defense_guardrail\\results\\step2_controls_and_fpr_samples.csv",
+    "log_file": "G:\\Edge_Sec\\paper_3_defense_guardrail\\logs\\step2_controls_and_fpr_20261118_215804.log"
   }
 }

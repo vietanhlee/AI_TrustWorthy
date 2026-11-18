@@ -77,17 +77,20 @@ def run_step1():
     t0_cal = time.time()
     num_batches_cal = int(np.ceil(N_cal / batch_size))
 
-    for b_idx, i in enumerate(range(0, N_cal, batch_size)):
-        b = cal_imgs[i : i + batch_size].to(device)
-        with torch.no_grad():
-            st = wrapper(b)
-            batch_feats = extractor.extract_from_state(st)
-            cal_features.extend(batch_feats)
-            del st
-        if (b_idx + 1) % 10 == 0 or (b_idx + 1) == num_batches_cal:
-            elapsed = time.time() - t0_cal
-            speed = (i + len(b)) / elapsed
-            logger.debug(f"   [Batch {b_idx+1:2d}/{num_batches_cal:2d}] Đã xử lý {i + len(b):4d}/{N_cal} ảnh | Tốc độ: {speed:5.1f} ảnh/s")
+    cal_batches = list(range(0, N_cal, batch_size))
+    with tqdm(total=N_cal, desc="  Calibration Feature Extraction", unit="img", dynamic_ncols=True) as pbar:
+        for b_idx, i in enumerate(cal_batches):
+            b = cal_imgs[i : i + batch_size].to(device)
+            with torch.no_grad():
+                st = wrapper(b)
+                batch_feats = extractor.extract_from_state(st)
+                cal_features.extend(batch_feats)
+                del st
+            pbar.update(len(b))
+            if (b_idx + 1) % 10 == 0 or (b_idx + 1) == num_batches_cal:
+                elapsed = time.time() - t0_cal
+                speed = (i + len(b)) / elapsed
+                logger.info(f"   [Batch {b_idx+1:2d}/{num_batches_cal:2d}] Đã xử lý {i + len(b):4d}/{N_cal} ảnh | Tốc độ: {speed:5.1f} ảnh/s")
 
     t_cal = time.time() - t0_cal
     logger.info(f"   -> Hoàn tất Calibration trong {t_cal:.2f}s ({t_cal/N_cal*1000:.1f} ms/ảnh).")
@@ -128,14 +131,17 @@ def run_step1():
     t0_test = time.time()
     num_batches_test = int(np.ceil(N_test / batch_size))
 
-    for b_idx, i in enumerate(range(0, N_test, batch_size)):
-        b = test_imgs[i : i + batch_size].to(device)
-        with torch.no_grad():
-            st = wrapper(b)
-            test_features.extend(extractor.extract_from_state(st))
-            del st
-        if (b_idx + 1) % 10 == 0 or (b_idx + 1) == num_batches_test:
-            logger.debug(f"   [Clean Test Batch {b_idx+1:2d}/{num_batches_test:2d}] Đã xử lý {i + len(b):4d}/{N_test} ảnh")
+    test_batches = list(range(0, N_test, batch_size))
+    with tqdm(total=N_test, desc="  Clean Test Feature Extraction", unit="img", dynamic_ncols=True) as pbar:
+        for b_idx, i in enumerate(test_batches):
+            b = test_imgs[i : i + batch_size].to(device)
+            with torch.no_grad():
+                st = wrapper(b)
+                test_features.extend(extractor.extract_from_state(st))
+                del st
+            pbar.update(len(b))
+            if (b_idx + 1) % 10 == 0 or (b_idx + 1) == num_batches_test:
+                logger.info(f"   [Clean Test Batch {b_idx+1:2d}/{num_batches_test:2d}] Đã xử lý {i + len(b):4d}/{N_test} ảnh")
 
     logger.info(f"   -> Trích xuất Clean Test hoàn tất trong {time.time() - t0_test:.2f}s.")
 

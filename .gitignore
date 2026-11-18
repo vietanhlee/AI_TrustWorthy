@@ -1,27 +1,49 @@
 # ==========================================
-# Git Ignore Configuration for Edge_Sec
+# Git Ignore Configuration for AI_TrustWorthy (Edge_Sec)
 # ==========================================
 
-# Virtual Environments
+# 1. Virtual Environments
 .venv/
 venv/
 ENV/
 env/
+.env
 
-# Python Cache & Bytecode
+# 2. Python Cache & Build Artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
 build/
 dist/
+*.so
+*.pyd
 
-# Large Datasets & Large Binary Caches
+# 3. Datasets, Archives & Large Blobs
+coco5k/
 edge_sec_pro/data/coco5k/
-*.npz
-*.pt
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
 
-# LaTeX Build Auxiliary Files
+# 4. Large Weights, Checkpoint Caches & Binary Arrays
+*.pt
+*.pth
+*.bin
+*.onnx
+*.engine
+*.npz
+*.npy
+*.pkl
+adv_cache/
+**/adv_cache/
+cache/
+**/cache/
+
+# 5. LaTeX Auxiliary Build Files
 *.aux
 *.log
 *.bbl
@@ -32,9 +54,20 @@ edge_sec_pro/data/coco5k/
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+texput.log
 
-# OS & IDE Temporary Files
-.DS_Store
-Thumbs.db
+# 6. IDE, OS & Agent Sandbox Artifacts
+.agents/
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
+*~
+*.bak
+*.bak_*
+*.swp
+
+# 7. Temporary Visual Verification Folders
+verify_pdf_render/
+verify_bao_cao_proto/
+test_dry_run_telemetry.json

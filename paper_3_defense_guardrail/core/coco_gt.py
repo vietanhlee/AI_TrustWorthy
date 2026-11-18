@@ -320,7 +320,7 @@ def _evaluate_class_ap_for_subset(
     for idx in indices:
         gt = gt_list[idx]
         gt_mask_c = (gt["labels"] == class_id)
-        gt_boxes_c = gt["boxes_xyxy"][gt_mask_c]
+        gt_boxes_c = (gt["boxes_xyxy"] if "boxes_xyxy" in gt else gt["boxes"])[gt_mask_c]
         gt_crowd_c = gt["iscrowd"][gt_mask_c] if "iscrowd" in gt else np.zeros(len(gt_boxes_c), dtype=bool)
 
         non_crowd_boxes = gt_boxes_c[~gt_crowd_c]
@@ -826,7 +826,7 @@ def compute_map_coco(
     for gb, gl in zip(gt_boxes_list, gt_labels_list):
         gb_np = gb.detach().cpu().numpy() if isinstance(gb, torch.Tensor) else np.asarray(gb)
         gl_np = gl.detach().cpu().numpy() if isinstance(gl, torch.Tensor) else np.asarray(gl)
-        gt_list.append({"boxes": gb_np, "labels": gl_np})
+        gt_list.append({"boxes": gb_np, "boxes_xyxy": gb_np, "labels": gl_np})
 
     return evaluate_coco_predictions(preds, gt_list, num_classes=num_classes)
 

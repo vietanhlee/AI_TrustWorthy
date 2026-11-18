@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 Script: paper_3_defense_guardrail.run_batch_experiments
-Mục đích: Điều phối chạy toàn bộ bộ thực nghiệm Paper 3 một cách tự động và tối ưu hóa thời gian:
-1. Giai đoạn 1 (Tuần tự bắt buộc): Chạy Step 1 (run_calibration.py) để sinh checkpoint
-   hiệu chuẩn các bộ giám sát (calibration_and_detectors.pkl).
+Mục đích: Điều phối chạy toàn bộ bộ thực nghiệm Paper 3 một cách tự động, tối ưu hóa và trực quan:
+1. Giai đoạn 1 (Tuần tự bắt buộc): Chạy Step 1 (run_calibration.py) với Live Stream Output & TQDM
+   để người dùng theo dõi trực tiếp thanh tiến trình trích xuất 1200 ảnh và fit detectors.
 2. Giai đoạn 2 (Song song tối đa 4 workers): Đưa toàn bộ các thực nghiệm độc lập còn lại vào
    hàng đợi (Queue) và chạy đồng thời tối đa 4 tiến trình (concurrency = 4).
-   Khi một tiến trình hoàn tất, tiến trình tiếp theo lập tức được kích hoạt ngay.
-3. Quản lý log độc lập cho từng tiến trình, hiển thị trạng thái thời gian thực và tổng kết chi tiết.
+   Tích hợp Live Heartbeat Ticker & Progress Monitor:
+   - Tự động đọc tail log của từng worker đang chạy và hiển thị tiến độ thời gian thực (real-time).
+   - Hiển thị thanh tiến trình TQDM tổng thể theo số tác vụ hoàn tất.
+3. Hỗ trợ cờ `--stream`: Cho phép stream trực tiếp toàn bộ log/tqdm ra console cho từng tác vụ.
+4. Quản lý log độc lập từng tiến trình ra file *.log và *.err.log, tổng kết bảng kết quả chi tiết.
 """
 
 import os
@@ -17,7 +20,7 @@ import argparse
 import subprocess
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 
 # Thiết lập đường dẫn workspace
 PAPER3_DIR = Path(__file__).resolve().parent
@@ -102,10 +105,31 @@ TASK_REGISTRY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def run_single_task(task_key: str, task_info: Dict[str, Any]) -> Dict[str, Any]:
+def get_last_log_snippet(log_path: Path) -> str:
+    """Đọc dòng log / tiến độ mới nhất từ file log của worker đang chạy."""
+    if not log_path.exists():
+        return "Đang khởi tạo tiến trình..."
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            lines = [l.strip() for l in f.readlines() if l.strip()]
+            if not lines:
+                return "Đang nạp mô hình & dữ liệu..."
+            # Lấy dòng mới nhất có ý nghĩa
+            for l in reversed(lines[-8:]):
+                if any(k in l for k in ["%", "it/s", "ảnh/s", "ĐANG ĐÁNH GIÁ", "Bắt đầu", "Epoch", "Batch", "Trích xuất", "ASR", "Hoàn tất"]):
+                    # Cắt ngắn nếu quá dài
+                    clean_l = l.split("] ")[-1] if "] " in l else l
+                    return clean_l[:75] + ("..." if len(clean_l) > 75 else "")
+            return lines[-1][:75] + ("..." if len(lines[-1]) > 75 else "")
+    except Exception:
+        return "Đang thực thi..."
+
+
+def run_stream_task(task_key: str, task_info: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Thực thi một tác vụ thực nghiệm độc lập trong tiến trình con (subprocess).
-    Tự động chuyển hướng stdout và stderr ra file log riêng biệt.
+    Chạy tác vụ ở chế độ Live Streaming: vừa in trực tiếp TQDM / log ra màn hình,
+    vừa ghi đồng thời ra file log.
+    Gộp stderr=subprocess.STDOUT để tránh triệt để OS pipe buffer deadlock trên Windows.
     """
     script_path = task_info["script"]
     task_name = task_info["name"]
@@ -125,21 +149,31 @@ def run_single_task(task_key: str, task_info: Dict[str, Any]) -> Dict[str, Any]:
                 [PYTHON_EXE, str(script_path)],
                 cwd=str(PAPER3_DIR),
                 env=env,
-                stdout=f_out,
-                stderr=f_err,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
+                bufsize=1,
             )
+
+            # Đọc và in theo thời gian thực từ stream đã gộp
+            for line in iter(proc.stdout.readline, ""):
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                f_out.write(line)
+                f_out.flush()
+
+            proc.stdout.close()
             returncode = proc.wait()
 
         elapsed = time.time() - t0
         has_error = returncode != 0
-
-        # Đọc tail lỗi nếu có
         err_tail = ""
-        if has_error and err_log.exists():
-            with open(err_log, "r", encoding="utf-8", errors="replace") as f_err:
-                err_lines = f_err.readlines()
-                err_tail = "".join(err_lines[-15:])
+        if has_error:
+            try:
+                with open(out_log, "r", encoding="utf-8", errors="replace") as fo:
+                    err_tail = "".join(fo.readlines()[-20:])
+            except Exception:
+                pass
 
         return {
             "task_key": task_key,
@@ -167,7 +201,7 @@ def run_single_task(task_key: str, task_info: Dict[str, Any]) -> Dict[str, Any]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Batch Parallel Runner for Paper 3 Guardrail Experiments (Max 4 Concurrency)"
+        description="Batch Parallel Runner for Paper 3 Guardrail Experiments (Max 4 Concurrency with Live TQDM/Log)"
     )
     parser.add_argument(
         "--max-workers",
@@ -186,16 +220,21 @@ def main():
         default=None,
         help="Chỉ định danh sách tasks cụ thể cần chạy (ví dụ: --tasks step2_controls_fpr step4_aqsm_esm).",
     )
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Bật chế độ Live Stream in thẳng stdout/tqdm ra console (phù hợp khi chạy 1-2 tasks cụ thể).",
+    )
     args = parser.parse_args()
 
     max_workers = min(max(1, args.max_workers), 8)
 
     print("=" * 95)
     print("   HỆ THỐNG ĐIỀU PHỐI CHẠY THỰC NGHIỆM BATCH PARALLEL (PAPER 3: DEFENSE GUARDRAIL)   ")
-    print(f"   Python Executable: {PYTHON_EXE}")
-    print(f"   Số luồng song song tối đa (Concurrency Pool) : {max_workers} WORKERS")
-    print(f"   Thư mục lưu trữ logs: {LOGS_DIR}")
-    print(f"   Thư mục lưu kết quả : {RESULTS_DIR}")
+    print(f"   Python Executable : {PYTHON_EXE}")
+    print(f"   Số luồng đồng thời: {max_workers} WORKERS")
+    print(f"   Thư mục lưu Logs  : {LOGS_DIR}")
+    print(f"   Thư mục lưu Data  : {RESULTS_DIR}")
     print("=" * 95)
 
     total_start_time = time.time()
@@ -208,10 +247,10 @@ def main():
     should_run_step1 = not args.skip_calibration or not ckpt_file.exists()
 
     if should_run_step1:
-        print("\n>>> [GIAI ĐOẠN 1] KHỞI CHẠY BƯỚC 1 (CALIBRATION & FIT DETECTORS - BẮT BUỘC TUẦN TỰ)...")
-        t1_start = time.time()
+        print("\n>>> [GIAI ĐOẠN 1] KHỞI CHẠY BƯỚC 1 (CALIBRATION & FIT DETECTORS - LIVE STREAM & TQDM)...")
         step1_info = TASK_REGISTRY["step1_calibration"]
-        res_step1 = run_single_task("step1_calibration", step1_info)
+        # Step 1 chạy đơn lẻ nên stream trực tiếp ra màn hình để người dùng thấy TQDM
+        res_step1 = run_stream_task("step1_calibration", step1_info)
         execution_results.append(res_step1)
 
         if not res_step1["success"]:
@@ -223,8 +262,8 @@ def main():
                 print("-" * 50)
             sys.exit(1)
         else:
-            print(f"[+] BƯỚC 1 HOÀN TẤT THÀNH CÔNG trong [{res_step1['elapsed_seconds']}s]!")
-            print(f"    Checkpoint đã được tạo tại: {ckpt_file}")
+            print(f"\n[+] BƯỚC 1 HOÀN TẤT THÀNH CÔNG trong [{res_step1['elapsed_seconds']}s]!")
+            print(f"    Checkpoint đã được tạo tại: {ckpt_file}\n")
     else:
         print(f"\n>>> [GIAI ĐOẠN 1] Bỏ qua Bước 1 vì checkpoint đã có sẵn: {ckpt_file.name}")
 
@@ -239,42 +278,146 @@ def main():
             continue
         parallel_tasks[key] = val
 
+    # Tách Step 11 nếu chạy cùng các tasks khác để đảm bảo Step 11 đọc kết quả tươi từ Step 4 và 5
+    run_step11_after = ("step11_mcnemar_tests" in parallel_tasks) and (len(parallel_tasks) > 1)
+    step11_info_deferred = None
+    if run_step11_after:
+        step11_info_deferred = parallel_tasks.pop("step11_mcnemar_tests")
+
+    if not parallel_tasks and not run_step11_after:
+        print("\n[i] Không có tác vụ nào cần thực thi tiếp. Kết thúc chương trình.")
+        return
+
     print(f"\n>>> [GIAI ĐOẠN 2] KHỞI CHẠY {len(parallel_tasks)} THỰC NGHIỆM SONG SONG (TỐI ĐA {max_workers} TIẾN TRÌNH CÙNG LÚC)...")
     print("-" * 95)
     for k, v in parallel_tasks.items():
         print(f"   * [{k:<26}] : {v['name']}")
     print("-" * 95)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_task = {
-            executor.submit(run_single_task, k, v): (k, v)
-            for k, v in parallel_tasks.items()
-        }
+    if args.stream and len(parallel_tasks) == 1:
+        # Nếu chỉ chạy 1 task và yêu cầu stream: chạy tuần tự stream trực tiếp
+        t_key, t_info = list(parallel_tasks.items())[0]
+        print(f"\n[Chế độ Stream] Đang chạy trực tiếp: {t_info['name']}...\n")
+        res = run_stream_task(t_key, t_info)
+        execution_results.append(res)
+    else:
+        # Chạy hàng đợi đa tiến trình với Live Progress Monitor
+        task_queue = list(parallel_tasks.items())
+        total_tasks = len(task_queue)
+        active_processes: Dict[str, Dict[str, Any]] = {}
+        completed_tasks: List[Dict[str, Any]] = []
 
-        print(f"\nĐã kích hoạt {min(len(parallel_tasks), max_workers)} tiến trình đầu tiên trong hàng đợi. Đang theo dõi tiến độ...\n")
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        env["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-        completed_count = 0
-        total_parallel = len(parallel_tasks)
+        print(f"\nĐang kích hoạt hàng đợi với {max_workers} slots song song. Cập nhật tiến độ theo thời gian thực (Live Dashboard):\n")
 
-        for future in as_completed(future_to_task):
-            task_key, task_info = future_to_task[future]
-            completed_count += 1
-            try:
-                result = future.result()
-                execution_results.append(result)
-                status = "[SUCCESS]" if result["success"] else "[FAILED] "
-                print(f"  {status} ({completed_count}/{total_parallel}) {task_info['name']}")
-                print(f"            Thời gian: {result['elapsed_seconds']:6.2f}s | Log: {Path(result['out_log']).name}")
+        pbar = tqdm(total=total_tasks, desc="  Tổng tiến độ Batch", unit="task", dynamic_ncols=True)
+        last_heartbeat_time = 0
 
-                if not result["success"]:
-                    print(f"            [!] Lỗi phát sinh tại: {result['err_log']}")
-                    if result["error_tail"]:
-                        print("            " + "-" * 50)
-                        for line in result["error_tail"].strip().split("\n")[-5:]:
-                            print(f"            {line}")
-                        print("            " + "-" * 50)
-            except Exception as exc:
-                print(f"  [ERROR] ({completed_count}/{total_parallel}) Task {task_key} sinh ngoại lệ: {exc}")
+        while task_queue or active_processes:
+            # 1. Đẩy tác vụ mới vào các slot còn trống
+            while task_queue and len(active_processes) < max_workers:
+                t_key, t_info = task_queue.pop(0)
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                out_log = LOGS_DIR / f"{t_key}_batch_{timestamp}.log"
+                err_log = LOGS_DIR / f"{t_key}_batch_{timestamp}.err.log"
+
+                f_out = open(out_log, "w", encoding="utf-8")
+                f_err = open(err_log, "w", encoding="utf-8")
+
+                proc = subprocess.Popen(
+                    [PYTHON_EXE, str(t_info["script"])],
+                    cwd=str(PAPER3_DIR),
+                    env=env,
+                    stdout=f_out,
+                    stderr=f_err,
+                    text=True,
+                )
+
+                active_processes[t_key] = {
+                    "proc": proc,
+                    "info": t_info,
+                    "f_out": f_out,
+                    "f_err": f_err,
+                    "out_log": out_log,
+                    "err_log": err_log,
+                    "t0": time.time(),
+                }
+                tqdm.write(f"  [+] [DISPATCH] Khởi chạy: {t_info['name']}")
+
+            time.sleep(1.0)
+
+            # 2. Kiểm tra các tiến trình đã hoàn thành
+            finished_keys = []
+            for t_key, p_data in active_processes.items():
+                ret = p_data["proc"].poll()
+                if ret is not None:
+                    # Đã kết thúc
+                    p_data["f_out"].close()
+                    p_data["f_err"].close()
+                    elapsed = time.time() - p_data["t0"]
+                    success = ret == 0
+
+                    err_tail = ""
+                    if not success and p_data["err_log"].exists():
+                        try:
+                            with open(p_data["err_log"], "r", encoding="utf-8", errors="replace") as fe:
+                                err_tail = "".join(fe.readlines()[-15:])
+                        except Exception:
+                            pass
+
+                    res_item = {
+                        "task_key": t_key,
+                        "task_name": p_data["info"]["name"],
+                        "returncode": ret,
+                        "elapsed_seconds": round(elapsed, 2),
+                        "out_log": str(p_data["out_log"]),
+                        "err_log": str(p_data["err_log"]),
+                        "success": success,
+                        "error_tail": err_tail,
+                    }
+                    completed_tasks.append(res_item)
+                    execution_results.append(res_item)
+                    finished_keys.append(t_key)
+
+                    status_str = "THÀNH CÔNG" if success else "THẤT BẠI"
+                    mark = "[SUCCESS]" if success else "[FAILED] "
+                    tqdm.write(f"  {mark} ({len(completed_tasks)}/{total_tasks}) {p_data['info']['name']} -> {status_str} trong [{elapsed:.1f}s]")
+                    if not success and err_tail:
+                        tqdm.write(f"            [!] Chi tiết lỗi tại: {p_data['err_log']}")
+                    pbar.update(1)
+
+            for fk in finished_keys:
+                del active_processes[fk]
+
+            # 3. Hiển thị Heartbeat Ticker mỗi 4 giây cho các tác vụ đang chạy
+            now = time.time()
+            if active_processes and (now - last_heartbeat_time >= 4.0):
+                last_heartbeat_time = now
+                running_summary = []
+                for tk, pd in active_processes.items():
+                    dur = int(now - pd["t0"])
+                    snip = get_last_log_snippet(pd["out_log"])
+                    running_summary.append(f"[{tk} ({dur}s): {snip}]")
+                tqdm.write("    >>> [Đang chạy] " + " | ".join(running_summary[:2]))
+                if len(running_summary) > 2:
+                    tqdm.write("                    " + " | ".join(running_summary[2:]))
+
+        pbar.close()
+
+    # -------------------------------------------------------------------------
+    # GIAI ĐOẠN 2B: CHẠY STEP 11 (MCNEMAR TESTS) DỰA TRÊN KẾT QUẢ TƯƠI TỪ BƯỚC 4 VÀ 5
+    # -------------------------------------------------------------------------
+    if step11_info_deferred is not None:
+        print("\n>>> [GIAI ĐOẠN 2B] KHỞI CHẠY BƯỚC 11 (MCNEMAR TESTS) TỔNG HỢP TRỰC TIẾP TỪ MẪU TƯƠI BƯỚC 4 & 5...")
+        res_step11 = run_stream_task("step11_mcnemar_tests", step11_info_deferred)
+        execution_results.append(res_step11)
+        if res_step11["success"]:
+            print(f"[+] BƯỚC 11 HOÀN TẤT THÀNH CÔNG trong [{res_step11['elapsed_seconds']}s]!")
+        else:
+            print(f"[!] BƯỚC 11 THẤT BẠI. Chi tiết lỗi tại: {res_step11['err_log']}")
 
     # -------------------------------------------------------------------------
     # GIAI ĐOẠN 3: TỔNG KẾT BẢNG KẾT QUẢ ĐIỀU PHỐI

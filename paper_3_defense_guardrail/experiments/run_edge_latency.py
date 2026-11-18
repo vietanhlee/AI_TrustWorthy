@@ -94,7 +94,9 @@ def run_step8():
     lat_total_guard = []
     lat_combined = []
 
-    for run_i in range(1, N_runs + 1):
+    from tqdm import tqdm
+
+    for run_i in tqdm(range(1, N_runs + 1), desc="  Đo độ trễ CPU (Latency Profile)", unit="run", dynamic_ncols=True):
         # Base Model
         t0 = time.perf_counter()
         with torch.no_grad():

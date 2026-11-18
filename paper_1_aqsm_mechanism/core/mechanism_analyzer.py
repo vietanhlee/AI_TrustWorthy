@@ -18,10 +18,10 @@ import torch
 import torch.nn.functional as F
 
 
-# Phân đoạn token theo feature scale tại input 320x320:
-# S3: 40x40 = 1600 tokens [0:1600]
-# S4: 20x20 = 400 tokens [1600:2000]
-# S5: 10x10 = 100 tokens [2000:2100]
+# Phân đoạn token theo feature scale tại input 640x640:
+# S3: 80x80 = 6400 tokens [0:6400]
+# S4: 40x40 = 1600 tokens [6400:8000]
+# S5: 20x20 = 400 tokens [8000:8400]
 SCALE_NAMES: Tuple[str, ...] = ("S3", "S4", "S5")
 
 
