@@ -7,30 +7,40 @@ và quản lý cấu hình thực thi phần cứng cho Paper 2 (Phantom Queries
 
 from .coco_gt import (
     load_flexible_coco_cohort,
-    evaluate_detection_metrics,
     discover_coco_annotations,
-    calculate_iou_matrix,
-    hungarian_match_predictions,
-    compute_ap_voc2012
+    load_coco_val2017_gt_cohort,
+    box_cxcywh_to_xyxy,
+    compute_iou_matrix,
+    build_coco_category_mapping,
+    postprocess_rtdetr_predictions,
+    evaluate_coco_predictions,
+    compute_per_image_coco_aps,
+    bootstrap_paired_diff,
+    repeated_measures_2x2_anova,
 )
 from .config import (
     get_device,
     configure_runtime_threads,
     MODEL_NAME,
     IMG_SIZE,
-    NUM_QUERIES
+    NUM_QUERIES,
 )
 
 __all__ = [
     "load_flexible_coco_cohort",
-    "evaluate_detection_metrics",
     "discover_coco_annotations",
-    "calculate_iou_matrix",
-    "hungarian_match_predictions",
-    "compute_ap_voc2012",
+    "load_coco_val2017_gt_cohort",
+    "box_cxcywh_to_xyxy",
+    "compute_iou_matrix",
+    "build_coco_category_mapping",
+    "postprocess_rtdetr_predictions",
+    "evaluate_coco_predictions",
+    "compute_per_image_coco_aps",
+    "bootstrap_paired_diff",
+    "repeated_measures_2x2_anova",
     "get_device",
     "configure_runtime_threads",
     "MODEL_NAME",
     "IMG_SIZE",
-    "NUM_QUERIES"
+    "NUM_QUERIES",
 ]

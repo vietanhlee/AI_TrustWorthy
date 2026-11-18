@@ -24,12 +24,13 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+import gc
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import _get_rtdetr_core_model
 from paper_1_aqsm_mechanism.experiments.config import (
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
     detect_hardware_environment,
+    get_raw_csv_dir,
+    get_summary_json_dir,
 )
 
 
@@ -241,7 +242,9 @@ def profile_pipeline_latency(
     print("=" * 80)
 
     # 3. Ghi dữ liệu thô ra file CSV phục vụ audit
-    raw_csv_path = RAW_CSV_DIR / "latency_profiler_raw.csv"
+    raw_csv_dir = get_raw_csv_dir()
+    raw_csv_dir.mkdir(parents=True, exist_ok=True)
+    raw_csv_path = raw_csv_dir / "latency_profiler_raw.csv"
     with open(raw_csv_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["run_idx", "backbone_ms", "encoder_ms", "selection_ms", "decoder_ms", "total_ms"])
@@ -298,9 +301,21 @@ def profile_pipeline_latency(
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    json_path = SUMMARY_JSON_DIR / "latency_profile.json"
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+    json_path = summary_json_dir / "latency_profile.json"
     with open(json_path, mode="w", encoding="utf-8") as f:
         json.dump(output_dict, f, indent=2)
     print(f">>> Đã lưu tổng hợp JSON Table 10: {json_path}")
+
+    # Lưu alias tương thích ngược edge_latency_results.json
+    json_path_alias = summary_json_dir / "edge_latency_results.json"
+    with open(json_path_alias, mode="w", encoding="utf-8") as f:
+        json.dump(output_dict, f, indent=2)
+    print(f">>> Đã lưu alias Table 10: {json_path_alias}")
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
     return output_dict

@@ -6,16 +6,22 @@ bài báo 1 (Mechanistic Breakdown of Dynamic Query Selection trong RT-DETR).
 
 Bao gồm:
 - detr_wrapper: Lớp bao bọc RT-DETR trích xuất toàn bộ trạng thái nội tại (tokens, queries, attention).
+- dataset_loader: Bộ nạp dataset COCO linh hoạt theo lô lười (Lazy Batch Loading) giữ RAM < 200MB.
+- adv_cache: Quản lý nạp/lưu cache mẫu đối kháng định dạng nén NPZ.
 - coco_gt: Nạp ground truth COCO val2017, tính toán mAP chuẩn COCO, Repeated-Measures 2x2 ANOVA và Bootstrap CI.
 - mechanism_analyzer: Phẫu thuật hoán đổi thành phần nhân quả (Causal Surgery), phân tích Encoder Memory và Deformable Attention.
 - attack_generator: Bộ sinh tấn công đối kháng có kiểm soát (AQSM, Vanishing, Task PGD).
+- defense_engine: Bộ giám sát phổ năng lượng Encoder (ESM Monitor) và đánh giá phòng thủ thời gian thực.
 - metrics: Tính khoảng tin cậy nhị thức Clopper-Pearson, AUROC, và chuyển đổi JSON.
 """
 
 __all__ = [
     "detr_wrapper",
+    "dataset_loader",
+    "adv_cache",
     "coco_gt",
     "mechanism_analyzer",
     "attack_generator",
+    "defense_engine",
     "metrics",
 ]

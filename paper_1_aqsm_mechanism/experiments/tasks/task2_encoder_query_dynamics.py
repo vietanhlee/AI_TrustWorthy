@@ -17,6 +17,7 @@ Mục đích: Đánh giá thực nghiệm động lực học Encoder Memory & Q
 
 import argparse
 import csv
+import gc
 import json
 import logging
 import os
@@ -52,11 +53,11 @@ from paper_1_aqsm_mechanism.experiments.config import (
     MODEL_NAME,
     OUTPUTS_DIR,
     RANDOM_SEED,
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_raw_csv_dir,
+    get_summary_json_dir,
     update_experiment_paths,
 )
 
@@ -143,7 +144,8 @@ def main():
     results_by_attack: Dict[str, Any] = {}
     memory_results_by_attack: Dict[str, Any] = {}
 
-    raw_csv_path = RAW_CSV_DIR / "encoder_query_dynamics_raw.csv"
+    raw_csv_path = get_raw_csv_dir() / "encoder_query_dynamics_raw.csv"
+    get_raw_csv_dir().mkdir(parents=True, exist_ok=True)
     csv_rows = []
 
     for atk_name in attacks_to_eval:
@@ -293,6 +295,12 @@ def main():
                 q_r["adv_dropoff"],
             ])
 
+        # Giải phóng bộ nhớ và VRAM sau mỗi đòn tấn công
+        del adv_imgs
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
     # Ghi file raw CSV
     with open(raw_csv_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -323,8 +331,11 @@ def main():
         writer.writerows(csv_rows)
     print(f"\n>>> Đã ghi nhận số liệu thô per-image: {raw_csv_path}")
 
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+
     # Xuất JSON Table 5: Encoder Memory Analysis
-    json_path_mem = SUMMARY_JSON_DIR / "encoder_memory_analysis.json"
+    json_path_mem = summary_json_dir / "encoder_memory_analysis.json"
     with open(json_path_mem, mode="w", encoding="utf-8") as f:
         json.dump(
             {
@@ -341,21 +352,24 @@ def main():
     print(f">>> Đã xuất JSON Table 5: {json_path_mem}")
 
     # Xuất JSON Table 6: Query Selection Dynamics
-    json_path_query = SUMMARY_JSON_DIR / "query_selection_dynamics.json"
+    json_path_query = summary_json_dir / "query_selection_dynamics.json"
+    query_payload = {
+        "experiment": "Table 6: Query Selection Perturbation Dynamics",
+        "n_images": n_total,
+        "model": MODEL_NAME,
+        "device": str(device),
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "results": results_by_attack,
+    }
     with open(json_path_query, mode="w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "experiment": "Table 6: Query Selection Perturbation Dynamics",
-                "n_images": n_total,
-                "model": MODEL_NAME,
-                "device": str(device),
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "results": results_by_attack,
-            },
-            f,
-            indent=2,
-        )
+        json.dump(query_payload, f, indent=2)
     print(f">>> Đã xuất JSON Table 6: {json_path_query}")
+
+    # Xuất alias tương thích ngược encoder_query_dynamics.json
+    json_path_query_alias = summary_json_dir / "encoder_query_dynamics.json"
+    with open(json_path_query_alias, mode="w", encoding="utf-8") as f:
+        json.dump(query_payload, f, indent=2)
+    print(f">>> Đã xuất JSON alias Table 6: {json_path_query_alias}")
 
     audit_logger.close()
     print("\n[HOÀN THÀNH TOÀN BỘ] Task 2: Encoder Memory & Query Selection Dynamics thành công!")

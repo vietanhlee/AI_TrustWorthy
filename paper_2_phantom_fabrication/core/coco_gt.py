@@ -34,6 +34,10 @@ except ImportError:
         N_TEST_CLEAN_SAMPLES,
     )
 
+CORE_DIR: Path = Path(__file__).resolve().parent
+PACKAGE_DIR: Path = CORE_DIR.parent
+PROJECT_ROOT: Path = PACKAGE_DIR.parent
+
 COCO_ANN_PATH: Path = DATA_DIR / "coco5k" / "annotations" / "instances_val2017.json"
 
 # Bảng alias tên lớp giữa COCO JSON chuẩn (80 lớp) và config.id2label của PekingU/rtdetr_r18vd
@@ -101,6 +105,172 @@ def build_coco_category_mapping(
                 )
 
     return mapping
+
+
+def discover_coco_annotations(image_folder: Union[str, Path], custom_ann: Optional[Union[str, Path]] = None) -> Path:
+    """Tự động tìm kiếm file chú thích instances_val2017.json."""
+    if custom_ann:
+        p = Path(custom_ann).resolve()
+        if p.exists():
+            return p
+
+    img_folder = Path(image_folder).resolve()
+    potential_paths = [
+        img_folder / "annotations" / "instances_val2017.json",
+        img_folder.parent / "annotations" / "instances_val2017.json",
+        img_folder.parent.parent / "annotations" / "instances_val2017.json",
+        PROJECT_ROOT / "coco5k" / "annotations" / "instances_val2017.json",
+        PROJECT_ROOT / "edge_sec_pro" / "data" / "coco5k" / "annotations" / "instances_val2017.json",
+        PROJECT_ROOT / "data" / "coco5k" / "annotations" / "instances_val2017.json",
+        PROJECT_ROOT / "paper_2_phantom_fabrication" / "data" / "coco5k" / "annotations" / "instances_val2017.json",
+    ]
+    for p in potential_paths:
+        if p.exists():
+            return p.resolve()
+
+    # Thử tìm kiếm đệ quy trong thư mục gốc
+    for candidate in PROJECT_ROOT.glob("**/instances_val2017.json"):
+        if candidate.exists():
+            return candidate.resolve()
+
+    raise FileNotFoundError(
+        f"Không tìm thấy file annotations `instances_val2017.json`. "
+        f"Vui lòng truyền đường dẫn chính xác qua `--annotations <path>`."
+    )
+
+
+def load_flexible_coco_cohort(
+    image_folder: Union[str, Path],
+    annotations_path: Optional[Union[str, Path]] = None,
+    n_samples: int = 0,
+    seed: int = 42,
+    img_size: int = 640,
+    id2label: Optional[Dict[int, str]] = None,
+    as_uint8: bool = True,
+) -> Dict[str, Any]:
+    """
+    Nạp tập cohort ảnh COCO linh hoạt từ bất kỳ thư mục nào (từ vài ảnh đến 5,000 ảnh).
+    - Nếu n_samples <= 0 hoặc None: Tự động chạy toàn bộ ảnh có trong thư mục (full dataset).
+    - as_uint8=True: Lưu tensor dưới dạng uint8 trên CPU (tiết kiệm 75% RAM, chống OOM khi chạy 5,000 ảnh).
+    """
+    img_dir = Path(image_folder).resolve()
+    if not img_dir.exists():
+        raise FileNotFoundError(f"Thư mục ảnh không tồn tại: {img_dir}")
+
+    ann_file = discover_coco_annotations(img_dir, annotations_path)
+
+    with open(ann_file, "r", encoding="utf-8") as f:
+        coco_data = json.load(f)
+
+    cat_map = build_coco_category_mapping(coco_data["categories"], id2label=id2label)
+    filename_to_meta = {str(im["file_name"]): im for im in coco_data["images"]}
+    anns_by_img = {}
+    for ann in coco_data["annotations"]:
+        anns_by_img.setdefault(int(ann["image_id"]), []).append(ann)
+
+    all_files = sorted(list(img_dir.glob("*.jpg")) + list(img_dir.glob("*.jpeg")) + list(img_dir.glob("*.png")))
+    if not all_files:
+        raise FileNotFoundError(f"Không tìm thấy ảnh nào trong thư mục: {img_dir}")
+
+    # Lọc những ảnh có mặt trong file annotations
+    valid_paths = [f for f in all_files if f.name in filename_to_meta]
+    if not valid_paths:
+        valid_paths = all_files  # fallback nếu tên file khớp dạng id.jpg
+
+    # Nếu n_samples <= 0: Chạy toàn bộ ảnh có sẵn trong thư mục
+    if n_samples is None or n_samples <= 0 or n_samples >= len(valid_paths):
+        selected_paths = valid_paths
+    else:
+        rng = np.random.RandomState(seed)
+        chosen_indices = rng.choice(len(valid_paths), size=n_samples, replace=False)
+        selected_paths = [valid_paths[idx] for idx in chosen_indices]
+
+    gt_list = []
+    hf_labels = []
+    image_ids = []
+    tensors = []
+
+    for fpath in selected_paths:
+        meta = filename_to_meta.get(fpath.name)
+        if meta is None:
+            try:
+                img_id = int(fpath.stem)
+            except ValueError:
+                img_id = len(image_ids) + 1
+            orig_w, orig_h = float(img_size), float(img_size)
+        else:
+            img_id = int(meta["id"])
+            orig_w = float(meta["width"])
+            orig_h = float(meta["height"])
+
+        image_ids.append(img_id)
+        anns = anns_by_img.get(img_id, [])
+
+        boxes_xyxy, boxes_cxcywh, labels, iscrowd = [], [], [], []
+        for ann in anns:
+            cid = int(ann["category_id"])
+            if cid not in cat_map:
+                continue
+            x, y, w, h = ann["bbox"]
+            if w <= 1e-3 or h <= 1e-3:
+                continue
+            cx = (x + w / 2.0) / orig_w
+            cy = (y + h / 2.0) / orig_h
+            nw = w / orig_w
+            nh = h / orig_h
+            boxes_cxcywh.append([cx, cy, nw, nh])
+
+            x1 = x / orig_w
+            y1 = y / orig_h
+            x2 = (x + w) / orig_w
+            y2 = (y + h) / orig_h
+            boxes_xyxy.append([x1, y1, x2, y2])
+
+            labels.append(cat_map[cid])
+            iscrowd.append(int(ann.get("iscrowd", 0)))
+
+        gt_list.append({
+            "image_id": img_id,
+            "orig_size": [orig_h, orig_w],
+            "boxes_xyxy": np.array(boxes_xyxy, dtype=np.float32) if boxes_xyxy else np.zeros((0, 4), dtype=np.float32),
+            "boxes_cxcywh": np.array(boxes_cxcywh, dtype=np.float32) if boxes_cxcywh else np.zeros((0, 4), dtype=np.float32),
+            "labels": np.array(labels, dtype=np.int64) if labels else np.zeros((0,), dtype=np.int64),
+            "iscrowd": np.array(iscrowd, dtype=np.int64) if iscrowd else np.zeros((0,), dtype=np.int64),
+            "path": fpath,
+        })
+
+        valid_mask = [ic == 0 for ic in iscrowd]
+        hf_labels.append({
+            "class_labels": torch.tensor([labels[i] for i, v in enumerate(valid_mask) if v], dtype=torch.int64),
+            "boxes": torch.tensor([boxes_cxcywh[i] for i, v in enumerate(valid_mask) if v], dtype=torch.float32),
+        })
+
+        try:
+            with Image.open(fpath) as pil_img:
+                img_rgb = pil_img.convert("RGB")
+                img_resized = img_rgb.resize((img_size, img_size), Image.BILINEAR)
+                t_flt = TF.to_tensor(img_resized)  # float in [0.0, 1.0]
+                if as_uint8:
+                    tensors.append((t_flt * 255.0).to(torch.uint8))
+                else:
+                    tensors.append(t_flt)
+        except Exception:
+            if as_uint8:
+                tensors.append(torch.zeros(3, img_size, img_size, dtype=torch.uint8))
+            else:
+                tensors.append(torch.zeros(3, img_size, img_size, dtype=torch.float32))
+
+    stacked_tensors = torch.stack(tensors, dim=0)
+
+    return {
+        "tensors": stacked_tensors,
+        "paths": selected_paths,
+        "image_ids": image_ids,
+        "gt_list": gt_list,
+        "hf_labels": hf_labels,
+        "cat_id_to_idx": cat_map,
+        "ann_file": str(ann_file),
+    }
 
 
 def get_partition_paths(

@@ -17,15 +17,22 @@ from scipy import stats
 import torch
 import torchvision.transforms.functional as TF
 
-from paper_1_aqsm_mechanism.experiments.config import (
-    COCO_VAL_DIR,
-    DATA_DIR,
-    IMG_SIZE,
-)
+from paper_1_aqsm_mechanism.experiments.config import IMG_SIZE
+
+def get_default_coco_val_dir() -> Path:
+    """Lấy đường dẫn thư mục ảnh COCO val2017 động từ cấu hình."""
+    from paper_1_aqsm_mechanism.experiments.config import get_coco_val_dir
+    return get_coco_val_dir()
+
+
+def get_default_coco_ann_file() -> Path:
+    """Lấy đường dẫn file chú thích instances_val2017.json động từ cấu hình."""
+    from paper_1_aqsm_mechanism.experiments.config import get_coco_ann_file
+    return get_coco_ann_file()
+
+
 N_CALIBRATION_SAMPLES = 1200
 N_TEST_CLEAN_SAMPLES = 600
-
-COCO_ANN_PATH: Path = DATA_DIR / "coco5k" / "annotations" / "instances_val2017.json"
 
 # Bảng alias tên lớp giữa COCO JSON chuẩn (80 lớp) và config.id2label của PekingU/rtdetr_r18vd
 _COCO_NAME_ALIASES: Dict[str, str] = {
@@ -104,7 +111,7 @@ def get_partition_paths(
     Tái lập chính xác danh sách đường dẫn ảnh của `core.dataset.load_coco_images`
     theo giao thức Zero Data Leakage (seed=42, N_cal=1200, N_test=600).
     """
-    data_dir = Path(coco_dir) if coco_dir is not None else COCO_VAL_DIR
+    data_dir = Path(coco_dir) if coco_dir is not None else get_default_coco_val_dir()
     all_files = sorted(list(data_dir.glob("*.jpg")))
     total_needed = n_cal + n_test
     if len(all_files) < total_needed:
@@ -141,7 +148,7 @@ def load_coco_val2017_gt_cohort(
         - `hf_labels`: List[Dict] tương thích `RTDetrForObjectDetection(..., labels=...)` (loại bỏ iscrowd)
         - `cat_id_to_idx`: Dict[int, int]
     """
-    ann_file = Path(ann_path) if ann_path is not None else COCO_ANN_PATH
+    ann_file = Path(ann_path) if ann_path is not None else get_default_coco_ann_file()
     if not ann_file.exists():
         raise FileNotFoundError(f"Chưa có file COCO Ground Truth: {ann_file}")
 

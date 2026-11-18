@@ -1,23 +1,10 @@
 ﻿# ==============================================================================
-# Master Shortcut Runner: Chạy toàn bộ thực nghiệm song song (Tối đa 4 task đồng thời)
+# Master Shortcut Runner: Chạy toàn bộ thực nghiệm Paper 1 từ thư mục gốc
 # ==============================================================================
 param (
-    [int]$MaxWorkers = 4,
-    [int]$CohortSize = 300,
-    [string]$Tasks = "1,2,3,4,5,6,7",
-    [switch]$DryRun
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$ArgsRemaining
 )
 
-$targetScript = Join-Path $PSScriptRoot "paper_1_aqsm_mechanism\experiments\run_parallel_benchmarks.ps1"
-
-$params = @{
-    MaxWorkers = $MaxWorkers
-    CohortSize = $CohortSize
-    Tasks = $Tasks
-}
-
-if ($DryRun) {
-    $params["DryRun"] = $true
-}
-
-& $targetScript @params
+$targetScript = Join-Path $PSScriptRoot "paper_1_aqsm_mechanism\run_experiments.ps1"
+& $targetScript @ArgsRemaining

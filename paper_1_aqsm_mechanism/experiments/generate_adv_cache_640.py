@@ -14,6 +14,7 @@ trên toàn bộ tập ảnh chỉ định (COCO val2017).
 """
 
 import argparse
+import gc
 import json
 import os
 import sys
@@ -40,6 +41,7 @@ from paper_1_aqsm_mechanism.experiments.config import (
     RANDOM_SEED,
     configure_cpu_threads,
     detect_hardware_environment,
+    get_adv_cache_dir,
     get_device,
     update_experiment_paths,
 )
@@ -58,7 +60,7 @@ def generate_single_attack_cache(
     """
     Sinh adversarial perturbation delta cho toàn bộ tập ảnh và lưu vào file .npz chuẩn.
     """
-    save_dir = Path(out_dir) if out_dir is not None else ADV_CACHE_DIR
+    save_dir = Path(out_dir) if out_dir is not None else get_adv_cache_dir()
     save_dir.mkdir(parents=True, exist_ok=True)
 
     n_total = len(dataset)
@@ -228,6 +230,14 @@ def main():
                 out_dir=Path(args.cache_dir),
                 skip_existing=skip_existing,
             )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+
+    del dataset, wrapper
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
     print("\n" + "=" * 80)
     print(" [HOÀN TẤT] Sinh toàn bộ bộ nhớ đệm đối kháng thành công!")

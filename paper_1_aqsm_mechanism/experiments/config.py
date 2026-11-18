@@ -5,7 +5,8 @@ Mục đích: Quản lý cấu hình tập trung, siêu tham số thực nghiệ
 phục vụ bài báo số 1 (Mechanistic Breakdown of Dynamic Query Selection).
 
 Hỗ trợ:
-  - Cập nhật linh hoạt đường dẫn từ CLI / Script Shell (`--folder_image`, `--annotations`, `--output_dir`, `--cache_dir`).
+  - Cập nhật linh hoạt đường dẫn từ CLI / Script Shell (`--folder_image`, `--annotations`, `--output_dir`, `--cache_dir`, `--fig_dir`).
+  - Cung cấp các hàm getter truy xuất đường dẫn động (dynamic path getters) tránh lỗi đóng băng biến tại thời điểm import.
   - Tự động nhận diện thiết bị tính toán (CPU, Single-GPU CUDA, Multi-GPU DataParallel).
   - Tự động điều chỉnh kích thước lô (auto-tune batch size) theo dung lượng VRAM thực tế.
   - Đảm bảo 100% dữ liệu thực nghiệm thật, không hardcode hay làm giả số liệu.
@@ -93,6 +94,45 @@ def update_experiment_paths(
     if fig_dir is not None:
         FIG_DIR = Path(fig_dir).resolve()
         FIG_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# -----------------------------------------------------------------------------
+# GETTER FUNCTIONS TRUY XUẤT ĐƯỜNG DẪN ĐỘNG (DYNAMIC PATH GETTERS)
+# -----------------------------------------------------------------------------
+def get_outputs_dir() -> Path:
+    return OUTPUTS_DIR
+
+
+def get_logs_dir() -> Path:
+    return LOGS_DIR
+
+
+def get_raw_csv_dir() -> Path:
+    return RAW_CSV_DIR
+
+
+def get_summary_json_dir() -> Path:
+    return SUMMARY_JSON_DIR
+
+
+def get_audit_streams_dir() -> Path:
+    return AUDIT_STREAMS_DIR
+
+
+def get_adv_cache_dir() -> Path:
+    return ADV_CACHE_DIR
+
+
+def get_fig_dir() -> Path:
+    return FIG_DIR
+
+
+def get_coco_val_dir() -> Path:
+    return COCO_VAL_DIR
+
+
+def get_coco_ann_file() -> Path:
+    return COCO_ANN_FILE
 
 
 # -----------------------------------------------------------------------------

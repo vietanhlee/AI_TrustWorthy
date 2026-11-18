@@ -15,13 +15,16 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from paper_1_aqsm_mechanism.experiments.config import ADV_CACHE_DIR
 from paper_1_aqsm_mechanism.core.dataset_loader import (
     LazyAdvImageBatchProxy,
     LazyImageBatchProxy,
 )
 
-DEFAULT_CACHE_DIR: Path = ADV_CACHE_DIR
+
+def get_default_cache_dir() -> Path:
+    """Truy xuất đường dẫn cache mặc định động từ config."""
+    from paper_1_aqsm_mechanism.experiments.config import get_adv_cache_dir
+    return get_adv_cache_dir()
 
 
 def eps_tag(eps_num: int) -> str:
@@ -41,7 +44,7 @@ def find_cache_file(
     2. Nếu không thấy, tìm file chứa số ảnh >= n_eval
     3. Tìm file alias chung: adv_cache_{attack}_eps{eps_num}.npz
     """
-    cdir = Path(cache_dir) if cache_dir is not None else DEFAULT_CACHE_DIR
+    cdir = Path(cache_dir) if cache_dir is not None else get_default_cache_dir()
     target = cdir / f"adv_cache_{attack}_{eps_tag(eps_num)}_n{n_eval}.npz"
     if target.exists():
         return target

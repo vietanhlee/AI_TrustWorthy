@@ -43,8 +43,8 @@ from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
 from paper_1_aqsm_mechanism.experiments.config import (
     N_BOOTSTRAP,
     RANDOM_SEED,
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
+    get_raw_csv_dir,
+    get_summary_json_dir,
 )
 
 
@@ -217,7 +217,9 @@ def run_causal_surgery(
         }
 
     # 5. Lưu file CSV chứa số liệu thô từng ảnh (Per-Image Raw Metrics) phục vụ audit
-    csv_path = RAW_CSV_DIR / f"causal_anova_per_image_{attack_name.lower()}.csv"
+    raw_csv_dir = get_raw_csv_dir()
+    raw_csv_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = raw_csv_dir / f"causal_anova_per_image_{attack_name.lower()}.csv"
     with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -344,7 +346,9 @@ def run_causal_surgery(
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    json_path = SUMMARY_JSON_DIR / f"causal_swap_results_{attack_name.lower()}.json"
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+    json_path = summary_json_dir / f"causal_swap_results_{attack_name.lower()}.json"
     with open(json_path, mode="w", encoding="utf-8") as f:
         json.dump(results_summary, f, indent=2)
     print(f">>> Đã lưu tổng hợp thống kê ANOVA: {json_path}")

@@ -12,6 +12,7 @@ trên toàn bộ tập ảnh chỉ định (COCO val2017) -> Phục vụ Table 7
 """
 
 import argparse
+import gc
 import logging
 import os
 import sys
@@ -131,6 +132,10 @@ def main():
     )
 
     audit_logger.close()
+    del adv_dict, clean_imgs, dataset, wrapper
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
     print("\n[HOÀN THÀNH TOÀN BỘ] Task 3: Deformable Attention Telemetry thành công!")
 
 

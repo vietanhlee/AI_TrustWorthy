@@ -15,6 +15,7 @@ và Calibrated Guardrail trên tập COCO val2017 -> Phục vụ Table 11 & Figu
 
 import argparse
 import csv
+import gc
 import json
 import logging
 import os
@@ -45,11 +46,11 @@ from paper_1_aqsm_mechanism.experiments.config import (
     MODEL_NAME,
     OUTPUTS_DIR,
     RANDOM_SEED,
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_raw_csv_dir,
+    get_summary_json_dir,
     update_experiment_paths,
 )
 
@@ -245,11 +246,20 @@ def main():
     )
     defense_results["adaptive_evasion"] = adaptive_results
 
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+
     # Lưu kết quả JSON Table 11
-    summary_path = SUMMARY_JSON_DIR / "defense_esm_evaluation.json"
+    summary_path = summary_json_dir / "defense_esm_evaluation.json"
     with open(summary_path, mode="w", encoding="utf-8") as f:
         json.dump(defense_results, f, indent=2, ensure_ascii=False)
     print(f"\n>>> Đã lưu kết quả thực nghiệm phòng thủ Table 11 ra: {summary_path}")
+
+    # Lưu alias tương thích ngược defense_evaluation_summary.json
+    summary_path_alias = summary_json_dir / "defense_evaluation_summary.json"
+    with open(summary_path_alias, mode="w", encoding="utf-8") as f:
+        json.dump(defense_results, f, indent=2, ensure_ascii=False)
+    print(f">>> Đã lưu alias Table 11 ra: {summary_path_alias}")
 
     # Ghi nhận audit log
     audit_logger.log_step(
@@ -264,6 +274,10 @@ def main():
         },
     )
     audit_logger.close()
+    del clean_imgs, adv_imgs_dict, wrapper
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
     print("[HOÀN THÀNH TOÀN BỘ] Task 8: Defense Evaluation thành công!")
 
 

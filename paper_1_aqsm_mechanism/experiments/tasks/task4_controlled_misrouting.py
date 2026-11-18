@@ -23,6 +23,7 @@ Bản chất khoa học:
 
 import argparse
 import csv
+import gc
 import json
 import logging
 import os
@@ -63,11 +64,11 @@ from paper_1_aqsm_mechanism.experiments.config import (
     N_BOOTSTRAP,
     OUTPUTS_DIR,
     RANDOM_SEED,
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_raw_csv_dir,
+    get_summary_json_dir,
     update_experiment_paths,
 )
 
@@ -382,26 +383,34 @@ def main():
         },
     }
 
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+    raw_csv_dir = get_raw_csv_dir()
+    raw_csv_dir.mkdir(parents=True, exist_ok=True)
+
     # Xuất JSON Table 8: Tautology Control Results
-    json_path = SUMMARY_JSON_DIR / "tautology_control_results.json"
+    json_path = summary_json_dir / "tautology_control_results.json"
+    t8_payload = {
+        "experiment": "Table 8: Spatial Specificity Verification & Tautology Refutation",
+        "n_images": n_total,
+        "model": MODEL_NAME,
+        "device": str(device),
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "table8_summary": summary_table8,
+        "detailed_by_condition": map_results,
+    }
     with open(json_path, mode="w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "experiment": "Table 8: Spatial Specificity Verification & Tautology Refutation",
-                "n_images": n_total,
-                "model": MODEL_NAME,
-                "device": str(device),
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "table8_summary": summary_table8,
-                "detailed_by_condition": map_results,
-            },
-            f,
-            indent=2,
-        )
+        json.dump(t8_payload, f, indent=2)
     print(f"\n>>> Đã xuất JSON Table 8: {json_path}")
 
+    # Xuất alias tương thích ngược controlled_misrouting_results.json
+    json_path_alias = summary_json_dir / "controlled_misrouting_results.json"
+    with open(json_path_alias, mode="w", encoding="utf-8") as f:
+        json.dump(t8_payload, f, indent=2)
+    print(f">>> Đã xuất JSON alias Table 8: {json_path_alias}")
+
     # Ghi file raw CSV per-image
-    raw_csv_path = RAW_CSV_DIR / "tautology_refutation_raw.csv"
+    raw_csv_path = raw_csv_dir / "tautology_refutation_raw.csv"
     with open(raw_csv_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow([
@@ -430,6 +439,10 @@ def main():
     print(f">>> Đã ghi nhận số liệu thô per-image: {raw_csv_path}")
 
     audit_logger.close()
+    del clean_imgs, dataset, wrapper
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
     print("\n[HOÀN THÀNH TOÀN BỘ] Task 4: Controlled Spatial Misrouting thành công!")
 
 

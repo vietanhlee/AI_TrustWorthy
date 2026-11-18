@@ -23,6 +23,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+import gc
 from paper_1_aqsm_mechanism.core.coco_gt import (
     evaluate_coco_predictions,
     postprocess_rtdetr_predictions,
@@ -36,9 +37,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     OUTPUTS_DIR,
     PGD_NUM_STEPS,
     PGD_STEP_SIZE,
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
     SWEEP_EPSILONS,
+    get_raw_csv_dir,
+    get_summary_json_dir,
 )
 
 
@@ -191,7 +192,9 @@ def run_matched_budget_sweep(
                   (f" | Eviction: {mean_evict*100:.1f}%" if not np.isnan(mean_evict) else ""))
 
     # 3. Ghi dữ liệu thô ra file CSV phục vụ audit
-    csv_path = RAW_CSV_DIR / "matched_budget_sweep_raw.csv"
+    raw_csv_dir = get_raw_csv_dir()
+    raw_csv_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = raw_csv_dir / "matched_budget_sweep_raw.csv"
     with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["attack", "epsilon_label", "epsilon_val", "mAP50", "mAP50_95", "relative_drop_pct", "mean_evicted_ratio"])
@@ -226,9 +229,21 @@ def run_matched_budget_sweep(
         },
         "sweep_results": sweep_results,
     }
-    json_path = SUMMARY_JSON_DIR / "matched_budget_sweep.json"
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+    json_path = summary_json_dir / "matched_budget_sweep.json"
     with open(json_path, mode="w", encoding="utf-8") as f:
         json.dump(final_output, f, indent=2)
     print(f">>> Đã lưu tổng hợp JSON Table 9: {json_path}")
+
+    # Lưu alias tương thích ngược matched_budget_results.json
+    json_path_alias = summary_json_dir / "matched_budget_results.json"
+    with open(json_path_alias, mode="w", encoding="utf-8") as f:
+        json.dump(final_output, f, indent=2)
+    print(f">>> Đã lưu alias Table 9: {json_path_alias}")
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
     return final_output

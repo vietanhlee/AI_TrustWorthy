@@ -11,6 +11,7 @@ cho AQSM, Query Vanishing, và Task PGD -> Phục vụ Table 9 và Figure 8.
 """
 
 import argparse
+import gc
 import logging
 import os
 import sys
@@ -117,6 +118,10 @@ def main():
         metrics={"clean_map50": res["clean_baseline"]["mAP@50"]},
     )
     audit_logger.close()
+    del clean_imgs, dataset, wrapper
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
     print(f"\n[HOÀN THÀNH TOÀN BỘ] Task 5: Matched-Budget Sweep thành công! Clean Baseline: {res['clean_baseline']['mAP@50']:.2f}%")
 
 

@@ -37,9 +37,9 @@ plt.rcParams.update({
 })
 
 from paper_1_aqsm_mechanism.experiments.config import (
-    FIG_DIR,
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
+    get_fig_dir,
+    get_raw_csv_dir,
+    get_summary_json_dir,
 )
 
 
@@ -424,8 +424,8 @@ def generate_all_figures_and_tables(
     """
     Hàm tổng hợp tự động quét và vẽ toàn bộ figures chuẩn từ kết quả JSON thực nghiệm.
     """
-    s_dir = Path(summary_dir) if summary_dir is not None else SUMMARY_JSON_DIR
-    f_dir = Path(fig_dir) if fig_dir is not None else FIG_DIR
+    s_dir = Path(summary_dir) if summary_dir is not None else get_summary_json_dir()
+    f_dir = Path(fig_dir) if fig_dir is not None else get_fig_dir()
     f_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Figure 3 & Figure 5: Query Selection Dynamics & Score Spectrum

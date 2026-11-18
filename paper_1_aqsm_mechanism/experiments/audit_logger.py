@@ -47,12 +47,17 @@ class ExperimentAuditLogger:
     ):
         self.task_name = task_name
 
-        # Thiết lập đường dẫn thư mục
-        base_exp = WORKSPACE_DIR / "paper_1_aqsm_mechanism"
-        self.logs_dir = logs_dir or (base_exp / "logs")
-        self.audit_dir = audit_dir or (base_exp / "outputs" / "audit_streams")
-        self.raw_csv_dir = raw_csv_dir or (base_exp / "outputs" / "raw_csv")
-        self.summary_json_dir = summary_json_dir or (base_exp / "outputs" / "summary_json")
+        # Thiết lập đường dẫn thư mục động từ config
+        from paper_1_aqsm_mechanism.experiments.config import (
+            get_audit_streams_dir,
+            get_logs_dir,
+            get_raw_csv_dir,
+            get_summary_json_dir,
+        )
+        self.logs_dir = logs_dir or get_logs_dir()
+        self.audit_dir = audit_dir or get_audit_streams_dir()
+        self.raw_csv_dir = raw_csv_dir or get_raw_csv_dir()
+        self.summary_json_dir = summary_json_dir or get_summary_json_dir()
 
         for d in [self.logs_dir, self.audit_dir, self.raw_csv_dir, self.summary_json_dir]:
             d.mkdir(parents=True, exist_ok=True)

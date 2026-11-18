@@ -29,14 +29,15 @@ from scipy import stats
 import torch
 from tqdm import tqdm
 
+import gc
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
     capture_deformable_attention_internals,
     extract_encoder_components,
 )
 from paper_1_aqsm_mechanism.experiments.config import (
-    RAW_CSV_DIR,
-    SUMMARY_JSON_DIR,
+    get_raw_csv_dir,
+    get_summary_json_dir,
 )
 
 
@@ -255,7 +256,9 @@ def run_mechanism_telemetry_cohort(
                 cond_results[cond]["ref_drift"].append(drift)
 
     # 3. Ghi file CSV per-image phục vụ audit
-    csv_path = RAW_CSV_DIR / "attention_telemetry_per_image.csv"
+    raw_csv_dir = get_raw_csv_dir()
+    raw_csv_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = raw_csv_dir / "attention_telemetry_per_image.csv"
     with open(csv_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         header = ["image_index", "image_id", "gt_box_count"]
@@ -359,9 +362,21 @@ def run_mechanism_telemetry_cohort(
         "fg_hit_collapsed_at_alpha_01": bool(p_val_hit < 0.01) if not np.isnan(p_val_hit) else True,
     }
 
-    json_path = SUMMARY_JSON_DIR / "mechanism_telemetry_results.json"
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+    json_path = summary_json_dir / "mechanism_telemetry_results.json"
     with open(json_path, mode="w", encoding="utf-8") as f:
         json.dump(cohort_stats, f, indent=2)
     print(f">>> Đã lưu tổng hợp phân tích cơ chế nội quan: {json_path}")
+
+    # Lưu alias tương thích ngược deformable_attention_telemetry.json
+    json_path_alias = summary_json_dir / "deformable_attention_telemetry.json"
+    with open(json_path_alias, mode="w", encoding="utf-8") as f:
+        json.dump(cohort_stats, f, indent=2)
+    print(f">>> Đã lưu alias phân tích cơ chế nội quan: {json_path_alias}")
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
     return cohort_stats

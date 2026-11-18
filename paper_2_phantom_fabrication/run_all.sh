@@ -9,8 +9,8 @@ set -e
 # Default settings
 FOLDER_IMAGE=""
 ANNOTATIONS=""
-NUM_BENCHMARK=15
-NUM_ABLATION=300
+NUM_BENCHMARK=0
+NUM_ABLATION=0
 SEEDS="42,123,456"
 DEVICE="auto"
 BATCH_SIZE=0
@@ -30,8 +30,8 @@ print_usage() {
     echo "Optional:"
     echo "  --annotations PATH         Đường dẫn file instances_val2017.json"
     echo "                             (Tự động tìm kiếm nếu bỏ trống)"
-    echo "  --num_benchmark INT        Số ảnh mỗi seed cho Stage 1 (mặc định: 15)"
-    echo "  --num_ablation INT         Số ảnh cho Stage 2 Ablations (mặc định: 300)"
+    echo "  --num_benchmark INT        Số ảnh mỗi seed cho Stage 1 (mặc định: 0 = chạy toàn bộ ảnh)"
+    echo "  --num_ablation INT         Số ảnh cho Stage 2 Ablations (mặc định: 0 = chạy toàn bộ ảnh)"
     echo "  --seeds LIST               Danh sách seed cách nhau bởi dấu phẩy (mặc định: '42,123,456')"
     echo "  --device DEV               Thiết bị: auto (mặc định), cuda, cpu"
     echo "  --batch_size INT           Batch size suy luận (0 = tự động tính theo VRAM)"
@@ -79,8 +79,16 @@ else
     echo " File Annotations:   [Tự động tìm kiếm trong thư mục COCO]"
 fi
 echo " Chế độ thiết bị:    $DEVICE"
-echo " Số mẫu Benchmark:   $NUM_BENCHMARK ảnh/seed (x 3 seeds)"
-echo " Số mẫu Ablation:    $NUM_ABLATION ảnh"
+if [ "$NUM_BENCHMARK" -le 0 ]; then
+    echo " Số mẫu Benchmark:   Toàn bộ ảnh trong thư mục (full dataset, x 3 seeds)"
+else
+    echo " Số mẫu Benchmark:   $NUM_BENCHMARK ảnh/seed (x 3 seeds)"
+fi
+if [ "$NUM_ABLATION" -le 0 ]; then
+    echo " Số mẫu Ablation:    Toàn bộ ảnh trong thư mục (full dataset)"
+else
+    echo " Số mẫu Ablation:    $NUM_ABLATION ảnh"
+fi
 echo " Giai đoạn thực thi: $STAGE"
 echo " File Telemetry:     $OUTPUT_JSON"
 echo "======================================================================"

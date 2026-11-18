@@ -12,6 +12,7 @@ Mục đích: Task độc lập đo đạc thời gian thực thi phần cứng 
 """
 
 import argparse
+import gc
 import logging
 import os
 import sys
@@ -107,6 +108,10 @@ def main():
         metrics={"end_to_end_mean_ms": res["stages"]["End_to_End_Total"]["mean_ms"], "throughput_fps": res["throughput_fps"]},
     )
     audit_logger.close()
+    del sample_img, wrapper
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
     print(f"\n[HOÀN THÀNH TOÀN BỘ] Task 6: Hardware Execution Latency Profiler thành công! Throughput: {res['throughput_fps']} FPS")
 
 

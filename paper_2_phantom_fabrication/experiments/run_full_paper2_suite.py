@@ -46,6 +46,8 @@ from paper_2_phantom_fabrication.core.coco_gt import (
     compute_iou_matrix,
     evaluate_coco_predictions,
     postprocess_rtdetr_predictions,
+    discover_coco_annotations,
+    load_flexible_coco_cohort,
 )
 from paper_2_phantom_fabrication.experiments.sqd_filter import apply_sqd_filter
 
@@ -170,150 +172,6 @@ def benchmark_model_latency(
 
 
 # ==============================================================================
-# Flexible COCO Dataset Loader
-# ==============================================================================
-
-def discover_coco_annotations(image_folder: Path, custom_ann: Optional[str] = None) -> Path:
-    """Tự động tìm kiếm file chú thích instances_val2017.json."""
-    if custom_ann and Path(custom_ann).exists():
-        return Path(custom_ann)
-
-    potential_paths = [
-        image_folder / "annotations" / "instances_val2017.json",
-        image_folder.parent / "annotations" / "instances_val2017.json",
-        image_folder.parent.parent / "annotations" / "instances_val2017.json",
-        PROJECT_ROOT / "edge_sec_pro" / "data" / "coco5k" / "annotations" / "instances_val2017.json",
-        PROJECT_ROOT / "data" / "coco5k" / "annotations" / "instances_val2017.json",
-        PROJECT_ROOT / "paper_2_phantom_fabrication" / "data" / "coco5k" / "annotations" / "instances_val2017.json",
-    ]
-    for p in potential_paths:
-        if p.exists():
-            return p.resolve()
-
-    # Thử tìm kiếm đệ quy trong thư mục gốc
-    for candidate in PROJECT_ROOT.glob("**/instances_val2017.json"):
-        if candidate.exists():
-            return candidate.resolve()
-
-    raise FileNotFoundError(
-        f"Không tìm thấy file annotations `instances_val2017.json`. "
-        f"Vui lòng truyền đường dẫn chính xác qua `--annotations <path>`."
-    )
-
-
-def load_flexible_coco_cohort(
-    image_folder: Union[str, Path],
-    annotations_path: Optional[Union[str, Path]] = None,
-    n_samples: int = 15,
-    seed: int = 42,
-    img_size: int = 640,
-    id2label: Optional[Dict[int, str]] = None,
-) -> Dict[str, Any]:
-    """
-    Nạp tập cohort ảnh COCO linh hoạt từ bất kỳ thư mục nào (hỗ trợ từ vài chục đến 5000 ảnh).
-    Ánh xạ nhãn chuẩn xác sang 80 lớp [0..79] của RT-DETR.
-    """
-    img_dir = Path(image_folder).resolve()
-    if not img_dir.exists():
-        raise FileNotFoundError(f"Thư mục ảnh không tồn tại: {img_dir}")
-
-    ann_file = discover_coco_annotations(img_dir, annotations_path)
-    logger.info(f"Sử dụng file annotations: {ann_file}")
-
-    with open(ann_file, "r", encoding="utf-8") as f:
-        coco_data = json.load(f)
-
-    cat_map = build_coco_category_mapping(coco_data["categories"], id2label=id2label)
-    img_meta = {int(im["id"]): im for im in coco_data["images"]}
-    filename_to_meta = {str(im["file_name"]): im for im in coco_data["images"]}
-    anns_by_img = {}
-    for ann in coco_data["annotations"]:
-        anns_by_img.setdefault(int(ann["image_id"]), []).append(ann)
-
-    all_files = sorted(list(img_dir.glob("*.jpg")) + list(img_dir.glob("*.jpeg")) + list(img_dir.glob("*.png")))
-    if not all_files:
-        raise FileNotFoundError(f"Không tìm thấy ảnh nào trong thư mục: {img_dir}")
-
-    # Lọc những ảnh có mặt trong file annotations
-    valid_paths = [f for f in all_files if f.name in filename_to_meta]
-    if not valid_paths:
-        valid_paths = all_files  # fallback nếu tên file khớp dạng id.jpg
-
-    rng = np.random.RandomState(seed)
-    n_selected = min(n_samples, len(valid_paths))
-    chosen_indices = rng.choice(len(valid_paths), size=n_selected, replace=False)
-    selected_paths = [valid_paths[idx] for idx in chosen_indices]
-
-    gt_list = []
-    hf_labels = []
-    image_ids = []
-    tensors = []
-
-    for fpath in selected_paths:
-        meta = filename_to_meta.get(fpath.name)
-        if meta is None:
-            # Parse id từ tên file
-            try:
-                img_id = int(fpath.stem)
-            except ValueError:
-                img_id = len(image_ids) + 1
-            orig_w, orig_h = img_size, img_size
-        else:
-            img_id = int(meta["id"])
-            orig_w = float(meta["width"])
-            orig_h = float(meta["height"])
-
-        image_ids.append(img_id)
-        anns = anns_by_img.get(img_id, [])
-
-        boxes_xyxy, boxes_cxcywh, labels, iscrowd = [], [], [], []
-        for ann in anns:
-            cid = int(ann["category_id"])
-            if cid not in cat_map:
-                continue
-            x, y, w, h = ann["bbox"]
-            if w <= 1e-3 or h <= 1e-3:
-                continue
-            x1 = max(0.0, min(1.0, x / orig_w))
-            y1 = max(0.0, min(1.0, y / orig_h))
-            x2 = max(x1 + 1e-4, min(1.0, (x + w) / orig_w))
-            y2 = max(y1 + 1e-4, min(1.0, (y + h) / orig_h))
-            bw = max(1e-4, x2 - x1)
-            bh = max(1e-4, y2 - y1)
-            boxes_xyxy.append([x1, y1, x2, y2])
-            boxes_cxcywh.append([x1 + 0.5 * bw, y1 + 0.5 * bh, bw, bh])
-            labels.append(cat_map[cid])
-            iscrowd.append(bool(ann.get("iscrowd", 0) == 1))
-
-        arr_xyxy = np.array(boxes_xyxy, dtype=np.float32) if boxes_xyxy else np.zeros((0, 4), dtype=np.float32)
-        arr_cxcywh = np.array(boxes_cxcywh, dtype=np.float32) if boxes_cxcywh else np.zeros((0, 4), dtype=np.float32)
-        arr_lbl = np.array(labels, dtype=np.int64) if labels else np.zeros((0,), dtype=np.int64)
-        arr_crowd = np.array(iscrowd, dtype=bool) if iscrowd else np.zeros((0,), dtype=bool)
-
-        gt_list.append({
-            "image_id": img_id,
-            "file_name": fpath.name,
-            "orig_size": (int(orig_w), int(orig_h)),
-            "boxes_xyxy": arr_xyxy,
-            "boxes_cxcywh": arr_cxcywh,
-            "labels": arr_lbl,
-            "iscrowd": arr_crowd,
-        })
-
-        with Image.open(fpath) as img:
-            rgb = img.convert("RGB").resize((img_size, img_size))
-            tensors.append(TF.to_tensor(rgb))
-
-    return {
-        "tensors": torch.stack(tensors, dim=0),
-        "paths": selected_paths,
-        "image_ids": image_ids,
-        "gt_list": gt_list,
-        "cat_id_to_idx": cat_map,
-    }
-
-
-# ==============================================================================
 # Adversarial Attack Generators (EQF, DQF, Untargeted PGD, Noise)
 # ==============================================================================
 
@@ -340,15 +198,26 @@ def generate_attacks_batched(
     for b in range(n_batches):
         s = b * batch_size
         e = min(s + batch_size, n)
-        bx = clean_tensors[s:e].to(device)
+        raw_b = clean_tensors[s:e]
+        if raw_b.dtype == torch.uint8:
+            bx = (raw_b.float() / 255.0).to(device)
+        else:
+            bx = raw_b.to(device)
 
         if attack_type == "Clean":
-            adv_tensors_list.append(bx.cpu())
+            if clean_tensors.dtype == torch.uint8:
+                adv_tensors_list.append(raw_b.cpu())
+            else:
+                adv_tensors_list.append(bx.cpu())
             continue
 
         if attack_type == "Gaussian_Noise":
             noise = torch.randn_like(bx) * (16.0 / 255.0)
-            adv_tensors_list.append(torch.clamp(bx + noise, 0.0, 1.0).cpu())
+            noisy_bx = torch.clamp(bx + noise, 0.0, 1.0)
+            if clean_tensors.dtype == torch.uint8:
+                adv_tensors_list.append((noisy_bx * 255.0).clamp(0, 255).to(torch.uint8).cpu())
+            else:
+                adv_tensors_list.append(noisy_bx.cpu())
             continue
 
         with torch.no_grad():
@@ -388,7 +257,10 @@ def generate_attacks_batched(
                 delta = torch.clamp(x_adv - bx, -epsilon, epsilon)
                 x_adv = torch.clamp(bx + delta, 0.0, 1.0).requires_grad_(True)
 
-        adv_tensors_list.append(x_adv.detach().cpu())
+        if clean_tensors.dtype == torch.uint8:
+            adv_tensors_list.append((x_adv.detach() * 255.0).clamp(0, 255).to(torch.uint8).cpu())
+        else:
+            adv_tensors_list.append(x_adv.detach().cpu())
 
     return torch.cat(adv_tensors_list, dim=0)
 
@@ -410,7 +282,11 @@ def model_inference_batched(
         for b in range(n_batches):
             s = b * batch_size
             e = min(s + batch_size, n)
-            bx = tensors[s:e].to(device)
+            raw_b = tensors[s:e]
+            if raw_b.dtype == torch.uint8:
+                bx = (raw_b.float() / 255.0).to(device)
+            else:
+                bx = raw_b.to(device)
             out = model(pixel_values=bx)
             logits_list.append(out.logits.cpu())
             boxes_list.append(out.pred_boxes.cpu())
@@ -1346,8 +1222,8 @@ def main():
     parser = argparse.ArgumentParser(description="Full Empirical Suite Runner for Paper 2 (Elsevier)")
     parser.add_argument("--folder_image", type=str, required=True, help="Đường dẫn thư mục ảnh COCO (e.g., val2017)")
     parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file annotations instances_val2017.json")
-    parser.add_argument("--num_images_benchmark", type=int, default=15, help="Số ảnh mỗi seed cho Stage 1 (mặc định: 15)")
-    parser.add_argument("--num_images_ablation", type=int, default=300, help="Số ảnh cho Stage 2 Ablations (mặc định: 300)")
+    parser.add_argument("--num_images_benchmark", type=int, default=0, help="Số ảnh mỗi seed cho Stage 1 (0 = chạy toàn bộ ảnh trong folder)")
+    parser.add_argument("--num_images_ablation", type=int, default=0, help="Số ảnh cho Stage 2 Ablations (0 = chạy toàn bộ ảnh trong folder)")
     parser.add_argument("--seeds", type=str, default="42,123,456", help="Danh sách random seeds cho Stage 1 (cách nhau bởi dấu phẩy)")
     parser.add_argument("--device", type=str, default="auto", help="Thiết bị thực thi: auto, cuda, cpu")
     parser.add_argument("--batch_size", type=int, default=0, help="Batch size (0 = tự động tính theo thiết bị)")

@@ -12,6 +12,7 @@ trên toàn bộ tập ảnh chỉ định (COCO val2017) cho các đòn tấn c
 """
 
 import argparse
+import gc
 import os
 import sys
 import time
@@ -140,7 +141,16 @@ def main():
         )
         audit_logger.logger.info(f"Hoàn thành {atk.upper()}: ANOVA eta_p^2(Q)={eta_q:.4f}, eta_p^2(M)={eta_m:.4f}")
 
+        # Giải phóng bộ nhớ và VRAM sau mỗi đòn tấn công
+        del adv_imgs
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
     audit_logger.close()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
     print("\n[HOÀN THÀNH TOÀN BỘ] Task 1: Causal Surgery 2x2 Factorial Swap thành công!")
 
 
