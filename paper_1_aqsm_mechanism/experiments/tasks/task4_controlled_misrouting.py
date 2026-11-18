@@ -27,6 +27,7 @@ import gc
 import json
 import logging
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path

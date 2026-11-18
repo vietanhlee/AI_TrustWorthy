@@ -10,5 +10,8 @@ Kiến trúc gói:
   - experiments: Bộ cấu hình, logger kiểm toán, các engines thực nghiệm chuyên sâu và các tasks độc lập (Tasks 1-8).
 """
 
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 __version__ = "1.0.0"
 __author__ = "Edge AI Security Research Team"

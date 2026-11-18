@@ -26,6 +26,7 @@ Thực thi khép kín toàn bộ chuỗi thực nghiệm:
 import argparse
 import json
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import subprocess
 import sys
 import time

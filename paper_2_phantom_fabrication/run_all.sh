@@ -78,7 +78,7 @@ if [ -n "$ANNOTATIONS" ]; then
 else
     echo " File Annotations:   [Tự động tìm kiếm trong thư mục COCO]"
 fi
-echo " Chế độ thiết bị:    $DEVICE"
+echo " Chế độ thiết bị:    $DEVICE (Tự động nhận diện GPU & Multi-GPU DataParallel)"
 if [ "$NUM_BENCHMARK" -le 0 ]; then
     echo " Số mẫu Benchmark:   Toàn bộ ảnh trong thư mục (full dataset, x 3 seeds)"
 else

@@ -17,6 +17,7 @@ import argparse
 import gc
 import json
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path

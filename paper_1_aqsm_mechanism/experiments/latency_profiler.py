@@ -15,6 +15,7 @@ chuẩn công nghiệp cho RT-DETR -> Phục vụ Table 10 trong bài báo:
 import csv
 import json
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import platform
 import time
 from pathlib import Path

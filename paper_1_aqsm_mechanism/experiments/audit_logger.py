@@ -15,6 +15,7 @@ import csv
 import json
 import logging
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import platform
 import sys
 import time

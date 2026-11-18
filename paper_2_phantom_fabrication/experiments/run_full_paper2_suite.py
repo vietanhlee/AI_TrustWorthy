@@ -109,8 +109,12 @@ def detect_hardware(requested_device: str = "auto") -> Dict[str, Any]:
             "vram_gb": vram_gb,
             "cuda_version": torch.version.cuda,
             "primary_device": "cuda:0",
+            "is_multi_gpu": (num_gpus > 1),
         })
-        logger.info(f"Phát hiện GPU: {num_gpus} thiết bị khả dụng -> {gpu_names} (VRAM: {vram_gb} GB)")
+        if num_gpus > 1:
+            logger.info(f"Phát hiện Multi-GPU: {num_gpus} GPUs khả dụng -> {gpu_names} (Tổng VRAM: {sum(vram_gb):.1f} GB). Tự động kích hoạt Data Parallelism.")
+        else:
+            logger.info(f"Phát hiện Single-GPU: {gpu_names[0]} (VRAM: {vram_gb[0]} GB).")
     else:
         cpu_count = os.cpu_count() or 4
         hw_info.update({
@@ -118,6 +122,7 @@ def detect_hardware(requested_device: str = "auto") -> Dict[str, Any]:
             "num_gpus": 0,
             "cpu_cores": cpu_count,
             "primary_device": "cpu",
+            "is_multi_gpu": False,
         })
         logger.info(f"Chạy trên CPU (Số luồng CPU khả dụng: {cpu_count})")
 
@@ -377,14 +382,21 @@ def run_stage_1_benchmark(
     logger.info(f"KHỞI ĐỘNG STAGE 1: MULTI-SEED BENCHMARK ({len(seeds)} Seeds, N={n_samples_per_seed}/seed)")
     logger.info("=" * 80)
 
-    model = RTDetrForObjectDetection.from_pretrained("PekingU/rtdetr_r18vd")
-    model.eval()
-    model.to(device)
+    raw_model = RTDetrForObjectDetection.from_pretrained("PekingU/rtdetr_r18vd")
+    raw_model.eval()
+    raw_model.to(device)
 
-    # Đo độ trễ chuẩn xác trên phần cứng
+    # Đo độ trễ chuẩn xác trên phần cứng đơn lẻ để loại trừ sai số đồng bộ đa GPU
     dummy_sample = torch.randn(1, 3, 640, 640).to(device)
-    rtdetr_latency = benchmark_model_latency(model, dummy_sample, device)
+    rtdetr_latency = benchmark_model_latency(raw_model, dummy_sample, device)
     logger.info(f"Độ trễ RT-DETR trên {device.type.upper()}: {rtdetr_latency['mean_ms']:.2f} ± {rtdetr_latency['std_ms']:.2f} ms")
+
+    # Tự động kích hoạt Multi-GPU DataParallel nếu phát hiện nhiều hơn 1 GPU
+    if hw_info.get("num_gpus", 0) > 1 and device.type == "cuda":
+        model = torch.nn.DataParallel(raw_model)
+        logger.info(f"Đã tự động kích hoạt Data Parallelism trên {hw_info['num_gpus']} GPUs: {hw_info['gpu_names']}")
+    else:
+        model = raw_model
 
     yolo_model = None
     yolo_latency = {"mean_ms": 217.6, "std_ms": 12.4}
@@ -801,9 +813,16 @@ def run_stage_2_ablations(
     logger.info(f"KHỞI ĐỘNG STAGE 2: ABLATIONS & DOWNSTREAM SUITE (N={n_samples} images)")
     logger.info("=" * 80)
 
-    model = RTDetrForObjectDetection.from_pretrained("PekingU/rtdetr_r18vd")
-    model.eval()
-    model.to(device)
+    raw_model = RTDetrForObjectDetection.from_pretrained("PekingU/rtdetr_r18vd")
+    raw_model.eval()
+    raw_model.to(device)
+
+    # Tự động kích hoạt Multi-GPU DataParallel nếu phát hiện nhiều hơn 1 GPU
+    if hw_info.get("num_gpus", 0) > 1 and device.type == "cuda":
+        model = torch.nn.DataParallel(raw_model)
+        logger.info(f"Đã tự động kích hoạt Data Parallelism trên {hw_info['num_gpus']} GPUs cho Stage 2: {hw_info['gpu_names']}")
+    else:
+        model = raw_model
 
     cohort = load_flexible_coco_cohort(
         image_folder, annotations_path, n_samples=n_samples, seed=42, img_size=640
@@ -1239,16 +1258,18 @@ def main():
     hw_info = detect_hardware(args.device)
     device = torch.device(hw_info["primary_device"])
 
-    # Tự động chọn batch size nếu không chỉ định
+    # Tự động chọn batch size nếu không chỉ định (nhân tỉ lệ theo số lượng GPU để Data Parallelism tối đa thông lượng)
+    num_gpus = max(1, hw_info.get("num_gpus", 1))
     if args.batch_size <= 0:
         if device.type == "cuda":
-            total_vram = hw_info["vram_gb"][0] if hw_info["vram_gb"] else 8.0
-            batch_size = 16 if total_vram >= 15.0 else (8 if total_vram >= 7.5 else 4)
+            single_gpu_vram = hw_info["vram_gb"][0] if hw_info["vram_gb"] else 8.0
+            base_batch = 16 if single_gpu_vram >= 15.0 else (8 if single_gpu_vram >= 7.5 else 4)
+            batch_size = base_batch * num_gpus
         else:
             batch_size = 4
     else:
         batch_size = args.batch_size
-    logger.info(f"Cấu hình Batch Size: {batch_size} | Device: {device}")
+    logger.info(f"Cấu hình Batch Size: {batch_size} (cho {num_gpus} thiết bị) | Primary Device: {device}")
 
     img_folder = Path(args.folder_image).resolve()
     ann_file = discover_coco_annotations(img_folder, args.annotations)

@@ -14,6 +14,7 @@ trên toàn bộ tập ảnh chỉ định (COCO val2017) cho các đòn tấn c
 import argparse
 import gc
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path

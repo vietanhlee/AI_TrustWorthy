@@ -8,6 +8,7 @@ và tự động nén thư mục outputs thành `paper1_experiment_results.zip` 
 
 import argparse
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import shutil
 import subprocess
 import sys
