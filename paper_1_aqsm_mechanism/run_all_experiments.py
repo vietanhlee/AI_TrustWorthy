@@ -128,6 +128,7 @@ def main():
     parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,7,8", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,7,8)")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã tồn tại")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache từ đầu kể cả khi đã có")
+    parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh thêm cache eps 4 và 8 cho Task 5 (mặc định tắt, chỉ sinh eps 16 chuẩn cho 100% các tasks chính)")
     parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD sinh mẫu đối kháng (mặc định 15)")
     args = parser.parse_args()
 
@@ -193,17 +194,19 @@ def main():
             "--steps", str(args.pgd_steps),
             "--threads", str(args.threads),
             "--device", str(args.device),
-            "--include_sweep",
         ]
+        if args.include_sweep:
+            t0_args.append("--include_sweep")
         if args.batch_size is not None:
             t0_args.extend(["--batch_size", str(args.batch_size)])
         if args.force_recompute:
             t0_args.append("--force_recompute")
 
+        task0_title = "Task 0: Adversarial Cache Generation (Native 640x640, eps 16)" if not args.include_sweep else "Task 0: Adversarial Cache Generation (Native 640x640, eps 4, 8, 16)"
         dur = run_subtask(
             gen_cache_script,
             t0_args,
-            "Task 0: Adversarial Cache Generation (Native 640x640, eps 4, 8, 16)",
+            task0_title,
             log_file=Path(args.output_dir) / "logs" / "task0_cache_generation.log",
         )
         task_durations["Task 0 (Cache Gen)"] = dur

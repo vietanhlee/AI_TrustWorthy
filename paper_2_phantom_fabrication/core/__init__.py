@@ -6,6 +6,7 @@ và quản lý cấu hình thực thi phần cứng cho Paper 2 (Phantom Queries
 """
 
 from .coco_gt import (
+    CocoCohortDataset,
     load_flexible_coco_cohort,
     discover_coco_annotations,
     load_coco_val2017_gt_cohort,
@@ -27,6 +28,7 @@ from .config import (
 )
 
 __all__ = [
+    "CocoCohortDataset",
     "load_flexible_coco_cohort",
     "discover_coco_annotations",
     "load_coco_val2017_gt_cohort",

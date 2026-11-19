@@ -60,6 +60,8 @@ def generate_single_attack_cache(
 ) -> Path:
     """
     Sinh adversarial perturbation delta cho toàn bộ tập ảnh và lưu vào file .npz chuẩn.
+    Sử dụng file đĩa tạm thời (Disk-backed np.memmap) để đảm bảo RAM luôn < 200 MB,
+    triệt tiêu hoàn toàn nguy cơ tràn RAM (OOM Killer / exit code -9) khi xử lý 5,000 ảnh.
     """
     save_dir = Path(out_dir) if out_dir is not None else get_adv_cache_dir()
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +80,7 @@ def generate_single_attack_cache(
     # Kiểm tra nếu cache đã tồn tại và hợp lệ
     if skip_existing and out_file.exists():
         try:
-            with np.load(out_file, allow_pickle=False) as cached_data:
+            with np.load(out_file, mmap_mode="r") as cached_data:
                 if len(cached_data["image_ids"]) == n_total and list(cached_data["image_ids"]) == image_ids:
                     print(f"[CACHE GEN] Đã tìm thấy cache hoàn chỉnh tại: {out_file.name}. Bỏ qua bước sinh.")
                     return out_file
@@ -91,11 +93,21 @@ def generate_single_attack_cache(
     print(f"[CACHE GEN] ==================================================================")
 
     attacker = DETRAttackGenerator(wrapper, epsilon=eps, alpha=alpha, num_steps=steps)
-    all_deltas = []
+
+    # Sử dụng file memmap tạm thời trên đĩa để chống tràn RAM 100%
+    temp_mmap_path = save_dir / f"tmp_{attack_name.lower()}_eps{eps_int}_{os.getpid()}.dat"
+    delta_mmap = np.memmap(
+        temp_mmap_path,
+        dtype=np.float16,
+        mode="w+",
+        shape=(n_total, 3, 640, 640),
+    )
+
     t_start = time.time()
 
     for i in tqdm(range(0, n_total, batch_size), desc=f"{attack_name.upper()}_eps{eps_int}"):
-        b_clean = clean_proxy[i : i + batch_size].to(device)
+        end_idx = min(i + batch_size, n_total)
+        b_clean = clean_proxy[i : end_idx].to(device)
 
         if attack_name.lower() == "aqsm":
             b_adv = attacker.generate_query_selection_attack(b_clean, steps=steps, alpha=alpha)
@@ -106,11 +118,27 @@ def generate_single_attack_cache(
         else:
             raise ValueError(f"Đòn tấn công không được hỗ trợ: {attack_name}")
 
-        delta = (b_adv - b_clean).detach().cpu()
-        all_deltas.append(delta)
+        delta = (b_adv - b_clean).detach().cpu().to(torch.float16).numpy()
+        delta_mmap[i : end_idx] = delta
 
-    delta_all = torch.cat(all_deltas, dim=0).numpy().astype(np.float16)  # [N, 3, 640, 640]
-    l2_norms = np.linalg.norm(delta_all.reshape(n_total, -1), axis=1)
+        del b_clean, b_adv, delta
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    delta_mmap.flush()
+
+    # Tính toán các chỉ số thống kê theo từng chunk để không tốn RAM
+    chunk_size = 500
+    max_linf = 0.0
+    all_l2s: List[float] = []
+    for s in range(0, n_total, chunk_size):
+        sub_delta = delta_mmap[s : s + chunk_size].astype(np.float32)
+        max_linf = max(max_linf, float(np.max(np.abs(sub_delta))))
+        l2s = np.linalg.norm(sub_delta.reshape(len(sub_delta), -1), axis=1)
+        all_l2s.extend(l2s.tolist())
+        del sub_delta
+    mean_l2 = float(np.mean(all_l2s))
+    std_l2 = float(np.std(all_l2s))
     elapsed = time.time() - t_start
 
     meta_info = {
@@ -122,36 +150,43 @@ def generate_single_attack_cache(
         "steps": steps,
         "resolution": "640x640",
         "num_candidates": 8400,
-        "max_linf": float(np.max(np.abs(delta_all))),
-        "mean_l2": float(np.mean(l2_norms)),
-        "std_l2": float(np.std(l2_norms)),
+        "max_linf": max_linf,
+        "mean_l2": mean_l2,
+        "std_l2": std_l2,
         "elapsed_sec": elapsed,
         "throughput_fps": float(n_total / max(elapsed, 1e-4)),
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    # Lưu file nén npz chuẩn
-    np.savez_compressed(
+    # Ghi thẳng từ memmap ra file npz
+    print(f"[CACHE GEN] Đang lưu cache vào: {out_file.name}...")
+    np.savez(
         out_file,
-        delta_f16=delta_all,
         image_ids=np.array(image_ids, dtype=np.int64),
-        l2_norms=l2_norms,
-        meta_json=json.dumps(meta_info),
+        delta_f16=delta_mmap,
+        meta_json=json.dumps(meta_info, indent=2),
     )
-    print(f"    -> Đã lưu thành công: {out_file.name} ({out_file.stat().st_size / 1e6:.1f} MB) trong {elapsed:.1f}s")
 
-    # Lưu alias chung để tiện tra cứu
+    # Đóng và xóa file memmap tạm thời
+    del delta_mmap
+    gc.collect()
+    if temp_mmap_path.exists():
+        try:
+            temp_mmap_path.unlink()
+        except Exception:
+            pass
+
+    # Tạo alias file bằng cách sao chép file vật lý
     if alias_file != out_file:
-        np.savez_compressed(
-            alias_file,
-            delta_f16=delta_all,
-            image_ids=np.array(image_ids, dtype=np.int64),
-            l2_norms=l2_norms,
-            meta_json=json.dumps(meta_info),
-        )
-        print(f"    -> Đã tạo alias tiện ích: {alias_file.name}")
+        try:
+            import shutil
+            shutil.copyfile(out_file, alias_file)
+            print(f"    -> Đã tạo alias tiện ích: {alias_file.name}")
+        except Exception:
+            pass
 
+    print(f"[CACHE GEN] Hoàn tất sinh {attack_name.upper()} (eps={eps_int}) trong {elapsed:.1f}s | File size: {out_file.stat().st_size / 1e6:.1f} MB")
     return out_file
 
 

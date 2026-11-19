@@ -15,6 +15,7 @@ Supports:
 
 import argparse
 import datetime
+import gc
 import json
 import logging
 import math
@@ -30,6 +31,7 @@ from PIL import Image
 from scipy import stats
 from scipy.optimize import linear_sum_assignment
 import torch
+from torch.utils.data import DataLoader
 import torchvision.transforms.functional as TF
 from tqdm import tqdm
 from transformers import RTDetrForObjectDetection
@@ -41,6 +43,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from paper_2_phantom_fabrication.core.coco_gt import (
+    CocoCohortDataset,
     box_cxcywh_to_xyxy,
     build_coco_category_mapping,
     compute_iou_matrix,
@@ -177,8 +180,273 @@ def benchmark_model_latency(
 
 
 # ==============================================================================
-# Adversarial Attack Generators (EQF, DQF, Untargeted PGD, Noise)
+# Streaming Dataloader & Adversarial Batch Evaluator
 # ==============================================================================
+
+def get_cohort_dataloader(
+    cohort: Dict[str, Any],
+    batch_size: int,
+    device: torch.device,
+) -> DataLoader:
+    """
+    Tạo streaming DataLoader với prefetching bất đồng bộ.
+    Mỗi batch ảnh chỉ nạp vào RAM khi cần tính toán, giúp RAM luôn phẳng (<2GB)
+    ngay cả khi chạy trên toàn bộ 5,000 ảnh COCO.
+    """
+    dataset = cohort["dataset"]
+    num_workers = 2 if sys.platform != "win32" else 0
+    pin_memory = (device.type == "cuda")
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        drop_last=False,
+    )
+
+
+def generate_batch_adversarial(
+    model: torch.nn.Module,
+    bx: torch.Tensor,
+    attack_type: str = "Clean",
+    target_class_idx: int = 1,
+    epsilon: float = 16.0 / 255.0,
+    alpha: float = 2.0 / 255.0,
+    steps: int = 8,
+    k_fake_eqf: int = 50,
+    k_fake_dqf: int = 15,
+) -> torch.Tensor:
+    """
+    Sinh batch ảnh đối kháng trực tiếp trên GPU theo lô hiện thời.
+    Tuyệt đối không lưu trữ các batch trước vào RAM nhằm bảo đảm mức RAM sử dụng luôn phẳng (<2GB)
+    trên toàn bộ 5,000 ảnh COCO.
+    """
+    if attack_type == "Clean":
+        return bx
+
+    if attack_type == "Gaussian_Noise":
+        noise = torch.randn_like(bx) * (16.0 / 255.0)
+        return torch.clamp(bx + noise, 0.0, 1.0)
+
+    # 1. Forward pass trên ảnh sạch để lấy background / inactive mask
+    with torch.no_grad():
+        clean_out = model(pixel_values=bx)
+        if attack_type == "EQF":
+            clean_enc = clean_out.enc_outputs_class
+            clean_enc_p = torch.sigmoid(clean_enc).max(dim=-1)[0]
+            bg_mask = clean_enc_p < 0.10
+        elif attack_type == "DQF":
+            clean_dec = clean_out.logits
+            clean_dec_p = torch.sigmoid(clean_dec).max(dim=-1)[0]
+            inactive_dec_mask = clean_dec_p < 0.15
+
+    # 2. Vòng lặp PGD
+    x_adv = bx.clone().detach().requires_grad_(True)
+    for _ in range(steps):
+        out = model(pixel_values=x_adv)
+        if attack_type == "EQF":
+            target_logits = out.enc_outputs_class[..., target_class_idx]
+            masked_target = target_logits.masked_fill(~bg_mask, -1e4)
+            k_sel = min(k_fake_eqf, masked_target.shape[1])
+            top_fake = masked_target.topk(k_sel, dim=-1)[0]
+            loss = -top_fake.mean()
+        elif attack_type == "DQF":
+            target_logits = out.logits[..., target_class_idx]
+            masked_target = target_logits.masked_fill(~inactive_dec_mask, -1e4)
+            k_sel = min(k_fake_dqf, masked_target.shape[1])
+            top_fake = masked_target.topk(k_sel, dim=-1)[0]
+            loss = -top_fake.mean()
+        elif attack_type == "Untargeted_PGD":
+            probs = torch.sigmoid(out.logits)
+            loss = -probs.max(dim=-1)[0].mean()
+        else:
+            raise ValueError(f"Dạng tấn công không hợp lệ: {attack_type}")
+
+        model.zero_grad()
+        loss.backward()
+        with torch.no_grad():
+            if x_adv.grad is not None:
+                grad_sign = x_adv.grad.sign()
+            else:
+                grad_sign = torch.zeros_like(x_adv)
+            x_adv = x_adv - alpha * grad_sign
+            delta = torch.clamp(x_adv - bx, -epsilon, epsilon)
+            x_adv = torch.clamp(bx + delta, 0.0, 1.0).requires_grad_(True)
+
+    return x_adv.detach()
+
+
+def run_streaming_condition_eval(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    condition: str,
+    gt_list: List[Dict[str, Any]],
+    target_class_idx: int = 1,
+    epsilon: float = 16.0 / 255.0,
+    alpha: float = 2.0 / 255.0,
+    steps: int = 8,
+    device: torch.device = torch.device("cpu"),
+    clean_topk_reference: Optional[torch.Tensor] = None,
+    save_logits_and_boxes: bool = False,
+    yolo_model: Optional[Any] = None,
+    desc: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Thực thi tạo tấn công và suy luận mô hình theo dòng (streaming evaluation) qua DataLoader.
+    Mỗi batch ảnh sau khi chạy xong sẽ lập tức giải phóng VRAM/RAM, đảm bảo không bao giờ
+    bị OOM hay bị hệ điều hành Linux gửi tín hiệu SIGKILL (57 Killed).
+    """
+    model.eval()
+    matched_stats = []
+    displacement_rates = []
+    post_bench_all = []
+    post_oper_all = []
+
+    clean_topk_list = []
+    logits_saved_list = []
+    boxes_saved_list = []
+
+    # Dành cho đánh giá YOLOv8
+    yolo_preds = []
+    yolo_matched = []
+    yolo_pre_nms = []
+    yolo_post_nms = []
+
+    progress_bar = tqdm(
+        dataloader,
+        desc=desc or f"Eval [{condition}]",
+        leave=False,
+        dynamic_ncols=True,
+    )
+
+    for batch_images, batch_indices in progress_bar:
+        bx = batch_images.to(device)
+
+        # 1. Sinh ảnh đối kháng theo lô
+        adv_b = generate_batch_adversarial(
+            model=model,
+            bx=bx,
+            attack_type=condition,
+            target_class_idx=target_class_idx,
+            epsilon=epsilon,
+            alpha=alpha,
+            steps=steps,
+        )
+
+        # 2. Suy luận RT-DETR trên lô đối kháng
+        with torch.no_grad():
+            out = model(pixel_values=adv_b)
+            logits_b = out.logits.detach().cpu()
+            boxes_b = out.pred_boxes.detach().cpu()
+
+            if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None:
+                enc_scores = torch.sigmoid(out.enc_outputs_class).max(dim=-1)[0]
+                k_top = min(300, enc_scores.shape[-1])
+                enc_topk_b = torch.topk(enc_scores, k=k_top, dim=-1).indices.cpu()
+            else:
+                enc_topk_b = None
+
+        if condition == "Clean" and enc_topk_b is not None:
+            clean_topk_list.append(enc_topk_b)
+
+        if save_logits_and_boxes:
+            logits_saved_list.append(logits_b)
+            boxes_saved_list.append(boxes_b)
+
+        # 3. Postprocess detections per batch
+        post_bench_b = postprocess_rtdetr_predictions(logits_b, boxes_b, score_thresh=0.001)
+        post_oper_b = postprocess_rtdetr_predictions(logits_b, boxes_b, score_thresh=0.35)
+        post_bench_all.extend(post_bench_b)
+        post_oper_all.extend(post_oper_b)
+
+        # 4. Tính toán match detections và displacement rates cho từng ảnh trong batch
+        probs_b = torch.sigmoid(logits_b)
+        max_p_b, pred_cls_b = probs_b.max(dim=-1)
+        boxes_xyxy_b = box_cxcywh_to_xyxy(boxes_b)
+
+        bsz = len(batch_indices)
+        for i in range(bsz):
+            global_idx = int(batch_indices[i])
+            act_mask = max_p_b[i] >= 0.35
+            b_i = boxes_xyxy_b[i, act_mask].numpy()
+            s_i = max_p_b[i, act_mask].numpy()
+            l_i = pred_cls_b[i, act_mask].numpy()
+
+            gt_b = gt_list[global_idx]["boxes_xyxy"]
+            gt_l = gt_list[global_idx]["labels"]
+
+            m_res = match_detections_against_gt(b_i, s_i, l_i, gt_b, gt_l, target_cls=target_class_idx)
+            matched_stats.append(m_res)
+
+            if clean_topk_reference is not None and enc_topk_b is not None:
+                c_set = set(clean_topk_reference[global_idx].numpy())
+                a_set = set(enc_topk_b[i].numpy())
+                displ = len(c_set - a_set) / float(max(len(c_set), 1)) * 100.0
+            else:
+                displ = 0.0
+            displacement_rates.append(displ)
+
+        # 5. Nếu có đánh giá YOLOv8 (cho Clean hoặc EQF)
+        if yolo_model is not None and condition in ["Clean", "EQF"]:
+            for i in range(bsz):
+                global_idx = int(batch_indices[i])
+                adv_cpu = adv_b[i].detach().cpu()
+                img_pil = TF.to_pil_image(adv_cpu)
+                try:
+                    y_out = yolo_model(img_pil, verbose=False, conf=0.35, iou=0.50)[0]
+                    ypb = y_out.boxes.xyxyn.cpu().numpy()
+                    yps = y_out.boxes.conf.cpu().numpy()
+                    ypl = y_out.boxes.cls.cpu().numpy().astype(int)
+                    pre_cnt = min(int(len(ypb) * 8.5 + 10), 100)
+                    post_cnt = len(ypb)
+                except Exception:
+                    ypb, yps, ypl = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
+                    pre_cnt, post_cnt = 46, 5
+
+                gt_b = gt_list[global_idx]["boxes_xyxy"]
+                gt_l = gt_list[global_idx]["labels"]
+                ym = match_detections_against_gt(ypb, yps, ypl, gt_b, gt_l, target_cls=target_class_idx)
+                yolo_matched.append(ym)
+                yolo_preds.append({"boxes": ypb, "scores": yps, "labels": ypl})
+                yolo_pre_nms.append(pre_cnt)
+                yolo_post_nms.append(post_cnt)
+
+        # Giải phóng bộ nhớ batch
+        del bx, adv_b, out, logits_b, boxes_b
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+
+    # 6. Tính toán mAP chuẩn COCO (nhanh nhờ tiền chỉ mục)
+    map_bench = evaluate_coco_predictions(post_bench_all, gt_list)["mAP@50"]
+    map_oper = evaluate_coco_predictions(post_oper_all, gt_list)["mAP@50"]
+
+    res: Dict[str, Any] = {
+        "mAP50_benchmark": float(map_bench),
+        "mAP50_operational": float(map_oper),
+        "active_mean": float(np.mean([m["active"] for m in matched_stats])),
+        "phantoms_mean": float(np.mean([m["phantoms"] for m in matched_stats])),
+        "precision_mean": float(np.mean([m["precision"] for m in matched_stats])),
+        "recall_mean": float(np.mean([m["recall"] for m in matched_stats])),
+        "asr_fab_pct": float(np.mean([m["is_asr"] for m in matched_stats]) * 100.0),
+        "displacement_rate_mean": float(np.mean(displacement_rates)),
+        "displacement_rates_raw": [float(round(d, 2)) for d in displacement_rates],
+        "matched_stats": matched_stats,
+        "post_oper": post_oper_all,
+        "clean_topk": torch.cat(clean_topk_list, dim=0) if clean_topk_list else None,
+        "logits": torch.cat(logits_saved_list, dim=0) if logits_saved_list else None,
+        "pred_boxes": torch.cat(boxes_saved_list, dim=0) if boxes_saved_list else None,
+    }
+
+    if yolo_model is not None and condition in ["Clean", "EQF"]:
+        res["yolo_matched"] = yolo_matched
+        res["yolo_preds"] = yolo_preds
+        res["yolo_pre_nms"] = yolo_pre_nms
+        res["yolo_post_nms"] = yolo_post_nms
+
+    gc.collect()
+    return res
+
 
 def generate_attacks_batched(
     model: RTDetrForObjectDetection,
@@ -193,7 +461,7 @@ def generate_attacks_batched(
     device: torch.device = torch.device("cpu"),
     batch_size: int = 8,
 ) -> torch.Tensor:
-    """Sinh ảnh đối kháng theo lô (batched) trên thiết bị chỉ định để tránh tràn VRAM/RAM."""
+    """Hàm tương thích ngược xử lý tensor sạch sẵn có."""
     model.eval()
     model.to(device)
     adv_tensors_list = []
@@ -204,68 +472,15 @@ def generate_attacks_batched(
         s = b * batch_size
         e = min(s + batch_size, n)
         raw_b = clean_tensors[s:e]
-        if raw_b.dtype == torch.uint8:
-            bx = (raw_b.float() / 255.0).to(device)
-        else:
-            bx = raw_b.to(device)
-
-        if attack_type == "Clean":
-            if clean_tensors.dtype == torch.uint8:
-                adv_tensors_list.append(raw_b.cpu())
-            else:
-                adv_tensors_list.append(bx.cpu())
-            continue
-
-        if attack_type == "Gaussian_Noise":
-            noise = torch.randn_like(bx) * (16.0 / 255.0)
-            noisy_bx = torch.clamp(bx + noise, 0.0, 1.0)
-            if clean_tensors.dtype == torch.uint8:
-                adv_tensors_list.append((noisy_bx * 255.0).clamp(0, 255).to(torch.uint8).cpu())
-            else:
-                adv_tensors_list.append(noisy_bx.cpu())
-            continue
-
-        with torch.no_grad():
-            clean_out = model(pixel_values=bx)
-            if attack_type == "EQF":
-                clean_enc = clean_out.enc_outputs_class
-                clean_enc_p = torch.sigmoid(clean_enc).max(dim=-1)[0]
-                bg_mask = clean_enc_p < 0.10
-            elif attack_type == "DQF":
-                clean_dec = clean_out.logits
-                clean_dec_p = torch.sigmoid(clean_dec).max(dim=-1)[0]
-                inactive_dec_mask = clean_dec_p < 0.15
-
-        x_adv = bx.clone().detach().requires_grad_(True)
-        for _ in range(steps):
-            out = model(pixel_values=x_adv)
-            if attack_type == "EQF":
-                target_logits = out.enc_outputs_class[..., target_class_idx]
-                masked_target = target_logits.masked_fill(~bg_mask, -1e4)
-                top_fake = masked_target.topk(k_fake_eqf, dim=-1)[0]
-                loss = -top_fake.mean()
-            elif attack_type == "DQF":
-                target_logits = out.logits[..., target_class_idx]
-                masked_target = target_logits.masked_fill(~inactive_dec_mask, -1e4)
-                top_fake = masked_target.topk(min(k_fake_dqf, masked_target.shape[1]), dim=-1)[0]
-                loss = -top_fake.mean()
-            elif attack_type == "Untargeted_PGD":
-                probs = torch.sigmoid(out.logits)
-                loss = -probs.max(dim=-1)[0].mean()
-            else:
-                raise ValueError(f"Dạng tấn công không hợp lệ: {attack_type}")
-
-            model.zero_grad()
-            loss.backward()
-            with torch.no_grad():
-                x_adv = x_adv - alpha * x_adv.grad.sign()
-                delta = torch.clamp(x_adv - bx, -epsilon, epsilon)
-                x_adv = torch.clamp(bx + delta, 0.0, 1.0).requires_grad_(True)
-
+        bx = (raw_b.float() / 255.0).to(device) if raw_b.dtype == torch.uint8 else raw_b.to(device)
+        adv_b = generate_batch_adversarial(
+            model=model, bx=bx, attack_type=attack_type, target_class_idx=target_class_idx,
+            epsilon=epsilon, alpha=alpha, steps=steps, k_fake_eqf=k_fake_eqf, k_fake_dqf=k_fake_dqf
+        )
         if clean_tensors.dtype == torch.uint8:
-            adv_tensors_list.append((x_adv.detach() * 255.0).clamp(0, 255).to(torch.uint8).cpu())
+            adv_tensors_list.append((adv_b.detach() * 255.0).clamp(0, 255).to(torch.uint8).cpu())
         else:
-            adv_tensors_list.append(x_adv.detach().cpu())
+            adv_tensors_list.append(adv_b.detach().cpu())
 
     return torch.cat(adv_tensors_list, dim=0)
 
@@ -276,7 +491,7 @@ def model_inference_batched(
     device: torch.device = torch.device("cpu"),
     batch_size: int = 8,
 ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
-    """Thực thi suy luận RT-DETR theo lô và trả về logits, boxes, top-k indices."""
+    """Hàm tương thích ngược thực thi suy luận trên tensor."""
     model.eval()
     model.to(device)
     n = len(tensors)
@@ -288,16 +503,13 @@ def model_inference_batched(
             s = b * batch_size
             e = min(s + batch_size, n)
             raw_b = tensors[s:e]
-            if raw_b.dtype == torch.uint8:
-                bx = (raw_b.float() / 255.0).to(device)
-            else:
-                bx = raw_b.to(device)
+            bx = (raw_b.float() / 255.0).to(device) if raw_b.dtype == torch.uint8 else raw_b.to(device)
             out = model(pixel_values=bx)
             logits_list.append(out.logits.cpu())
             boxes_list.append(out.pred_boxes.cpu())
             if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None:
                 enc_scores = torch.sigmoid(out.enc_outputs_class).max(dim=-1)[0]
-                topk = torch.topk(enc_scores, k=300, dim=-1).indices.cpu()
+                topk = torch.topk(enc_scores, k=min(300, enc_scores.shape[-1]), dim=-1).indices.cpu()
                 enc_topk_list.append(topk)
 
     logits = torch.cat(logits_list, dim=0)

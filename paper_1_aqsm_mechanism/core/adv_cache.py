@@ -78,7 +78,10 @@ def load_cached_adv_proxy(
     if not fpath.exists():
         raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
-    data = np.load(fpath, allow_pickle=False)
+    try:
+        data = np.load(fpath, mmap_mode="r")
+    except Exception:
+        data = np.load(fpath, allow_pickle=False)
     cached_ids = data["image_ids"].tolist()
 
     # Kiểm tra tính khớp của image_ids
@@ -123,7 +126,10 @@ def load_cached_adv_images(
     if not fpath.exists():
         raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
-    data = np.load(fpath, allow_pickle=False)
+    try:
+        data = np.load(fpath, mmap_mode="r")
+    except Exception:
+        data = np.load(fpath, allow_pickle=False)
     cached_ids = data["image_ids"].tolist()
     expected_ids = list(expected_image_ids)[:n_eval]
     cached_subset = cached_ids[:n_eval]

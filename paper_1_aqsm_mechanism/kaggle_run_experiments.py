@@ -29,7 +29,9 @@ def main():
     parser.add_argument("--folder_image", type=str, default=None, help="Đường dẫn thư mục ảnh COCO val2017")
     parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file instances_val2017.json")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,7,8", help="Danh sách tasks cần chạy")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
+    parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8 cho Task 5")
     args = parser.parse_args()
 
     print("================================================================================")
@@ -67,8 +69,12 @@ def main():
         cmd.extend(["--folder_image", str(args.folder_image)])
     if args.annotations:
         cmd.extend(["--annotations", str(args.annotations)])
+    if args.tasks:
+        cmd.extend(["--tasks", str(args.tasks)])
     if args.skip_cache_gen:
         cmd.append("--skip_cache_gen")
+    if args.include_sweep:
+        cmd.append("--include_sweep")
 
     start_time = time.time()
     print(f"\n>>> Đang thực thi lệnh: {' '.join(cmd)}\n")
