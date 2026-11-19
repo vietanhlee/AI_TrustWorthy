@@ -97,11 +97,11 @@ def generate_single_attack_cache(
     needed_bytes = n_total * 3 * 640 * 640 * 4
     try:
         free_bytes = shutil.disk_usage(save_dir).free
-        if free_bytes < needed_bytes * 1.2:
+        if free_bytes < needed_bytes:
             raise RuntimeError(
                 f"[DISK WARNING] Dung lượng đĩa khả dụng ({free_bytes / 1e9:.2f} GB) "
                 f"không đủ để ghi cache ({needed_bytes / 1e9:.2f} GB)! "
-                f"Hãy sử dụng --max_samples để giới hạn kích thước tập mẫu (ví dụ: --max_samples 300)."
+                f"Hãy sử dụng --max_samples để điều chỉnh kích thước tập mẫu nếu cần."
             )
     except Exception as e:
         if "[DISK WARNING]" in str(e):
@@ -211,7 +211,7 @@ def main():
     parser.add_argument("--epsilons", type=str, default="16", help="Danh sách epsilon /255 (ví dụ: '16' hoặc '4,8,16')")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache kể cả khi đã có")
-    parser.add_argument("--max_samples", type=int, default=None, help="Số lượng ảnh tối đa cần sinh cache (None = toàn bộ tập)")
+    parser.add_argument("--max_samples", type=int, default=5000, help="Số lượng ảnh tối đa cần sinh cache (mặc định: 5000 ảnh)")
     args = parser.parse_args()
 
     update_experiment_paths(

@@ -81,8 +81,8 @@ def create_base_parser(
     parser.add_argument(
         "--max_samples",
         type=int,
-        default=None,
-        help="Số lượng mẫu ảnh tối đa cần đánh giá (None = toàn bộ tập ảnh trong folder)",
+        default=5000,
+        help="Số lượng mẫu ảnh tối đa cần đánh giá (mặc định: 5000 ảnh)",
     )
 
     return parser

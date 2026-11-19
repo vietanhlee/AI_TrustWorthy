@@ -219,7 +219,7 @@ def main():
     # 1. Tham số dữ liệu đầu vào
     parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục chứa ảnh COCO val2017 (5000 ảnh)")
     parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
-    parser.add_argument("--max_samples", type=int, default=None, help="Giới hạn số lượng ảnh chạy thực nghiệm (ví dụ 300 để chạy nhanh hoặc chống OOM/Disk-Full)")
+    parser.add_argument("--max_samples", type=int, default=5000, help="Giới hạn số lượng ảnh chạy thực nghiệm (mặc định 5000 ảnh)")
 
     # 2. Tham số lưu trữ đầu ra
     parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả thực nghiệm (summary JSON & raw CSV)")
@@ -261,7 +261,7 @@ def main():
     print(f" Thư mục ảnh đầu vào  : {folder_p} (Tìm thấy {img_count} ảnh | Chạy: {effective_count} ảnh)")
     print(f" File Annotations COCO: {Path(args.annotations).resolve()}")
     if args.max_samples is not None:
-        print(f" Giới hạn Max Samples : {args.max_samples} ảnh (Chế độ tiết kiệm đĩa/chống OOM)")
+        print(f" Cấu hình Max Samples : {args.max_samples} ảnh")
     print(f" Thư mục đầu ra       : {Path(args.output_dir).resolve()}")
     print(f" Thư mục Cache        : {Path(args.cache_dir).resolve()}")
     print(f" Thư mục Figures      : {Path(args.fig_dir).resolve()}")
