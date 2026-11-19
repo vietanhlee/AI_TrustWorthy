@@ -1,0 +1,186 @@
+{
+  "project": "paper_1_aqsm_mechanism",
+  "title": "Adversarial Query Selection Manipulation (AQSM) in Real-Time DEtection TRansformer (RT-DETR)",
+  "version": "1.0.0",
+  "created_at": "2026-11-20T00:15:00+07:00",
+  "hardware_environment": {
+    "evaluation_platform": "PyTorch 2.x CUDA & Multi-core CPU",
+    "native_resolution": [640, 640],
+    "spatial_token_count": 8400,
+    "spatial_levels": {
+      "P3_stride_8": [80, 80, 6400],
+      "P4_stride_16": [40, 40, 1600],
+      "P5_stride_32": [20, 20, 400]
+    }
+  },
+  "cohort_definitions": {
+    "pilot_validation_cohort": {
+      "description": "Tập ảnh kiểm định cơ chế chuyên sâu (factorial tensor swaps & ANOVA bootstrap) tại môi trường cục bộ/Kaggle debug",
+      "n_images": 30,
+      "resamples": 2000,
+      "degrees_of_freedom": [1, 29]
+    },
+    "full_benchmark_cohort": {
+      "description": "Tập ảnh chuẩn COCO val2017 đánh giá quy mô lớn toàn diện qua On-The-Fly VRAM Streaming",
+      "n_images": 3700,
+      "dataset": "COCO val2017 (5k)"
+    }
+  },
+  "tables": {
+    "tab:tab3_causal_surgery": {
+      "table_number": 3,
+      "caption": "Factorial causal mechanism isolation on the COCO val2017 benchmark at native 640x640 resolution",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/causal_swap_results_aqsm.json",
+        "outputs/summary_json/causal_swap_results_vanishing.json",
+        "outputs/summary_json/causal_swap_results_taskpgd.json"
+      ],
+      "key_mappings": {
+        "Arm_A_mAP50": "point_maps.Arm_A.mAP@50",
+        "Arm_B_mAP50": "point_maps.Arm_B.mAP@50",
+        "Arm_C_full_mAP50": "point_maps.Arm_C_full.mAP@50",
+        "Arm_D_full_mAP50": "point_maps.Arm_D_full.mAP@50",
+        "Arm_D_index_mAP50": "point_maps.Arm_D_index.mAP@50",
+        "ANOVA_ME_M": "anova_repeated_measures_full.marginal_effects.ME_M",
+        "ANOVA_ME_Q": "anova_repeated_measures_full.marginal_effects.ME_Q",
+        "ANOVA_Interaction": "anova_repeated_measures_full.marginal_effects.Interaction_MxQ"
+      }
+    },
+    "tab:tab4_anova_decomp": {
+      "table_number": 4,
+      "caption": "ANOVA Factorial Decomposition and Causal Effect Attribution across Attack Formulations on COCO val2017",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/causal_swap_results_aqsm.json",
+        "outputs/summary_json/causal_swap_results_vanishing.json",
+        "outputs/summary_json/causal_swap_results_taskpgd.json"
+      ],
+      "key_mappings": {
+        "AQSM_SS_M": "anova_repeated_measures_full.factors.Memory.SS",
+        "AQSM_F_M": "anova_repeated_measures_full.factors.Memory.F",
+        "AQSM_eta_p2_M": "anova_repeated_measures_full.factors.Memory.partial_eta2",
+        "AQSM_SS_Q": "anova_repeated_measures_full.factors.Query.SS",
+        "AQSM_F_Q": "anova_repeated_measures_full.factors.Query.F",
+        "AQSM_eta_p2_Q": "anova_repeated_measures_full.factors.Query.partial_eta2"
+      }
+    },
+    "tab:tab5_query_dynamics": {
+      "table_number": 5,
+      "caption": "Encoder Query Dynamics and Displacement Metrics on COCO val2017",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/encoder_query_dynamics.json"
+      ],
+      "key_mappings": {
+        "top300_overlap_mean": "aqsm.top300_overlap.mean",
+        "spearman_all_proposals_mean": "aqsm.spearman_rho_2100.mean",
+        "kendall_all_proposals_mean": "aqsm.kendall_tau_2100.mean",
+        "evicted_top15_mean": "aqsm.evicted_top15.mean"
+      }
+    },
+    "tab:tab6_deformable_telemetry": {
+      "table_number": 6,
+      "caption": "Deformable Attention and Reference Point Drift Telemetry across Decoder Layers",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/mechanism_telemetry_results.json"
+      ],
+      "key_mappings": {
+        "spatial_dispersion": "aqsm.spatial_dispersion",
+        "sampling_entropy": "aqsm.sampling_entropy",
+        "cosine_drift_layerwise": "aqsm.cosine_drift_layerwise"
+      }
+    },
+    "tab:tab7_controlled_misrouting": {
+      "table_number": 7,
+      "caption": "Controlled Misrouting vs Clean Baseline across Random Seed Permutations",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/controlled_misrouting_results.json"
+      ],
+      "key_mappings": {
+        "clean_baseline_map": "Clean_Baseline.mAP@50",
+        "aqsm_misrouting_map": "AQSM_Misrouting.mAP@50"
+      }
+    },
+    "tab:tab8_matched_sweep": {
+      "table_number": 8,
+      "caption": "Matched Budget Robustness Sweep across Perturbation Levels epsilon in {4, 8, 16}",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/matched_budget_results.json"
+      ],
+      "key_mappings": {
+        "clean_baseline_mAP50": "clean_baseline.mAP@50",
+        "sweep_results": "sweep_results"
+      }
+    },
+    "tab:tab10_edge_latency": {
+      "table_number": 10,
+      "caption": "Hardware Latency Profiling across RT-DETR Architectural Stages",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/edge_latency_results.json",
+        "outputs/summary_json/latency_profile.json"
+      ],
+      "key_mappings": {
+        "backbone_ms": "stages.Backbone.latency_ms",
+        "encoder_ms": "stages.Hybrid_Encoder.latency_ms",
+        "query_selection_ms": "stages.Query_Selection.latency_ms",
+        "decoder_ms": "stages.Deformable_Decoder.latency_ms",
+        "end_to_end_ms": "stages.End_to_End.latency_ms"
+      }
+    },
+    "tab:tab11_defense_evaluation": {
+      "table_number": 11,
+      "caption": "Empirical Defense Evaluation (ESM & Adaptive Evasion)",
+      "active_cohort": "pilot_validation_cohort",
+      "n_evaluated_images": 30,
+      "source_artifacts": [
+        "outputs/summary_json/defense_evaluation_summary.json"
+      ],
+      "key_mappings": {
+        "target_fpr_pct": "target_fpr_pct",
+        "clean_fpr_pct": "empirical_clean_fpr_pct",
+        "attacks": "attacks",
+        "adaptive_evasion": "adaptive_evasion"
+      }
+    }
+  },
+  "figures": {
+    "fig:fig4_causal_swap": {
+      "figure_file": "fig/fig4_causal_swap_n300.pdf",
+      "source_artifacts": [
+        "outputs/summary_json/causal_swap_results_aqsm.json",
+        "outputs/summary_json/causal_swap_results_vanishing.json",
+        "outputs/summary_json/causal_swap_results_taskpgd.json"
+      ]
+    },
+    "fig:fig5_query_dynamics": {
+      "figure_file": "fig/fig5_query_selection_dynamics.pdf",
+      "source_artifacts": [
+        "outputs/summary_json/encoder_query_dynamics.json"
+      ]
+    },
+    "fig:fig6_attention_collapse": {
+      "figure_file": "fig/fig6_attention_collapse.pdf",
+      "source_artifacts": [
+        "outputs/summary_json/mechanism_telemetry_results.json"
+      ]
+    },
+    "fig:fig7_matched_sweep": {
+      "figure_file": "fig/fig7_matched_sweep.pdf",
+      "source_artifacts": [
+        "outputs/summary_json/matched_budget_results.json"
+      ]
+    }
+  }
+}

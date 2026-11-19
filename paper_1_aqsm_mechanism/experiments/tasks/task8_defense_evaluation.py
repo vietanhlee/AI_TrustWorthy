@@ -89,8 +89,8 @@ def run_adaptive_evasion_test(
             top300_val = topk_vals[:, -1]
             diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
 
-            # Phạt nếu dropoff vượt ngoài biên độ sạch
-            target_drop = 30.0
+            # Phạt nếu dropoff lệch khỏi phân vị trung vị sạch thực tế đã fit từ calibration
+            target_drop = float(getattr(esm_monitor, "cal_dropoff_median", 35.0))
             evasion_loss = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
 
             total_loss = task_loss + lam * evasion_loss

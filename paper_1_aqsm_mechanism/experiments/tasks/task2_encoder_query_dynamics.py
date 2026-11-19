@@ -180,8 +180,9 @@ def run_encoder_query_dynamics_evaluation(
         evicted = [r["evicted_top15_ratio"] * 100.0 for r in all_query_records]
         rank_shift_top15 = [r["median_rank_shift_top15"] for r in all_query_records]
         rank_shift_fg = [r["median_rank_shift_fg_tokens"] for r in all_query_records]
-        sp_rho = [r["spearman_2100"] for r in all_query_records]
-        kt_tau = [r["kendall_2100"] for r in all_query_records]
+        sp_rho = [r.get("spearman_all_proposals", r.get("spearman_2100", 0.0)) for r in all_query_records]
+        kt_tau = [r.get("kendall_all_proposals", r.get("kendall_2100", 0.0)) for r in all_query_records]
+        n_proposals_val = all_query_records[0].get("n_proposals", 8400) if all_query_records else 8400
 
         cov_center_c = [r["cov_center_clean"] * 100.0 for r in all_query_records]
         cov_center_a = [r["cov_center_adv"] * 100.0 for r in all_query_records]
@@ -191,12 +192,16 @@ def run_encoder_query_dynamics_evaluation(
         cov_iou30_a = [r["cov_iou30_adv"] * 100.0 for r in all_query_records]
 
         results_by_attack[atk_name] = {
+            "n_proposals": n_proposals_val,
             "top300_overlap_pct": summarize_metric_list(top300_ov),
             "top100_overlap_pct": summarize_metric_list(top100_ov),
             "top50_overlap_pct": summarize_metric_list(top50_ov),
             "evicted_top15_fg_pct": summarize_metric_list(evicted),
             "median_rank_shift_top15": summarize_metric_list(rank_shift_top15),
             "median_rank_shift_fg_tokens": summarize_metric_list(rank_shift_fg),
+            "spearman_rho_all_proposals": summarize_metric_list(sp_rho),
+            "kendall_tau_all_proposals": summarize_metric_list(kt_tau),
+            # Backward compatibility aliases
             "spearman_rho_2100": summarize_metric_list(sp_rho),
             "kendall_tau_2100": summarize_metric_list(kt_tau),
             "object_coverage": {
@@ -239,8 +244,10 @@ def run_encoder_query_dynamics_evaluation(
                 q_r["top50_overlap"],
                 q_r["evicted_top15_ratio"],
                 q_r["median_rank_shift_top15"],
-                q_r["spearman_2100"],
-                q_r["kendall_2100"],
+                q_r.get("spearman_all_proposals", q_r.get("spearman_2100", 0.0)),
+                q_r.get("kendall_all_proposals", q_r.get("kendall_2100", 0.0)),
+                q_r.get("spearman_2100", 0.0),
+                q_r.get("kendall_2100", 0.0),
                 q_r["cov_center_clean"],
                 q_r["cov_center_adv"],
                 q_r["cov_iou50_clean"],
@@ -259,7 +266,7 @@ def run_encoder_query_dynamics_evaluation(
         "attack", "image_index", "image_id",
         "cos_s3", "cos_s4", "cos_s5", "cos_fg", "cos_bg", "cos_all",
         "top300_overlap", "top100_overlap", "top50_overlap", "evicted_top15",
-        "rank_shift_top15", "spearman_2100", "kendall_2100",
+        "rank_shift_top15", "spearman_all_proposals", "kendall_all_proposals", "spearman_2100", "kendall_2100",
         "cov_center_clean", "cov_center_adv", "cov_iou50_clean", "cov_iou50_adv",
         "clean_dropoff", "adv_dropoff",
     ]

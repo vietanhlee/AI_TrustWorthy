@@ -115,6 +115,8 @@ class EncoderSelectionMonitor:
 
         self.dropoff_mon.fit(all_dropoffs)
         self.margin_mon.fit(all_margins)
+        self.cal_dropoff_median = float(np.median(all_dropoffs)) if all_dropoffs else 35.0
+        self.cal_margin_median = float(np.median(all_margins)) if all_margins else 0.05
 
         # Tính điểm gộp cực đại trên tập hiệu chuẩn để xác định ngưỡng fused Max-OR
         s_d = self.dropoff_mon.score(all_dropoffs)

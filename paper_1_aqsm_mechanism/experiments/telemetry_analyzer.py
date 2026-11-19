@@ -3,7 +3,7 @@
 Module: paper_1_aqsm_mechanism.experiments.telemetry_analyzer
 Mục đích: Đo đạc và kiểm chứng định lượng cơ chế nội tại của RT-DETR (RQ2 và RQ3):
   1. Encoder Proposal Dynamics (RQ2):
-     - Phổ điểm phân loại s_(i) trên 2100 candidate anchors.
+     - Phổ điểm phân loại s_(i) trên S candidate anchors (S = 8,400 ở native 640x640; 2,100 ở 320x320).
      - Dropoff ratio s_(1) / s_(300) và Margin s_(1) - s_(300).
      - Object Coverage Rate (tỷ lệ vật thể thật có ít nhất 1 anchor bao phủ IoU >= 0.5).
      - Kiểm chứng: Có hay không hiện tượng Uniform Proposal Starvation?

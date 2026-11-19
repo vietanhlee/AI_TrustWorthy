@@ -124,11 +124,12 @@ def extract_encoder_components(
 
     return {
         "encoder_last_hidden_state": [t.detach() for t in encoder_outputs.last_hidden_state],
-        "source_flatten": source_flatten_t.detach(),            # M: [B, 2100, 256]
-        "output_memory": output_memory.detach(),                # [B, 2100, 256]
-        "enc_outputs_class": enc_outputs_class.detach(),        # [B, 2100, 80]
-        "enc_outputs_coord_logits": enc_outputs_coord_logits.detach(),  # [B, 2100, 4]
-        "anchors": anchors.detach(),                            # [1, 2100, 4]
+        # Multi-scale spatial tokens S: S = 8,400 at native 640x640 (P3: 6400, P4: 1600, P5: 400); S = 2,100 at 320x320
+        "source_flatten": source_flatten_t.detach(),            # M: [B, S, 256]
+        "output_memory": output_memory.detach(),                # [B, S, 256]
+        "enc_outputs_class": enc_outputs_class.detach(),        # [B, S, 80]
+        "enc_outputs_coord_logits": enc_outputs_coord_logits.detach(),  # [B, S, 4]
+        "anchors": anchors.detach(),                            # [1, S, 4]
         "topk_ind": topk_ind.detach(),                          # I: [B, 300]
         "target": target.detach(),                              # Q_feat: [B, 300, 256]
         "init_reference_points": init_reference_points.detach(),  # Q_ref: [B, 300, 4]
@@ -179,7 +180,7 @@ def run_decoder_from_components(
 
 
 def compute_scale_slices(spatial_shapes_list: Sequence[Tuple[int, int]]) -> Dict[str, slice]:
-    """Tạo slice index cho các scale S3, S4, S5 trong vector flattened [2100]."""
+    """Tạo slice index cho các scale S3, S4, S5 trong vector flattened [S] (S=8,400 ở 640x640; S=2,100 ở 320x320)."""
     slices: Dict[str, slice] = {}
     cursor = 0
     for idx, (h_l, w_l) in enumerate(spatial_shapes_list):
@@ -195,14 +196,14 @@ def compute_token_fg_masks(
     gt_boxes_xyxy: np.ndarray,
 ) -> np.ndarray:
     """
-    Xác định mask [N_tokens] (2100 tokens) xem tâm grid anchor `(cx, cy)` có rơi vào
+    Xác định mask [N_tokens] (S tokens: S=8,400 ở 640x640; 2,100 ở 320x320) xem tâm grid anchor `(cx, cy)` có rơi vào
     bất kỳ Ground Truth bbox `[x1, y1, x2, y2]` nào của ảnh hay không.
     """
     n_tok = anchors_sigmoid.shape[0]
     if len(gt_boxes_xyxy) == 0:
         return np.zeros(n_tok, dtype=bool)
-    cx = anchors_sigmoid[:, 0 : 1]  # [2100, 1]
-    cy = anchors_sigmoid[:, 1 : 2]  # [2100, 1]
+    cx = anchors_sigmoid[:, 0 : 1]  # [S, 1]
+    cy = anchors_sigmoid[:, 1 : 2]  # [S, 1]
     in_x = (cx >= gt_boxes_xyxy[None, :, 0]) & (cx <= gt_boxes_xyxy[None, :, 2])
     in_y = (cy >= gt_boxes_xyxy[None, :, 1]) & (cy <= gt_boxes_xyxy[None, :, 3])
     return np.any(in_x & in_y, axis=1)
@@ -215,15 +216,15 @@ def analyze_encoder_memory_batch(
 ) -> List[Dict[str, Any]]:
     """
     Mục 3: Phân tích độ biến đổi Encoder Memory giữa Clean và Attacked theo:
-    - Toàn bộ 2100 tokens (`source_flatten` trước cross-attention) và từng scale (S3, S4, S5).
+    - Toàn bộ S tokens (`source_flatten` trước cross-attention: S=8,400 ở native 640x640) và từng scale (S3, S4, S5).
     - Phân tầng vùng Vật thể (Foreground tokens có tâm nằm trong GT box) vs vùng Nền (Background).
     """
-    m_clean = clean_comp["source_flatten"].detach().cpu().numpy()  # [B, 2100, 256]
+    m_clean = clean_comp["source_flatten"].detach().cpu().numpy()  # [B, S, 256]
     m_adv = adv_comp["source_flatten"].detach().cpu().numpy()
     enc_h_clean = [t.detach().cpu().numpy() for t in clean_comp["encoder_last_hidden_state"]]
     enc_h_adv = [t.detach().cpu().numpy() for t in adv_comp["encoder_last_hidden_state"]]
 
-    anchors_sig = torch.sigmoid(clean_comp["anchors"][0]).detach().cpu().numpy()  # [2100, 4]
+    anchors_sig = torch.sigmoid(clean_comp["anchors"][0]).detach().cpu().numpy()  # [S, 4]
     scale_slices = compute_scale_slices(clean_comp["spatial_shapes_list"])
 
     bsz = m_clean.shape[0]
@@ -322,9 +323,9 @@ def analyze_query_selection_batch(
     gt_boxes_batch: Sequence[np.ndarray],
 ) -> List[Dict[str, Any]]:
     """
-    Mục 4: Phân tích quá trình Query Selection (2100 -> Top-300):
+    Mục 4: Phân tích quá trình Query Selection (S proposals -> Top-300; S=8,400 tại 640x640):
     - Top-K Overlap (K=50, 100, 300) và Jaccard index.
-    - Spearman rho và Kendall tau trên toàn bộ 2100 proposals + nhóm foreground tokens.
+    - Spearman rho và Kendall tau trên toàn bộ S proposals + nhóm foreground tokens.
     - Object Coverage Rate (tỷ lệ GT objects được phủ bởi >=1 proposal trong Top-300):
       theo 3 tiêu chí (Anchor Center-in-GT, Encoder Box IoU >= 0.50, Encoder Box IoU >= 0.30).
     - Thống kê phổ điểm s_(1), s_(50), s_(300), Dropoff và tỷ lệ GT tokens trong Top-300.
@@ -342,8 +343,8 @@ def analyze_query_selection_batch(
     records: List[Dict[str, Any]] = []
 
     for b in range(bsz):
-        sc = c_scores_all[b]  # [2100]
-        sa = a_scores_all[b]  # [2100]
+        sc = c_scores_all[b]  # [S] (S=8,400 ở 640x640)
+        sa = a_scores_all[b]  # [S]
         ic = c_topk[b]        # [300]
         ia = a_topk[b]        # [300]
         gt_b = gt_boxes_batch[b]
@@ -361,7 +362,7 @@ def analyze_query_selection_batch(
         sp_all, _ = stats.spearmanr(sc, sa)
         kt_all, _ = stats.kendalltau(sc, sa)
 
-        # Rank (0 = cao nhất) trên toàn 2100 proposals
+        # Rank (0 = cao nhất) trên toàn bộ S proposals (8,400 ở 640x640)
         rank_c = stats.rankdata(-sc, method="ordinal") - 1
         rank_a = stats.rankdata(-sa, method="ordinal") - 1
 
@@ -424,6 +425,10 @@ def analyze_query_selection_batch(
             "top300_jaccard": float(inter_300 / max(union_300, 1)),
             "top100_overlap": float(len(set_c_100 & set_a_100) / 100.0),
             "top50_overlap": float(len(set_c_50 & set_a_50) / 50.0),
+            "n_proposals": int(len(sc)),
+            "spearman_all_proposals": float(sp_all) if not np.isnan(sp_all) else 0.0,
+            "kendall_all_proposals": float(kt_all) if not np.isnan(kt_all) else 0.0,
+            # Backward compatibility aliases
             "spearman_2100": float(sp_all) if not np.isnan(sp_all) else 0.0,
             "kendall_2100": float(kt_all) if not np.isnan(kt_all) else 0.0,
             "spearman_fg_tokens": float(sp_fg) if not np.isnan(sp_fg) else float("nan"),

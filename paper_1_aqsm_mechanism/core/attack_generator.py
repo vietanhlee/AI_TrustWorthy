@@ -5,7 +5,7 @@ Mục đích: Bộ sinh các đòn tấn công đối kháng chuyên biệt cho 
 Kiến trúc các đòn tấn công tinh gọn (Streamlined Attack Suite):
 1. Tier 1 (Encoder-to-Decoder Interface):
    - Adversarial Query Selection Manipulation (AQSM / Selection Starvation Attack)
-     Thao túng ranking của 2100 candidate predictions từ Encoder, ép object thật rơi khỏi Top-300,
+     Thao túng ranking của S candidate predictions từ Encoder (S = 8,400 ở native 640x640), ép object thật rơi khỏi Top-300,
      gây hiện tượng "Bỏ đói thông tin" (Information Starvation) ở Deformable Decoder.
 2. Tier 2 (Deformable Decoder Output Space):
    - Query Vanishing Attack: Ép toàn bộ object queries triệt tiêu độ tự tin về mức 0 (No Detection / AEB Failure).
@@ -108,39 +108,76 @@ class DETRAttackGenerator:
         alpha: Optional[float] = None,
         margin: float = 0.20,
         lambda_rank: float = 1.0,
+        fg_selection_mode: str = "clean_prediction_proxy",
+        gt_boxes: Optional[Sequence[np.ndarray]] = None,
     ) -> torch.Tensor:
         """
         Adversarial Query Selection Manipulation (AQSM / Selection Starvation Attack):
         Tấn công có chủ đích vào mắt xích Encoder Query Selection (đặc thù độc nhất của RT-DETR).
-        Thao túng thứ hạng (ranking) của 2100 candidate predictions từ Hybrid Encoder:
+        Thao túng thứ hạng (ranking) của S candidate predictions từ Hybrid Encoder (S = 8,400 ở native 640x640; 2,100 ở 320x320):
         1. Dìm điểm các candidate thuộc về vật thể thật (foreground candidates) để chúng rơi khỏi Top-300.
         2. Kích hoạt và nâng điểm các candidate thuộc vùng nền (background candidates) thế chỗ vào Top-300.
         3. Gây ra hiện tượng "Bỏ đói thông tin" (Information Starvation) ở Deformable Decoder:
            Reference points nạp vào Decoder bị đặt vào khoảng trống rác, khiến Decoder hoàn toàn mất dấu vật thể thật.
+
+        Tham số fg_selection_mode:
+            - 'clean_prediction_proxy': (Mặc định chuẩn thực tế test-time)
+              Kẻ tấn công không có nhãn ground-truth người gán, sử dụng Top-15 queries có độ tự tin cao nhất
+              của mô hình trên ảnh sạch làm proxy đại diện cho vật thể.
+            - 'ground_truth_matched': (Nhánh oracle / đối chứng nghiên cứu)
+              Sử dụng bounding box thật COCO để gán candidate theo spatial anchor.
         """
         self.model.eval()
         adv_images = images.clone().detach().to(self.device)
         n_steps = steps if steps is not None else self.num_steps
         step_alpha = alpha if alpha is not None else self.alpha
 
-        # Bước 1: Xác định tập candidate đại diện cho vật thể thật trên ảnh sạch (clean image)
+        # Bước 1: Xác định tập candidate đại diện cho vật thể thật
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
             if hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None:
-                clean_enc_logits = clean_out.enc_outputs_class  # [B, S, C], S = 2100
+                clean_enc_logits = clean_out.enc_outputs_class  # [B, S, C], S = 8,400 at native 640x640
             else:
                 clean_enc_logits = clean_out.logits
 
             # Tính điểm tối đa trên các lớp cho từng spatial candidate
             clean_enc_probs = torch.sigmoid(clean_enc_logits)  # [B, S, C]
             max_clean_probs, _ = clean_enc_probs.max(dim=-1)  # [B, S]
-            
-            # Chọn top-K candidates có điểm cao nhất (đại diện cho vật thể thật)
-            k_fg = min(15, max_clean_probs.shape[1])
-            _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)  # [B, k_fg]
+            B, S = max_clean_probs.shape
+            k_fg = min(15, S)
+
+            if fg_selection_mode == "ground_truth_matched" and gt_boxes is not None:
+                from paper_1_aqsm_mechanism.core.mechanism_analyzer import compute_token_fg_masks
+                anchors_sig = None
+                if hasattr(clean_out, "enc_outputs_coord_logits") and clean_out.enc_outputs_coord_logits is not None:
+                    anchors_sig = torch.sigmoid(clean_out.enc_outputs_coord_logits[0]).cpu().numpy()
+                elif hasattr(clean_out, "pred_boxes"):
+                    anchors_sig = clean_out.pred_boxes[0].cpu().numpy()
+
+                topk_fg_list = []
+                for b in range(B):
+                    gt_b = gt_boxes[b] if b < len(gt_boxes) else np.zeros((0, 4), dtype=np.float32)
+                    if len(gt_b) > 0 and anchors_sig is not None:
+                        fg_mask = compute_token_fg_masks(anchors_sig, gt_b)
+                        fg_idx = np.where(fg_mask)[0]
+                        if len(fg_idx) >= k_fg:
+                            topk_fg_list.append(torch.tensor(fg_idx[:k_fg], device=self.device))
+                        elif len(fg_idx) > 0:
+                            pad = np.random.choice(fg_idx, size=k_fg - len(fg_idx), replace=True)
+                            topk_fg_list.append(torch.tensor(np.concatenate([fg_idx, pad]), device=self.device))
+                        else:
+                            _, topk_b = torch.topk(max_clean_probs[b], k=k_fg)
+                            topk_fg_list.append(topk_b)
+                    else:
+                        _, topk_b = torch.topk(max_clean_probs[b], k=k_fg)
+                        topk_fg_list.append(topk_b)
+                topk_fg_idx = torch.stack(topk_fg_list, dim=0)
+            else:
+                # Mặc định: Unsupervised Clean-Prediction Proxy
+                _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)  # [B, k_fg]
 
             # Chọn background candidates (các candidates xếp hạng thấp ngoài top 500)
-            k_bg = min(30, max_clean_probs.shape[1])
+            k_bg = min(30, S)
             _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)  # [B, k_bg]
 
         # Bước 2: Tối ưu hóa PGD thao túng ranking và dìm điểm
@@ -160,7 +197,7 @@ class DETRAttackGenerator:
             max_fg_probs, _ = fg_probs.max(dim=-1)  # [B, k_fg]
             loss_suppress = (max_fg_probs ** 2).mean()
 
-            # 2. Ngưỡng điểm của ứng viên thứ 300 trong toàn bộ 2100 candidates
+            # 2. Ngưỡng điểm của ứng viên thứ 300 trong toàn bộ S candidates (8,400 tại 640x640)
             max_all_probs, _ = enc_probs.max(dim=-1)  # [B, S]
             val_at_300, _ = torch.kthvalue(max_all_probs, k=max_all_probs.shape[1] - 300 + 1, dim=-1)  # [B]
             
@@ -430,6 +467,22 @@ class DETRAttackGenerator:
                 clean_out = self.model(pixel_values=images.to(self.device), output_hidden_states=True, return_dict=True)
                 clean_h_refs = [h.detach() for h in clean_out.decoder_hidden_states]
 
+        # Nạp tham số hiệu chuẩn thực tế nếu chưa được truyền tường minh
+        if tau_bounds_act is None or tau_bounds_top1 is None:
+            try:
+                from paper_1_aqsm_mechanism.core.adaptive_calibrator import get_or_create_calibrated_params
+                cal_p = get_or_create_calibrated_params(self.wrapper)
+                clean_act_mean = cal_p.get("clean_act_mean", clean_act_mean)
+                clean_act_std = cal_p.get("clean_act_std", clean_act_std)
+                clean_top1_mean = cal_p.get("clean_top1_mean", clean_top1_mean)
+                clean_top1_std = cal_p.get("clean_top1_std", clean_top1_std)
+                if tau_bounds_act is None:
+                    tau_bounds_act = tuple(cal_p.get("tau_bounds_act", (0.01, 0.16)))
+                if tau_bounds_top1 is None:
+                    tau_bounds_top1 = tuple(cal_p.get("tau_bounds_top1", (0.05, 0.22)))
+            except Exception:
+                pass
+
         if tau_bounds_act is None:
             tau_bounds_act = (max(0.0, clean_act_mean - 2.0 * clean_act_std), clean_act_mean + 2.0 * clean_act_std)
         if tau_bounds_top1 is None:
@@ -596,6 +649,15 @@ class DETRAttackGenerator:
             k_bg = min(30, max_clean_probs.shape[1])
             _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)
 
+        # Nạp tham số hiệu chuẩn thực tế nếu có sẵn
+        try:
+            from paper_1_aqsm_mechanism.core.adaptive_calibrator import get_or_create_calibrated_params
+            cal_p = get_or_create_calibrated_params(self.wrapper)
+            clean_dropoff_bounds = tuple(cal_p.get("clean_dropoff_bounds", clean_dropoff_bounds))
+            clean_margin_bounds = tuple(cal_p.get("clean_margin_bounds", clean_margin_bounds))
+        except Exception:
+            pass
+
         tau_drop_min, tau_drop_max = clean_dropoff_bounds
         tau_marg_min, tau_marg_max = clean_margin_bounds
 
@@ -686,10 +748,19 @@ class DETRAttackGenerator:
             clean_out = self.model(pixel_values=images.to(self.device), output_hidden_states=True, return_dict=True)
             clean_h_refs = [h.detach() for h in clean_out.decoder_hidden_states]
 
-        if tau_bounds_act is None:
-            tau_bounds_act = (0.01, 0.08)
-        if tau_bounds_top1 is None:
-            tau_bounds_top1 = (0.06, 0.20)
+        try:
+            from paper_1_aqsm_mechanism.core.adaptive_calibrator import get_or_create_calibrated_params
+            cal_p = get_or_create_calibrated_params(self.wrapper)
+            if tau_bounds_act is None:
+                tau_bounds_act = tuple(cal_p.get("tau_bounds_act", (0.01, 0.08)))
+            if tau_bounds_top1 is None:
+                tau_bounds_top1 = tuple(cal_p.get("tau_bounds_top1", (0.06, 0.20)))
+            clean_dropoff_bounds = tuple(cal_p.get("clean_dropoff_bounds", clean_dropoff_bounds))
+        except Exception:
+            if tau_bounds_act is None:
+                tau_bounds_act = (0.01, 0.08)
+            if tau_bounds_top1 is None:
+                tau_bounds_top1 = (0.06, 0.20)
 
         tau_act_min, tau_act_max = tau_bounds_act
         tau_top_min, tau_top_max = tau_bounds_top1
