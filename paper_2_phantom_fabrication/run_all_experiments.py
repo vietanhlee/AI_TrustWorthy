@@ -301,6 +301,12 @@ def main():
     print(f" Manifest Log  : {manifest_file}")
     print("=" * 80)
 
+    # Thoát với mã lỗi 1 nếu có bất kỳ task nào thất bại
+    has_failed = any(m["status"] == "FAILED" for m in task_manifest)
+    if has_failed:
+        logger.error("[THỰC NGHIỆM THẤT BẠI] Tiến trình dừng lại do có Task gặp sự cố.")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

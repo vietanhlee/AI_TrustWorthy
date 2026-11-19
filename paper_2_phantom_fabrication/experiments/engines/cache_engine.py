@@ -9,6 +9,7 @@ import gc
 import json
 import os
 from pathlib import Path
+import shutil
 import time
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -18,7 +19,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from paper_2_phantom_fabrication.attacks.phantom_attacks import generate_batch_adversarial
-from paper_2_phantom_fabrication.core.adv_cache import save_adv_cache
+from paper_2_phantom_fabrication.core.adv_cache import find_cache_file
 from paper_2_phantom_fabrication.core.config import get_adv_cache_dir
 
 
@@ -36,7 +37,8 @@ def generate_single_attack_cache(
 ) -> Path:
     """
     Sinh toàn bộ perturbation delta cho một đòn tấn công trên toàn bộ tập ảnh
-    và lưu thành file .npz chuẩn float32 nguyên bản qua memory-mapped streaming.
+    và lưu trực tiếp thành file .npy chuẩn float32 nguyên bản qua np.lib.format.open_memmap.
+    Không tạo file đệm kép, tiết kiệm 50% dung lượng đĩa so với np.savez truyền thống.
     """
     cdir = Path(cache_dir) if cache_dir is not None else get_adv_cache_dir()
     cdir.mkdir(parents=True, exist_ok=True)
@@ -46,30 +48,55 @@ def generate_single_attack_cache(
     eps = float(eps_int) / 255.0
     alpha = 2.0 / 255.0 if eps_int >= 8 else 1.0 / 255.0
 
-    target_file = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
+    target_npy = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}_delta.npy"
+    target_meta = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}_meta.json"
+    legacy_npz = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
 
     # Kiểm tra nếu cache đã tồn tại và hợp lệ
-    if not force_recompute and target_file.exists():
-        try:
-            with np.load(target_file, mmap_mode="r") as data:
-                if "image_ids" in data and len(data["image_ids"]) == n_total:
-                    if list(data["image_ids"]) == list(image_ids):
-                        print(f"[CACHE GEN] Đã tìm thấy cache hoàn chỉnh tại: {target_file.name}. Bỏ qua bước sinh.")
-                        return target_file
-        except Exception:
-            print(f"[CACHE GEN] Cache hiện tại bị lỗi đọc, tiến hành sinh lại: {target_file.name}")
+    if not force_recompute:
+        if target_npy.exists() and target_meta.exists():
+            try:
+                with open(target_meta, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                if len(meta.get("image_ids", [])) == n_total:
+                    print(f"[CACHE GEN] Đã tìm thấy cache hoàn chỉnh tại: {target_npy.name}. Bỏ qua bước sinh.")
+                    return target_npy
+            except Exception:
+                pass
+        elif legacy_npz.exists():
+            try:
+                with np.load(legacy_npz, mmap_mode="r") as data:
+                    if "image_ids" in data and len(data["image_ids"]) == n_total:
+                        print(f"[CACHE GEN] Đã tìm thấy legacy cache hoàn chỉnh tại: {legacy_npz.name}. Bỏ qua bước sinh.")
+                        return legacy_npz
+            except Exception:
+                pass
+
+    # Kiểm tra dung lượng đĩa khả dụng
+    req_bytes = n_total * 3 * 640 * 640 * 4
+    disk_free = shutil.disk_usage(cdir).free
+    req_gb = req_bytes / (1024 ** 3)
+    free_gb = disk_free / (1024 ** 3)
+    if disk_free < req_bytes * 1.05:
+        raise RuntimeError(
+            f"[LỖI DUNG LƯỢNG ĐĨA] Ổ đĩa chỉ còn {free_gb:.2f} GB khả dụng, nhưng cần ít nhất {req_gb:.2f} GB "
+            f"để lưu cache đối kháng cho {n_total} ảnh (float32 640x640)!\n"
+            f"-> Giải pháp tối ưu trên Kaggle:\n"
+            f"   1. Chỉ định số ảnh vừa vặn: Thêm tham số --num_images 300 hoặc --num_images 500 (chỉ tốn ~2.4 GB).\n"
+            f"   2. Bỏ qua Task 0 lưu cache đĩa, chạy sinh trực tiếp On-The-Fly trên GPU (tốn 0 GB đĩa): Thêm cờ --skip_cache_gen hoặc --tasks 1,2,3,4,5"
+        )
 
     print(f"\n[CACHE GEN] ==================================================================")
     print(f"[CACHE GEN] Đang sinh: {attack_name.upper()} | eps={eps_int}/255 ({eps:.4f}) | N={n_total} ảnh")
     print(f"[CACHE GEN] PGD Steps={steps} | Alpha={alpha:.5f} | Device={device}")
+    print(f"[CACHE GEN] Định dạng: Single-file .npy open_memmap ({req_gb:.2f} GB) | Ổ đĩa còn trống: {free_gb:.2f} GB")
     print(f"[CACHE GEN] ==================================================================")
 
-    # Tạo disk-backed memmap tạm thời trên đĩa cứng để kiểm soát RAM < 1.5 GB
-    temp_mmap_path = cdir / f"tmp_{attack_name.lower()}_eps{eps_int}_{os.getpid()}_{int(time.time())}.dat"
-    delta_mmap = np.memmap(
-        temp_mmap_path,
-        dtype=np.float32,
+    # Mở trực tiếp memmap file đích (.npy chuẩn NumPy) - KHÔNG CẦN FILE TẠM
+    delta_mmap = np.lib.format.open_memmap(
+        target_npy,
         mode="w+",
+        dtype=np.float32,
         shape=(n_total, 3, 640, 640),
     )
 
@@ -97,6 +124,8 @@ def generate_single_attack_cache(
             torch.cuda.empty_cache()
 
     delta_mmap.flush()
+    del delta_mmap
+    gc.collect()
     elapsed = time.time() - t_start
 
     meta_info = {
@@ -112,26 +141,12 @@ def generate_single_attack_cache(
         "throughput_fps": round(n_total / max(elapsed, 1e-4), 2),
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "image_ids": list(image_ids),
     }
 
-    print(f"[CACHE GEN] Đang lưu file cache chuẩn float32 vào: {target_file.name}...")
-    save_adv_cache(
-        attack=attack_name,
-        eps_num=eps_int,
-        image_ids=image_ids,
-        delta_array=delta_mmap,
-        meta_info=meta_info,
-        cache_dir=cdir,
-    )
-
-    # Dọn dẹp memmap tạm
-    del delta_mmap
-    gc.collect()
-    if temp_mmap_path.exists():
-        try:
-            temp_mmap_path.unlink()
-        except Exception:
-            pass
+    with open(target_meta, "w", encoding="utf-8") as f:
+        json.dump(meta_info, f, indent=2)
 
     print(f"[CACHE GEN] Hoàn thành sinh {attack_name.upper()} trong {elapsed:.1f}s ({n_total / max(elapsed, 1e-4):.2f} FPS).")
-    return target_file
+    print(f"[CACHE GEN] File cache đã lưu tại: {target_npy.name} ({target_npy.stat().st_size / (1024 ** 3):.2f} GB).")
+    return target_npy

@@ -145,6 +145,12 @@ $PYTHON_CMD run_all_experiments.py \
     $SKIP_CACHE_GEN \
     $FORCE_RECOMPUTE
 
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "[LỖI] Chuỗi thực nghiệm thất bại với mã lỗi: $EXIT_CODE"
+    exit $EXIT_CODE
+fi
+
 echo ""
 echo "======================================================================"
 echo " TẤT CẢ THỰC NGHIỆM ĐÃ HOÀN TẤT THÀNH CÔNG!"

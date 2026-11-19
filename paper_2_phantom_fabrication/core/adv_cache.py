@@ -46,25 +46,44 @@ def find_cache_file(
     cache_dir: Optional[Union[str, Path]] = None,
 ) -> Optional[Path]:
     """
-    Tìm kiếm file cache .npz phù hợp nhất trong thư mục cache:
-    1. Ưu tiên file đúng tên: adv_cache_{attack}_eps{eps_num}_n{n_eval}.npz
-    2. Nếu n_eval <= 0 (chạy toàn bộ cohort): tìm file có N lớn nhất hoặc alias chung.
-    3. Tìm file alias chung: adv_cache_{attack}_eps{eps_num}.npz
+    Tìm kiếm file cache .npy (open_memmap không tốn đĩa tạm) hoặc .npz phù hợp nhất:
+    1. Ưu tiên file .npy đúng n_eval: adv_cache_{attack}_eps{eps_num}_n{n_eval}_delta.npy
+    2. Ưu tiên file .npz đúng n_eval: adv_cache_{attack}_eps{eps_num}_n{n_eval}.npz
+    3. Tìm kiếm file khớp pattern theo dung lượng lớn nhất.
     """
     cdir = Path(cache_dir) if cache_dir is not None else get_adv_cache_dir()
     if not cdir.exists():
         return None
 
     attack_norm = attack.lower()
+    tag = eps_tag(eps_num)
 
     # 1. Thử file chính xác theo n_eval
     if n_eval > 0:
-        target = cdir / f"adv_cache_{attack_norm}_{eps_tag(eps_num)}_n{n_eval}.npz"
-        if target.exists():
-            return target
+        target_npy = cdir / f"adv_cache_{attack_norm}_{tag}_n{n_eval}_delta.npy"
+        if target_npy.exists():
+            return target_npy
+        target_npz = cdir / f"adv_cache_{attack_norm}_{tag}_n{n_eval}.npz"
+        if target_npz.exists():
+            return target_npz
 
-    # 2. Tìm các file khớp pattern
-    pattern = f"adv_cache_{attack_norm}_{eps_tag(eps_num)}*.npz"
+    # 2. Tìm các file .npy khớp pattern
+    npy_pattern = f"adv_cache_{attack_norm}_{tag}*_delta.npy"
+    npy_candidates = sorted(list(cdir.glob(npy_pattern)), key=lambda p: p.stat().st_size, reverse=True)
+    for cand in npy_candidates:
+        meta_file = cand.with_name(cand.name.replace("_delta.npy", "_meta.json"))
+        if meta_file.exists():
+            try:
+                with open(meta_file, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                c_len = len(meta.get("image_ids", []))
+                if n_eval <= 0 or c_len >= n_eval:
+                    return cand
+            except Exception:
+                continue
+
+    # 3. Tìm các file .npz khớp pattern
+    pattern = f"adv_cache_{attack_norm}_{tag}*.npz"
     candidates = sorted(list(cdir.glob(pattern)), key=lambda p: p.stat().st_size, reverse=True)
 
     for cand in candidates:
@@ -88,13 +107,33 @@ def load_cached_adv_delta(
     cache_dir: Optional[Union[str, Path]] = None,
 ) -> Tuple[Optional[np.ndarray], Dict[str, Any]]:
     """
-    Nạp mảng perturbation delta từ file cache .npz qua disk mmap_mode='r'.
+    Nạp mảng perturbation delta từ file cache (.npy hoặc .npz) qua disk mmap_mode='r'.
     Đảm bảo delta ở định dạng float32 chuẩn, không ép kiểu uint8.
     """
     fpath = find_cache_file(attack=attack, eps_num=eps_num, n_eval=n_eval, cache_dir=cache_dir)
     if fpath is None or not fpath.exists():
         return None, {}
 
+    # Trường hợp 1: File cache định dạng .npy (Zero-duplicate memmap)
+    if fpath.name.endswith("_delta.npy"):
+        try:
+            delta_mmap = np.load(fpath, mmap_mode="r")
+            meta_file = fpath.with_name(fpath.name.replace("_delta.npy", "_meta.json"))
+            meta = {}
+            if meta_file.exists():
+                with open(meta_file, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+            cached_ids = meta.get("image_ids", [])
+            if expected_image_ids is not None and cached_ids:
+                target_ids = list(expected_image_ids)
+                check_n = len(target_ids) if n_eval <= 0 else min(n_eval, len(target_ids))
+                if len(cached_ids) < check_n or list(cached_ids[:check_n]) != target_ids[:check_n]:
+                    return None, {}
+            return delta_mmap, meta
+        except Exception:
+            return None, {}
+
+    # Trường hợp 2: File cache định dạng .npz
     try:
         data = np.load(fpath, mmap_mode="r")
     except Exception:
