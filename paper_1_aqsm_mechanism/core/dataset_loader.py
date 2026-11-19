@@ -92,7 +92,7 @@ class LazyAdvImageBatchProxy:
         device: Optional[torch.device] = None,
     ) -> None:
         self.clean_proxy = clean_proxy
-        self.deltas = deltas  # Mảng float16 [N, 3, H, W]
+        self.deltas = deltas  # Mảng float32 chuẩn [N, 3, H, W]
         self.device = device or clean_proxy.device
 
     def __len__(self) -> int:
@@ -116,7 +116,9 @@ class LazyAdvImageBatchProxy:
         else:
             raise TypeError(f"Kiểu chỉ số không hợp lệ: {type(item)}")
 
-        delta_tensor = torch.from_numpy(delta_sub.astype(np.float32)).to(clean_batch.device)
+        delta_tensor = torch.from_numpy(
+            delta_sub if delta_sub.dtype == np.float32 else delta_sub.astype(np.float32)
+        ).to(clean_batch.device)
         return torch.clamp(clean_batch + delta_tensor, 0.0, 1.0)
 
 

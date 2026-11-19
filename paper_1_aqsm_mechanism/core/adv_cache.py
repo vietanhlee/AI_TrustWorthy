@@ -93,7 +93,8 @@ def load_cached_adv_proxy(
             f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
         )
 
-    delta_all = data["delta_f16"][:n_eval]
+    delta_key = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
+    delta_all = data[delta_key][:n_eval]
     meta = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
 
     adv_proxy = LazyAdvImageBatchProxy(clean_proxy, delta_all, device=clean_proxy.device)
@@ -139,7 +140,9 @@ def load_cached_adv_images(
             f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
         )
 
-    delta = torch.from_numpy(data["delta_f16"][:n_eval].astype(np.float32))
+    delta_key = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
+    delta_raw = data[delta_key][:n_eval]
+    delta = torch.from_numpy(delta_raw if delta_raw.dtype == np.float32 else delta_raw.astype(np.float32))
     if delta.shape[-2:] != clean_imgs.shape[-2:]:
         raise ValueError(
             f"Kích thước không gian không khớp giữa delta {delta.shape[-2:]} và clean {clean_imgs.shape[-2:]}!"

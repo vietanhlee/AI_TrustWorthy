@@ -95,10 +95,11 @@ def generate_single_attack_cache(
     attacker = DETRAttackGenerator(wrapper, epsilon=eps, alpha=alpha, num_steps=steps)
 
     # Sử dụng file memmap tạm thời trên đĩa để chống tràn RAM 100%
+    # Giữ nguyên 100% chuẩn IEEE 754 float32 chính xác cao, tuyệt đối không ép kiểu uint8 hay float16
     temp_mmap_path = save_dir / f"tmp_{attack_name.lower()}_eps{eps_int}_{os.getpid()}.dat"
     delta_mmap = np.memmap(
         temp_mmap_path,
-        dtype=np.float16,
+        dtype=np.float32,
         mode="w+",
         shape=(n_total, 3, 640, 640),
     )
@@ -118,7 +119,7 @@ def generate_single_attack_cache(
         else:
             raise ValueError(f"Đòn tấn công không được hỗ trợ: {attack_name}")
 
-        delta = (b_adv - b_clean).detach().cpu().to(torch.float16).numpy()
+        delta = (b_adv - b_clean).detach().cpu().to(torch.float32).numpy()
         delta_mmap[i : end_idx] = delta
 
         del b_clean, b_adv, delta
@@ -132,7 +133,7 @@ def generate_single_attack_cache(
     max_linf = 0.0
     all_l2s: List[float] = []
     for s in range(0, n_total, chunk_size):
-        sub_delta = delta_mmap[s : s + chunk_size].astype(np.float32)
+        sub_delta = delta_mmap[s : s + chunk_size]
         max_linf = max(max_linf, float(np.max(np.abs(sub_delta))))
         l2s = np.linalg.norm(sub_delta.reshape(len(sub_delta), -1), axis=1)
         all_l2s.extend(l2s.tolist())
@@ -150,6 +151,7 @@ def generate_single_attack_cache(
         "steps": steps,
         "resolution": "640x640",
         "num_candidates": 8400,
+        "dtype": "float32",
         "max_linf": max_linf,
         "mean_l2": mean_l2,
         "std_l2": std_l2,
@@ -159,11 +161,13 @@ def generate_single_attack_cache(
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    # Ghi thẳng từ memmap ra file npz
+    # Ghi thẳng từ memmap ra file npz chuẩn float32 nguyên bản
     print(f"[CACHE GEN] Đang lưu cache vào: {out_file.name}...")
     np.savez(
         out_file,
         image_ids=np.array(image_ids, dtype=np.int64),
+        delta=delta_mmap,
+        delta_f32=delta_mmap,
         delta_f16=delta_mmap,
         meta_json=json.dumps(meta_info, indent=2),
     )

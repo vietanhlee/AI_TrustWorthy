@@ -11,7 +11,7 @@ giám sát suy luận thời gian thực trên phần cứng biên đều đư�
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import torch
 
 # Ngăn ngừa lỗi xung đột OpenMP giữa PyTorch và các thư viện C++ trên Windows
@@ -31,6 +31,9 @@ SPLIT_FILE: Path = DATA_DIR / "split.json"
 RESULTS_DIR: Path = PACKAGE_DIR / "results"
 CHECKPOINTS_DIR: Path = RESULTS_DIR / "checkpoints"
 CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+
+ADV_CACHE_DIR: Path = Path(os.environ.get("EDGE_SEC_ADV_CACHE_DIR", str(PACKAGE_DIR / "cache" / "adv_cache_640")))
+ADV_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------
 # 2. CẤU HÌNH KIẾN TRÚC MÔ HÌNH RT-DETR (EDGE PROFILE)
@@ -108,3 +111,16 @@ def configure_runtime_threads(num_threads: int = 4) -> None:
             torch.set_num_interop_threads(num_threads)
         except RuntimeError:
             pass
+
+
+def get_adv_cache_dir() -> Path:
+    """Truy xuất đường dẫn thư mục lưu cache đối kháng."""
+    return ADV_CACHE_DIR
+
+
+def set_adv_cache_dir(new_dir: Union[str, Path]) -> None:
+    """Cập nhật đường dẫn thư mục cache đối kháng."""
+    global ADV_CACHE_DIR
+    ADV_CACHE_DIR = Path(new_dir).resolve()
+    ADV_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+

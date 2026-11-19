@@ -172,15 +172,15 @@ def load_flexible_coco_cohort(
     seed: int = 42,
     img_size: int = 640,
     id2label: Optional[Dict[int, str]] = None,
-    as_uint8: bool = True,
     preload_images: bool = False,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Nạp tập cohort ảnh COCO linh hoạt từ bất kỳ thư mục nào (từ vài ảnh đến 5,000 ảnh).
     - Nếu n_samples <= 0 hoặc None: Tự động chạy toàn bộ ảnh có trong thư mục (full dataset).
     - preload_images=False (mặc định): Trả về CocoCohortDataset cho streaming DataLoader.
       Khởi động tức thì trong 0.8 giây thay vì mất 15 phút nạp 5,000 ảnh vào RAM, chống OOM 100%.
-    - preload_images=True: Nạp trước toàn bộ ảnh vào stacked_tensors (chỉ dùng cho tập nhỏ <200 ảnh).
+    - preload_images=True: Nạp trước toàn bộ ảnh vào stacked_tensors (chuẩn IEEE 754 float32 trong [0.0, 1.0]).
     """
     img_dir = Path(image_folder).resolve()
     if not img_dir.exists():
@@ -283,16 +283,10 @@ def load_flexible_coco_cohort(
                 with Image.open(fpath) as pil_img:
                     img_rgb = pil_img.convert("RGB")
                     img_resized = img_rgb.resize((img_size, img_size), Image.BILINEAR)
-                    t_flt = TF.to_tensor(img_resized)
-                    if as_uint8:
-                        tensors.append((t_flt * 255.0).to(torch.uint8))
-                    else:
-                        tensors.append(t_flt)
+                    t_flt = TF.to_tensor(img_resized)  # Chuẩn torch.float32 trong [0.0, 1.0]
+                    tensors.append(t_flt)
             except Exception:
-                if as_uint8:
-                    tensors.append(torch.zeros(3, img_size, img_size, dtype=torch.uint8))
-                else:
-                    tensors.append(torch.zeros(3, img_size, img_size, dtype=torch.float32))
+                tensors.append(torch.zeros(3, img_size, img_size, dtype=torch.float32))
         stacked_tensors = torch.stack(tensors, dim=0)
 
     return {

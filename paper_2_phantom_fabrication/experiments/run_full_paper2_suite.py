@@ -472,15 +472,12 @@ def generate_attacks_batched(
         s = b * batch_size
         e = min(s + batch_size, n)
         raw_b = clean_tensors[s:e]
-        bx = (raw_b.float() / 255.0).to(device) if raw_b.dtype == torch.uint8 else raw_b.to(device)
+        bx = raw_b.to(device)
         adv_b = generate_batch_adversarial(
             model=model, bx=bx, attack_type=attack_type, target_class_idx=target_class_idx,
             epsilon=epsilon, alpha=alpha, steps=steps, k_fake_eqf=k_fake_eqf, k_fake_dqf=k_fake_dqf
         )
-        if clean_tensors.dtype == torch.uint8:
-            adv_tensors_list.append((adv_b.detach() * 255.0).clamp(0, 255).to(torch.uint8).cpu())
-        else:
-            adv_tensors_list.append(adv_b.detach().cpu())
+        adv_tensors_list.append(adv_b.detach().cpu())
 
     return torch.cat(adv_tensors_list, dim=0)
 
@@ -503,7 +500,7 @@ def model_inference_batched(
             s = b * batch_size
             e = min(s + batch_size, n)
             raw_b = tensors[s:e]
-            bx = (raw_b.float() / 255.0).to(device) if raw_b.dtype == torch.uint8 else raw_b.to(device)
+            bx = raw_b.to(device)
             out = model(pixel_values=bx)
             logits_list.append(out.logits.cpu())
             boxes_list.append(out.pred_boxes.cpu())
