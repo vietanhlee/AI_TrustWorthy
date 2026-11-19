@@ -30,7 +30,7 @@ from paper_1_aqsm_mechanism.experiments.config import (
     get_device,
     update_experiment_paths,
 )
-from paper_1_aqsm_mechanism.experiments.engines.telemetry_analyzer import run_mechanism_telemetry_cohort
+from paper_1_aqsm_mechanism.experiments.telemetry_analyzer import run_mechanism_telemetry_cohort
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
 
 
@@ -61,6 +61,7 @@ def main():
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
+        max_samples=args.max_samples,
     )
 
     clean_imgs = dataset.tensors

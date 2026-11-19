@@ -9,10 +9,14 @@ Mục đích: Cài đặt và đánh giá toàn diện 5 cơ chế phòng thủ 
   5. Proposed SQD-Filter (Distance Threshold r = 0.15)
 """
 
+import io
 import time
 from typing import Any, Dict, List, Tuple
 import numpy as np
+from PIL import Image
 import torch
+import torch.nn as nn
+import torchvision.transforms.functional as TF
 from torchvision.ops import nms
 
 from paper_2_phantom_fabrication.core.coco_gt import (
@@ -21,6 +25,72 @@ from paper_2_phantom_fabrication.core.coco_gt import (
 )
 from paper_2_phantom_fabrication.core.matcher import match_detections_against_gt
 from paper_2_phantom_fabrication.defenses.sqd_filter import apply_sqd_filter
+
+
+class JPEGCompressionDefense(nn.Module):
+    """Phòng thủ tiền xử lý ảnh bằng nén JPEG có tổn hao chất lượng."""
+    def __init__(self, quality: int = 75):
+        super().__init__()
+        self.quality = quality
+
+    def forward(self, img_tensor: torch.Tensor) -> torch.Tensor:
+        # img_tensor: [B, C, H, W] in [0, 1]
+        device = img_tensor.device
+        dtype = img_tensor.dtype
+        out_list = []
+        for img in img_tensor:
+            pil_img = TF.to_pil_image(img.cpu())
+            buf = io.BytesIO()
+            pil_img.save(buf, format="JPEG", quality=self.quality)
+            buf.seek(0)
+            rec_img = Image.open(buf)
+            out_list.append(TF.to_tensor(rec_img))
+        return torch.stack(out_list, dim=0).to(device=device, dtype=dtype)
+
+
+class GaussianBlurDefense(nn.Module):
+    """Phòng thủ tiền xử lý ảnh bằng bộ lọc làm mờ Gaussian."""
+    def __init__(self, kernel_size: int = 5, sigma: float = 1.0):
+        super().__init__()
+        self.kernel_size = kernel_size if kernel_size % 2 == 1 else kernel_size + 1
+        self.sigma = sigma
+
+    def forward(self, img_tensor: torch.Tensor) -> torch.Tensor:
+        return TF.gaussian_blur(img_tensor, kernel_size=self.kernel_size, sigma=[self.sigma, self.sigma])
+
+
+class MedianFilterDefense(nn.Module):
+    """Phòng thủ tiền xử lý ảnh bằng bộ lọc trung vị."""
+    def __init__(self, kernel_size: int = 3):
+        super().__init__()
+        self.kernel_size = kernel_size
+
+    def forward(self, img_tensor: torch.Tensor) -> torch.Tensor:
+        # Xấp xỉ trung vị hoặc dùng pooling/Pillow
+        device = img_tensor.device
+        dtype = img_tensor.dtype
+        pad = self.kernel_size // 2
+        # unfolded: [B, C, H, W, K*K]
+        unfolded = torch.nn.functional.unfold(img_tensor, kernel_size=self.kernel_size, padding=pad)
+        B, C_K2, L = unfolded.shape
+        C = img_tensor.shape[1]
+        unfolded = unfolded.view(B, C, self.kernel_size * self.kernel_size, L)
+        median_val = unfolded.median(dim=2).values
+        H, W = img_tensor.shape[2], img_tensor.shape[3]
+        return median_val.view(B, C, H, W).to(device=device, dtype=dtype)
+
+
+class BitDepthReductionDefense(nn.Module):
+    """Phòng thủ tiền xử lý ảnh bằng giảm độ sâu bit (Lượng tử hóa giá trị pixel)."""
+    def __init__(self, bits: int = 4):
+        super().__init__()
+        self.levels = 2 ** bits
+
+    def forward(self, img_tensor: torch.Tensor) -> torch.Tensor:
+        # img_tensor in [0, 1]
+        quantized = torch.floor(img_tensor * (self.levels - 1) + 0.5) / (self.levels - 1)
+        return quantized.clamp(0.0, 1.0)
+
 
 
 def apply_defense_to_predictions(

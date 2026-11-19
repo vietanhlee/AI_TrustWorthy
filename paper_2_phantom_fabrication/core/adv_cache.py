@@ -6,10 +6,10 @@ cho các đòn tấn công Phantom Queries (EQF, DQF, Untargeted_PGD, v.v.).
 
 Chuẩn mực kỹ thuật (Production Standards - Học hỏi từ Paper 1):
   1. Tuyệt đối KHÔNG lưu uint8 hay làm tròn làm mất mát độ chính xác gradient đối kháng.
-     Lưu trữ perturbation delta chuẩn IEEE 754 float32 nguyên bản (hoặc float16).
-  2. Sử dụng disk-backed memmap tạm thời trong lúc sinh để giữ mức RAM luôn phẳng (< 1.5 GB),
-     loại bỏ hoàn toàn nguy cơ tràn bộ nhớ OOM SIGKILL (exit code 57 / 137).
-  3. Hỗ trợ mmap_mode="r" khi nạp từ file .npz trên đĩa: chỉ nạp lô cần thiết vào RAM,
+     Lưu trữ perturbation delta chuẩn IEEE 754 float32 nguyên bản.
+  2. Sử dụng disk-backed memmap trong lúc sinh để giữ mức RAM luôn phẳng (< 1.5 GB),
+     loại bỏ hoàn toàn nguy cơ tràn bộ nhớ OOM SIGKILL (exit code -9).
+  3. Hỗ trợ mmap_mode="r" và nạp Lazy Proxy (LazyAdvImageBatchProxy): chỉ nạp lô cần thiết vào RAM,
      tiết kiệm 95% thời gian chạy lại PGD trên quy mô toàn bộ 5,000 ảnh COCO.
   4. Xác thực toàn vẹn 100% định danh ảnh (Image ID Verification) chống lệch dữ liệu.
 """
@@ -27,6 +27,10 @@ import torch
 from paper_2_phantom_fabrication.core.config import (
     ADV_CACHE_DIR,
     get_adv_cache_dir,
+)
+from paper_2_phantom_fabrication.core.dataset_loader import (
+    LazyAdvImageBatchProxy,
+    LazyImageBatchProxy,
 )
 
 
@@ -86,10 +90,6 @@ def load_cached_adv_delta(
     """
     Nạp mảng perturbation delta từ file cache .npz qua disk mmap_mode='r'.
     Đảm bảo delta ở định dạng float32 chuẩn, không ép kiểu uint8.
-    
-    Trả về:
-      (delta_mmap, meta_dict) nếu cache tồn tại và khớp image_ids;
-      (None, {}) nếu không tìm thấy cache hợp lệ.
     """
     fpath = find_cache_file(attack=attack, eps_num=eps_num, n_eval=n_eval, cache_dir=cache_dir)
     if fpath is None or not fpath.exists():
@@ -113,7 +113,6 @@ def load_cached_adv_delta(
         if actual_n < check_n:
             return None, {}
         if list(cached_ids[:check_n]) != target_ids[:check_n]:
-            # Image IDs không khớp hoàn toàn
             return None, {}
 
     delta_key = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
@@ -127,6 +126,44 @@ def load_cached_adv_delta(
             meta = json.loads(str(data["meta_json"]))
         except Exception:
             meta = {}
+
+    return delta_mmap, meta
+
+
+def load_cached_adv_images(
+    attack: str,
+    eps_num: int = 16,
+    n_eval: int = 0,
+    clean_imgs: Optional[Union[torch.Tensor, LazyImageBatchProxy]] = None,
+    expected_image_ids: Optional[Sequence[int]] = None,
+    cache_dir: Optional[Union[str, Path]] = None,
+) -> Tuple[Union[torch.Tensor, LazyAdvImageBatchProxy, np.ndarray], Dict[str, Any]]:
+    """
+    Nạp đối tượng ảnh đối kháng (Tensor hoặc LazyAdvImageBatchProxy) từ cache.
+    Hỗ trợ Zero-RAM nạp lười tương tự Paper 1.
+    """
+    delta_mmap, meta = load_cached_adv_delta(
+        attack=attack,
+        eps_num=eps_num,
+        n_eval=n_eval,
+        expected_image_ids=expected_image_ids,
+        cache_dir=cache_dir,
+    )
+
+    if delta_mmap is None:
+        raise FileNotFoundError(f"Chưa tìm thấy cache hợp lệ cho đòn tấn công {attack} (eps={eps_num}) tại {cache_dir}")
+
+    # Nếu truyền LazyImageBatchProxy, trả về LazyAdvImageBatchProxy nạp lười
+    if isinstance(clean_imgs, LazyImageBatchProxy):
+        return LazyAdvImageBatchProxy(clean_imgs, delta_mmap, device=clean_imgs.device), meta
+
+    # Nếu truyền Tensor PyTorch
+    if isinstance(clean_imgs, torch.Tensor):
+        n_use = len(clean_imgs) if n_eval <= 0 else min(n_eval, len(clean_imgs))
+        delta_sub = delta_mmap[:n_use]
+        delta_t = torch.from_numpy(delta_sub if delta_sub.dtype == np.float32 else delta_sub.astype(np.float32)).to(clean_imgs.device)
+        adv_tensor = torch.clamp(clean_imgs[:n_use] + delta_t, 0.0, 1.0)
+        return adv_tensor, meta
 
     return delta_mmap, meta
 
@@ -149,6 +186,7 @@ def save_adv_cache(
     n_total = len(image_ids)
     attack_norm = attack.lower()
     out_file = cdir / f"adv_cache_{attack_norm}_{eps_tag(eps_num)}_n{n_total}.npz"
+    alias_file = cdir / f"adv_cache_{attack_norm}_{eps_tag(eps_num)}.npz"
 
     meta = meta_info.copy() if meta_info is not None else {}
     meta.setdefault("attack", attack_norm)
@@ -157,7 +195,6 @@ def save_adv_cache(
     meta.setdefault("dtype", "float32")
     meta.setdefault("timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
 
-    # Đảm bảo mảng delta có dtype float32 hoặc float16
     arr_to_save = delta_array
     if hasattr(arr_to_save, "dtype") and arr_to_save.dtype not in (np.float32, np.float16):
         arr_to_save = arr_to_save.astype(np.float32)
@@ -169,5 +206,13 @@ def save_adv_cache(
         delta_f32=arr_to_save,
         meta_json=json.dumps(meta, indent=2),
     )
+
+    # Tạo alias file
+    if alias_file != out_file:
+        try:
+            import shutil
+            shutil.copyfile(out_file, alias_file)
+        except Exception:
+            pass
 
     return out_file

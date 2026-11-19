@@ -78,5 +78,11 @@ def create_base_parser(
         choices=["auto", "cuda", "cpu"],
         help="Thiết bị thực thi (auto = tự nhận diện GPU nếu có)",
     )
+    parser.add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        help="Số lượng mẫu ảnh tối đa cần đánh giá (None = toàn bộ tập ảnh trong folder)",
+    )
 
     return parser

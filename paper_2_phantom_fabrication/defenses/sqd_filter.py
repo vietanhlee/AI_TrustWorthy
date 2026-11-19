@@ -157,3 +157,52 @@ def apply_sqd_filter(
         })
 
     return results
+
+
+# Bí danh tương thích ngược và tiện ích đánh giá
+SQDFilter = SpatialQueryDeduplicationFilter
+
+
+def evaluate_sqd_filter_on_detections(
+    detections: List[Dict[str, np.ndarray]],
+    divergence_threshold: float = 0.15,
+) -> List[Dict[str, np.ndarray]]:
+    """
+    Áp dụng lọc trùng lặp không gian (SQD Filter) trực tiếp trên danh sách detection thô.
+    detections: List các dict {"boxes": ndarray[N, 4], "scores": ndarray[N], "labels": ndarray[N]}
+    """
+    filtered_list = []
+    for det in detections:
+        boxes = det.get("boxes", np.zeros((0, 4), dtype=np.float32))
+        scores = det.get("scores", np.zeros((0,), dtype=np.float32))
+        labels = det.get("labels", np.zeros((0,), dtype=np.int64))
+
+        if len(boxes) <= 1:
+            filtered_list.append({"boxes": boxes, "scores": scores, "labels": labels})
+            continue
+
+        centers = np.stack([(boxes[:, 0] + boxes[:, 2]) / 2.0, (boxes[:, 1] + boxes[:, 3]) / 2.0], axis=1)
+        diff = centers[:, None, :] - centers[None, :, :]
+        dists = np.sqrt(np.sum(diff ** 2, axis=-1))
+
+        order = np.argsort(-scores)
+        suppressed = np.zeros(len(boxes), dtype=bool)
+        keep = []
+
+        for idx in order:
+            if suppressed[idx]:
+                continue
+            keep.append(idx)
+            same_cls = (labels == labels[idx])
+            within_dist = (dists[idx] < divergence_threshold)
+            suppressed |= (same_cls & within_dist)
+
+        keep = sorted(keep)
+        filtered_list.append({
+            "boxes": boxes[keep],
+            "scores": scores[keep],
+            "labels": labels[keep],
+        })
+
+    return filtered_list
+

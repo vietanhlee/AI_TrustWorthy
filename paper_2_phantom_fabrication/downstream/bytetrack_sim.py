@@ -6,7 +6,7 @@ của thuật toán theo dõi đa đối tượng ByteTrack khi bị ngập lụ
 """
 
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
@@ -82,3 +82,51 @@ def simulate_bytetrack_complexity(
         "track_times_eqf": track_times_eqf,
         "track_times_dqf": track_times_dqf,
     }
+
+
+def simulate_bytetrack_tracking_failures(
+    clean_detections: List[Dict[str, Any]],
+    adv_detections: List[Dict[str, Any]],
+    gt_list: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """
+    Tiện ích đo độ phức tạp gán cặp Hungarian của ByteTrack trước và sau tấn công.
+    """
+    n_samples = len(clean_detections)
+    if gt_list is None:
+        gt_list = [{"boxes_xyxy": c.get("boxes", np.zeros((0, 4)))} for c in clean_detections]
+
+    track_times_clean = []
+    track_times_adv = []
+    clean_dims = []
+    adv_dims = []
+
+    for i in range(n_samples):
+        cb = clean_detections[i].get("boxes", np.zeros((0, 4)))
+        ab = adv_detections[i].get("boxes", np.zeros((0, 4)))
+
+        n_trk = min(len(gt_list[i]["boxes_xyxy"]), 12) if i < len(gt_list) else 4
+        if n_trk == 0:
+            n_trk = 4
+
+        for b_set, acc in [(cb, track_times_clean), (ab, track_times_adv)]:
+            n_det = max(len(b_set), 1)
+            cost = 1.0 - compute_iou_matrix(b_set[:n_det], b_set[:n_trk]) if len(b_set) > 0 else np.ones((n_trk, n_det))
+            if cost.shape[0] == 0 or cost.shape[1] == 0:
+                cost = np.ones((n_trk, n_det))
+            t0 = time.perf_counter()
+            _ = linear_sum_assignment(cost)
+            t1 = time.perf_counter()
+            acc.append(float(round((t1 - t0) * 1000.0, 4)))
+
+        clean_dims.append(len(cb))
+        adv_dims.append(len(ab))
+
+    return {
+        "clean_latency_ms": float(np.median(track_times_clean)) if track_times_clean else 0.0,
+        "adv_latency_ms": float(np.median(track_times_adv)) if track_times_adv else 0.0,
+        "expansion_factor": f"{np.mean(adv_dims) / max(np.mean(clean_dims), 1):.1f}x",
+        "clean_dims_mean": float(np.mean(clean_dims)) if clean_dims else 0.0,
+        "adv_dims_mean": float(np.mean(adv_dims)) if adv_dims else 0.0,
+    }
+

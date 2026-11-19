@@ -18,6 +18,7 @@ import gc
 import json
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -92,6 +93,20 @@ def generate_single_attack_cache(
     print(f"[CACHE GEN] PGD Steps={steps} | Alpha={alpha:.5f} | Batch Size={batch_size} | Device={device}")
     print(f"[CACHE GEN] ==================================================================")
 
+    # Kiểm tra dung lượng đĩa trước khi khởi tạo memmap
+    needed_bytes = n_total * 3 * 640 * 640 * 4
+    try:
+        free_bytes = shutil.disk_usage(save_dir).free
+        if free_bytes < needed_bytes * 1.2:
+            raise RuntimeError(
+                f"[DISK WARNING] Dung lượng đĩa khả dụng ({free_bytes / 1e9:.2f} GB) "
+                f"không đủ để ghi cache ({needed_bytes / 1e9:.2f} GB)! "
+                f"Hãy sử dụng --max_samples để giới hạn kích thước tập mẫu (ví dụ: --max_samples 300)."
+            )
+    except Exception as e:
+        if "[DISK WARNING]" in str(e):
+            raise
+
     attacker = DETRAttackGenerator(wrapper, epsilon=eps, alpha=alpha, num_steps=steps)
 
     # Sử dụng file memmap tạm thời trên đĩa để chống tràn RAM 100%
@@ -161,32 +176,21 @@ def generate_single_attack_cache(
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
-    # Ghi thẳng từ memmap ra file npz chuẩn float32 nguyên bản
+    # Ghi thẳng từ memmap ra file npz chuẩn float32 nguyên bản (chỉ 1 key delta, không nhân 3 keys)
     print(f"[CACHE GEN] Đang lưu cache vào: {out_file.name}...")
     np.savez(
         out_file,
         image_ids=np.array(image_ids, dtype=np.int64),
         delta=delta_mmap,
-        delta_f32=delta_mmap,
-        delta_f16=delta_mmap,
         meta_json=json.dumps(meta_info, indent=2),
     )
 
-    # Đóng và xóa file memmap tạm thời
+    # Đóng và giải phóng file memmap tạm thời ngay lập tức
     del delta_mmap
     gc.collect()
     if temp_mmap_path.exists():
         try:
             temp_mmap_path.unlink()
-        except Exception:
-            pass
-
-    # Tạo alias file bằng cách sao chép file vật lý
-    if alias_file != out_file:
-        try:
-            import shutil
-            shutil.copyfile(out_file, alias_file)
-            print(f"    -> Đã tạo alias tiện ích: {alias_file.name}")
         except Exception:
             pass
 
@@ -207,6 +211,7 @@ def main():
     parser.add_argument("--epsilons", type=str, default="16", help="Danh sách epsilon /255 (ví dụ: '16' hoặc '4,8,16')")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache kể cả khi đã có")
+    parser.add_argument("--max_samples", type=int, default=None, help="Số lượng ảnh tối đa cần sinh cache (None = toàn bộ tập)")
     args = parser.parse_args()
 
     update_experiment_paths(
@@ -243,6 +248,7 @@ def main():
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
+        max_samples=args.max_samples,
     )
 
     attacks = [a.strip().lower() for a in args.attacks.split(",") if a.strip()]

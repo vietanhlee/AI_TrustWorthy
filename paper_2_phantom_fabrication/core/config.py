@@ -26,11 +26,17 @@ WORKSPACE_DIR: Path = PACKAGE_DIR.parent
 
 DATA_DIR: Path = PACKAGE_DIR / "data" if (PACKAGE_DIR / "data").exists() else (WORKSPACE_DIR / "edge_sec_pro" / "data")
 COCO_VAL_DIR: Path = DATA_DIR / "coco5k" / "val2017"
+COCO_ANN_FILE: Path = DATA_DIR / "coco5k" / "annotations" / "instances_val2017.json"
 SPLIT_FILE: Path = DATA_DIR / "split.json"
 
 RESULTS_DIR: Path = PACKAGE_DIR / "results"
 CHECKPOINTS_DIR: Path = RESULTS_DIR / "checkpoints"
 CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+
+OUTPUTS_DIR: Path = PACKAGE_DIR / "outputs"
+OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+FIG_DIR: Path = PACKAGE_DIR / "fig"
+FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 ADV_CACHE_DIR: Path = Path(os.environ.get("EDGE_SEC_ADV_CACHE_DIR", str(PACKAGE_DIR / "cache" / "adv_cache_640")))
 ADV_CACHE_DIR.mkdir(parents=True, exist_ok=True)

@@ -136,3 +136,31 @@ def simulate_aeb_impact(
         "aeb_curve_eqf": aeb_eqf,
         "aeb_curve_dqf": aeb_dqf,
     }
+
+
+def simulate_aeb_braking_events(
+    clean_detections: Sequence[Dict[str, Any]],
+    adv_detections: Sequence[Dict[str, Any]],
+    dists_grid: Optional[np.ndarray] = None,
+) -> Dict[str, Any]:
+    """
+    Tiện ích mô phỏng phanh AEB giữa kết quả detect sạch và đối kháng.
+    """
+    if dists_grid is None:
+        dists_grid = np.linspace(10, 80, 36)
+
+    clean_curve = compute_aeb_curve(clean_detections, dists_grid)
+    adv_curve = compute_aeb_curve(adv_detections, dists_grid)
+
+    idx_28m = 12 if len(dists_grid) > 12 else (len(dists_grid) - 1)
+    clean_28m = float(clean_curve[idx_28m]) if len(clean_curve) > idx_28m else 0.0
+    adv_28m = float(adv_curve[idx_28m]) if len(adv_curve) > idx_28m else 100.0
+
+    return {
+        "clean_risk_28m": clean_28m,
+        "adv_risk_28m": adv_28m,
+        "distance_grid_m": dists_grid.tolist(),
+        "aeb_curve_clean": clean_curve,
+        "aeb_curve_adv": adv_curve,
+    }
+

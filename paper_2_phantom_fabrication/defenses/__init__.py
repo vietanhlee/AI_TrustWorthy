@@ -8,16 +8,28 @@ Hệ thống các cơ chế phòng thủ và giảm thiểu rủi ro đối khá
 
 from .sqd_filter import (
     SpatialQueryDeduplicationFilter,
+    SQDFilter,
     apply_sqd_filter,
+    evaluate_sqd_filter_on_detections,
 )
 from .baseline_defenses import (
     apply_defense_to_predictions,
     evaluate_defenses_suite,
+    JPEGCompressionDefense,
+    GaussianBlurDefense,
+    MedianFilterDefense,
+    BitDepthReductionDefense,
 )
 
 __all__ = [
     "SpatialQueryDeduplicationFilter",
+    "SQDFilter",
     "apply_sqd_filter",
+    "evaluate_sqd_filter_on_detections",
     "apply_defense_to_predictions",
     "evaluate_defenses_suite",
+    "JPEGCompressionDefense",
+    "GaussianBlurDefense",
+    "MedianFilterDefense",
+    "BitDepthReductionDefense",
 ]

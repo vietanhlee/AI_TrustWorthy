@@ -138,12 +138,14 @@ class FlexibleCOCODataset:
         id2label: Optional[Dict[Union[int, str], str]] = None,
         lazy_tensors: bool = True,
         device: Optional[torch.device] = None,
+        max_samples: Optional[int] = None,
     ) -> None:
         self.folder_image = Path(folder_image).resolve()
         self.annotations_file = Path(annotations_file).resolve()
         self.img_size = img_size
         self.device = device or torch.device("cpu")
         self.lazy_tensors = lazy_tensors
+        self.max_samples = max_samples
 
         if not self.folder_image.is_dir():
             raise FileNotFoundError(f"Thư mục ảnh không tồn tại: {self.folder_image}")
@@ -175,7 +177,11 @@ class FlexibleCOCODataset:
         if not all_image_paths:
             raise FileNotFoundError(f"Không tìm thấy file ảnh hợp lệ nào trong: {self.folder_image}")
 
-        print(f"[Dataset Loader] Tìm thấy {len(all_image_paths)} ảnh trong {self.folder_image.name}.")
+        if self.max_samples is not None and self.max_samples > 0:
+            all_image_paths = all_image_paths[:self.max_samples]
+            print(f"[Dataset Loader] Giới hạn xử lý {len(all_image_paths)} ảnh (theo --max_samples={self.max_samples}).")
+        else:
+            print(f"[Dataset Loader] Tìm thấy {len(all_image_paths)} ảnh trong {self.folder_image.name}.")
 
         self.paths: List[Path] = []
         self.image_ids: List[int] = []
