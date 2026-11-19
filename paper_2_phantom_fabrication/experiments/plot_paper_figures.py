@@ -292,9 +292,12 @@ def plot_figure_3(audit_640, parallel_audit):
         adv_dim = "9 x 32"
         exp_f = "3.3x"
 
-    bp = ax1.boxplot([track_clean, track_eqf, track_dqf],
-                     labels=['Clean\nNominal', 'Under EQF\nFlooding', 'Under DQF\nFlooding'],
-                     patch_artist=True, widths=0.5)
+    box_labels = ['Clean\nNominal', 'Under EQF\nFlooding', 'Under DQF\nFlooding']
+    box_kwargs = {'patch_artist': True, 'widths': 0.5}
+    try:
+        bp = ax1.boxplot([track_clean, track_eqf, track_dqf], tick_labels=box_labels, **box_kwargs)
+    except TypeError:
+        bp = ax1.boxplot([track_clean, track_eqf, track_dqf], labels=box_labels, **box_kwargs)
 
     colors = [c_green, c_red, c_orange]
     for patch, color in zip(bp['boxes'], colors):

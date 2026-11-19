@@ -22,7 +22,6 @@ import math
 import os
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -535,73 +534,6 @@ def run_streaming_condition_eval(
 
     gc.collect()
     return res
-
-
-def generate_attacks_batched(
-    model: RTDetrForObjectDetection,
-    clean_tensors: torch.Tensor,
-    attack_type: str = "EQF",
-    target_class_idx: int = 1,
-    epsilon: float = 16.0 / 255.0,
-    alpha: float = 2.0 / 255.0,
-    steps: int = 8,
-    k_fake_eqf: int = 50,
-    k_fake_dqf: int = 15,
-    device: torch.device = torch.device("cpu"),
-    batch_size: int = 8,
-) -> torch.Tensor:
-    """Hàm tương thích ngược xử lý tensor sạch sẵn có."""
-    model.eval()
-    model.to(device)
-    adv_tensors_list = []
-    n = len(clean_tensors)
-    n_batches = int(np.ceil(n / batch_size))
-
-    for b in range(n_batches):
-        s = b * batch_size
-        e = min(s + batch_size, n)
-        raw_b = clean_tensors[s:e]
-        bx = raw_b.to(device)
-        adv_b = generate_batch_adversarial(
-            model=model, bx=bx, attack_type=attack_type, target_class_idx=target_class_idx,
-            epsilon=epsilon, alpha=alpha, steps=steps, k_fake_eqf=k_fake_eqf, k_fake_dqf=k_fake_dqf
-        )
-        adv_tensors_list.append(adv_b.detach().cpu())
-
-    return torch.cat(adv_tensors_list, dim=0)
-
-
-def model_inference_batched(
-    model: RTDetrForObjectDetection,
-    tensors: torch.Tensor,
-    device: torch.device = torch.device("cpu"),
-    batch_size: int = 8,
-) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
-    """Hàm tương thích ngược thực thi suy luận trên tensor."""
-    model.eval()
-    model.to(device)
-    n = len(tensors)
-    n_batches = int(np.ceil(n / batch_size))
-    logits_list, boxes_list, enc_topk_list = [], [], []
-
-    with torch.no_grad():
-        for b in range(n_batches):
-            s = b * batch_size
-            e = min(s + batch_size, n)
-            raw_b = tensors[s:e]
-            bx = raw_b.to(device)
-            out = model(pixel_values=bx)
-            logits_list.append(out.logits.cpu())
-            boxes_list.append(out.pred_boxes.cpu())
-            if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None:
-                enc_scores = torch.sigmoid(out.enc_outputs_class).max(dim=-1)[0]
-                topk = torch.topk(enc_scores, k=min(300, enc_scores.shape[-1]), dim=-1).indices.cpu()
-                enc_topk_list.append(topk)
-
-    logits = torch.cat(logits_list, dim=0)
-    boxes = torch.cat(boxes_list, dim=0)
-    enc_topk = torch.cat(enc_topk_list, dim=0) if enc_topk_list else None
-    return logits, boxes, enc_topk
 
 
 # ==============================================================================
