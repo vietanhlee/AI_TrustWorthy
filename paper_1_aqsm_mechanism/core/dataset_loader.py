@@ -187,15 +187,32 @@ class OnTheFlyAdvImageBatchProxy:
         if hasattr(clean_batch, "to") and clean_batch.device != self.device:
             clean_batch = clean_batch.to(self.device)
 
-        attacker = self._get_attacker()
-        if self.attack_name == "aqsm":
-            adv_batch = attacker.generate_query_selection_attack(clean_batch, steps=self.steps, alpha=self.alpha)
-        elif self.attack_name in ["vanishing", "query_vanishing"]:
-            adv_batch = attacker.generate_vanishing_attack(clean_batch, steps=self.steps, alpha=self.alpha)
-        elif self.attack_name in ["taskpgd", "task_pgd"]:
-            adv_batch = attacker.generate_standard_task_pgd(clean_batch, steps=self.steps, alpha=self.alpha)
-        else:
-            raise ValueError(f"Đòn tấn công không hỗ trợ trong On-The-Fly: {self.attack_name}")
+        with torch.enable_grad():
+            attacker = self._get_attacker()
+            if self.attack_name == "aqsm":
+                adv_batch = attacker.generate_query_selection_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["vanishing", "query_vanishing"]:
+                adv_batch = attacker.generate_vanishing_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["taskpgd", "task_pgd"]:
+                adv_batch = attacker.generate_standard_task_pgd(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["fabrication", "query_fabrication"]:
+                adv_batch = attacker.generate_fabrication_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["encoder_fabrication", "eqf"]:
+                adv_batch = attacker.generate_encoder_fabrication_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["adaptive", "adaptive_evasion"]:
+                adv_batch = attacker.generate_adaptive_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["adaptive_esm", "esm_evasion"]:
+                adv_batch = attacker.generate_adaptive_esm_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["adaptive_fused", "fused_evasion"]:
+                adv_batch = attacker.generate_adaptive_fused_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["noise", "random_noise"]:
+                adv_batch = attacker.generate_random_noise(clean_batch)
+            elif self.attack_name in ["blur", "brightness"]:
+                adv_batch = attacker.generate_clean_shifts(clean_batch, shift_type=self.attack_name)
+            else:
+                raise ValueError(f"Đòn tấn công không hỗ trợ trong On-The-Fly: {self.attack_name}")
+
+            adv_batch = adv_batch.detach()
 
         if single_item:
             adv_batch = adv_batch.squeeze(0)

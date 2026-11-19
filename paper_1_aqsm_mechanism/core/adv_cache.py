@@ -104,13 +104,48 @@ def load_cached_adv_proxy(
     try:
         data = np.load(fpath, mmap_mode="r")
     except Exception:
-        data = np.load(fpath, allow_pickle=False)
+        try:
+            data = np.load(fpath, allow_pickle=False)
+        except Exception as e:
+            if allow_onthefly:
+                print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
+                print(f"                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
+                onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+                    clean_proxy=clean_proxy,
+                    attack_name=attack,
+                    eps_num=eps_num,
+                    wrapper=wrapper,
+                )
+                meta = {
+                    "attack": attack.lower(),
+                    "n_eval": n_eval,
+                    "epsilon_num_255": eps_num,
+                    "mode": "on_the_fly_streaming",
+                }
+                return onthefly_proxy, meta
+            raise
     cached_ids = data["image_ids"].tolist()
 
     # Kiểm tra tính khớp của image_ids
     expected_ids = list(expected_image_ids)[:n_eval]
     cached_subset = cached_ids[:n_eval]
     if cached_subset != expected_ids:
+        if allow_onthefly:
+            print(f"[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
+            print(f"                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
+            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+                clean_proxy=clean_proxy,
+                attack_name=attack,
+                eps_num=eps_num,
+                wrapper=wrapper,
+            )
+            meta = {
+                "attack": attack.lower(),
+                "n_eval": n_eval,
+                "epsilon_num_255": eps_num,
+                "mode": "on_the_fly_streaming",
+            }
+            return onthefly_proxy, meta
         raise ValueError(
             f"Image IDs không khớp giữa cache {fpath.name} và cohort hiện tại! "
             f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
@@ -173,11 +208,46 @@ def load_cached_adv_images(
     try:
         data = np.load(fpath, mmap_mode="r")
     except Exception:
-        data = np.load(fpath, allow_pickle=False)
+        try:
+            data = np.load(fpath, allow_pickle=False)
+        except Exception as e:
+            if allow_onthefly:
+                print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
+                print(f"                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
+                onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+                    clean_proxy=clean_imgs,
+                    attack_name=attack,
+                    eps_num=eps_num,
+                    wrapper=wrapper,
+                )
+                meta = {
+                    "attack": attack.lower(),
+                    "n_eval": n_eval,
+                    "epsilon_num_255": eps_num,
+                    "mode": "on_the_fly_streaming",
+                }
+                return onthefly_proxy, meta
+            raise
     cached_ids = data["image_ids"].tolist()
     expected_ids = list(expected_image_ids)[:n_eval]
     cached_subset = cached_ids[:n_eval]
     if cached_subset != expected_ids:
+        if allow_onthefly:
+            print(f"[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
+            print(f"                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
+            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+                clean_proxy=clean_imgs,
+                attack_name=attack,
+                eps_num=eps_num,
+                wrapper=wrapper,
+            )
+            meta = {
+                "attack": attack.lower(),
+                "n_eval": n_eval,
+                "epsilon_num_255": eps_num,
+                "mode": "on_the_fly_streaming",
+            }
+            return onthefly_proxy, meta
         raise ValueError(
             f"Image IDs không khớp giữa cache {fpath.name} và cohort hiện tại! "
             f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"

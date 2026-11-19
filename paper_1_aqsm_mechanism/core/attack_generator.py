@@ -53,6 +53,7 @@ class DETRAttackGenerator:
         self.alpha = alpha
         self.num_steps = num_steps
 
+    @torch.enable_grad()
     def generate_vanishing_attack(
         self,
         images: torch.Tensor,
@@ -99,6 +100,7 @@ class DETRAttackGenerator:
 
         return adv_images
 
+    @torch.enable_grad()
     def generate_query_selection_attack(
         self,
         images: torch.Tensor,
@@ -185,6 +187,7 @@ class DETRAttackGenerator:
 
         return adv_images
 
+    @torch.enable_grad()
     def generate_fabrication_attack(
         self,
         images: torch.Tensor,
@@ -271,6 +274,7 @@ class DETRAttackGenerator:
 
         return patched_images
 
+    @torch.enable_grad()
     def optimize_adversarial_patch(
         self,
         calibration_images: torch.Tensor,
@@ -385,6 +389,7 @@ class DETRAttackGenerator:
             shifted = shifted * 0.70
         return torch.clamp(shifted, 0.0, 1.0)
 
+    @torch.enable_grad()
     def generate_adaptive_attack(
         self,
         images: torch.Tensor,
@@ -488,6 +493,7 @@ class DETRAttackGenerator:
 
         return adv_images
 
+    @torch.enable_grad()
     def generate_encoder_fabrication_attack(
         self,
         images: torch.Tensor,
@@ -547,6 +553,7 @@ class DETRAttackGenerator:
 
         return adv_images
 
+    @torch.enable_grad()
     def generate_adaptive_esm_attack(
         self,
         images: torch.Tensor,
@@ -649,6 +656,7 @@ class DETRAttackGenerator:
 
         return adv_images
 
+    @torch.enable_grad()
     def generate_adaptive_fused_attack(
         self,
         images: torch.Tensor,
@@ -739,6 +747,7 @@ class DETRAttackGenerator:
         return adv_images
 
 
+    @torch.enable_grad()
     def generate_standard_task_pgd(
         self,
         images: torch.Tensor,
