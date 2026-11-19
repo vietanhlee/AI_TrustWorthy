@@ -41,6 +41,8 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.utils.cli import create_base_parser
+from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json, write_csv_rows
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
 from paper_1_aqsm_mechanism.core.coco_gt import (
@@ -57,13 +59,8 @@ from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
 )
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
-    ADV_CACHE_DIR,
-    COCO_ANN_FILE,
-    COCO_VAL_DIR,
-    LOGS_DIR,
     MODEL_NAME,
     N_BOOTSTRAP,
-    OUTPUTS_DIR,
     RANDOM_SEED,
     configure_cpu_threads,
     detect_hardware_environment,
@@ -102,14 +99,7 @@ def _compute_object_recall(preds: Dict[str, Any], gt_boxes_xyxy: np.ndarray, iou
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Task 4: Controlled Spatial Misrouting (Tautology Refutation)")
-    parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
-    parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
-    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả")
-    parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục cache đối kháng")
-    parser.add_argument("--batch_size", type=int, default=None, help="Batch size suy luận")
-    parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU cho task này")
-    parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
+    parser = create_base_parser("Controlled Spatial Misrouting (Tautology Refutation)", task_name="Task 4")
     parser.add_argument("--n_boot", type=int, default=N_BOOTSTRAP, help="Số lần bootstrap CI 95%")
     args = parser.parse_args()
 

@@ -34,18 +34,15 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.utils.cli import create_base_parser
+from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json, write_csv_rows
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
 from paper_1_aqsm_mechanism.core.defense_engine import EncoderSelectionMonitor, evaluate_defense_cohort
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
-    ADV_CACHE_DIR,
-    COCO_ANN_FILE,
-    COCO_VAL_DIR,
-    LOGS_DIR,
     MODEL_NAME,
-    OUTPUTS_DIR,
     RANDOM_SEED,
     configure_cpu_threads,
     detect_hardware_environment,
@@ -133,14 +130,7 @@ def run_adaptive_evasion_test(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Task 8: Empirical Defense & Adaptive Evasion Evaluation (Table 11)")
-    parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
-    parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
-    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả")
-    parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục cache đối kháng")
-    parser.add_argument("--batch_size", type=int, default=None, help="Batch size suy luận")
-    parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU cho task này")
-    parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
+    parser = create_base_parser("Empirical Defense & Adaptive Evasion Evaluation (Table 11)", task_name="Task 8")
     parser.add_argument("--cal_ratio", type=float, default=0.3, help="Tỷ lệ tập calibration không chồng lấn (mặc định 30%)")
     args = parser.parse_args()
 

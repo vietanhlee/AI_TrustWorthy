@@ -26,14 +26,12 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.utils.cli import create_base_parser
+from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
-    COCO_ANN_FILE,
-    COCO_VAL_DIR,
-    LOGS_DIR,
     MODEL_NAME,
-    OUTPUTS_DIR,
     RANDOM_SEED,
     configure_cpu_threads,
     detect_hardware_environment,
@@ -44,14 +42,9 @@ from paper_1_aqsm_mechanism.experiments.latency_profiler import profile_pipeline
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Task 6: Hardware Execution Latency Profiler (Table 10)")
-    parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
-    parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
-    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả")
+    parser = create_base_parser("Hardware Execution Latency Profiler (Table 10)", task_name="Task 6")
     parser.add_argument("--n_runs", type=int, default=300, help="Số lần chạy đo đạc")
     parser.add_argument("--warmup", type=int, default=30, help="Số lần warm-up khởi động")
-    parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU cho task này")
-    parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
     args = parser.parse_args()
 
     update_experiment_paths(

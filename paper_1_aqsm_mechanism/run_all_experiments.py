@@ -38,6 +38,8 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json
+from paper_1_aqsm_mechanism.utils.device import get_device_info, setup_cpu_threads
 from paper_1_aqsm_mechanism.experiments.config import (
     ADV_CACHE_DIR,
     COCO_ANN_FILE,
@@ -51,13 +53,6 @@ from paper_1_aqsm_mechanism.experiments.config import (
     detect_hardware_environment,
     update_experiment_paths,
 )
-
-
-def format_duration(seconds: float) -> str:
-    """Định dạng thời gian chạy thành hh:mm:ss."""
-    m, s = divmod(int(seconds), 60)
-    h, m = divmod(m, 60)
-    return f"{h:02d}h:{m:02d}m:{s:02d}s"
 
 
 def run_subtask(

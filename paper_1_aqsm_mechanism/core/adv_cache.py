@@ -27,6 +27,9 @@ def get_default_cache_dir() -> Path:
     return get_adv_cache_dir()
 
 
+get_adv_cache_dir = get_default_cache_dir
+
+
 def eps_tag(eps_num: int) -> str:
     """Trả về nhãn epsilon dạng xâu chuỗi (ví dụ: eps16)."""
     return f"eps{eps_num}"
