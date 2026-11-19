@@ -19,7 +19,6 @@ if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 from paper_2_phantom_fabrication.core.config import set_adv_cache_dir
-from paper_2_phantom_fabrication.experiments.engines.defense_engine import run_comprehensive_defense_evaluation
 from paper_2_phantom_fabrication.utils.cli import create_base_parser
 from paper_2_phantom_fabrication.utils.device import (
     clear_gpu_memory,
@@ -32,6 +31,8 @@ from paper_2_phantom_fabrication.utils.io_helpers import save_json
 def main():
     parser = create_base_parser("Defense Evaluation (Table 4)", task_name="Task 4")
     args = parser.parse_args()
+
+    from paper_2_phantom_fabrication.experiments.engines.defense_engine import run_comprehensive_defense_evaluation
 
     set_adv_cache_dir(args.cache_dir)
     setup_cpu_threads(args.threads)

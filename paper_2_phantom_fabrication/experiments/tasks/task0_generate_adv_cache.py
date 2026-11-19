@@ -11,9 +11,6 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 from pathlib import Path
 
-import torch
-from transformers import RTDetrForObjectDetection
-
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
@@ -39,6 +36,9 @@ def main():
     parser.add_argument("--attacks", type=str, default="Untargeted_PGD,EQF,DQF", help="Danh sách attacks (phân tách bởi dấu phẩy)")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh thêm cache eps 4, 8, 12 cho ablation sweep")
     args = parser.parse_args()
+
+    import torch
+    from transformers import RTDetrForObjectDetection
 
     set_adv_cache_dir(args.cache_dir)
     setup_cpu_threads(args.threads)

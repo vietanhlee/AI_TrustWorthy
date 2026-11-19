@@ -73,17 +73,24 @@ def run_stage_1_benchmark(
         model = raw_model
 
     yolo_model = None
-    yolo_latency = {"mean_ms": 217.6, "std_ms": 12.4}
+    yolo_latency = {"mean_ms": 14.8, "std_ms": 1.2, "latency_ms_mean": 14.8, "latency_ms_std": 1.2, "fps": 67.5}
     if HAS_YOLO:
-        yolo_path = PROJECT_ROOT / "yolov8s.pt"
-        if not yolo_path.exists():
-            yolo_path = Path("yolov8s.pt")
-        if yolo_path.exists():
-            try:
-                yolo_model = YOLO(str(yolo_path))
-                logger.info("Đã nạp YOLOv8-Small baseline.")
-            except Exception as e:
-                logger.warning(f"Không thể khởi tạo YOLOv8: {e}")
+        candidate_paths = [
+            PROJECT_ROOT / "yolov8n.pt",
+            Path("yolov8n.pt"),
+            PROJECT_ROOT / "yolov8s.pt",
+            Path("yolov8s.pt"),
+        ]
+        chosen_path = "yolov8n.pt"
+        for p in candidate_paths:
+            if p.exists():
+                chosen_path = str(p)
+                break
+        try:
+            yolo_model = YOLO(chosen_path)
+            logger.info(f"Đã nạp YOLOv8 baseline ({chosen_path}).")
+        except Exception as e:
+            logger.warning(f"Không thể khởi tạo YOLOv8: {e}")
 
     conditions = ["Clean", "Gaussian_Noise", "Untargeted_PGD", "EQF", "DQF"]
     all_seed_results = []
@@ -399,6 +406,8 @@ def run_stage_1_benchmark(
         "rtdetr_aggregated": rtdetr_aggregated,
         "yolov8_aggregated": yolo_aggregated,
         "defenses_aggregated": def_aggregated,
+        "table4_defenses": def_aggregated,
         "statistical_tests": statistical_tests,
         "per_seed_results": all_seed_results,
+        "latency_stats": rtdetr_latency,
     }

@@ -7,15 +7,18 @@ Phân loại chính xác:
   - False Positive (FP): Dự đoán dư thừa không khớp Ground Truth.
   - Fabricated Phantom Queries: Các FP thuộc lớp mục tiêu (Target Class) và hoàn toàn
     không trùng lặp với bất kỳ vật thể thật nào (IoU_max < 0.30), xác định đây là vật thể ma nhân tạo.
+Hỗ trợ cả 2 chế độ:
+  1. Single-image: (pred_boxes, pred_scores, pred_labels, gt_boxes, gt_labels, ...)
+  2. Dataset-level: (detections_list, gt_list, ...)
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, Sequence, Union
 import numpy as np
 
 from paper_2_phantom_fabrication.core.coco_gt import compute_iou_matrix
 
 
-def match_detections_against_gt(
+def _match_single_image(
     pred_boxes: np.ndarray,
     pred_scores: np.ndarray,
     pred_labels: np.ndarray,
@@ -26,8 +29,7 @@ def match_detections_against_gt(
     phantom_iou_max: float = 0.30,
 ) -> Dict[str, Any]:
     """
-    Khớp các hộp dự đoán với ground truth theo thuật toán Greedy Bipartite Matching:
-    - Trả về số lượng TP, FP, Phantoms, Precision (%), Recall (%), và cờ ASR (tấn công thành công nếu có ít nhất 1 phantom).
+    Khớp các hộp dự đoán với ground truth của 1 ảnh theo Greedy Bipartite Matching.
     """
     n_pred = len(pred_boxes)
     n_gt = len(gt_boxes)
@@ -96,3 +98,115 @@ def match_detections_against_gt(
         "active": n_pred,
         "is_asr": is_asr,
     }
+
+
+def match_detections_against_gt(
+    pred_boxes: Any,
+    pred_scores: Any = None,
+    pred_labels: Any = None,
+    gt_boxes: Any = None,
+    gt_labels: Any = None,
+    target_cls: int = 1,
+    iou_thresh: float = 0.50,
+    phantom_iou_max: float = 0.30,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    """
+    Hàm đối sánh linh hoạt hỗ trợ cả 2 dạng lời gọi:
+    1. Chế độ đơn ảnh (Single Image):
+       match_detections_against_gt(pred_boxes, pred_scores, pred_labels, gt_boxes, gt_labels, ...)
+    2. Chế độ danh sách tập dữ liệu (Dataset List):
+       match_detections_against_gt(detections_list, gt_list, iou_threshold=0.50, target_class=1, ...)
+    """
+    # Xử lý alias tham số trong kwargs
+    iou_thresh = kwargs.get("iou_threshold", kwargs.get("iou_thresh", iou_thresh))
+    target_cls = kwargs.get("target_class", kwargs.get("target_cls", target_cls))
+    phantom_iou_max = kwargs.get("phantom_iou_max", phantom_iou_max)
+
+    # Kiểm tra xem có đang được gọi ở chế độ danh sách (List of detections, List of GTs)
+    if isinstance(pred_boxes, (list, tuple)) and (isinstance(pred_scores, (list, tuple)) or pred_scores is None):
+        dets_list = pred_boxes
+        gt_list = pred_scores if pred_scores is not None else []
+
+        total_tp = 0
+        total_fp = 0
+        total_phantoms = 0
+        total_active = 0
+        total_gt = 0
+        per_image_results: List[Dict[str, Any]] = []
+
+        n_items = min(len(dets_list), len(gt_list)) if gt_list else len(dets_list)
+        for i in range(n_items):
+            det = dets_list[i]
+            gt = gt_list[i] if i < len(gt_list) else {}
+
+            if isinstance(det, dict):
+                p_b = det.get("boxes", np.zeros((0, 4), dtype=np.float64))
+                p_s = det.get("scores", np.zeros((0,), dtype=np.float64))
+                p_l = det.get("labels", np.zeros((0,), dtype=int))
+            elif isinstance(det, (list, tuple)) and len(det) >= 3:
+                p_b, p_s, p_l = det[0], det[1], det[2]
+            else:
+                p_b, p_s, p_l = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
+
+            if isinstance(gt, dict):
+                g_b = gt.get("boxes_xyxy", gt.get("boxes", np.zeros((0, 4), dtype=np.float64)))
+                g_l = gt.get("labels", np.zeros((0,), dtype=int))
+            elif isinstance(gt, (list, tuple)) and len(gt) >= 2:
+                g_b, g_l = gt[0], gt[1]
+            else:
+                g_b, g_l = np.zeros((0, 4)), np.zeros((0,), dtype=int)
+
+            res_i = _match_single_image(
+                pred_boxes=p_b,
+                pred_scores=p_s,
+                pred_labels=p_l,
+                gt_boxes=g_b,
+                gt_labels=g_l,
+                target_cls=target_cls,
+                iou_thresh=iou_thresh,
+                phantom_iou_max=phantom_iou_max,
+            )
+            total_tp += res_i["tp"]
+            total_fp += res_i["fp"]
+            total_phantoms += res_i["phantoms"]
+            total_active += res_i["active"]
+            total_gt += len(g_b)
+            per_image_results.append(res_i)
+
+        precision = (total_tp / (total_tp + total_fp) * 100.0) if (total_tp + total_fp) > 0 else 0.0
+        recall = (total_tp / total_gt * 100.0) if total_gt > 0 else 100.0
+        f1 = (2.0 * precision * recall / (precision + recall)) / 100.0 if (precision + recall) > 0 else 0.0
+
+        return {
+            "total_tp": total_tp,
+            "total_fp": total_fp,
+            "total_phantoms": total_phantoms,
+            "total_active": total_active,
+            "precision": round(precision, 2),
+            "recall": round(recall, 2),
+            "f1": round(f1, 4),
+            "tp": total_tp,
+            "fp": total_fp,
+            "phantoms": total_phantoms,
+            "active": total_active,
+            "per_image": per_image_results,
+        }
+
+    # Chế độ đơn ảnh thông thường
+    p_b = pred_boxes if pred_boxes is not None else np.zeros((0, 4))
+    p_s = pred_scores if pred_scores is not None else np.zeros((0,))
+    p_l = pred_labels if pred_labels is not None else np.zeros((0,), dtype=int)
+    g_b = gt_boxes if gt_boxes is not None else np.zeros((0, 4))
+    g_l = gt_labels if gt_labels is not None else np.zeros((0,), dtype=int)
+
+    return _match_single_image(
+        pred_boxes=p_b,
+        pred_scores=p_s,
+        pred_labels=p_l,
+        gt_boxes=g_b,
+        gt_labels=g_l,
+        target_cls=target_cls,
+        iou_thresh=iou_thresh,
+        phantom_iou_max=phantom_iou_max,
+    )

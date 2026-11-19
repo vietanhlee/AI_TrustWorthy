@@ -1,5 +1,15 @@
 """
 Module: query_attention_features.py
+
+==============================================================================
+[DEPRECATED - PROTOTYPE CODE ONLY]
+CẢNH BÁO: Module này là nguyên mẫu thử nghiệm sơ khai (early prototype).
+Toàn bộ hệ thống thực nghiệm chính thức của Paper 3 hiện tại sử dụng duy nhất:
+  - Feature Extractor: rtdetr_advanced_features.py (RTDETRDeepFeatureExtractor)
+  - Defensive Monitors: rtdetr_advanced_monitor.py (CalibratedMaxOREnsemble)
+Không sử dụng module này cho bất kỳ bảng biểu hoặc hình vẽ nào trong bản thảo chính.
+==============================================================================
+
 Mục đích: Trích xuất các đặc trưng an toàn tầng mô hình (Model-Layer Safety Features)
 từ trạng thái nội tại của Transformer Object Detector (RT-DETR & DETR).
 

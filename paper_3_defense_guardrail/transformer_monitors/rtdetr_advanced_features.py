@@ -260,21 +260,23 @@ class RTDETRDeepFeatureExtractor:
                 spatial_dispersion = 0.0
 
             # --- E. Encoder Candidate Selection Metrics (cho AQSM Analysis) ---
-            if state.enc_outputs_class is not None:
-                enc_probs = torch.sigmoid(state.enc_outputs_class[b]).detach()
-                max_enc_p, _ = enc_probs.max(dim=-1)
-                sorted_enc_p, _ = torch.sort(max_enc_p, descending=True)
-                enc_top300 = float(sorted_enc_p[:300].mean().item())
-                enc_bg = float(sorted_enc_p[300:].mean().item())
-                enc_margin = enc_top300 - enc_bg
-                top1_val = float(sorted_enc_p[0].item())
-                top300_val = float(sorted_enc_p[299].item()) if len(sorted_enc_p) >= 300 else 1e-4
-                enc_dropoff = top1_val / max(1e-4, top300_val)
-            else:
-                enc_top300 = 0.1
-                enc_bg = 0.01
-                enc_margin = 0.09
-                enc_dropoff = 10.0
+            # NGHIÊM CẤM FALLBACK HẰNG SỐ GIẢ ĐỊNH: Bắt buộc phải có tensor enc_outputs_class từ forward pass
+            if state.enc_outputs_class is None:
+                raise RuntimeError(
+                    "LỖI TOÀN VẸN MÔ HÌNH: Không tìm thấy 'enc_outputs_class' trong DETRInternalState! "
+                    "Mô hình RT-DETR bắt buộc phải trích xuất được logits của encoder phục vụ phân tích ESM. "
+                    "Nghiêm cấm fallback giá trị giả lập cố định để bảo đảm tính trung thực khoa học 100%."
+                )
+
+            enc_probs = torch.sigmoid(state.enc_outputs_class[b]).detach()
+            max_enc_p, _ = enc_probs.max(dim=-1)
+            sorted_enc_p, _ = torch.sort(max_enc_p, descending=True)
+            enc_top300 = float(sorted_enc_p[:300].mean().item())
+            enc_bg = float(sorted_enc_p[300:].mean().item())
+            enc_margin = enc_top300 - enc_bg
+            top1_val = float(sorted_enc_p[0].item())
+            top300_val = float(sorted_enc_p[299].item()) if len(sorted_enc_p) >= 300 else 1e-4
+            enc_dropoff = top1_val / max(1e-4, top300_val)
 
             feat = RTDETRDeepFeatures(
                 layer_vectors=layer_vecs,

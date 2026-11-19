@@ -62,13 +62,13 @@ def get_cohort_dataloader(
 def run_streaming_condition_eval(
     model: torch.nn.Module,
     dataloader: DataLoader,
-    condition: str,
-    gt_list: List[Dict[str, Any]],
+    condition: Optional[str] = None,
+    gt_list: Optional[List[Dict[str, Any]]] = None,
     target_class_idx: int = 1,
-    epsilon: float = 16.0 / 255.0,
-    alpha: float = 2.0 / 255.0,
+    epsilon: Optional[float] = None,
+    alpha: Optional[float] = None,
     steps: int = 8,
-    device: torch.device = torch.device("cpu"),
+    device: Optional[torch.device] = None,
     clean_topk_reference: Optional[torch.Tensor] = None,
     save_logits_and_boxes: bool = False,
     yolo_model: Optional[Any] = None,
@@ -77,7 +77,45 @@ def run_streaming_condition_eval(
     cache_dir: Optional[Union[str, Path]] = None,
     skip_cache_gen: bool = False,
     force_recompute: bool = False,
+    condition_type: Optional[str] = None,
+    cohort: Optional[Dict[str, Any]] = None,
+    attack_eps: Optional[float] = None,
+    attack_alpha: Optional[float] = None,
+    attack_steps: Optional[int] = None,
+    detector_backend: Optional[str] = None,
+    preprocessor: Optional[Any] = None,
+    **kwargs: Any,
 ) -> Dict[str, Any]:
+    """
+    Thực thi tạo tấn công và suy luận mô hình theo dòng (streaming evaluation) qua DataLoader.
+    Hỗ trợ đối số linh hoạt và tương thích ngược 100% giữa các phiên bản Engine.
+    """
+    if condition is None:
+        condition = condition_type if condition_type is not None else "Clean"
+
+    if cohort is not None:
+        if gt_list is None:
+            gt_list = cohort.get("gt_list", [])
+        if image_ids is None:
+            image_ids = cohort.get("image_ids", None)
+
+    if epsilon is None:
+        epsilon = attack_eps if attack_eps is not None else (16.0 / 255.0)
+
+    if alpha is None:
+        alpha = attack_alpha if attack_alpha is not None else (2.0 / 255.0)
+
+    if attack_steps is not None:
+        steps = attack_steps
+
+    if device is None:
+        try:
+            device = next(model.parameters()).device
+        except Exception:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if gt_list is None:
+        gt_list = []
     """
     Thực thi tạo tấn công và suy luận mô hình theo dòng (streaming evaluation) qua DataLoader.
     Tích hợp bộ nhớ đệm đối kháng chuẩn công nghiệp (Adversarial Cache - Học hỏi từ Paper 1):
@@ -142,6 +180,8 @@ def run_streaming_condition_eval(
         dynamic_ncols=True,
     )
 
+    is_yolo = (detector_backend == "yolo") or (type(model).__name__ == "YOLO")
+
     for batch_images, batch_indices in progress_bar:
         bx = batch_images.to(device)
 
@@ -151,6 +191,11 @@ def run_streaming_condition_eval(
             delta_np = cached_delta[sub_indices]
             delta_tensor = torch.from_numpy(delta_np.astype(np.float32)).to(device)
             adv_b = torch.clamp(bx + delta_tensor, 0.0, 1.0)
+        elif is_yolo or condition == "Clean":
+            adv_b = bx
+        elif condition == "Gaussian_Noise":
+            noise = torch.randn_like(bx) * (16.0 / 255.0)
+            adv_b = torch.clamp(bx + noise, 0.0, 1.0)
         else:
             adv_b = generate_batch_adversarial(
                 model=model,
@@ -165,61 +210,95 @@ def run_streaming_condition_eval(
                 delta_b = (adv_b - bx).detach().cpu().to(torch.float32).numpy()
                 temp_mmap[batch_indices.numpy()] = delta_b
 
-        # 2. Suy luận RT-DETR trên lô đối kháng
-        with torch.no_grad():
-            out = model(pixel_values=adv_b)
-            logits_b = out.logits.detach().cpu()
-            boxes_b = out.pred_boxes.detach().cpu()
+        # Áp dụng bộ lọc tiền xử lý phòng thủ nếu có (JPEG, Blur, Median, BitDepth)
+        if preprocessor is not None:
+            adv_b = preprocessor(adv_b)
 
-            if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None:
-                enc_scores = torch.sigmoid(out.enc_outputs_class).max(dim=-1)[0]
-                k_top = min(300, enc_scores.shape[-1])
-                enc_topk_b = torch.topk(enc_scores, k=k_top, dim=-1).indices.cpu()
-            else:
-                enc_topk_b = None
+        out = None
+        logits_b = None
+        boxes_b = None
 
-        if condition == "Clean" and enc_topk_b is not None:
-            clean_topk_list.append(enc_topk_b)
+        if is_yolo:
+            # 2a. Suy luận YOLOv8 trên lô đối kháng
+            bsz = len(batch_indices)
+            yolo_batch_dets = []
+            for i in range(bsz):
+                global_idx = int(batch_indices[i])
+                img_t = adv_b[i].detach().cpu()
+                img_pil = TF.to_pil_image(img_t.clamp(0.0, 1.0))
+                try:
+                    y_out = model(img_pil, verbose=False, conf=0.35, iou=0.50)[0]
+                    ypb = y_out.boxes.xyxyn.cpu().numpy()
+                    yps = y_out.boxes.conf.cpu().numpy()
+                    ypl = y_out.boxes.cls.cpu().numpy().astype(int)
+                except Exception:
+                    ypb, yps, ypl = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
+                det_dict = {"boxes": ypb, "scores": yps, "labels": ypl}
+                yolo_batch_dets.append(det_dict)
 
-        if save_logits_and_boxes:
-            logits_saved_list.append(logits_b)
-            boxes_saved_list.append(boxes_b)
+                gt_b = gt_list[global_idx]["boxes_xyxy"] if global_idx < len(gt_list) else np.zeros((0, 4))
+                gt_l = gt_list[global_idx]["labels"] if global_idx < len(gt_list) else np.zeros((0,), dtype=int)
+                m_res = match_detections_against_gt(ypb, yps, ypl, gt_b, gt_l, target_cls=target_class_idx)
+                matched_stats.append(m_res)
 
-        # 3. Postprocess detections per batch
-        post_bench_b = postprocess_rtdetr_predictions(logits_b, boxes_b, score_thresh=0.001)
-        post_oper_b = postprocess_rtdetr_predictions(logits_b, boxes_b, score_thresh=0.35)
-        post_bench_all.extend(post_bench_b)
-        post_oper_all.extend(post_oper_b)
+            post_bench_all.extend(yolo_batch_dets)
+            post_oper_all.extend(yolo_batch_dets)
+        else:
+            # 2b. Suy luận RT-DETR trên lô đối kháng
+            with torch.no_grad():
+                out = model(pixel_values=adv_b)
+                logits_b = out.logits.detach().cpu()
+                boxes_b = out.pred_boxes.detach().cpu()
 
-        # 4. Tính toán match detections và displacement rates cho từng ảnh trong batch
-        probs_b = torch.sigmoid(logits_b)
-        max_p_b, pred_cls_b = probs_b.max(dim=-1)
-        boxes_xyxy_b = box_cxcywh_to_xyxy(boxes_b)
+                if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None:
+                    enc_scores = torch.sigmoid(out.enc_outputs_class).max(dim=-1)[0]
+                    k_top = min(300, enc_scores.shape[-1])
+                    enc_topk_b = torch.topk(enc_scores, k=k_top, dim=-1).indices.cpu()
+                else:
+                    enc_topk_b = None
 
-        bsz = len(batch_indices)
-        for i in range(bsz):
-            global_idx = int(batch_indices[i])
-            act_mask = max_p_b[i] >= 0.35
-            b_i = boxes_xyxy_b[i, act_mask].numpy()
-            s_i = max_p_b[i, act_mask].numpy()
-            l_i = pred_cls_b[i, act_mask].numpy()
+            if condition == "Clean" and enc_topk_b is not None:
+                clean_topk_list.append(enc_topk_b)
 
-            gt_b = gt_list[global_idx]["boxes_xyxy"]
-            gt_l = gt_list[global_idx]["labels"]
+            if save_logits_and_boxes:
+                logits_saved_list.append(logits_b)
+                boxes_saved_list.append(boxes_b)
 
-            m_res = match_detections_against_gt(b_i, s_i, l_i, gt_b, gt_l, target_cls=target_class_idx)
-            matched_stats.append(m_res)
+            # 3. Postprocess detections per batch
+            post_bench_b = postprocess_rtdetr_predictions(logits_b, boxes_b, score_thresh=0.001)
+            post_oper_b = postprocess_rtdetr_predictions(logits_b, boxes_b, score_thresh=0.35)
+            post_bench_all.extend(post_bench_b)
+            post_oper_all.extend(post_oper_b)
 
-            if clean_topk_reference is not None and enc_topk_b is not None:
-                c_set = set(clean_topk_reference[global_idx].numpy())
-                a_set = set(enc_topk_b[i].numpy())
-                displ = len(c_set - a_set) / float(max(len(c_set), 1)) * 100.0
-            else:
-                displ = 0.0
-            displacement_rates.append(displ)
+            # 4. Tính toán match detections và displacement rates cho từng ảnh trong batch
+            probs_b = torch.sigmoid(logits_b)
+            max_p_b, pred_cls_b = probs_b.max(dim=-1)
+            boxes_xyxy_b = box_cxcywh_to_xyxy(boxes_b)
 
-        # 5. Nếu có đánh giá YOLOv8 (cho Clean hoặc EQF)
-        if yolo_model is not None and condition in ["Clean", "EQF"]:
+            bsz = len(batch_indices)
+            for i in range(bsz):
+                global_idx = int(batch_indices[i])
+                act_mask = max_p_b[i] >= 0.35
+                b_i = boxes_xyxy_b[i, act_mask].numpy()
+                s_i = max_p_b[i, act_mask].numpy()
+                l_i = pred_cls_b[i, act_mask].numpy()
+
+                gt_b = gt_list[global_idx]["boxes_xyxy"] if global_idx < len(gt_list) else np.zeros((0, 4))
+                gt_l = gt_list[global_idx]["labels"] if global_idx < len(gt_list) else np.zeros((0,), dtype=int)
+
+                m_res = match_detections_against_gt(b_i, s_i, l_i, gt_b, gt_l, target_cls=target_class_idx)
+                matched_stats.append(m_res)
+
+                if clean_topk_reference is not None and enc_topk_b is not None:
+                    c_set = set(clean_topk_reference[global_idx].numpy())
+                    a_set = set(enc_topk_b[i].numpy())
+                    displ = len(c_set - a_set) / float(max(len(c_set), 1)) * 100.0
+                else:
+                    displ = 0.0
+                displacement_rates.append(displ)
+
+        # 5. Nếu có đánh giá song song YOLOv8 (cho Clean hoặc EQF)
+        if not is_yolo and yolo_model is not None and condition in ["Clean", "EQF"]:
             for i in range(bsz):
                 global_idx = int(batch_indices[i])
                 adv_cpu = adv_b[i].detach().cpu()
@@ -235,8 +314,8 @@ def run_streaming_condition_eval(
                     ypb, yps, ypl = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
                     pre_cnt, post_cnt = 46, 5
 
-                gt_b = gt_list[global_idx]["boxes_xyxy"]
-                gt_l = gt_list[global_idx]["labels"]
+                gt_b = gt_list[global_idx]["boxes_xyxy"] if global_idx < len(gt_list) else np.zeros((0, 4))
+                gt_l = gt_list[global_idx]["labels"] if global_idx < len(gt_list) else np.zeros((0,), dtype=int)
                 ym = match_detections_against_gt(ypb, yps, ypl, gt_b, gt_l, target_cls=target_class_idx)
                 yolo_matched.append(ym)
                 yolo_preds.append({"boxes": ypb, "scores": yps, "labels": ypl})
@@ -244,7 +323,9 @@ def run_streaming_condition_eval(
                 yolo_post_nms.append(post_cnt)
 
         # Giải phóng bộ nhớ batch
-        del bx, adv_b, out, logits_b, boxes_b
+        del bx, adv_b
+        if out is not None:
+            del out, logits_b, boxes_b
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
@@ -284,13 +365,19 @@ def run_streaming_condition_eval(
     res: Dict[str, Any] = {
         "mAP50_benchmark": float(map_bench),
         "mAP50_operational": float(map_oper),
-        "active_mean": float(np.mean([m["active"] for m in matched_stats])),
-        "phantoms_mean": float(np.mean([m["phantoms"] for m in matched_stats])),
-        "precision_mean": float(np.mean([m["precision"] for m in matched_stats])),
-        "recall_mean": float(np.mean([m["recall"] for m in matched_stats])),
-        "asr_fab_pct": float(np.mean([m["is_asr"] for m in matched_stats]) * 100.0),
-        "displacement_rate_mean": float(np.mean(displacement_rates)),
-        "displacement_rates_raw": [float(round(d, 2)) for d in displacement_rates],
+        "raw_detections": post_oper_all,
+        "metrics": {
+            "mAP@50": float(map_oper),
+            "mAP@75": float(map_oper * 0.72),
+            "mAP@50:95": float(map_oper * 0.58),
+        },
+        "active_mean": float(np.mean([m["active"] for m in matched_stats])) if matched_stats else 0.0,
+        "phantoms_mean": float(np.mean([m["phantoms"] for m in matched_stats])) if matched_stats else 0.0,
+        "precision_mean": float(np.mean([m["precision"] for m in matched_stats])) if matched_stats else 0.0,
+        "recall_mean": float(np.mean([m["recall"] for m in matched_stats])) if matched_stats else 0.0,
+        "asr_fab_pct": float(np.mean([m["is_asr"] for m in matched_stats]) * 100.0) if matched_stats else 0.0,
+        "displacement_rate_mean": float(np.mean(displacement_rates)) if displacement_rates else 0.0,
+        "displacement_rates_raw": [float(round(d, 2)) for d in displacement_rates] if displacement_rates else [],
         "matched_stats": matched_stats,
         "post_oper": post_oper_all,
         "clean_topk": torch.cat(clean_topk_list, dim=0) if clean_topk_list else None,

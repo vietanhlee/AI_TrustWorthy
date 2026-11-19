@@ -15,7 +15,7 @@ import datetime
 import logging
 import os
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
@@ -82,18 +82,30 @@ def detect_hardware(requested_device: str = "auto") -> Dict[str, Any]:
 
 def benchmark_model_latency(
     model: torch.nn.Module,
-    sample_tensor: torch.Tensor,
-    device: torch.device,
+    sample_tensor: Optional[torch.Tensor] = None,
+    device: Optional[torch.device] = None,
     num_warmup: int = 10,
     num_runs: int = 25,
+    img_size: int = 640,
+    **kwargs: Any,
 ) -> Dict[str, float]:
     """
     Đo độ trễ suy luận chuẩn xác theo đặc thù thiết bị:
     - GPU: sử dụng torch.cuda.Event(enable_timing=True) với warmup và đồng bộ CUDA.
     - CPU: sử dụng time.perf_counter() với warmup.
+    Hỗ trợ cả 2 cách gọi (với dummy sample_tensor hoặc tự tạo theo img_size).
     """
     model.eval()
-    bx = sample_tensor[:1].to(device)
+    if device is None:
+        try:
+            device = next(model.parameters()).device
+        except Exception:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if sample_tensor is None:
+        bx = torch.zeros((1, 3, img_size, img_size), dtype=torch.float32, device=device)
+    else:
+        bx = sample_tensor[:1].to(device)
 
     with torch.no_grad():
         # Vòng lặp khởi động warm-up ổn định xung nhịp phần cứng
@@ -118,9 +130,16 @@ def benchmark_model_latency(
                 t1 = time.perf_counter()
                 latencies.append((t1 - t0) * 1000.0)  # milliseconds
 
+    mean_ms = float(np.mean(latencies))
+    std_ms = float(np.std(latencies))
+    fps = float(1000.0 / max(mean_ms, 1e-4))
+
     return {
-        "mean_ms": float(np.mean(latencies)),
-        "std_ms": float(np.std(latencies)),
+        "mean_ms": mean_ms,
+        "std_ms": std_ms,
+        "latency_ms_mean": mean_ms,
+        "latency_ms_std": std_ms,
+        "fps": fps,
         "median_ms": float(np.median(latencies)),
         "min_ms": float(np.min(latencies)),
         "max_ms": float(np.max(latencies)),

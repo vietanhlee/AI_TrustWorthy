@@ -18,7 +18,6 @@ if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 from paper_2_phantom_fabrication.core.config import set_adv_cache_dir
-from paper_2_phantom_fabrication.experiments.engines.benchmark_engine import run_stage_1_benchmark
 from paper_2_phantom_fabrication.utils.cli import create_base_parser
 from paper_2_phantom_fabrication.utils.device import (
     clear_gpu_memory,
@@ -31,6 +30,8 @@ from paper_2_phantom_fabrication.utils.io_helpers import save_json
 def main():
     parser = create_base_parser("Multi-Seed Benchmark (Stage 1)", task_name="Task 1")
     args = parser.parse_args()
+
+    from paper_2_phantom_fabrication.experiments.engines.benchmark_engine import run_stage_1_benchmark
 
     set_adv_cache_dir(args.cache_dir)
     setup_cpu_threads(args.threads)
