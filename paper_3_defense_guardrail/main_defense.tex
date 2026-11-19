@@ -612,17 +612,17 @@ Table~\ref{tab:runtime_overhead} and Figure~\ref{fig:latency_breakdown} report e
 \toprule
 \textbf{Component} & \textbf{Latency (Mean $\pm$ Std)} & \textbf{Overhead Ratio} \\
 \midrule
-RT-DETR Base Inference (\texttt{r18vd}, $320 \times 320$) & $159.72 \pm 26.06$ ms & Baseline (100.0\%) \\
+RT-DETR Base Inference (\texttt{r18vd}, $320 \times 320$) & $360.71 \pm 86.81$ ms & Baseline (100.0\%) \\
 \addlinespace[8pt]
-Intermediate Tensor Extraction (Encoder Scores + Latent Tokens) & $3.22 \pm 1.17$ ms & 2.02\% \\
+Intermediate Tensor Extraction (Encoder Scores + Latent Tokens) & $10.46 \pm 4.72$ ms & 2.90\% \\
 \addlinespace[8pt]
-Decision Calibration Scoring (Non-Oracle Max-OR Gate) & $0.155 \pm 0.053$ ms & 0.10\% \\
+Decision Calibration Scoring (Non-Oracle Max-OR Gate) & $0.545 \pm 0.301$ ms & 0.15\% \\
 \addlinespace[6pt]
 \midrule
 \addlinespace[6pt]
-\textbf{Proposed Multi-Tier Guardrail Total} & \textbf{3.37 $\pm$ 1.21 ms} & \textbf{2.11\% (+3.37 ms)} \\
+\textbf{Proposed Multi-Tier Guardrail Total} & \textbf{11.00 $\pm$ 4.88 ms} & \textbf{3.05\% (+11.00 ms)} \\
 \addlinespace[8pt]
-\textbf{Combined Forward Pass (Model + Guardrail Total)} & \textbf{163.09 $\pm$ 26.09 ms} & \textbf{102.11\% (6.13 FPS)} \\
+\textbf{Combined Forward Pass (Model + Guardrail Total)} & \textbf{371.72 $\pm$ 89.05 ms} & \textbf{103.05\% (2.69 FPS)} \\
 \bottomrule
 \end{tabular}%
 }

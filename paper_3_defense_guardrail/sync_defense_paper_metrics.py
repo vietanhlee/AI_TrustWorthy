@@ -168,9 +168,11 @@ def sync_all():
             p_val = c_data.get("p_value_exact_binomial", c_data.get("p_value_chi2", 0.0))
 
             if p_val < 1e-4:
-                p_str = f"\\textbf{{{p_val:.2e}}} ($p < 10^{{-4}}$)".replace("e-0", " \\times 10^{-").replace("e-", " \\times 10^{-")
-                if not p_str.endswith("$)"):
-                    p_str = p_str.replace(" \\times 10^{-", " \\times 10^{-") + "}"
+                # Format chuẩn khoa học: \textbf{$1.52 \times 10^{-5}$} ($p < 10^{-4}$)
+                parts = f"{p_val:.2e}".split("e")
+                base_val = float(parts[0])
+                exp_val = int(parts[1])
+                p_str = f"\\textbf{{${base_val:.2f} \\times 10^{{{exp_val}}}$}} ($p < 10^{{-4}}$)"
             elif p_val < 0.01:
                 p_str = f"\\textbf{{{p_val:.4f}}} ($p < 0.01$)"
             elif p_val < 0.05:
@@ -194,8 +196,12 @@ def sync_all():
     if s1 and "cal_thresholds" in s1:
         tau_fused = s1["cal_thresholds"].get("Calibrated_Max_OR", 0.9842)
         print(f"\n[+] Đồng bộ Table 5 (Multi-Testing Comparison): tau_fused = {tau_fused:.4f}")
-        # Thay thế giá trị tau nếu cần
-        tex_content = re.sub(r"\\textbf\{0\.\d{4}\}\s*&\s*\\makecell\[l\]\{\\textbf\{5\.\d\%\}", f"\\textbf{{{tau_fused:.4f}}} & \\makecell[l]{{\\textbf{{5.2\\%}}", tex_content)
+        repl_t5 = f"\\textbf{{{tau_fused:.4f}}} & \\makecell[l]{{\\textbf{{5.2\\%}}"
+        tex_content = re.sub(
+            r"\\textbf\{0\.\d{4}\}\s*&\s*\\makecell\[l\]\{\\textbf\{5\.\d\%\}",
+            lambda m: repl_t5,
+            tex_content
+        )
 
     # 4. Ghi lại file LaTeX
     with open(TEX_PATH, "w", encoding="utf-8") as f:
