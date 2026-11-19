@@ -111,7 +111,7 @@ def generate_all_paper2_figures(
             fig, ax = plt.subplots(figsize=(6.8, 3.8))
             ax.plot(eps_labels, eqf_fp, "o--", color="#1f77b4", linewidth=2.0, label="Existing Query Fabrication (EQF)")
             ax.plot(eps_labels, dqf_fp, "s-", color="#d62728", linewidth=2.2, label="Dense Query Fabrication (DQF - Ours)")
-            ax.set_xlabel("Perturbation Budget $L_\infty$ Epsilon (/255)", fontweight="bold")
+            ax.set_xlabel(r"Perturbation Budget $L_\infty$ Epsilon (/255)", fontweight="bold")
             ax.set_ylabel("Phantom False Positive Count", fontweight="bold")
             ax.set_title("Perturbation Budget Sensitivity: EQF vs DQF", fontweight="bold")
             ax.set_xticks(eps_labels)

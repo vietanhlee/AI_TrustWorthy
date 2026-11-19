@@ -213,6 +213,10 @@ def main():
     else:
         selected_tasks = sorted([int(t.strip()) for t in args.tasks.split(",") if t.strip()])
 
+    if args.skip_cache_gen and 0 in selected_tasks:
+        selected_tasks.remove(0)
+        logger.info("Bỏ qua Task 0 (Pre-generate Adversarial Cache) do có cờ --skip_cache_gen. Hệ thống sẽ sinh đối kháng On-The-Fly trực tiếp trên GPU VRAM (0 GB đĩa).")
+
     total_start_time = time.perf_counter()
     task_manifest: List[Dict[str, Any]] = []
 
