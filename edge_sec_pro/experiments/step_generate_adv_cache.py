@@ -213,11 +213,13 @@ def generate_single_cache(
         "threads": int(threads),
     }
 
-    # Lưu perturbation delta dạng float16 để tiết kiệm dung lượng nhưng giữ sai số < 5e-4 (< 0.13/255)
-    delta_f16 = (adv_all - clean_imgs).numpy().astype(np.float16)
+    # Lưu perturbation delta chuẩn IEEE 754 float32 nguyên bản (tuyệt đối không ép kiểu float16 hay uint8)
+    delta_f32 = (adv_all - clean_imgs).numpy().astype(np.float32)
     np.savez_compressed(
         out_file,
-        delta_f16=delta_f16,
+        delta=delta_f32,
+        delta_f32=delta_f32,
+        delta_f16=delta_f32,
         image_ids=image_ids,
         l2_norms=np.array(l2_norms, dtype=np.float32),
         meta_json=np.array(json.dumps(meta)),
