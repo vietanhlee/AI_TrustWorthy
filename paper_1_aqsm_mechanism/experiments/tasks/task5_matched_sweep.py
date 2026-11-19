@@ -1,22 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task5_matched_sweep
-Mục đích: Task độc lập quét ngân sách nhiễu Matched-Budget (eps in {4/255, 8/255, 16/255})
+Mục đích: CLI điều phối Task 5 - Quét ngân sách nhiễu Matched-Budget (eps in {4/255, 8/255, 16/255})
 cho AQSM, Query Vanishing, và Task PGD -> Phục vụ Table 9 và Figure 8.
-
-Đặc tính chuẩn công nghiệp (Production Standards):
-  - Nhận tham số linh hoạt `--folder_image`, `--annotations`, `--output_dir`, `--cache_dir`.
-  - Nạp ảnh theo lô lười (Lazy Batch Loading) chống tràn RAM khi chạy quy mô 5,000 ảnh.
-  - Tự động fallback và logging audit streams chi tiết.
 """
 
-import argparse
 import gc
-import logging
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
-import time
 from pathlib import Path
 
 import torch
@@ -25,8 +17,6 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from paper_1_aqsm_mechanism.utils.cli import create_base_parser
-from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
@@ -39,7 +29,10 @@ from paper_1_aqsm_mechanism.experiments.config import (
     get_device,
     update_experiment_paths,
 )
-from paper_1_aqsm_mechanism.experiments.matched_budget_sweep import run_matched_budget_sweep
+from paper_1_aqsm_mechanism.experiments.engines.matched_budget_sweep import (
+    run_matched_budget_sweep,
+)
+from paper_1_aqsm_mechanism.utils.cli import create_base_parser
 
 
 def main():
@@ -52,19 +45,15 @@ def main():
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
     )
-
     configure_cpu_threads(args.threads)
     hw_info = detect_hardware_environment(preferred_device=args.device)
     device = get_device(preferred=args.device)
     batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
 
     audit_logger = ExperimentAuditLogger(task_name="task5_matched_sweep")
-
-    # Nạp mô hình RT-DETR
     wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
     wrapper.eval()
 
-    # Nạp dataset linh hoạt
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,

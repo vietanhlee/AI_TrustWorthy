@@ -1,0 +1,203 @@
+# -*- coding: utf-8 -*-
+"""
+Module: paper_1_aqsm_mechanism.experiments.engines.defense_evaluation_engine
+Mục đích: Động cơ đánh giá cơ chế phòng thủ Encoder Selection Monitor (ESM)
+và Calibrated Guardrail trên tập COCO val2017 -> Phục vụ Table 11 & Figure 9:
+  1. Hiệu chuẩn FPR danh định 5.0% trên N_cal ảnh sạch đầu tiên (Zero Data Leakage).
+  2. Đo đạc tỷ lệ phát hiện (TPR @ 5% FPR) trước AQSM, Query Vanishing, Task PGD.
+  3. Đánh giá khả năng chống chịu tấn công thích ứng (White-box Adaptive PGD theo Carlini-Tramèr).
+  4. Xuất summary JSON và raw CSV phục vụ kiểm toán và vẽ biểu đồ trong bài báo.
+"""
+
+import gc
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
+from paper_1_aqsm_mechanism.core.defense_engine import (
+    EncoderSelectionMonitor,
+    evaluate_defense_cohort,
+)
+from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
+from paper_1_aqsm_mechanism.experiments.config import (
+    get_summary_json_dir,
+)
+from paper_1_aqsm_mechanism.utils.io_helpers import save_json
+
+
+def run_adaptive_evasion_test(
+    wrapper: RTDETRModelWrapper,
+    clean_imgs: Any,
+    esm_monitor: EncoderSelectionMonitor,
+    n_samples: int = 15,
+    lambdas: List[float] = [0.2, 0.5, 1.0, 2.0],
+) -> Dict[str, Any]:
+    """
+    Thực nghiệm tấn công thích ứng White-Box Adaptive PGD (Carlini-Tramèr):
+    Kẻ tấn công vừa dìm detection mAP vừa tối ưu để né tránh ngưỡng phát hiện của ESM.
+    """
+    model = wrapper.model
+    device = wrapper.device
+    test_sub = clean_imgs[:n_samples]
+    if hasattr(test_sub, "to"):
+        test_sub = test_sub.to(device)
+
+    results = {}
+    print("\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM...")
+    for lam in lambdas:
+        adv = test_sub.clone().detach().requires_grad_(True)
+        step_alpha = 2.0 / 255.0
+        eps = 16.0 / 255.0
+
+        for _ in range(5):
+            adv_var = adv.clone().detach().requires_grad_(True)
+            mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
+            out = model(pixel_values=adv_var, pixel_mask=mask)
+            enc_logits = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
+            probs = torch.sigmoid(enc_logits)
+            max_probs, _ = probs.max(dim=-1)
+
+            # Task Loss (Dìm điểm các query có xác suất cao)
+            k = min(15, max_probs.shape[1])
+            top_probs, _ = torch.topk(max_probs, k=k, dim=-1)
+            task_loss = (top_probs ** 2).mean()
+
+            # Evasion Loss (Né tránh ngưỡng ESM)
+            topk_vals, _ = torch.topk(max_probs, k=min(300, max_probs.shape[1]), dim=-1)
+            top1_val = topk_vals[:, 0]
+            top300_val = topk_vals[:, -1]
+            diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
+
+            # Phạt nếu dropoff vượt ngoài biên độ sạch
+            target_drop = 30.0
+            evasion_loss = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
+
+            total_loss = task_loss + lam * evasion_loss
+
+            model.zero_grad()
+            if adv_var.grad is not None:
+                adv_var.grad.zero_()
+            total_loss.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_var.grad.sign() if adv_var.grad is not None else torch.zeros_like(adv_var)
+                adv = adv - step_alpha * grad_sign
+                delta = torch.clamp(adv - test_sub, min=-eps, max=eps)
+                adv = torch.clamp(test_sub + delta, min=0.0, max=1.0).detach()
+
+        with torch.no_grad():
+            final_out = model(adv)
+            final_logits = final_out.enc_outputs_class if hasattr(final_out, "enc_outputs_class") and final_out.enc_outputs_class is not None else final_out.logits
+            preds = esm_monitor.predict(final_logits.cpu())
+            tpr_evade = float(np.mean(preds)) * 100.0
+
+        results[f"lambda_{lam}"] = {
+            "evasion_weight_lambda": lam,
+            "detected_tpr_pct": round(tpr_evade, 2),
+            "evasion_success_pct": round(100.0 - tpr_evade, 2),
+        }
+        print(f"   + Lambda = {lam:3.1f} | Detection TPR = {tpr_evade:5.1f}% | Evasion Success = {100.0 - tpr_evade:5.1f}%")
+
+    return results
+
+
+def run_defense_evaluation(
+    wrapper: RTDETRModelWrapper,
+    dataset: Any,
+    cal_ratio: float = 0.3,
+    target_fpr: float = 0.05,
+    cache_dir: Optional[Path] = None,
+    audit_logger: Any = None,
+) -> Dict[str, Any]:
+    """
+    Thực hiện đánh giá toàn diện cơ chế phòng thủ ESM trên tập ảnh kiểm thử.
+    """
+    clean_imgs = dataset.tensors
+    image_ids = dataset.image_ids
+    n_actual = len(dataset)
+    device = wrapper.device
+
+    print("\n==================================================================")
+    print(f" [Defense Evaluation Engine] Đánh giá Hệ thống Phòng thủ ESM & Guardrail")
+    print(f" N={n_actual} ảnh COCO val2017 | Target FPR={target_fpr*100:.1f}%")
+    print("==================================================================")
+
+    # Nạp các tập mẫu đối kháng
+    adv_dict = {}
+    for atk in ["aqsm", "vanishing", "taskpgd"]:
+        adv_imgs, _ = load_cached_adv_images(
+            attack=atk,
+            eps_num=16,
+            n_eval=n_actual,
+            clean_imgs=clean_imgs,
+            expected_image_ids=image_ids,
+            cache_dir=cache_dir,
+        )
+        adv_dict[atk] = adv_imgs
+
+    # Xác định n_cal theo tỷ lệ hoặc tối đa 1000 ảnh
+    n_cal = min(1000, max(50, int(n_actual * cal_ratio)))
+    if n_actual <= 100:
+        n_cal = max(10, n_actual // 2)
+
+    # Đánh giá TPR @ 5% FPR trên Clean vs Adversarial
+    defense_results = evaluate_defense_cohort(
+        model_wrapper=wrapper,
+        clean_tensors=clean_imgs,
+        adv_tensors_dict=adv_dict,
+        target_fpr=target_fpr,
+        n_cal=n_cal,
+    )
+
+    # Khởi tạo ESM đã fit trên n_cal ảnh đầu để test adaptive evasion
+    cal_logits = []
+    with torch.no_grad():
+        for i in range(0, n_cal, 10):
+            end_i = min(i + 10, n_cal)
+            b = clean_imgs[i : end_i]
+            if hasattr(b, "to"):
+                b = b.to(device)
+            out = wrapper.model(b)
+            lgt = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
+            cal_logits.append(lgt.cpu())
+
+    esm_fitted = EncoderSelectionMonitor(target_fpr=target_fpr)
+    esm_fitted.fit(cal_logits)
+
+    # Đánh giá tấn công thích ứng White-Box Adaptive Evasion
+    n_adapt = min(20, n_actual - n_cal) if (n_actual - n_cal) > 0 else min(20, n_actual)
+    test_adaptive_imgs = clean_imgs[n_cal : n_cal + n_adapt]
+    adaptive_results = run_adaptive_evasion_test(
+        wrapper=wrapper,
+        clean_imgs=test_adaptive_imgs,
+        esm_monitor=esm_fitted,
+        n_samples=len(test_adaptive_imgs),
+        lambdas=[0.2, 0.5, 1.0, 2.0],
+    )
+    defense_results["adaptive_evasion"] = adaptive_results
+
+    summary_json_dir = get_summary_json_dir()
+    summary_json_dir.mkdir(parents=True, exist_ok=True)
+
+    # Lưu kết quả JSON Table 11
+    summary_path = summary_json_dir / "defense_esm_evaluation.json"
+    save_json(defense_results, summary_path)
+    print(f"\n>>> Đã lưu kết quả thực nghiệm phòng thủ Table 11 ra: {summary_path}")
+
+    # Lưu alias tương thích ngược defense_evaluation_summary.json
+    summary_path_alias = summary_json_dir / "defense_evaluation_summary.json"
+    save_json(defense_results, summary_path_alias)
+    print(f">>> Đã lưu alias Table 11 ra: {summary_path_alias}")
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+
+    return defense_results

@@ -9,13 +9,14 @@ Mục đích: Cung cấp bộ công cụ tiện ích chuẩn hóa (Shared Utilit
 """
 
 from .cli import create_base_parser
-from .device import clear_gpu_memory, get_device_info, setup_cpu_threads
+from .device import clear_gpu_memory, detect_hardware, get_device_info, setup_cpu_threads
 from .io_helpers import format_duration, load_json, save_json, to_serializable, write_csv_rows
 from .stats import bootstrap_paired_diff, repeated_measures_2x2_anova
 
 __all__ = [
     "create_base_parser",
     "get_device_info",
+    "detect_hardware",
     "setup_cpu_threads",
     "clear_gpu_memory",
     "save_json",

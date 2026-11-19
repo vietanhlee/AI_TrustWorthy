@@ -68,6 +68,10 @@ def get_device_info(requested_device: str = "auto") -> Dict[str, Any]:
     return info
 
 
+# Alias tương thích
+detect_hardware = get_device_info
+
+
 def setup_cpu_threads(num_threads: int = 4) -> int:
     """
     Cấu hình số luồng tính toán CPU an toàn cho PyTorch và OpenMP/MKL.

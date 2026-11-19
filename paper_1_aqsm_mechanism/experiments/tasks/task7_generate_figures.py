@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task7_generate_figures
-Mục đích: Task tổng hợp đọc các file JSON thực nghiệm và tự động xuất toàn bộ biểu đồ vector PDF/PNG chuẩn xuất bản.
-
-Đặc tính chuẩn công nghiệp (Production Standards):
-  - Nhận tham số linh hoạt `--output_dir` và `--fig_dir`.
-  - Đọc trực tiếp từ kết quả JSON thật của các tasks trước, không hardcode số liệu.
+Mục đích: CLI điều phối Task 7 - Đọc các file JSON thực nghiệm và tự động xuất toàn bộ biểu đồ vector PDF/PNG chuẩn xuất bản Elsevier EAAI.
 """
 
-import argparse
-import logging
 import sys
 from pathlib import Path
 
@@ -19,17 +13,17 @@ if str(WORKSPACE_DIR) not in sys.path:
 
 from paper_1_aqsm_mechanism.experiments.config import (
     FIG_DIR,
-    LOGS_DIR,
     OUTPUTS_DIR,
-    SUMMARY_JSON_DIR,
     update_experiment_paths,
 )
-from paper_1_aqsm_mechanism.experiments.generate_figures_and_tables import generate_all_figures_and_tables
+from paper_1_aqsm_mechanism.experiments.engines.generate_figures_and_tables import (
+    generate_all_figures_and_tables,
+)
+from paper_1_aqsm_mechanism.utils.cli import create_base_parser
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Task 7: Generate Publication Figures (PDF/PNG)")
-    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục kết quả chứa summary_json")
+    parser = create_base_parser("Generate Publication Figures (PDF/PNG)", task_name="Task 7")
     parser.add_argument("--fig_dir", type=str, default=str(FIG_DIR), help="Thư mục xuất file ảnh PDF/PNG")
     args = parser.parse_args()
 

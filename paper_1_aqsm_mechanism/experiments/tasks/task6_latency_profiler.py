@@ -1,23 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task6_latency_profiler
-Mục đích: Task độc lập đo đạc thời gian thực thi phần cứng (Hardware Latency Telemetry qua n_runs lần suy luận) -> Phục vụ Table 10:
-  - Tự động nhận diện thiết bị hiện tại (CUDA GPU vs Multi-core CPU) và trích xuất đúng metrics phần cứng tương ứng.
-  - Phân tích độ trễ từng stage: Backbone -> Hybrid Encoder -> Query Selection -> Deformable Decoder -> End-to-End.
-
-Đặc tính chuẩn công nghiệp (Production Standards):
-  - Nhận tham số linh hoạt `--folder_image`, `--annotations`, `--output_dir`, `--n_runs`, `--warmup`, `--device`, `--threads`.
-  - Tự động lấy mẫu ảnh từ folder COCO hoặc khởi tạo sample tensor chuẩn Native 640x640.
-  - Ghi nhận raw CSV từng lần chạy và summary JSON Table 10.
+Mục đích: CLI điều phối Task 6 - Đo đạc thời gian thực thi phần cứng (Hardware Latency Telemetry qua n_runs lần suy luận) -> Phục vụ Table 10.
 """
 
-import argparse
 import gc
-import logging
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
-import time
 from pathlib import Path
 
 import torch
@@ -26,8 +16,6 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
-from paper_1_aqsm_mechanism.utils.cli import create_base_parser
-from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
 from paper_1_aqsm_mechanism.experiments.config import (
@@ -38,7 +26,10 @@ from paper_1_aqsm_mechanism.experiments.config import (
     get_device,
     update_experiment_paths,
 )
-from paper_1_aqsm_mechanism.experiments.latency_profiler import profile_pipeline_latency
+from paper_1_aqsm_mechanism.experiments.engines.latency_profiler import (
+    profile_pipeline_latency,
+)
+from paper_1_aqsm_mechanism.utils.cli import create_base_parser
 
 
 def main():
@@ -52,7 +43,6 @@ def main():
         annotations=args.annotations,
         output_dir=args.output_dir,
     )
-
     configure_cpu_threads(args.threads)
     hw_info = detect_hardware_environment(preferred_device=args.device)
     device = get_device(preferred=args.device)
@@ -68,11 +58,9 @@ def main():
         "random_seed": RANDOM_SEED,
     })
 
-    # Nạp mô hình RT-DETR
     wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
     wrapper.eval()
 
-    # Thử lấy ảnh thật từ folder_image hoặc tạo sample ngẫu nhiên
     sample_img = None
     folder_p = Path(args.folder_image)
     if folder_p.is_dir():

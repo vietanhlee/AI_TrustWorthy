@@ -176,27 +176,11 @@ def compute_tpr_at_fixed_fpr(
     return tpr, threshold
 
 
-def make_serializable(obj: Any) -> Any:
-    """
-    Chuyển đổi đệ quy các cấu trúc dữ liệu phức tạp (numpy, torch, dataclass)
-    về định dạng chuẩn nguyên thủy (native types) có thể xuất sang JSON.
-    """
-    if isinstance(obj, (np.floating, float)):
-        return float(obj)
-    elif isinstance(obj, (np.integer, int)):
-        return int(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, torch.Tensor):
-        return obj.detach().cpu().tolist()
-    elif isinstance(obj, (list, tuple)):
-        return [make_serializable(x) for x in obj]
-    elif isinstance(obj, dict):
-        return {str(k): make_serializable(v) for k, v in obj.items()}
-    return obj
+from paper_1_aqsm_mechanism.utils.io_helpers import to_serializable
 
-
-to_json_serializable = make_serializable
+# Giữ tương thích ngược với mã cũ
+make_serializable = to_serializable
+to_json_serializable = to_serializable
 
 
 def benjamini_hochberg_correction(
