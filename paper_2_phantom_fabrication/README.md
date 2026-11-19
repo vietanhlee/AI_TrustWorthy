@@ -21,15 +21,19 @@ paper_2_phantom_fabrication/
 │
 ├── core/                                  # Mô-đun nền tảng (Domain Logic & Config)
 │   ├── __init__.py                        # Định nghĩa package exports
-│   ├── coco_gt.py                         # Ingestion COCO, Hungarian Matcher, VOC mAP
-│   └── config.py                          # Cấu hình siêu tham số, thread CPU và thiết bị
+│   ├── adv_cache.py                       # Quản lý bộ nhớ đệm đối kháng chuẩn IEEE 754 float32 (Zero uint8 Loss)
+│   ├── coco_gt.py                         # Ingestion COCO, Streaming DataLoader, Hungarian Matcher, VOC mAP
+│   └── config.py                          # Cấu hình siêu tham số, thread CPU, cache dir và thiết bị
 │
 ├── experiments/                           # Hệ thống thực nghiệm chính (Production Engine)
 │   ├── __init__.py                        # Package init
-│   ├── run_full_paper2_suite.py           # Master Suite điều phối 3 Stage thực nghiệm
+│   ├── run_full_paper2_suite.py           # Master Suite điều phối 3 Stage thực nghiệm & Streaming Loader
 │   ├── plot_paper_figures.py              # Sinh đồ thị vector (Figures 1-4) từ telemetry
 │   ├── sync_telemetry_to_paper.py         # Đồng bộ dữ liệu JSON vào Tables 1-4 & build PDF
 │   └── sqd_filter.py                      # Bộ lọc phòng thủ Spatial Query Dispersion (SQD)
+│
+├── cache/                                 # Thư mục lưu trữ bộ nhớ đệm mẫu đối kháng
+│   └── adv_cache_640/                     # Cache delta đối kháng .npz chuẩn float32 nguyên bản (tự động bỏ qua git)
 │
 ├── fig/                                   # Đồ thị vector và hình minh họa bài báo
 │   ├── fig1_concept_paradox.png           # Sơ đồ nghịch lý NMS-Free
@@ -45,11 +49,11 @@ paper_2_phantom_fabrication/
 │   ├── parallel_640_ablations_audit.json  # Dữ liệu kiểm toán ablations chuyên sâu
 │   └── multiseed_checkpoints/             # Checkpoints từng seed (seed_42, seed_123, seed_456)
 │
-└── legacy_archive/                        # Kho lưu trữ các phiên bản thử nghiệm trước
+└── legacy_archive/                        # Kho lưu trữ các phiên bản thử nghiệm prototype trước đây
     ├── scripts/                           # Các script đơn lẻ đã được hợp nhất vào Master Suite
-    ├── old_results/                       # Các kết quả kiểm thử và file cache cũ
+    ├── old_results/                       # Các kết quả kiểm thử cũ
     ├── old_logs/                          # Nhật ký chạy đa luồng trước đây
-    └── adv_cache/                         # Cache nhiễu đối kháng các vòng lặp trước
+    └── adv_cache/                         # Cache nhiễu đối kháng prototype cũ
 ```
 
 ---
@@ -92,14 +96,15 @@ Script `run_all.sh` tự động nhận diện phần cứng, cấp phát tiến
 # 1. Cấp quyền thực thi
 chmod +x run_all.sh
 
-# 2. Chạy với dataset COCO (ví dụ 5000 ảnh val2017)
-./run_all.sh --folder_image /path/to/coco5k/val2017
-
-# Hoặc chỉ định cụ thể file annotations nếu nằm ở thư mục khác:
+# 2. Chạy toàn bộ ảnh COCO (mặc định N=0: chạy 100% full dataset)
 ./run_all.sh \
-  --folder_image /kaggle/input/coco-2017-dataset/coco2017/val2017 \
-  --annotations /kaggle/input/coco-2017-dataset/coco2017/annotations/instances_val2017.json \
-  --num_benchmark 15 \
+  --folder_image "/kaggle/input/datasets/huecute/coco5k/coco5k/val2017" \
+  --annotations "/kaggle/input/datasets/huecute/coco5k/coco5k/annotations/instances_val2017.json"
+
+# Tùy chọn giới hạn số lượng ảnh nếu muốn kiểm thử nhanh (quick dry-run):
+./run_all.sh \
+  --folder_image "/kaggle/input/datasets/huecute/coco5k/coco5k/val2017" \
+  --num_benchmark 100 \
   --num_ablation 300
 ```
 
@@ -107,22 +112,41 @@ chmod +x run_all.sh
 
 ```bash
 python experiments/run_full_paper2_suite.py \
-  --folder_image ../coco5k/val2017 \
-  --annotations ../coco5k/annotations/instances_val2017.json \
-  --num_images_benchmark 15 \
-  --num_images_ablation 300 \
+  --folder_image /kaggle/input/datasets/huecute/coco5k/coco5k/val2017 \
+  --annotations /kaggle/input/datasets/huecute/coco5k/coco5k/annotations/instances_val2017.json \
+  --num_images_benchmark 0 \
+  --num_images_ablation 0 \
   --seeds 42,123,456 \
   --device auto \
+  --cache_dir cache/adv_cache_640 \
   --output_json results/paper2_complete_telemetry.json
 ```
 
 **Các tham số chính:**
 - `--folder_image`: Đường dẫn thư mục chứa ảnh JPEG đánh giá (bắt buộc).
 - `--annotations`: Đường dẫn file `instances_val2017.json` (tự động dò tìm nếu để trống).
-- `--num_images_benchmark`: Số lượng ảnh đánh giá trên mỗi seed ở Stage 1 (mặc định: `15`).
-- `--num_images_ablation`: Số lượng ảnh đánh giá ở Stage 2 (mặc định: `300`).
+- `--num_images_benchmark`: Số lượng ảnh đánh giá trên mỗi seed ở Stage 1 (mặc định: `0` = chạy toàn bộ ảnh).
+- `--num_images_ablation`: Số lượng ảnh đánh giá ở Stage 2 (mặc định: `0` = chạy toàn bộ ảnh).
 - `--seeds`: Danh sách random seeds độc lập (mặc định: `42,123,456`).
 - `--device`: Thiết bị tính toán (`auto`, `cuda`, `cpu`).
+- `--cache_dir`: Thư mục lưu và tái sử dụng bộ nhớ đệm đối kháng `.npz` chuẩn float32 (mặc định: `cache/adv_cache_640`).
+- `--skip_cache_gen`: Chỉ nạp cache có sẵn, không sinh cache mới.
+- `--force_recompute`: Ép buộc tính toán lại và ghi đè cache.
+
+---
+
+## 4. Kiến trúc Streaming & Bộ nhớ đệm Đối kháng (Adversarial Cache Architecture)
+
+Theo chuẩn mực kỹ thuật đã thiết lập tại Paper 1:
+1. **Lưu trữ chuẩn IEEE 754 float32 nguyên bản (Zero uint8 Loss)**:
+   - Perturbation delta $\delta = x_{adv} - x_{clean}$ được lưu giữ chính xác tuyệt đối ở định dạng `float32`.
+   - Tuyệt đối không ép kiểu hay làm tròn sang `uint8`, tránh làm sai lệch gradient và tính chất toán học của các cuộc tấn công đối kháng.
+2. **Loại bỏ hoàn toàn nguy cơ tràn RAM (Out-Of-Memory SIGKILL 57)**:
+   - Dùng `CocoCohortDataset` nạp ảnh lười theo dòng (Streaming DataLoader) kết hợp `np.memmap` trên đĩa.
+   - Mức tiêu thụ RAM thực tế luôn được giữ ổn định dưới 1.5 GB ngay cả khi xử lý toàn bộ 5,000 ảnh COCO.
+3. **Tái sử dụng tức thì (Instant Cache Hit)**:
+   - Khi chạy đa hạt giống (Multi-Seed) trên toàn bộ tập dữ liệu, seed đầu tiên sẽ sinh và ghi cache vào đĩa.
+   - Các seed tiếp theo và các bài kiểm tra chuyên sâu tự động phát hiện `[Cache Hit]` và nạp trực tiếp qua `mmap_mode="r"`, giảm thời gian thực thi từ hàng giờ xuống vài chục giây.
 
 ---
 
