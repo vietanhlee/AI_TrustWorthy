@@ -20,6 +20,7 @@ from transformers import RTDetrForObjectDetection
 
 from paper_2_phantom_fabrication.core.coco_gt import (
     discover_coco_annotations,
+    evaluate_coco_predictions,
     load_flexible_coco_cohort,
 )
 from paper_2_phantom_fabrication.core.config import get_adv_cache_dir
@@ -138,14 +139,62 @@ def run_stage_2_downstream_eval(
     )
 
     aeb_sim = simulate_aeb_braking_events(clean_out["raw_detections"], dqf_out["raw_detections"])
-    bytetrack_sim = simulate_bytetrack_tracking_failures(clean_out["raw_detections"], dqf_out["raw_detections"])
+    bytetrack_sim = simulate_bytetrack_tracking_failures(
+        clean_out["raw_detections"], dqf_out["raw_detections"], gt_list=cohort["gt_list"]
+    )
 
-    # 3. Size breakdown
-    size_breakdown = {
-        "small": {"clean_mAP50": round(clean_out["metrics"].get("mAP@50_small", 34.2), 2), "dqf_mAP50": round(dqf_out["metrics"].get("mAP@50_small", 14.1), 2)},
-        "medium": {"clean_mAP50": round(clean_out["metrics"].get("mAP@50_medium", 58.5), 2), "dqf_mAP50": round(dqf_out["metrics"].get("mAP@50_medium", 28.6), 2)},
-        "large": {"clean_mAP50": round(clean_out["metrics"].get("mAP@50_large", 72.8), 2), "dqf_mAP50": round(dqf_out["metrics"].get("mAP@50_large", 41.2), 2)},
+    # 3. Phân rã kích thước (Size Breakdown: Small, Medium, Large) thực nghiệm chuẩn COCO
+    # Tuyệt đối không fallback số liệu cố định: tính trực tiếp từ ground truth và detection
+    size_bins = {
+        "small": {"min_area": 0.0, "max_area": (32.0 / 640.0) ** 2},
+        "medium": {"min_area": (32.0 / 640.0) ** 2, "max_area": (96.0 / 640.0) ** 2},
+        "large": {"min_area": (96.0 / 640.0) ** 2, "max_area": 1e6},
     }
+    size_breakdown: Dict[str, Any] = {}
+    gt_list = cohort["gt_list"]
+
+    for s_name, s_range in size_bins.items():
+        sub_gt = []
+        tot_objs = 0
+        for i in range(len(gt_list)):
+            gb = gt_list[i].get("boxes_xyxy", gt_list[i].get("boxes", np.zeros((0, 4))))
+            gl = gt_list[i].get("labels", np.zeros((0,), dtype=int))
+            iscrowd = gt_list[i].get("iscrowd", np.zeros((len(gb),), dtype=bool))
+            img_id = gt_list[i].get("image_id", i)
+
+            if len(gb) > 0:
+                areas = (gb[:, 2] - gb[:, 0]) * (gb[:, 3] - gb[:, 1])
+                m = (areas >= s_range["min_area"]) & (areas < s_range["max_area"])
+                sub_gt.append({
+                    "boxes_xyxy": gb[m],
+                    "labels": gl[m],
+                    "iscrowd": iscrowd[m] if len(iscrowd) == len(gb) else np.zeros((int(np.sum(m)),), dtype=bool),
+                    "image_id": img_id,
+                })
+                tot_objs += int(np.sum(m))
+            else:
+                sub_gt.append({
+                    "boxes_xyxy": np.zeros((0, 4)),
+                    "labels": np.zeros((0,), dtype=int),
+                    "iscrowd": np.zeros((0,), dtype=bool),
+                    "image_id": img_id,
+                })
+
+        if tot_objs > 0:
+            c_eval = evaluate_coco_predictions(clean_out["raw_detections"], sub_gt)["mAP@50"]
+            a_eval = evaluate_coco_predictions(dqf_out["raw_detections"], sub_gt)["mAP@50"]
+            size_breakdown[s_name] = {
+                "clean_mAP50": round(float(c_eval), 2),
+                "dqf_mAP50": round(float(a_eval), 2),
+                "total_objects": tot_objs,
+            }
+        else:
+            size_breakdown[s_name] = {
+                "clean_mAP50": 0.0,
+                "dqf_mAP50": 0.0,
+                "total_objects": 0,
+                "note": "insufficient_objects_in_cohort",
+            }
 
     downstream_and_figures = {
         "aeb_simulation": aeb_sim,

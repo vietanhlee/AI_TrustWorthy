@@ -1,46 +1,57 @@
 # -*- coding: utf-8 -*-
 """
 Module: paper_2_phantom_fabrication.downstream.bytetrack_sim
-Mục đích: Đo lường độ trễ và sự bùng nổ kích thước ma trận gán cặp Bipartite Matching
-của thuật toán theo dõi đa đối tượng ByteTrack khi bị ngập lụt bởi Phantom Queries.
+Mục đích: Mô phỏng phân tích proxy (Analytical Proxy Simulation) đo độ trễ và sự bùng nổ kích thước
+ma trận gán cặp Bipartite Matching (Kuhn-Munkres Hungarian Algorithm O(N^3)) của thuật toán ByteTrack
+khi bị ngập lụt bởi Phantom Queries trên tập ảnh tĩnh COCO.
+Lưu ý phương pháp luận: Đây là proxy độ phức tạp thuật toán gán cặp tổ hợp trên từng khung hình,
+không phải là benchmark tracking video theo chuỗi thời gian (MOTA/IDF1).
 """
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+import torch
 
 from paper_2_phantom_fabrication.core.coco_gt import (
     compute_iou_matrix,
     postprocess_rtdetr_predictions,
 )
-import torch
 
 
 def simulate_bytetrack_complexity(
-    clean_post: List[Dict[str, Any]],
-    eqf_post: List[Dict[str, Any]],
+    clean_post: Sequence[Dict[str, Any]],
+    eqf_post: Sequence[Dict[str, Any]],
     dqf_logits: torch.Tensor,
     dqf_boxes: torch.Tensor,
-    gt_list: List[Dict[str, Any]],
+    gt_list: Sequence[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """
     Mô phỏng bước Hungarian Association trong ByteTrack trên từng khung hình.
-    Đo thời gian thực thi thuật toán Khớp cực tiểu Kuhn-Munkres O(N^3).
+    Đo thời gian thực thi thuật toán Khớp cực tiểu Kuhn-Munkres O(N^3) với ground truth xác thực.
     """
+    if not gt_list or len(gt_list) == 0:
+        raise ValueError("Yêu cầu danh sách nhãn ground truth (gt_list) xác thực từ COCO cohort.")
+
     track_times_clean: List[float] = []
     track_times_eqf: List[float] = []
     track_times_dqf: List[float] = []
     clean_dims: List[int] = []
     adv_dims: List[int] = []
 
-    n_samples = len(gt_list)
+    n_samples = min(len(gt_list), len(clean_post), len(eqf_post))
     dqf_post = postprocess_rtdetr_predictions(dqf_logits, dqf_boxes, score_thresh=0.35)
 
     for i in range(n_samples):
-        cb = clean_post[i]["boxes"]
-        eb = eqf_post[i]["boxes"]
-        db = dqf_post[i]["boxes"]
+        cb = clean_post[i].get("boxes", np.zeros((0, 4)))
+        eb = eqf_post[i].get("boxes", np.zeros((0, 4)))
+        db = dqf_post[i].get("boxes", np.zeros((0, 4)))
+
+        gt_boxes = gt_list[i].get("boxes_xyxy", gt_list[i].get("boxes", np.zeros((0, 4))))
+        n_trk = min(len(gt_boxes), 12)
+        if n_trk == 0:
+            n_trk = 4
 
         for b_set, time_acc in [
             (cb, track_times_clean),
@@ -48,10 +59,6 @@ def simulate_bytetrack_complexity(
             (db, track_times_dqf),
         ]:
             n_det = max(len(b_set), 1)
-            n_trk = min(len(gt_list[i]["boxes_xyxy"]), 12)
-            if n_trk == 0:
-                n_trk = 4
-
             cost = (
                 1.0 - compute_iou_matrix(b_set[:n_det], b_set[:n_trk])
                 if len(b_set) > 0
@@ -68,44 +75,51 @@ def simulate_bytetrack_complexity(
         clean_dims.append(len(cb))
         adv_dims.append(len(eb))
 
-    c_dim_str = f"{int(np.mean(clean_dims))} x {int(np.mean(clean_dims))}"
-    a_dim_str = f"{int(np.mean(clean_dims))} x {int(np.mean(adv_dims))}"
-    exp_factor = f"{np.mean(adv_dims) / max(np.mean(clean_dims), 1):.1f}x"
+    c_mean = float(np.mean(clean_dims)) if clean_dims else 1.0
+    a_mean = float(np.mean(adv_dims)) if adv_dims else 1.0
+    c_dim_str = f"{int(round(c_mean))} x {int(round(c_mean))}"
+    a_dim_str = f"{int(round(c_mean))} x {int(round(a_mean))}"
+    exp_factor = f"{a_mean / max(c_mean, 1e-4):.1f}x"
 
     return {
         "clean_matrix_dim": c_dim_str,
         "adv_matrix_dim": a_dim_str,
         "expansion_factor": exp_factor,
-        "clean_latency_ms": float(np.median(track_times_clean)),
-        "adv_latency_ms": float(np.median(track_times_eqf)),
+        "clean_latency_ms": float(np.median(track_times_clean)) if track_times_clean else 0.0,
+        "adv_latency_ms": float(np.median(track_times_eqf)) if track_times_eqf else 0.0,
+        "dqf_latency_ms": float(np.median(track_times_dqf)) if track_times_dqf else 0.0,
         "track_times_clean": track_times_clean,
         "track_times_eqf": track_times_eqf,
         "track_times_dqf": track_times_dqf,
+        "proxy_note": "Analytical proxy evaluating Kuhn-Munkres Hungarian association complexity under phantom query floods.",
     }
 
 
 def simulate_bytetrack_tracking_failures(
-    clean_detections: List[Dict[str, Any]],
-    adv_detections: List[Dict[str, Any]],
-    gt_list: Optional[List[Dict[str, Any]]] = None,
+    clean_detections: Sequence[Dict[str, Any]],
+    adv_detections: Sequence[Dict[str, Any]],
+    gt_list: Sequence[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """
-    Tiện ích đo độ phức tạp gán cặp Hungarian của ByteTrack trước và sau tấn công.
+    Tiện ích đo độ phức tạp gán cặp Hungarian của ByteTrack giữa tập sạch và đối kháng.
+    Bắt buộc nhận danh sách gt_list xác thực, không dùng pseudo-GT giả định.
     """
-    n_samples = len(clean_detections)
-    if gt_list is None:
-        gt_list = [{"boxes_xyxy": c.get("boxes", np.zeros((0, 4)))} for c in clean_detections]
+    if gt_list is None or len(gt_list) == 0:
+        raise ValueError("simulate_bytetrack_tracking_failures yêu cầu nhãn ground truth (gt_list) thực tế từ dataset.")
 
-    track_times_clean = []
-    track_times_adv = []
-    clean_dims = []
-    adv_dims = []
+    n_samples = min(len(clean_detections), len(adv_detections), len(gt_list))
+
+    track_times_clean: List[float] = []
+    track_times_adv: List[float] = []
+    clean_dims: List[int] = []
+    adv_dims: List[int] = []
 
     for i in range(n_samples):
         cb = clean_detections[i].get("boxes", np.zeros((0, 4)))
         ab = adv_detections[i].get("boxes", np.zeros((0, 4)))
 
-        n_trk = min(len(gt_list[i]["boxes_xyxy"]), 12) if i < len(gt_list) else 4
+        gt_boxes = gt_list[i].get("boxes_xyxy", gt_list[i].get("boxes", np.zeros((0, 4))))
+        n_trk = min(len(gt_boxes), 12)
         if n_trk == 0:
             n_trk = 4
 
@@ -122,11 +136,21 @@ def simulate_bytetrack_tracking_failures(
         clean_dims.append(len(cb))
         adv_dims.append(len(ab))
 
+    c_mean = float(np.mean(clean_dims)) if clean_dims else 1.0
+    a_mean = float(np.mean(adv_dims)) if adv_dims else 1.0
+    c_dim_str = f"{int(round(c_mean))} x {int(round(c_mean))}"
+    a_dim_str = f"{int(round(c_mean))} x {int(round(a_mean))}"
+    exp_factor = f"{a_mean / max(c_mean, 1e-4):.1f}x"
+
     return {
+        "clean_matrix_dim": c_dim_str,
+        "adv_matrix_dim": a_dim_str,
         "clean_latency_ms": float(np.median(track_times_clean)) if track_times_clean else 0.0,
         "adv_latency_ms": float(np.median(track_times_adv)) if track_times_adv else 0.0,
-        "expansion_factor": f"{np.mean(adv_dims) / max(np.mean(clean_dims), 1):.1f}x",
-        "clean_dims_mean": float(np.mean(clean_dims)) if clean_dims else 0.0,
-        "adv_dims_mean": float(np.mean(adv_dims)) if adv_dims else 0.0,
+        "expansion_factor": exp_factor,
+        "clean_dims_mean": c_mean,
+        "adv_dims_mean": a_mean,
+        "track_times_clean": track_times_clean,
+        "track_times_adv": track_times_adv,
+        "proxy_note": "Analytical proxy evaluating Kuhn-Munkres Hungarian association complexity under phantom query floods.",
     }
-

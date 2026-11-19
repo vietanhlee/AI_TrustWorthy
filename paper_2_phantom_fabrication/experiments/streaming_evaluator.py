@@ -194,7 +194,8 @@ def run_streaming_condition_eval(
         elif is_yolo or condition == "Clean":
             adv_b = bx
         elif condition == "Gaussian_Noise":
-            noise = torch.randn_like(bx) * (16.0 / 255.0)
+            noise = torch.randn_like(bx) * epsilon
+            noise = torch.clamp(noise, -epsilon, epsilon)
             adv_b = torch.clamp(bx + noise, 0.0, 1.0)
         else:
             adv_b = generate_batch_adversarial(

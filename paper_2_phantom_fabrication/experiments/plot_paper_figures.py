@@ -281,16 +281,11 @@ def plot_figure_3(audit_640, parallel_audit):
         track_clean = np.array(bt["track_times_clean"])
         track_eqf = np.array(bt["track_times_eqf"])
         track_dqf = np.array(bt["track_times_dqf"])
-        clean_dim = bt.get("clean_matrix_dim", "9 x 9")
-        adv_dim = bt.get("adv_matrix_dim", "9 x 32")
-        exp_f = bt.get("expansion_factor", "3.3x")
+        clean_dim = bt.get("clean_matrix_dim", "N/A")
+        adv_dim = bt.get("adv_matrix_dim", "N/A")
+        exp_f = bt.get("expansion_factor", "1.0x")
     else:
-        track_clean = np.array([0.0052, 0.0056, 0.0081, 0.0068, 0.0098, 0.0056, 0.0133, 0.0140, 0.0078])
-        track_eqf = np.array([0.0228, 0.0041, 0.0141, 0.0104, 0.0103, 0.0134, 0.0115, 0.0120, 0.0157, 0.0239])
-        track_dqf = np.array([0.0250, 0.0031, 0.0157, 0.0058, 0.0137, 0.0140, 0.0102, 0.0147, 0.0170, 0.0269])
-        clean_dim = "9 x 9"
-        adv_dim = "9 x 32"
-        exp_f = "3.3x"
+        raise KeyError("Không tìm thấy kết quả đo đạc ByteTrack trong telemetry. Vui lòng chạy Task 3 trước khi vẽ Figure 3.")
 
     box_labels = ['Clean\nNominal', 'Under EQF\nFlooding', 'Under DQF\nFlooding']
     box_kwargs = {'patch_artist': True, 'widths': 0.5}
@@ -323,16 +318,9 @@ def plot_figure_3(audit_640, parallel_audit):
         aeb_clean = np.array(aeb["aeb_curve_clean"])
         aeb_eqf = np.array(aeb["aeb_curve_eqf"])
         aeb_dqf = np.array(aeb["aeb_curve_dqf"])
-        risk_28m_eqf = aeb.get("eqf_risk_28m", 62.5)
+        risk_28m_eqf = float(aeb.get("eqf_risk_28m", 0.0))
     else:
-        dists = np.linspace(10, 80, 36)
-        lambda_clean = -np.log(1.0 - 0.005) / 28.0
-        lambda_eqf = -np.log(1.0 - 0.625) / 28.0
-        lambda_dqf = -np.log(1.0 - 0.540) / 28.0
-        aeb_clean = (1.0 - np.exp(-lambda_clean * dists)) * 100.0
-        aeb_eqf = (1.0 - np.exp(-lambda_eqf * dists)) * 100.0
-        aeb_dqf = (1.0 - np.exp(-lambda_dqf * dists)) * 100.0
-        risk_28m_eqf = 62.5
+        raise KeyError("Không tìm thấy kết quả đo đạc AEB Hazard trong telemetry. Vui lòng chạy Task 3 trước khi vẽ Figure 3.")
 
     ax2.plot(dists, aeb_clean, label='Clean Nominal (<1.0% at 28m)', color=c_green, linewidth=2.0)
     ax2.plot(dists, aeb_eqf, label=f'Under EQF Flooding ({risk_28m_eqf:.1f}% at 28m)', color=c_red, linewidth=2.0)

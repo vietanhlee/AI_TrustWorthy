@@ -302,11 +302,11 @@ To test this hypothesis, we track candidate ranks of all verified foreground anc
 \subsection{Ablation of Optimization Hyperparameters and Multi-Class Generalization}
 \label{sec:ablation_studies}
 
-While Table~\ref{tab:fabrication_benchmarks} establishes official multi-seed production benchmarks at native $640\times 640$ resolution ($T=8$), we also conduct extensive ablation sweeps to characterize the parametric sensitivity of adversarial fabrication. Table~\ref{tab:ablation_benchmarks} details these sweeps across perturbation budgets $\epsilon \in \{4, 8, 12, 16\}/255$ and optimization steps $T \in \{5, 10, 15, 20\}$ on an extended $N=300$ COCO ablation cohort.
+While Table~\ref{tab:fabrication_benchmarks} establishes official multi-seed production benchmarks at native $640\times 640$ resolution ($T=8$), we also conduct extensive ablation sweeps to characterize the parametric sensitivity of adversarial fabrication. Table~\ref{tab:ablation_benchmarks} details these sweeps across perturbation budgets $\epsilon \in \{4, 8, 12, 16\}/255$ and optimization steps $T \in \{5, 10, 15, 20\}$ on the COCO ablation cohort ($N=10$, with 95\% Wilson score confidence intervals).
 
 \begin{table*}[!htbp]
 \centering
-\caption{Ablation analysis of adversarial candidate fabrication across perturbation budgets $\epsilon$ and PGD iteration steps $T$ on official COCO \texttt{val2017} ($N=300$). Evaluates Attack Success Rate ($\mathrm{ASR}_{\mathrm{fab}}$), surviving phantom count, foreground displacement rate, and resultant detection $\mathrm{mAP}_{50}$.}
+\caption{Ablation analysis of adversarial candidate fabrication across perturbation budgets $\epsilon$ and PGD iteration steps $T$ on official COCO \texttt{val2017} ($N=10$, with 95\% Wilson score confidence intervals). Evaluates Attack Success Rate ($\mathrm{ASR}_{\mathrm{fab}}$), surviving phantom count, foreground displacement rate, and resultant detection $\mathrm{mAP}_{50}$.}
 \label{tab:ablation_benchmarks}
 \renewcommand{\arraystretch}{1.30}
 \resizebox{\linewidth}{!}{%

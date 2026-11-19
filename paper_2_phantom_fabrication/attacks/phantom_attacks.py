@@ -37,7 +37,8 @@ def generate_batch_adversarial(
         return bx
 
     if attack_type == "Gaussian_Noise":
-        noise = torch.randn_like(bx) * (16.0 / 255.0)
+        noise = torch.randn_like(bx) * epsilon
+        noise = torch.clamp(noise, -epsilon, epsilon)
         return torch.clamp(bx + noise, 0.0, 1.0)
 
     # 1. Forward pass trên ảnh sạch để lấy background / inactive mask

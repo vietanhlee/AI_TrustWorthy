@@ -135,20 +135,23 @@ def generate_all_paper2_figures(
             bytetrack = downstream.get("bytetrack_simulation", {})
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.0, 3.6))
-            # AEB Braking Rate
-            aeb_rates = [0.0, aeb.get("dqf_emergency_braking_rate_pct", 84.5)]
+            # (a) AEB False Braking Risk at 28.0m (TTC <= 1.4s)
+            clean_aeb = float(aeb.get("clean_risk_28m", 0.0))
+            adv_aeb = float(aeb.get("adv_risk_28m", aeb.get("dqf_risk_28m", 0.0)))
+            aeb_rates = [clean_aeb, adv_aeb]
             ax1.bar(["Clean Baseline", "Under DQF"], aeb_rates, width=0.45, color=["#2ca02c", "#d62728"], edgecolor="black", alpha=0.85)
-            ax1.set_ylabel("Phantom Emergency Braking Rate (%)")
-            ax1.set_title("(a) Autonomous Braking (AEB) Disruption", fontweight="bold")
+            ax1.set_ylabel("Critical Braking Risk at 28m (%)")
+            ax1.set_title("(a) Autonomous Braking (AEB) Hazard", fontweight="bold")
             ax1.set_ylim(0, 105)
             ax1.grid(axis="y", linestyle="--", alpha=0.5)
 
-            # ByteTrack Fragmentation
-            frag_rates = [bytetrack.get("clean_track_fragmentation_pct", 4.2), bytetrack.get("dqf_track_fragmentation_pct", 72.8)]
-            ax2.bar(["Clean Baseline", "Under DQF"], frag_rates, width=0.45, color=["#2ca02c", "#d62728"], edgecolor="black", alpha=0.85)
-            ax2.set_ylabel("Track Fragmentation Rate (%)")
-            ax2.set_title("(b) Multi-Object Tracking (ByteTrack) Disruption", fontweight="bold")
-            ax2.set_ylim(0, 105)
+            # (b) ByteTrack Hungarian Association Latency (ms)
+            clean_lat = float(bytetrack.get("clean_latency_ms", 0.0))
+            adv_lat = float(bytetrack.get("adv_latency_ms", 0.0))
+            lat_vals = [clean_lat, adv_lat]
+            ax2.bar(["Clean Baseline", "Under DQF"], lat_vals, width=0.45, color=["#2ca02c", "#d62728"], edgecolor="black", alpha=0.85)
+            ax2.set_ylabel("Hungarian Matching Latency (ms)")
+            ax2.set_title("(b) ByteTrack Association Complexity Proxy", fontweight="bold")
             ax2.grid(axis="y", linestyle="--", alpha=0.5)
 
             plt.tight_layout()
@@ -170,8 +173,8 @@ def generate_all_paper2_figures(
                 latencies = [d.get("cpu_latency_mean", 0.1) for d in t4_data]
             elif isinstance(t4_data, dict):
                 names = list(t4_data.keys())
-                rejection_rates = [t4_data[k].get("dqf_rejection_mean", 50.0) for k in names]
-                latencies = [t4_data[k].get("cpu_latency_mean", 1.0) for k in names]
+                rejection_rates = [float(t4_data[k].get("dqf_rejection_mean", t4_data[k].get("fp_reduction_pct", 0.0))) for k in names]
+                latencies = [float(t4_data[k].get("cpu_latency_mean", t4_data[k].get("latency_ms", 0.0))) for k in names]
             else:
                 names, rejection_rates, latencies = [], [], []
 
