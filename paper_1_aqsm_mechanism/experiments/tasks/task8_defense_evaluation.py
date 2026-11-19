@@ -153,6 +153,7 @@ def run_defense_evaluation(
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=cache_dir,
+            wrapper=wrapper,
         )
         adv_dict[atk] = adv_imgs
 

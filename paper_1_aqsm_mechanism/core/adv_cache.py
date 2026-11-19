@@ -18,6 +18,7 @@ import torch
 from paper_1_aqsm_mechanism.core.dataset_loader import (
     LazyAdvImageBatchProxy,
     LazyImageBatchProxy,
+    OnTheFlyAdvImageBatchProxy,
 )
 
 
@@ -73,12 +74,31 @@ def load_cached_adv_proxy(
     clean_proxy: LazyImageBatchProxy,
     expected_image_ids: Sequence[int],
     cache_dir: Optional[Union[str, Path]] = None,
-) -> Tuple[LazyAdvImageBatchProxy, Dict[str, Any]]:
+    wrapper: Optional[Any] = None,
+    allow_onthefly: bool = True,
+) -> Tuple[Union[LazyAdvImageBatchProxy, OnTheFlyAdvImageBatchProxy], Dict[str, Any]]:
     """
     Nạp đối tượng Proxy lười cho ảnh đối kháng từ cache npz trên đĩa.
+    Nếu chưa có cache và allow_onthefly=True: tự động chuyển sang chế độ On-The-Fly VRAM Streaming (0 GB đĩa).
     """
     fpath = find_cache_file(attack, eps_num, n_eval, cache_dir=cache_dir)
-    if not fpath.exists():
+    if fpath is None or not fpath.exists():
+        if allow_onthefly:
+            print(f"[ADV CACHE] Không tìm thấy cache trên đĩa cho {attack.upper()} (eps={eps_num}).")
+            print(f"            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
+            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+                clean_proxy=clean_proxy,
+                attack_name=attack,
+                eps_num=eps_num,
+                wrapper=wrapper,
+            )
+            meta = {
+                "attack": attack.lower(),
+                "n_eval": n_eval,
+                "epsilon_num_255": eps_num,
+                "mode": "on_the_fly_streaming",
+            }
+            return onthefly_proxy, meta
         raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
     try:
@@ -111,10 +131,12 @@ def load_cached_adv_images(
     clean_imgs: Union[torch.Tensor, LazyImageBatchProxy],
     expected_image_ids: Sequence[int],
     cache_dir: Optional[Union[str, Path]] = None,
-) -> Tuple[Union[torch.Tensor, LazyAdvImageBatchProxy], Dict[str, Any]]:
+    wrapper: Optional[Any] = None,
+    allow_onthefly: bool = True,
+) -> Tuple[Union[torch.Tensor, LazyAdvImageBatchProxy, OnTheFlyAdvImageBatchProxy], Dict[str, Any]]:
     """
     Nạp ảnh đối kháng từ file cache npz trên đĩa.
-    Hỗ trợ cả Tensor PyTorch chuẩn lẫn LazyImageBatchProxy.
+    Hỗ trợ cả Tensor PyTorch chuẩn lẫn LazyImageBatchProxy và OnTheFlyAdvImageBatchProxy (0 GB đĩa).
     """
     if isinstance(clean_imgs, LazyImageBatchProxy):
         return load_cached_adv_proxy(
@@ -124,10 +146,28 @@ def load_cached_adv_images(
             clean_proxy=clean_imgs,
             expected_image_ids=expected_image_ids,
             cache_dir=cache_dir,
+            wrapper=wrapper,
+            allow_onthefly=allow_onthefly,
         )
 
     fpath = find_cache_file(attack, eps_num, n_eval, cache_dir=cache_dir)
-    if not fpath.exists():
+    if fpath is None or not fpath.exists():
+        if allow_onthefly:
+            print(f"[ADV CACHE] Không tìm thấy cache trên đĩa cho {attack.upper()} (eps={eps_num}).")
+            print(f"            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
+            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+                clean_proxy=clean_imgs,
+                attack_name=attack,
+                eps_num=eps_num,
+                wrapper=wrapper,
+            )
+            meta = {
+                "attack": attack.lower(),
+                "n_eval": n_eval,
+                "epsilon_num_255": eps_num,
+                "mode": "on_the_fly_streaming",
+            }
+            return onthefly_proxy, meta
         raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
     try:

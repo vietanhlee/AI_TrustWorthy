@@ -114,6 +114,7 @@ def run_encoder_query_dynamics_evaluation(
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=cache_dir,
+            wrapper=wrapper,
         )
 
         all_mem_records: List[Dict[str, Any]] = []

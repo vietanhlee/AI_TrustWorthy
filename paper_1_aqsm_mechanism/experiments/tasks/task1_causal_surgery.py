@@ -400,6 +400,7 @@ def main():
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=args.cache_dir,
+            wrapper=wrapper,
         )
 
         res = run_causal_surgery(

@@ -122,6 +122,86 @@ class LazyAdvImageBatchProxy:
         return torch.clamp(clean_batch + delta_tensor, 0.0, 1.0)
 
 
+class OnTheFlyAdvImageBatchProxy:
+    """
+    Lớp bao bọc đối kháng On-The-Fly (Zero-Disk Overhead):
+    Khi gọi slice lô ảnh [start:end], sinh trực tiếp mẫu đối kháng trên GPU VRAM,
+    đáp ứng ngay lập tức cho các tác vụ phân tích mà KHÔNG CẦN LƯU VÀO ĐĨA (0 GB đĩa).
+    Sau khi xử lý xong lô, bộ nhớ VRAM tự động được giải phóng.
+    """
+
+    def __init__(
+        self,
+        clean_proxy: Any,
+        attack_name: str,
+        eps_num: int = 16,
+        wrapper: Any = None,
+        steps: int = 15,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        self.clean_proxy = clean_proxy
+        self.attack_name = attack_name.lower()
+        self.eps_num = eps_num
+        self.eps = float(eps_num) / 255.0
+        self.alpha = (2.0 / 255.0) if eps_num >= 8 else (1.0 / 255.0)
+        self.steps = steps
+        self.wrapper = wrapper
+        self.device = device or getattr(clean_proxy, "device", torch.device("cpu"))
+        self._attacker = None
+
+    def __len__(self) -> int:
+        return len(self.clean_proxy)
+
+    @property
+    def shape(self) -> Tuple[int, int, int, int]:
+        return getattr(self.clean_proxy, "shape", (len(self.clean_proxy), 3, 640, 640))
+
+    def to(self, device: torch.device) -> "OnTheFlyAdvImageBatchProxy":
+        return OnTheFlyAdvImageBatchProxy(
+            clean_proxy=self.clean_proxy.to(device) if hasattr(self.clean_proxy, "to") else self.clean_proxy,
+            attack_name=self.attack_name,
+            eps_num=self.eps_num,
+            wrapper=self.wrapper,
+            steps=self.steps,
+            device=device,
+        )
+
+    def _get_attacker(self):
+        if self._attacker is None:
+            if self.wrapper is None:
+                from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
+                from paper_1_aqsm_mechanism.experiments.config import MODEL_NAME
+                self.wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=self.device)
+                self.wrapper.eval()
+            from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
+            self._attacker = DETRAttackGenerator(self.wrapper, epsilon=self.eps, alpha=self.alpha, num_steps=self.steps)
+        return self._attacker
+
+    def __getitem__(self, item: Union[int, slice, Sequence[int]]) -> torch.Tensor:
+        clean_batch = self.clean_proxy[item]
+        single_item = False
+        if isinstance(item, (int, np.integer)):
+            clean_batch = clean_batch.unsqueeze(0)
+            single_item = True
+
+        if hasattr(clean_batch, "to") and clean_batch.device != self.device:
+            clean_batch = clean_batch.to(self.device)
+
+        attacker = self._get_attacker()
+        if self.attack_name == "aqsm":
+            adv_batch = attacker.generate_query_selection_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+        elif self.attack_name in ["vanishing", "query_vanishing"]:
+            adv_batch = attacker.generate_vanishing_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+        elif self.attack_name in ["taskpgd", "task_pgd"]:
+            adv_batch = attacker.generate_standard_task_pgd(clean_batch, steps=self.steps, alpha=self.alpha)
+        else:
+            raise ValueError(f"Đòn tấn công không hỗ trợ trong On-The-Fly: {self.attack_name}")
+
+        if single_item:
+            adv_batch = adv_batch.squeeze(0)
+        return adv_batch
+
+
 class FlexibleCOCODataset:
     """
     Dataset COCO linh hoạt:

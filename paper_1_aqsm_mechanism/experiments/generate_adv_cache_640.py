@@ -21,6 +21,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import shutil
 import sys
 import time
+import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Union
 
@@ -93,15 +94,17 @@ def generate_single_attack_cache(
     print(f"[CACHE GEN] PGD Steps={steps} | Alpha={alpha:.5f} | Batch Size={batch_size} | Device={device}")
     print(f"[CACHE GEN] ==================================================================")
 
-    # Kiểm tra dung lượng đĩa trước khi khởi tạo memmap
+    # Kiểm tra dung lượng đĩa trước khi khởi tạo
     needed_bytes = n_total * 3 * 640 * 640 * 4
     try:
         free_bytes = shutil.disk_usage(save_dir).free
         if free_bytes < needed_bytes:
+            max_possible = int(free_bytes / (3 * 640 * 640 * 4))
             raise RuntimeError(
                 f"[DISK WARNING] Dung lượng đĩa khả dụng ({free_bytes / 1e9:.2f} GB) "
-                f"không đủ để ghi cache ({needed_bytes / 1e9:.2f} GB)! "
-                f"Hãy sử dụng --max_samples để điều chỉnh kích thước tập mẫu nếu cần."
+                f"không đủ để ghi cache cho {n_total} ảnh ({needed_bytes / 1e9:.2f} GB)! "
+                f"Dung lượng đĩa chỉ có thể chứa tối đa ~{max_possible} ảnh. "
+                f"Khuyến nghị: sử dụng --max_samples 300 (theo chuẩn thực nghiệm Paper 1, chỉ tốn ~1.47 GB/file)."
             )
     except Exception as e:
         if "[DISK WARNING]" in str(e):
@@ -109,90 +112,90 @@ def generate_single_attack_cache(
 
     attacker = DETRAttackGenerator(wrapper, epsilon=eps, alpha=alpha, num_steps=steps)
 
-    # Sử dụng file memmap tạm thời trên đĩa để chống tràn RAM 100%
-    # Giữ nguyên 100% chuẩn IEEE 754 float32 chính xác cao, tuyệt đối không ép kiểu uint8 hay float16
-    temp_mmap_path = save_dir / f"tmp_{attack_name.lower()}_eps{eps_int}_{os.getpid()}.dat"
-    delta_mmap = np.memmap(
-        temp_mmap_path,
-        dtype=np.float32,
-        mode="w+",
-        shape=(n_total, 3, 640, 640),
-    )
-
-    t_start = time.time()
-
-    for i in tqdm(range(0, n_total, batch_size), desc=f"{attack_name.upper()}_eps{eps_int}"):
-        end_idx = min(i + batch_size, n_total)
-        b_clean = clean_proxy[i : end_idx].to(device)
-
-        if attack_name.lower() == "aqsm":
-            b_adv = attacker.generate_query_selection_attack(b_clean, steps=steps, alpha=alpha)
-        elif attack_name.lower() in ["vanishing", "query_vanishing"]:
-            b_adv = attacker.generate_vanishing_attack(b_clean, steps=steps, alpha=alpha)
-        elif attack_name.lower() in ["taskpgd", "task_pgd"]:
-            b_adv = attacker.generate_standard_task_pgd(b_clean, steps=steps, alpha=alpha)
-        else:
-            raise ValueError(f"Đòn tấn công không được hỗ trợ: {attack_name}")
-
-        delta = (b_adv - b_clean).detach().cpu().to(torch.float32).numpy()
-        delta_mmap[i : end_idx] = delta
-
-        del b_clean, b_adv, delta
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-    delta_mmap.flush()
-
-    # Tính toán các chỉ số thống kê theo từng chunk để không tốn RAM
-    chunk_size = 500
-    max_linf = 0.0
-    all_l2s: List[float] = []
-    for s in range(0, n_total, chunk_size):
-        sub_delta = delta_mmap[s : s + chunk_size]
-        max_linf = max(max_linf, float(np.max(np.abs(sub_delta))))
-        l2s = np.linalg.norm(sub_delta.reshape(len(sub_delta), -1), axis=1)
-        all_l2s.extend(l2s.tolist())
-        del sub_delta
-    mean_l2 = float(np.mean(all_l2s))
-    std_l2 = float(np.std(all_l2s))
-    elapsed = time.time() - t_start
-
-    meta_info = {
-        "attack": attack_name.lower(),
-        "n_eval": n_total,
-        "epsilon_num_255": eps_int,
-        "epsilon": eps,
-        "alpha": alpha,
-        "steps": steps,
-        "resolution": "640x640",
-        "num_candidates": 8400,
-        "dtype": "float32",
-        "max_linf": max_linf,
-        "mean_l2": mean_l2,
-        "std_l2": std_l2,
-        "elapsed_sec": elapsed,
-        "throughput_fps": float(n_total / max(elapsed, 1e-4)),
-        "device": str(device),
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-    }
-
-    # Ghi thẳng từ memmap ra file npz chuẩn float32 nguyên bản (chỉ 1 key delta, không nhân 3 keys)
-    print(f"[CACHE GEN] Đang lưu cache vào: {out_file.name}...")
-    np.savez(
-        out_file,
-        image_ids=np.array(image_ids, dtype=np.int64),
-        delta=delta_mmap,
-        meta_json=json.dumps(meta_info, indent=2),
-    )
-
-    # Đóng và giải phóng file memmap tạm thời ngay lập tức
-    del delta_mmap
-    gc.collect()
-    if temp_mmap_path.exists():
+    # Ghi trực tiếp vào file .npz theo cơ chế Streaming Direct (Zero-Temp Overhead)
+    # Không tạo file .dat tạm thời, triệt tiêu 100% nguy cơ tràn đĩa khi lưu (Save Phase Out-Of-Disk)
+    # Giữ nguyên 100% chuẩn IEEE 754 float32 chính xác cao
+    out_temp_file = save_dir / f".tmp_{out_file.name}"
+    if out_temp_file.exists():
         try:
-            temp_mmap_path.unlink()
+            out_temp_file.unlink()
         except Exception:
             pass
+
+    t_start = time.time()
+    max_linf = 0.0
+    all_l2s: List[float] = []
+    delta_shape = (n_total, 3, 640, 640)
+
+    print(f"[CACHE GEN] Khởi tạo tệp bộ nhớ đệm Streaming Direct: {out_file.name}...")
+    with zipfile.ZipFile(out_temp_file, mode="w", compression=zipfile.ZIP_STORED) as zf:
+        # 1. Ghi image_ids.npy
+        with zf.open("image_ids.npy", "w") as f_ids:
+            np.lib.format.write_array(f_ids, np.array(image_ids, dtype=np.int64))
+
+        # 2. Ghi delta.npy theo luồng từng batch (Zero Extra Disk Space)
+        with zf.open("delta.npy", "w") as f_delta:
+            np.lib.format.write_array_header_2_0(
+                f_delta,
+                {"descr": "<f4", "fortran_order": False, "shape": delta_shape}
+            )
+
+            for i in tqdm(range(0, n_total, batch_size), desc=f"{attack_name.upper()}_eps{eps_int}"):
+                end_idx = min(i + batch_size, n_total)
+                b_clean = clean_proxy[i : end_idx].to(device)
+
+                if attack_name.lower() == "aqsm":
+                    b_adv = attacker.generate_query_selection_attack(b_clean, steps=steps, alpha=alpha)
+                elif attack_name.lower() in ["vanishing", "query_vanishing"]:
+                    b_adv = attacker.generate_vanishing_attack(b_clean, steps=steps, alpha=alpha)
+                elif attack_name.lower() in ["taskpgd", "task_pgd"]:
+                    b_adv = attacker.generate_standard_task_pgd(b_clean, steps=steps, alpha=alpha)
+                else:
+                    raise ValueError(f"Đòn tấn công không được hỗ trợ: {attack_name}")
+
+                delta_np = (b_adv - b_clean).detach().cpu().to(torch.float32).numpy()
+                f_delta.write(delta_np.tobytes("C"))
+
+                max_linf = max(max_linf, float(np.max(np.abs(delta_np))))
+                l2s = np.linalg.norm(delta_np.reshape(len(delta_np), -1), axis=1)
+                all_l2s.extend(l2s.tolist())
+
+                del b_clean, b_adv, delta_np
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+        # 3. Ghi meta_json.npy
+        elapsed = time.time() - t_start
+        mean_l2 = float(np.mean(all_l2s)) if all_l2s else 0.0
+        std_l2 = float(np.std(all_l2s)) if all_l2s else 0.0
+        meta_info = {
+            "attack": attack_name.lower(),
+            "n_eval": n_total,
+            "epsilon_num_255": eps_int,
+            "epsilon": eps,
+            "alpha": alpha,
+            "steps": steps,
+            "resolution": "640x640",
+            "num_candidates": 8400,
+            "dtype": "float32",
+            "max_linf": max_linf,
+            "mean_l2": mean_l2,
+            "std_l2": std_l2,
+            "elapsed_sec": elapsed,
+            "throughput_fps": float(n_total / max(elapsed, 1e-4)),
+            "device": str(device),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        with zf.open("meta_json.npy", "w") as f_meta:
+            np.lib.format.write_array(f_meta, np.array(json.dumps(meta_info, indent=2)))
+
+    # Hoán đổi file nguyên tử (Atomic replace)
+    if out_file.exists():
+        try:
+            out_file.unlink()
+        except Exception:
+            pass
+    out_temp_file.rename(out_file)
 
     print(f"[CACHE GEN] Hoàn tất sinh {attack_name.upper()} (eps={eps_int}) trong {elapsed:.1f}s | File size: {out_file.stat().st_size / 1e6:.1f} MB")
     return out_file

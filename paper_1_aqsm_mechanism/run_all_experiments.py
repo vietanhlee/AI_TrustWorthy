@@ -220,6 +220,7 @@ def main():
     parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục chứa ảnh COCO val2017 (5000 ảnh)")
     parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
     parser.add_argument("--max_samples", type=int, default=5000, help="Giới hạn số lượng ảnh chạy thực nghiệm (mặc định 5000 ảnh)")
+    parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples (số lượng ảnh)")
 
     # 2. Tham số lưu trữ đầu ra
     parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả thực nghiệm (summary JSON & raw CSV)")
@@ -238,6 +239,9 @@ def main():
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh thêm cache eps 4 và 8 cho Task 5")
     parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD sinh mẫu đối kháng (mặc định 15)")
     args = parser.parse_args()
+
+    if args.num_images is not None:
+        args.max_samples = args.num_images
 
     update_experiment_paths(
         folder_image=args.folder_image,

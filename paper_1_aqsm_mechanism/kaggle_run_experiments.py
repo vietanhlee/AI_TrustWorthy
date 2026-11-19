@@ -29,11 +29,15 @@ def main():
     parser.add_argument("--folder_image", type=str, default=None, help="Đường dẫn thư mục ảnh COCO val2017")
     parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file instances_val2017.json")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
-    parser.add_argument("--max_samples", type=int, default=5000, help="Số lượng ảnh thực nghiệm (mặc định 5000 ảnh)")
+    parser.add_argument("--max_samples", type=int, default=300, help="Số lượng ảnh thực nghiệm (mặc định 300 ảnh theo chuẩn Paper 1)")
+    parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples")
     parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7", help="Danh sách tasks cần chạy")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8 cho Task 5")
     args = parser.parse_args()
+
+    if args.num_images is not None:
+        args.max_samples = args.num_images
 
     print("================================================================================")
     print(" [KAGGLE/COLAB GPU RUNNER] KHỞI CHẠY MASTER ORCHESTRATOR TRÊN GPU")
@@ -50,13 +54,39 @@ def main():
     else:
         print(">>> [CẢNH BÁO] Không tìm thấy GPU, đang chạy trên CPU.")
 
-    # Kiểm tra dung lượng đĩa khả dụng
+    # Kiểm tra dung lượng đĩa khả dụng và tự động tính toán giới hạn an toàn
     disk_stat = shutil.disk_usage(".")
     free_gb = disk_stat.free / (1024 ** 3)
     total_gb = disk_stat.total / (1024 ** 3)
     print(f">>> Dung lượng ổ cứng khả dụng: {free_gb:.2f} GB / {total_gb:.2f} GB")
-    if args.max_samples:
-        print(f">>> Cấu hình Max Samples: {args.max_samples} ảnh")
+
+    if args.skip_cache_gen:
+        print(">>> Cờ --skip_cache_gen ĐƯỢC BẬT: Bỏ qua Task 0 (tiền sinh cache đối kháng ra đĩa).")
+        print(">>> KÍCH HOẠT CHẾ ĐỘ ON-THE-FLY VRAM STREAMING (0 GB đĩa, giải phóng VRAM theo từng batch)!")
+        effective_max_samples = args.max_samples
+    else:
+        bytes_per_sample = 3 * 640 * 640 * 4  # 4.9152 MB/ảnh ở chuẩn float32
+        num_attacks = 3  # aqsm, vanishing, taskpgd
+        needed_disk_gb = (args.max_samples * bytes_per_sample * num_attacks) / (1024 ** 3)
+
+        # Để an toàn, chỉ dùng tối đa 75% đĩa trống hiện có (dành 25% cho outputs, zip và OS)
+        safe_disk_capacity_gb = free_gb * 0.75
+        max_safe_samples = int((safe_disk_capacity_gb * (1024 ** 3)) / (num_attacks * bytes_per_sample))
+
+        if needed_disk_gb > safe_disk_capacity_gb:
+            effective_max_samples = min(max_safe_samples, 300)
+            print("=" * 80)
+            print(f"⚠️  [CẢNH BÁO DUNG LƯỢNG Ổ CỨNG KAGGLE]")
+            print(f" Yêu cầu tiền sinh cache cho {args.max_samples} ảnh -> Cần tối thiểu {needed_disk_gb:.2f} GB đĩa cho {num_attacks} attacks,")
+            print(f" nhưng ổ cứng khả dụng chỉ còn {free_gb:.2f} GB!")
+            print(f" Để ngăn ngừa lỗi cạn đĩa ([Errno 28] No space left on device), hệ thống tự động bảo vệ:")
+            print(f" --> Tự động điều chỉnh: max_samples = {effective_max_samples} ảnh")
+            print(f" (Mẹo: Thêm cờ --skip_cache_gen để chạy On-The-Fly số ảnh tùy thích với 0 GB đĩa)")
+            print("=" * 80)
+        else:
+            effective_max_samples = args.max_samples
+
+    print(f">>> Cấu hình Max Samples thực thi: {effective_max_samples} ảnh")
 
     paper_dir = WORKSPACE_DIR / "paper_1_aqsm_mechanism"
     output_dir = paper_dir / "outputs"
@@ -74,8 +104,8 @@ def main():
         "--fig_dir", str(fig_dir),
     ]
 
-    if args.max_samples is not None:
-        cmd.extend(["--max_samples", str(args.max_samples)])
+    if effective_max_samples is not None:
+        cmd.extend(["--max_samples", str(effective_max_samples)])
     if args.folder_image:
         cmd.extend(["--folder_image", str(args.folder_image)])
     if args.annotations:

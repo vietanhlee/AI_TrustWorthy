@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Master Execution Script for Paper 1: Mechanistic Breakdown of Dynamic Query Selection
+# Supports: Linux / Mac / Google Colab / Kaggle (CPU, Single-GPU, Multi-GPU)
+# 100% Compatible with Paper 2 CLI Flags & On-The-Fly VRAM Streaming (0 GB Disk)
+# ==============================================================================
+
+set -e
+
+# Default settings
+FOLDER_IMAGE=""
+ANNOTATIONS=""
+NUM_IMAGES=0
+MAX_SAMPLES=0
+DEVICE="auto"
+BATCH_SIZE=0
+TASKS="0,1,2,3,4,5,6,8,7"
+OUTPUT_DIR="outputs"
+CACHE_DIR="cache/adv_cache_640"
+FIG_DIR="fig"
+SKIP_CACHE_GEN=""
+FORCE_RECOMPUTE=""
+
+print_usage() {
+    echo "======================================================================"
+    echo "  PAPER 1: DYNAMIC QUERY SELECTION MECHANISM - EMPIRICAL SUITE RUNNER"
+    echo "======================================================================"
+    echo "Usage:"
+    echo "  bash run_all.sh --folder_image <path_to_coco_images> [OPTIONS]"
+    echo ""
+    echo "Required:"
+    echo "  --folder_image PATH        Đường dẫn thư mục ảnh COCO (e.g. val2017)"
+    echo ""
+    echo "Optional:"
+    echo "  --annotations PATH         Đường dẫn file instances_val2017.json"
+    echo "  --tasks LIST               Danh sách tasks (0,1,2,3,4,5,6,8,7)"
+    echo "  --num_images INT           Số ảnh giới hạn (0 = chạy toàn bộ ảnh)"
+    echo "  --max_samples INT          Alias tương đương --num_images"
+    echo "  --device DEV               Thiết bị: auto (mặc định), cuda, cpu"
+    echo "  --batch_size INT           Batch size suy luận (0 = tự động tính theo VRAM)"
+    echo "  --output_dir PATH          Thư mục lưu trữ kết quả và log (mặc định: outputs)"
+    echo "  --cache_dir PATH           Thư mục lưu trữ bộ nhớ đệm đối kháng (mặc định: cache/adv_cache_640)"
+    echo "  --fig_dir PATH             Thư mục lưu biểu đồ xuất bản (mặc định: fig)"
+    echo "  --skip_cache_gen           Bỏ qua tiền sinh cache Task 0 -> Chạy On-The-Fly VRAM Streaming (0 GB đĩa)"
+    echo "  --force_recompute          Bắt buộc tính toán lại và ghi đè cache"
+    echo "  -h, --help                 Hiển thị hướng dẫn này"
+    echo "======================================================================"
+}
+
+# Parse command-line arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --folder_image) FOLDER_IMAGE="$2"; shift ;;
+        --annotations) ANNOTATIONS="$2"; shift ;;
+        --tasks) TASKS="$2"; shift ;;
+        --num_images) NUM_IMAGES="$2"; shift ;;
+        --max_samples) MAX_SAMPLES="$2"; shift ;;
+        --device) DEVICE="$2"; shift ;;
+        --batch_size) BATCH_SIZE="$2"; shift ;;
+        --output_dir) OUTPUT_DIR="$2"; shift ;;
+        --cache_dir) CACHE_DIR="$2"; shift ;;
+        --fig_dir) FIG_DIR="$2"; shift ;;
+        --skip_cache_gen) SKIP_CACHE_GEN="--skip_cache_gen" ;;
+        --force_recompute) FORCE_RECOMPUTE="--force_recompute" ;;
+        -h|--help) print_usage; exit 0 ;;
+        *) echo "Tham số không nhận dạng: $1"; print_usage; exit 1 ;;
+    esac
+    shift
+done
+
+if [ -z "$FOLDER_IMAGE" ]; then
+    echo "LỖI: Thiếu tham số bắt buộc --folder_image!"
+    print_usage
+    exit 1
+fi
+
+if [ "$NUM_IMAGES" -le 0 ] && [ "$MAX_SAMPLES" -gt 0 ]; then
+    NUM_IMAGES=$MAX_SAMPLES
+fi
+
+# Ensure working directory is script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Check Python environment
+PYTHON_CMD="python"
+if command -v python3 &>/dev/null; then
+    PYTHON_CMD="python3"
+fi
+
+echo "======================================================================"
+echo " 🚀 KHỞI ĐỘNG HỆ THỐNG THỰC NGHIỆM PAPER 1: DYNAMIC QUERY SELECTION"
+echo "----------------------------------------------------------------------"
+echo " Thư mục ảnh COCO : $FOLDER_IMAGE"
+if [ -n "$ANNOTATIONS" ]; then
+    echo " File Annotations : $ANNOTATIONS"
+else
+    echo " File Annotations : [Mặc định]"
+fi
+echo " Thiết bị         : $DEVICE"
+echo " Danh sách Tasks  : $TASKS"
+echo " Số mẫu ảnh       : $NUM_IMAGES (0 = Toàn bộ ảnh)"
+echo " Thư mục Output   : $OUTPUT_DIR"
+echo " Thư mục Figures  : $FIG_DIR"
+if [ -n "$SKIP_CACHE_GEN" ]; then
+    echo " Chế độ Cache     : ON-THE-FLY VRAM STREAMING (0 GB ĐĨA, KHÔNG SỢ HẾT ĐĨA)"
+else
+    echo " Chế độ Cache     : $CACHE_DIR (Streaming Direct .npz)"
+fi
+echo "======================================================================"
+
+EXTRA_ARGS=()
+if [ -n "$ANNOTATIONS" ]; then
+    EXTRA_ARGS+=(--annotations "$ANNOTATIONS")
+fi
+if [ "$BATCH_SIZE" -gt 0 ]; then
+    EXTRA_ARGS+=(--batch_size "$BATCH_SIZE")
+fi
+if [ "$NUM_IMAGES" -gt 0 ]; then
+    EXTRA_ARGS+=(--max_samples "$NUM_IMAGES")
+fi
+if [ -n "$SKIP_CACHE_GEN" ]; then
+    EXTRA_ARGS+=(--skip_cache_gen)
+fi
+if [ -n "$FORCE_RECOMPUTE" ]; then
+    EXTRA_ARGS+=(--force_recompute)
+fi
+
+$PYTHON_CMD run_all_experiments.py \
+    --folder_image "$FOLDER_IMAGE" \
+    --device "$DEVICE" \
+    --tasks "$TASKS" \
+    --cache_dir "$CACHE_DIR" \
+    --output_dir "$OUTPUT_DIR" \
+    --fig_dir "$FIG_DIR" \
+    "${EXTRA_ARGS[@]}"
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "[LỖI] Chuỗi thực nghiệm thất bại với mã lỗi: $EXIT_CODE"
+    exit $EXIT_CODE
+fi
+
+echo ""
+echo "======================================================================"
+echo " ✅ TẤT CẢ THỰC NGHIỆM PAPER 1 ĐÃ HOÀN TẤT THÀNH CÔNG RỰC RỠ!"
+echo "----------------------------------------------------------------------"
+echo " 1. Kết quả tóm tắt & kiểm toán:"
+echo "    -> $OUTPUT_DIR/summary_json/"
+echo "    -> $OUTPUT_DIR/raw_csv/"
+echo "    -> $OUTPUT_DIR/final_experiment_manifest.json"
+echo ""
+echo " 2. Toàn bộ 5 đồ thị xuất bản vector PDF đã được lưu tại:"
+echo "    -> $FIG_DIR/fig3_score_spectrum_n300.pdf"
+echo "    -> $FIG_DIR/fig4_causal_swap_n300.pdf"
+echo "    -> $FIG_DIR/fig6_attention_scattering_comparison.pdf"
+echo "    -> $FIG_DIR/fig7_matched_budget_sweep.pdf"
+echo "    -> $FIG_DIR/fig8_defense_evaluation.pdf"
+echo "======================================================================"

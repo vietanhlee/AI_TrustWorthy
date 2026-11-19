@@ -133,6 +133,7 @@ def run_matched_budget_sweep(
                     clean_imgs=clean_imgs,
                     expected_image_ids=image_ids,
                     cache_dir=cdir,
+                    wrapper=wrapper,
                 )
                 print(f"      [Cache Hit] Đã nạp thành công cache cho {atk.upper()} (eps={eps_num})")
             except Exception:

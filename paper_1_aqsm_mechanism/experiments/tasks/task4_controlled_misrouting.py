@@ -127,6 +127,7 @@ def run_controlled_misrouting_evaluation(
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=cache_dir,
+            wrapper=wrapper,
         )
 
     seeds = [42, 100, 2024, 777, 9999]
