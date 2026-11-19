@@ -16,6 +16,9 @@ DEVICE="auto"
 BATCH_SIZE=0
 STAGE="all"
 OUTPUT_JSON="results/paper2_complete_telemetry.json"
+CACHE_DIR="cache/adv_cache_640"
+SKIP_CACHE_GEN=""
+FORCE_RECOMPUTE=""
 
 print_usage() {
     echo "======================================================================"
@@ -37,6 +40,9 @@ print_usage() {
     echo "  --batch_size INT           Batch size suy luận (0 = tự động tính theo VRAM)"
     echo "  --stage STAGE              Giai đoạn: all (mặc định), benchmark, ablations, figures"
     echo "  --output_json PATH         Đường dẫn file JSON đầu ra (mặc định: results/paper2_complete_telemetry.json)"
+    echo "  --cache_dir PATH           Thư mục lưu trữ bộ nhớ đệm đối kháng (mặc định: cache/adv_cache_640)"
+    echo "  --skip_cache_gen           Chỉ dùng cache có sẵn, không sinh cache mới"
+    echo "  --force_recompute          Bắt buộc tính toán lại và ghi đè cache"
     echo "  -h, --help                 Hiển thị hướng dẫn này"
     echo "======================================================================"
 }
@@ -53,6 +59,9 @@ while [[ "$#" -gt 0 ]]; do
         --batch_size) BATCH_SIZE="$2"; shift ;;
         --stage) STAGE="$2"; shift ;;
         --output_json) OUTPUT_JSON="$2"; shift ;;
+        --cache_dir) CACHE_DIR="$2"; shift ;;
+        --skip_cache_gen) SKIP_CACHE_GEN="--skip_cache_gen" ;;
+        --force_recompute) FORCE_RECOMPUTE="--force_recompute" ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Tham số không nhận dạng: $1"; print_usage; exit 1 ;;
     esac
@@ -90,6 +99,7 @@ else
     echo " Số mẫu Ablation:    $NUM_ABLATION ảnh"
 fi
 echo " Giai đoạn thực thi: $STAGE"
+echo " Thư mục Cache:      $CACHE_DIR (Tái sử dụng & lưu cache float32 chuẩn Paper 1)"
 echo " File Telemetry:     $OUTPUT_JSON"
 echo "======================================================================"
 
@@ -109,7 +119,10 @@ $PYTHON_CMD experiments/run_full_paper2_suite.py \
     --device "$DEVICE" \
     --batch_size "$BATCH_SIZE" \
     --stage "$STAGE" \
-    --output_json "$OUTPUT_JSON"
+    --output_json "$OUTPUT_JSON" \
+    --cache_dir "$CACHE_DIR" \
+    $SKIP_CACHE_GEN \
+    $FORCE_RECOMPUTE
 
 echo ""
 echo "======================================================================"

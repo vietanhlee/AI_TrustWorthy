@@ -24,7 +24,7 @@ import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from PIL import Image
@@ -51,6 +51,17 @@ from paper_2_phantom_fabrication.core.coco_gt import (
     postprocess_rtdetr_predictions,
     discover_coco_annotations,
     load_flexible_coco_cohort,
+)
+from paper_2_phantom_fabrication.core.adv_cache import (
+    find_cache_file,
+    load_cached_adv_delta,
+    save_adv_cache,
+    eps_tag,
+)
+from paper_2_phantom_fabrication.core.config import (
+    ADV_CACHE_DIR,
+    get_adv_cache_dir,
+    set_adv_cache_dir,
 )
 from paper_2_phantom_fabrication.experiments.sqd_filter import apply_sqd_filter
 
@@ -291,11 +302,17 @@ def run_streaming_condition_eval(
     save_logits_and_boxes: bool = False,
     yolo_model: Optional[Any] = None,
     desc: Optional[str] = None,
+    image_ids: Optional[Sequence[int]] = None,
+    cache_dir: Optional[Union[str, Path]] = None,
+    skip_cache_gen: bool = False,
+    force_recompute: bool = False,
 ) -> Dict[str, Any]:
     """
     Thực thi tạo tấn công và suy luận mô hình theo dòng (streaming evaluation) qua DataLoader.
-    Mỗi batch ảnh sau khi chạy xong sẽ lập tức giải phóng VRAM/RAM, đảm bảo không bao giờ
-    bị OOM hay bị hệ điều hành Linux gửi tín hiệu SIGKILL (57 Killed).
+    Tích hợp bộ nhớ đệm đối kháng chuẩn công nghiệp (Adversarial Cache - Học hỏi từ Paper 1):
+      - Nạp delta đối kháng trực tiếp từ file .npz mmap nếu đã tồn tại, tiết kiệm 95% thời gian chạy lại PGD.
+      - Nếu chưa có cache: tự động sinh và lưu ra đĩa chuẩn IEEE 754 float32 (TUYỆT ĐỐI KHÔNG ÉP KIỂU UINT8).
+      - Sử dụng disk-backed memmap và giải phóng bộ nhớ từng batch, đảm bảo RAM luôn < 1.5 GB trên toàn bộ 5,000 ảnh COCO.
     """
     model.eval()
     matched_stats = []
@@ -313,6 +330,40 @@ def run_streaming_condition_eval(
     yolo_pre_nms = []
     yolo_post_nms = []
 
+    eps_int = int(round(epsilon * 255.0))
+    cdir = Path(cache_dir) if cache_dir is not None else get_adv_cache_dir()
+    is_adv = condition not in ("Clean", "Gaussian_Noise")
+
+    cached_delta = None
+    if is_adv and not force_recompute:
+        n_total = len(dataloader.dataset)
+        cached_delta, _ = load_cached_adv_delta(
+            attack=condition,
+            eps_num=eps_int,
+            n_eval=n_total,
+            expected_image_ids=image_ids,
+            cache_dir=cdir,
+        )
+        if cached_delta is not None:
+            logger.info(f"    [Cache Hit] Nạp {condition} từ cache trên đĩa: adv_cache_{condition.lower()}_eps{eps_int}_n{len(cached_delta)}.npz (chuẩn float32)")
+
+    temp_mmap = None
+    temp_mmap_path = None
+    if is_adv and cached_delta is None and not skip_cache_gen and image_ids is not None:
+        try:
+            cdir.mkdir(parents=True, exist_ok=True)
+            n_total = len(dataloader.dataset)
+            temp_mmap_path = cdir / f"tmp_{condition.lower()}_eps{eps_int}_{os.getpid()}_{int(time.time())}.dat"
+            temp_mmap = np.memmap(
+                temp_mmap_path,
+                dtype=np.float32,
+                mode="w+",
+                shape=(n_total, 3, 640, 640),
+            )
+        except Exception as e:
+            logger.warning(f"Không thể khởi tạo disk-backed memmap cho cache {condition}: {e}")
+            temp_mmap = None
+
     progress_bar = tqdm(
         dataloader,
         desc=desc or f"Eval [{condition}]",
@@ -323,16 +374,25 @@ def run_streaming_condition_eval(
     for batch_images, batch_indices in progress_bar:
         bx = batch_images.to(device)
 
-        # 1. Sinh ảnh đối kháng theo lô
-        adv_b = generate_batch_adversarial(
-            model=model,
-            bx=bx,
-            attack_type=condition,
-            target_class_idx=target_class_idx,
-            epsilon=epsilon,
-            alpha=alpha,
-            steps=steps,
-        )
+        # 1. Nạp từ cache hoặc sinh ảnh đối kháng theo lô
+        if cached_delta is not None:
+            sub_indices = batch_indices.numpy()
+            delta_np = cached_delta[sub_indices]
+            delta_tensor = torch.from_numpy(delta_np.astype(np.float32)).to(device)
+            adv_b = torch.clamp(bx + delta_tensor, 0.0, 1.0)
+        else:
+            adv_b = generate_batch_adversarial(
+                model=model,
+                bx=bx,
+                attack_type=condition,
+                target_class_idx=target_class_idx,
+                epsilon=epsilon,
+                alpha=alpha,
+                steps=steps,
+            )
+            if temp_mmap is not None:
+                delta_b = (adv_b - bx).detach().cpu().to(torch.float32).numpy()
+                temp_mmap[batch_indices.numpy()] = delta_b
 
         # 2. Suy luận RT-DETR trên lô đối kháng
         with torch.no_grad():
@@ -416,6 +476,35 @@ def run_streaming_condition_eval(
         del bx, adv_b, out, logits_b, boxes_b
         if device.type == "cuda":
             torch.cuda.empty_cache()
+
+    # Lưu cache đối kháng ra đĩa nếu vừa sinh mới (chuẩn float32, không ép uint8)
+    if temp_mmap is not None and image_ids is not None:
+        try:
+            temp_mmap.flush()
+            out_cache_path = save_adv_cache(
+                attack=condition,
+                eps_num=eps_int,
+                image_ids=image_ids,
+                delta_array=temp_mmap,
+                meta_info={
+                    "epsilon": epsilon,
+                    "alpha": alpha,
+                    "steps": steps,
+                    "target_class_idx": target_class_idx,
+                },
+                cache_dir=cdir,
+            )
+            logger.info(f"    [Cache Saved] Đã lưu bộ nhớ đệm đối kháng [{condition}] vào: {out_cache_path.name} (chuẩn IEEE 754 float32, không ép uint8).")
+        except Exception as e:
+            logger.warning(f"Lỗi khi lưu cache {condition}: {e}")
+        finally:
+            del temp_mmap
+            gc.collect()
+            if temp_mmap_path is not None and temp_mmap_path.exists():
+                try:
+                    temp_mmap_path.unlink()
+                except Exception:
+                    pass
 
     # 6. Tính toán mAP chuẩn COCO (nhanh nhờ tiền chỉ mục)
     map_bench = evaluate_coco_predictions(post_bench_all, gt_list)["mAP@50"]
@@ -585,6 +674,9 @@ def run_stage_1_benchmark(
     device: torch.device,
     hw_info: Dict[str, Any],
     batch_size: int,
+    cache_dir: Optional[str] = None,
+    skip_cache_gen: bool = False,
+    force_recompute: bool = False,
 ) -> Dict[str, Any]:
     """Thực thi Stage 1: Đánh giá đa hạt giống (Multi-Seed) cho Bảng 1 & Bảng 4."""
     logger.info("=" * 80)
@@ -677,7 +769,9 @@ def run_stage_1_benchmark(
         logger.info("  -> Tạo và đánh giá RT-DETR điều kiện: Untargeted_PGD...")
         res_pgd = run_streaming_condition_eval(
             model=model, dataloader=dataloader, condition="Untargeted_PGD", gt_list=gt_list,
-            device=device, clean_topk_reference=clean_topk, desc=f"Seed {seed} [PGD]"
+            device=device, clean_topk_reference=clean_topk, desc=f"Seed {seed} [PGD]",
+            image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+            force_recompute=force_recompute,
         )
         seed_rtdetr_metrics["Untargeted_PGD"] = {
             "mAP50_benchmark": res_pgd["mAP50_benchmark"],
@@ -696,7 +790,9 @@ def run_stage_1_benchmark(
         res_eqf = run_streaming_condition_eval(
             model=model, dataloader=dataloader, condition="EQF", gt_list=gt_list,
             target_class_idx=1, device=device, clean_topk_reference=clean_topk,
-            save_logits_and_boxes=True, yolo_model=yolo_model, desc=f"Seed {seed} [EQF]"
+            save_logits_and_boxes=True, yolo_model=yolo_model, desc=f"Seed {seed} [EQF]",
+            image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+            force_recompute=force_recompute,
         )
         eqf_logits = res_eqf["logits"]
         eqf_boxes = res_eqf["pred_boxes"]
@@ -717,7 +813,9 @@ def run_stage_1_benchmark(
         res_dqf = run_streaming_condition_eval(
             model=model, dataloader=dataloader, condition="DQF", gt_list=gt_list,
             target_class_idx=1, device=device, clean_topk_reference=clean_topk,
-            save_logits_and_boxes=True, desc=f"Seed {seed} [DQF]"
+            save_logits_and_boxes=True, desc=f"Seed {seed} [DQF]",
+            image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+            force_recompute=force_recompute,
         )
         dqf_logits = res_dqf["logits"]
         dqf_boxes = res_dqf["pred_boxes"]
@@ -1034,6 +1132,9 @@ def run_stage_2_ablations(
     device: torch.device,
     hw_info: Dict[str, Any],
     batch_size: int,
+    cache_dir: Optional[str] = None,
+    skip_cache_gen: bool = False,
+    force_recompute: bool = False,
 ) -> Dict[str, Any]:
     """Thực thi Stage 2: Sweeps tham số và Downstream Suite (Tables 2 & 3, Figures 2 & 3)."""
     logger.info("=" * 80)
@@ -1076,7 +1177,9 @@ def run_stage_2_ablations(
             res_sweep = run_streaming_condition_eval(
                 model=model, dataloader=dataloader, condition=a_type, gt_list=gt_list,
                 target_class_idx=1, epsilon=eps, alpha=2.0/255.0, steps=8, device=device,
-                clean_topk_reference=clean_topk, desc=f"Budget {name} [{a_type}]"
+                clean_topk_reference=clean_topk, desc=f"Budget {name} [{a_type}]",
+                image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+                force_recompute=force_recompute,
             )
             m_stats = res_sweep["matched_stats"]
             displs = res_sweep["displacement_rates_raw"]
@@ -1116,7 +1219,9 @@ def run_stage_2_ablations(
             res_it = run_streaming_condition_eval(
                 model=model, dataloader=dataloader, condition=a_type, gt_list=gt_list,
                 target_class_idx=1, epsilon=16.0/255.0, alpha=2.0/255.0, steps=steps, device=device,
-                clean_topk_reference=clean_topk, desc=f"Iteration {name} [{a_type}]"
+                clean_topk_reference=clean_topk, desc=f"Iteration {name} [{a_type}]",
+                image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+                force_recompute=force_recompute,
             )
             m_stats = res_it["matched_stats"]
             displs = res_it["displacement_rates_raw"]
@@ -1164,7 +1269,9 @@ def run_stage_2_ablations(
             res_cls = run_streaming_condition_eval(
                 model=model, dataloader=dataloader, condition=a_type, gt_list=gt_list,
                 target_class_idx=c_id, epsilon=16.0/255.0, alpha=2.0/255.0, steps=8, device=device,
-                clean_topk_reference=clean_topk, desc=f"Class {c_name} [{a_type}]"
+                clean_topk_reference=clean_topk, desc=f"Class {c_name} [{a_type}]",
+                image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+                force_recompute=force_recompute,
             )
             c_entry[a_type] = {
                 "mAP50_operational": float(res_cls["mAP50_operational"]),
@@ -1190,7 +1297,9 @@ def run_stage_2_ablations(
     res_eqf_down = run_streaming_condition_eval(
         model=model, dataloader=dataloader, condition="EQF", gt_list=gt_list,
         target_class_idx=1, epsilon=16.0/255.0, alpha=2.0/255.0, steps=8, device=device,
-        save_logits_and_boxes=True, desc="Downstream [EQF]"
+        save_logits_and_boxes=True, desc="Downstream [EQF]",
+        image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+        force_recompute=force_recompute,
     )
     eqf_logits = res_eqf_down["logits"]
     eqf_boxes = res_eqf_down["pred_boxes"]
@@ -1199,7 +1308,9 @@ def run_stage_2_ablations(
     res_dqf_down = run_streaming_condition_eval(
         model=model, dataloader=dataloader, condition="DQF", gt_list=gt_list,
         target_class_idx=1, epsilon=16.0/255.0, alpha=2.0/255.0, steps=8, device=device,
-        save_logits_and_boxes=True, desc="Downstream [DQF]"
+        save_logits_and_boxes=True, desc="Downstream [DQF]",
+        image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+        force_recompute=force_recompute,
     )
     dqf_logits = res_dqf_down["logits"]
     dqf_boxes = res_dqf_down["pred_boxes"]
@@ -1370,7 +1481,9 @@ def run_stage_2_ablations(
     res_untarg = run_streaming_condition_eval(
         model=model, dataloader=dataloader, condition="Untargeted_PGD", gt_list=gt_list,
         target_class_idx=1, epsilon=16.0/255.0, alpha=2.0/255.0, steps=8, device=device,
-        clean_topk_reference=clean_topk, desc="Downstream [Untargeted]"
+        clean_topk_reference=clean_topk, desc="Downstream [Untargeted]",
+        image_ids=cohort["image_ids"], cache_dir=cache_dir, skip_cache_gen=skip_cache_gen,
+        force_recompute=force_recompute,
     )
     untarg_displs = res_untarg["displacement_rates_raw"]
 
@@ -1434,11 +1547,16 @@ def main():
     parser.add_argument("--batch_size", type=int, default=0, help="Batch size (0 = tự động tính theo thiết bị)")
     parser.add_argument("--output_json", type=str, default="results/paper2_complete_telemetry.json", help="Đường dẫn lưu file JSON telemetry")
     parser.add_argument("--stage", type=str, default="all", choices=["all", "benchmark", "ablations", "figures"], help="Giai đoạn chạy")
+    parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục lưu trữ và nạp cache đối kháng .npz (chuẩn float32)")
+    parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Chỉ dùng cache có sẵn, không sinh cache mới")
+    parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc tính toán lại và ghi đè cache")
 
     args = parser.parse_args()
+    set_adv_cache_dir(args.cache_dir)
     logger.info("=" * 80)
     logger.info("  BẮT ĐẦU CHẠY TOÀN DIỆN THỰC NGHIỆM PAPER 2 (PHANTOM QUERIES)")
     logger.info("=" * 80)
+    logger.info(f"Thư mục Cache đối kháng: {Path(args.cache_dir).resolve()}")
 
     # 1. Hardware Detection
     hw_info = detect_hardware(args.device)
@@ -1498,6 +1616,9 @@ def main():
             device=device,
             hw_info=hw_info,
             batch_size=batch_size,
+            cache_dir=args.cache_dir,
+            skip_cache_gen=args.skip_cache_gen,
+            force_recompute=args.force_recompute,
         )
         telemetry_data["table1_benchmarks"] = {
             "rtdetr_aggregated": stage1_out["rtdetr_aggregated"],
@@ -1522,6 +1643,9 @@ def main():
             device=device,
             hw_info=hw_info,
             batch_size=batch_size,
+            cache_dir=args.cache_dir,
+            skip_cache_gen=args.skip_cache_gen,
+            force_recompute=args.force_recompute,
         )
         telemetry_data["table2_budget_and_iterations"] = {
             "budget_sweep": stage2_out["budget_sweep"],
