@@ -199,19 +199,21 @@ def save_adv_cache(
     if hasattr(arr_to_save, "dtype") and arr_to_save.dtype not in (np.float32, np.float16):
         arr_to_save = arr_to_save.astype(np.float32)
 
+    # Lưu duy nhất 1 key delta dạng float32 chuẩn, tiết kiệm 50% dung lượng ổ đĩa
     np.savez(
         out_file,
         image_ids=np.array(image_ids, dtype=np.int64),
         delta=arr_to_save,
-        delta_f32=arr_to_save,
         meta_json=json.dumps(meta, indent=2),
     )
 
-    # Tạo alias file
-    if alias_file != out_file:
+    # Tạo hardlink alias tiết kiệm 0 byte đĩa (chỉ tạo nếu khác file đích)
+    if alias_file != out_file and not alias_file.exists():
         try:
-            import shutil
-            shutil.copyfile(out_file, alias_file)
+            if hasattr(os, "link"):
+                os.link(out_file, alias_file)
+            elif hasattr(os, "symlink"):
+                os.symlink(out_file, alias_file)
         except Exception:
             pass
 
