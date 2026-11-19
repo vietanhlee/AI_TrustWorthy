@@ -16,7 +16,7 @@ Thực thi khép kín toàn bộ chuỗi thực nghiệm:
   Task 7: Tự động kết xuất toàn bộ biểu đồ vector xuất bản chuẩn Elsevier EAAI (PDF & PNG).
 
 Đặc tính chuẩn công nghiệp (Production Standards):
-  - Chạy linh hoạt trên toàn bộ ảnh COCO val2017 (N=5,000 ảnh) hoặc tập con bất kỳ thông qua `--folder_image`.
+  - Chạy linh hoạt trên toàn bộ ảnh COCO val2017 (N=5,000 ảnh) hoặc tập con bất kỳ thông qua `--folder_image` hoặc `--max_samples`.
   - Quản lý bộ nhớ hoàn hảo: Giải phóng VRAM/RAM giữa các giai đoạn thông qua subprocess isolation.
   - Áp dụng cấu trúc TASK_REGISTRY module hóa cao, dễ bảo trì, mở rộng.
   - Không hardcode, không làm giả số liệu; xuất đầy đủ context trong JSON/CSV để điền vào bài báo.
@@ -121,17 +121,20 @@ def _build_task_registry(
             t0_args.extend(["--batch_size", str(args.batch_size)])
         if args.force_recompute:
             t0_args.append("--force_recompute")
+        if args.max_samples is not None:
+            t0_args.extend(["--max_samples", str(args.max_samples)])
         return t0_args
 
     # Task 6 args
     def build_task6_args() -> List[str]:
+        n_runs_val = str(min(300, args.max_samples)) if args.max_samples is not None else "300"
         return [
             "--folder_image", str(args.folder_image),
             "--annotations", str(args.annotations),
             "--output_dir", str(args.output_dir),
             "--threads", str(args.threads),
             "--device", str(args.device),
-            "--n_runs", "300",
+            "--n_runs", n_runs_val,
         ]
 
     # Task 7 args
@@ -216,6 +219,7 @@ def main():
     # 1. Tham số dữ liệu đầu vào
     parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục chứa ảnh COCO val2017 (5000 ảnh)")
     parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
+    parser.add_argument("--max_samples", type=int, default=None, help="Giới hạn số lượng ảnh chạy thực nghiệm (ví dụ 300 để chạy nhanh hoặc chống OOM/Disk-Full)")
 
     # 2. Tham số lưu trữ đầu ra
     parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục xuất kết quả thực nghiệm (summary JSON & raw CSV)")
@@ -249,12 +253,15 @@ def main():
     folder_p = Path(args.folder_image).resolve()
     valid_exts = {".jpg", ".jpeg", ".png", ".bmp"}
     img_count = len([p for p in folder_p.iterdir() if p.suffix.lower() in valid_exts]) if folder_p.is_dir() else 0
+    effective_count = min(img_count, args.max_samples) if args.max_samples is not None else img_count
 
     print("=" * 85)
     print(" 🚀 HỆ THỐNG ĐIỀU PHỐI THỰC NGHIỆM TOÀN DIỆN (RT-DETR MECHANISM BREAKDOWN)")
     print("=" * 85)
-    print(f" Thư mục ảnh đầu vào  : {folder_p} (Tìm thấy {img_count} ảnh)")
+    print(f" Thư mục ảnh đầu vào  : {folder_p} (Tìm thấy {img_count} ảnh | Chạy: {effective_count} ảnh)")
     print(f" File Annotations COCO: {Path(args.annotations).resolve()}")
+    if args.max_samples is not None:
+        print(f" Giới hạn Max Samples : {args.max_samples} ảnh (Chế độ tiết kiệm đĩa/chống OOM)")
     print(f" Thư mục đầu ra       : {Path(args.output_dir).resolve()}")
     print(f" Thư mục Cache        : {Path(args.cache_dir).resolve()}")
     print(f" Thư mục Figures      : {Path(args.fig_dir).resolve()}")
@@ -277,6 +284,8 @@ def main():
     ]
     if args.batch_size is not None:
         common_args.extend(["--batch_size", str(args.batch_size)])
+    if args.max_samples is not None:
+        common_args.extend(["--max_samples", str(args.max_samples)])
 
     base_dir = Path(__file__).resolve().parent
     registry = _build_task_registry(base_dir, args, common_args)
@@ -321,6 +330,7 @@ def main():
         "dataset": {
             "image_folder": str(folder_p),
             "total_images": img_count,
+            "evaluated_images": effective_count,
             "annotations_file": str(Path(args.annotations).resolve()),
         },
         "hardware_environment": hw_info,

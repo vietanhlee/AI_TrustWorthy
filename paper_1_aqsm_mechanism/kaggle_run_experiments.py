@@ -29,7 +29,8 @@ def main():
     parser.add_argument("--folder_image", type=str, default=None, help="Đường dẫn thư mục ảnh COCO val2017")
     parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file instances_val2017.json")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,7,8", help="Danh sách tasks cần chạy")
+    parser.add_argument("--max_samples", type=int, default=300, help="Số lượng ảnh thực nghiệm (mặc định 300 cho Kaggle chống tràn đĩa/OOM)")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7", help="Danh sách tasks cần chạy")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8 cho Task 5")
     args = parser.parse_args()
@@ -49,6 +50,14 @@ def main():
     else:
         print(">>> [CẢNH BÁO] Không tìm thấy GPU, đang chạy trên CPU.")
 
+    # Kiểm tra dung lượng đĩa khả dụng
+    disk_stat = shutil.disk_usage(".")
+    free_gb = disk_stat.free / (1024 ** 3)
+    total_gb = disk_stat.total / (1024 ** 3)
+    print(f">>> Dung lượng ổ cứng khả dụng: {free_gb:.2f} GB / {total_gb:.2f} GB")
+    if args.max_samples:
+        print(f">>> Cấu hình Max Samples: {args.max_samples} ảnh (tiết kiệm đĩa, chống tràn 73GB quota)")
+
     paper_dir = WORKSPACE_DIR / "paper_1_aqsm_mechanism"
     output_dir = paper_dir / "outputs"
     fig_dir = paper_dir / "fig"
@@ -65,6 +74,8 @@ def main():
         "--fig_dir", str(fig_dir),
     ]
 
+    if args.max_samples is not None:
+        cmd.extend(["--max_samples", str(args.max_samples)])
     if args.folder_image:
         cmd.extend(["--folder_image", str(args.folder_image)])
     if args.annotations:
