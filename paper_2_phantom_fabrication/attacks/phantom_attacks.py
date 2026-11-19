@@ -1,0 +1,88 @@
+# -*- coding: utf-8 -*-
+"""
+Module: paper_2_phantom_fabrication.attacks.phantom_attacks
+Mục đích: Cài đặt các thuật toán tấn công đối kháng chế tạo đối tượng ma (Phantom Queries)
+trên kiến trúc RT-DETR theo từng lô ảnh (Batch-level Adversarial Perturbation Generation).
+
+Các đòn tấn công:
+  1. Clean: Giữ nguyên ảnh gốc không nhiễu.
+  2. Gaussian_Noise: Nhiễu Gauss ngẫu nhiên chuẩn hóa cùng ngân sách L_inf (baseline).
+  3. EQF (Encoder Query Fabrication): Tối ưu hóa phân hạng để đẩy các query nền (background queries)
+     có điểm số phân loại thuộc lớp mục tiêu vượt ngưỡng chọn lọc S=300 của Deformable Encoder.
+  4. DQF (Decoder Query Fabrication): Khai thác không gian Deformable Cross-Attention tầng Decoder
+     để kích hoạt cực đại xác suất dự đoán của các query nhàn rỗi (inactive queries).
+  5. Untargeted_PGD: Tối đa hóa xác suất cực đại tổng quát trên mọi lớp danh định.
+"""
+
+from typing import Optional
+import torch
+
+
+def generate_batch_adversarial(
+    model: torch.nn.Module,
+    bx: torch.Tensor,
+    attack_type: str = "Clean",
+    target_class_idx: int = 1,
+    epsilon: float = 16.0 / 255.0,
+    alpha: float = 2.0 / 255.0,
+    steps: int = 8,
+    k_fake_eqf: int = 50,
+    k_fake_dqf: int = 15,
+) -> torch.Tensor:
+    """
+    Sinh batch ảnh đối kháng trực tiếp trên GPU/CPU theo lô hiện thời.
+    Bảo toàn tính liên tục trong không gian ảnh [0.0, 1.0] và ngân sách chuẩn L_inf (epsilon).
+    """
+    if attack_type == "Clean":
+        return bx
+
+    if attack_type == "Gaussian_Noise":
+        noise = torch.randn_like(bx) * (16.0 / 255.0)
+        return torch.clamp(bx + noise, 0.0, 1.0)
+
+    # 1. Forward pass trên ảnh sạch để lấy background / inactive mask
+    with torch.no_grad():
+        clean_out = model(pixel_values=bx)
+        if attack_type == "EQF":
+            clean_enc = clean_out.enc_outputs_class
+            clean_enc_p = torch.sigmoid(clean_enc).max(dim=-1)[0]
+            bg_mask = clean_enc_p < 0.10
+        elif attack_type == "DQF":
+            clean_dec = clean_out.logits
+            clean_dec_p = torch.sigmoid(clean_dec).max(dim=-1)[0]
+            inactive_dec_mask = clean_dec_p < 0.15
+
+    # 2. Vòng lặp tối ưu hóa Projected Gradient Descent (PGD)
+    x_adv = bx.clone().detach().requires_grad_(True)
+    for _ in range(steps):
+        out = model(pixel_values=x_adv)
+        if attack_type == "EQF":
+            target_logits = out.enc_outputs_class[..., target_class_idx]
+            masked_target = target_logits.masked_fill(~bg_mask, -1e4)
+            k_sel = min(k_fake_eqf, masked_target.shape[1])
+            top_fake = masked_target.topk(k_sel, dim=-1)[0]
+            loss = -top_fake.mean()
+        elif attack_type == "DQF":
+            target_logits = out.logits[..., target_class_idx]
+            masked_target = target_logits.masked_fill(~inactive_dec_mask, -1e4)
+            k_sel = min(k_fake_dqf, masked_target.shape[1])
+            top_fake = masked_target.topk(k_sel, dim=-1)[0]
+            loss = -top_fake.mean()
+        elif attack_type == "Untargeted_PGD":
+            probs = torch.sigmoid(out.logits)
+            loss = -probs.max(dim=-1)[0].mean()
+        else:
+            raise ValueError(f"Dạng tấn công không hợp lệ: {attack_type}")
+
+        model.zero_grad()
+        loss.backward()
+        with torch.no_grad():
+            if x_adv.grad is not None:
+                grad_sign = x_adv.grad.sign()
+            else:
+                grad_sign = torch.zeros_like(x_adv)
+            x_adv = x_adv - alpha * grad_sign
+            delta = torch.clamp(x_adv - bx, -epsilon, epsilon)
+            x_adv = torch.clamp(bx + delta, 0.0, 1.0).requires_grad_(True)
+
+    return x_adv.detach()

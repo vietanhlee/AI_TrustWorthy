@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Package: paper_2_phantom_fabrication.core
-Mô-đun lõi phục vụ nạp dữ liệu COCO, tính toán độ đo mAP / Hungarian Matching
-và quản lý cấu hình thực thi phần cứng cho Paper 2 (Phantom Queries Fabrication).
+Mô-đun lõi phục vụ nạp dữ liệu COCO, tính toán độ đo mAP / Hungarian Matching,
+nhận diện phần cứng thực thi và quản lý bộ nhớ đệm đối kháng cho Paper 2.
 """
 
 from .coco_gt import (
@@ -35,6 +35,13 @@ from .config import (
     IMG_SIZE,
     NUM_QUERIES,
 )
+from .hardware import (
+    detect_hardware,
+    benchmark_model_latency,
+)
+from .matcher import (
+    match_detections_against_gt,
+)
 
 __all__ = [
     "CocoCohortDataset",
@@ -61,4 +68,7 @@ __all__ = [
     "MODEL_NAME",
     "IMG_SIZE",
     "NUM_QUERIES",
+    "detect_hardware",
+    "benchmark_model_latency",
+    "match_detections_against_gt",
 ]

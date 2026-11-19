@@ -48,11 +48,9 @@ from paper_2_phantom_fabrication.core.config import (
     get_adv_cache_dir,
     set_adv_cache_dir,
 )
-from paper_2_phantom_fabrication.experiments.run_full_paper2_suite import (
-    detect_hardware,
-    generate_batch_adversarial,
-    get_cohort_dataloader,
-)
+from paper_2_phantom_fabrication.core.hardware import detect_hardware
+from paper_2_phantom_fabrication.attacks.phantom_attacks import generate_batch_adversarial
+from paper_2_phantom_fabrication.experiments.streaming_evaluator import get_cohort_dataloader
 
 
 def generate_single_attack_cache(
