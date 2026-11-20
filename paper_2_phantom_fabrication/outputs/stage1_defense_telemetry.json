@@ -1,0 +1,51 @@
+{
+  "Unprotected_DQF": {
+    "mAP50": 9.33,
+    "mAP75": 6.72,
+    "fp_count": 9097,
+    "tp_count": 555,
+    "precision": 575.0,
+    "recall": 2836.0,
+    "f1": 0.0956
+  },
+  "SQD_Filter_Ours": {
+    "fp_count": 2322,
+    "tp_count": 268,
+    "precision": 1035.0,
+    "recall": 1369.0,
+    "f1": 0.1179,
+    "fp_reduction_pct": 74.48
+  },
+  "JPEG_Quality75": {
+    "mAP50": 32.68,
+    "mAP75": 23.53,
+    "fp_count": 4008,
+    "tp_count": 891,
+    "f1": 0.2599,
+    "fp_reduction_pct": 55.94
+  },
+  "Gaussian_Blur": {
+    "mAP50": 39.14,
+    "mAP75": 28.18,
+    "fp_count": 2245,
+    "tp_count": 965,
+    "f1": 0.3735,
+    "fp_reduction_pct": 75.32
+  },
+  "Median_Filter": {
+    "mAP50": 33.24,
+    "mAP75": 23.93,
+    "fp_count": 3581,
+    "tp_count": 899,
+    "f1": 0.2793,
+    "fp_reduction_pct": 60.64
+  },
+  "BitDepth_4bit": {
+    "mAP50": 12.98,
+    "mAP75": 9.35,
+    "fp_count": 8706,
+    "tp_count": 604,
+    "f1": 0.1072,
+    "fp_reduction_pct": 4.3
+  }
+}
