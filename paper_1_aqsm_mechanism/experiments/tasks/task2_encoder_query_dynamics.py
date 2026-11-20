@@ -277,14 +277,15 @@ def run_encoder_query_dynamics_evaluation(
     summary_json_dir.mkdir(parents=True, exist_ok=True)
 
     json_path_mem = summary_json_dir / "encoder_memory_analysis.json"
-    save_json(json_path_mem, {
+    mem_payload = {
         "experiment": "Table 5: Multi-Scale Encoder Memory Deformation",
         "n_images": n_total,
         "model": MODEL_NAME,
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "results": memory_results_by_attack,
-    })
+    }
+    save_json(mem_payload, json_path_mem)
     print(f">>> Đã xuất JSON Table 5: {json_path_mem}")
 
     json_path_query = summary_json_dir / "query_selection_dynamics.json"
@@ -296,8 +297,8 @@ def run_encoder_query_dynamics_evaluation(
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "results": results_by_attack,
     }
-    save_json(json_path_query, query_payload)
-    save_json(summary_json_dir / "encoder_query_dynamics.json", query_payload)
+    save_json(query_payload, json_path_query)
+    save_json(query_payload, summary_json_dir / "encoder_query_dynamics.json")
     print(f">>> Đã xuất JSON Table 6: {json_path_query}")
 
     return {
