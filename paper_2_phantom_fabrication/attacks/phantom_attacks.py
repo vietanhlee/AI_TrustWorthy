@@ -79,7 +79,7 @@ def generate_batch_adversarial(
 
             # Thành phần triệt tiêu vật thể thật (Foreground eviction)
             if fg_mask.sum() > 0:
-                fg_logits = out.enc_outputs_class[:, fg_mask]
+                fg_logits = out.enc_outputs_class[fg_mask]
                 loss_evict = fg_logits.max(dim=-1)[0].mean()
             else:
                 loss_evict = torch.tensor(0.0, device=bx.device)

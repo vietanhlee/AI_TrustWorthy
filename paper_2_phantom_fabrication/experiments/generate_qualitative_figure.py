@@ -256,20 +256,20 @@ def generate_paper2_qualitative_figure(
         out_pgd = model(pixel_values=pgd_t)
     dets_pgd, raw_pgd = get_detections_from_output(model, out_pgd, conf_thresh=conf_thresh)
 
-    # --- (d) Proposed Threat 1: EQF (eps=16/255, T=8) ---
+    # --- (d) Proposed Threat 1: Standard EQF (eps=16/255, T=8) ---
     eqf_t = generate_batch_adversarial(model, clean_t, attack_type="EQF", target_class_idx=1, steps=8, epsilon=16.0/255.0)
     with torch.no_grad():
         out_eqf = model(pixel_values=eqf_t)
     dets_eqf, raw_eqf = get_detections_from_output(model, out_eqf, conf_thresh=conf_thresh)
 
-    # --- (e) Proposed Threat 2: DQF (eps=16/255, T=8) ---
-    dqf_t = generate_batch_adversarial(model, clean_t, attack_type="DQF", target_class_idx=1, steps=8, epsilon=16.0/255.0)
+    # --- (e) Advanced Threat: RAB-EQF (Rank-Aware Boundary Loss, eps=16/255, T=8) ---
+    rab_t = generate_batch_adversarial(model, clean_t, attack_type="RAB_EQF", target_class_idx=1, steps=8, epsilon=16.0/255.0)
     with torch.no_grad():
-        out_dqf = model(pixel_values=dqf_t)
-    dets_dqf, raw_dqf = get_detections_from_output(model, out_dqf, conf_thresh=conf_thresh)
+        out_rab = model(pixel_values=rab_t)
+    dets_rab, raw_rab = get_detections_from_output(model, out_rab, conf_thresh=conf_thresh)
 
-    # --- (f) Proposed Defense: SQD-Filter (d=0.15) ---
-    sqd_filtered = evaluate_sqd_filter_on_detections([raw_dqf], divergence_threshold=0.15)[0]
+    # --- (f) Proposed Defense: SQD-Filter (d=0.15) on EQF ---
+    sqd_filtered = evaluate_sqd_filter_on_detections([raw_eqf], divergence_threshold=0.15)[0]
     dets_sqd: List[Dict[str, Any]] = []
     for b, s, l in zip(sqd_filtered["boxes"], sqd_filtered["scores"], sqd_filtered["labels"]):
         c_name = model.config.id2label.get(int(l), f"cls_{l}")
@@ -311,21 +311,21 @@ def generate_paper2_qualitative_figure(
         is_nominal=False,
     )
 
-    # Panel (d): Proposed Threat 1 - EQF
+    # Panel (d): Proposed Threat 1 - Standard EQF
     draw_panel(
         axes[1, 0], img_np, dets_eqf,
-        title="(d) Threat 1: Encoder Query Fabrication (EQF, eps = 16/255)",
-        subtitle=f"Active Boxes: {len(dets_eqf)} | True Vehicles Evicted | Roadway Slots Usurped",
+        title="(d) Threat 1: Standard EQF (Bottleneck Co-Location)",
+        subtitle=f"Active Boxes: {len(dets_eqf)} | True Vehicles Evicted | Co-Located Clusters (min D < 0.002)",
         status_text="Threat 1: Displaced",
         is_nominal=False,
     )
 
-    # Panel (e): Proposed Threat 2 - DQF
+    # Panel (e): Advanced Threat - RAB-EQF
     draw_panel(
-        axes[1, 1], img_np, dets_dqf,
-        title="(e) Threat 2: Decoder Query Fabrication (DQF, eps = 16/255)",
-        subtitle=f"Active Boxes: {len(dets_dqf)} | Multi-Scale Phantom Cluster (IoU < 0.15)",
-        status_text="Threat 2: Co-Located Flood",
+        axes[1, 1], img_np, dets_rab,
+        title="(e) Advanced Threat: RAB-EQF (Rank-Aware Margin)",
+        subtitle=f"Active Boxes: {len(dets_rab)} | Boundary-Crossing Margin & Targeted Eviction",
+        status_text="Advanced: High-Conf Phantoms",
         is_nominal=False,
     )
 
