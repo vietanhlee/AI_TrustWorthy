@@ -19,7 +19,7 @@ Kiến trúc các đòn tấn công tinh gọn (Streamlined Attack Suite):
      chứng minh giới hạn tất yếu của các bộ giám sát 1D trước kẻ tấn công có tri thức.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn

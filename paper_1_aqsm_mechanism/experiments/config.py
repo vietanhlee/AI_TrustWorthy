@@ -103,6 +103,9 @@ def get_outputs_dir() -> Path:
     return OUTPUTS_DIR
 
 
+get_output_dir = get_outputs_dir
+
+
 def get_logs_dir() -> Path:
     return LOGS_DIR
 

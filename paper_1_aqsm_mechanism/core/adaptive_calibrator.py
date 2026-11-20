@@ -18,7 +18,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from paper_1_aqsm_mechanism.experiments.config import get_output_dir
+from paper_1_aqsm_mechanism.experiments.config import get_outputs_dir
 
 logger = logging.getLogger("adaptive_calibrator")
 
@@ -38,7 +38,7 @@ class AdaptiveAttackCalibrator:
         self.device = model_wrapper.device
 
         if cache_path is None:
-            self.cache_path = get_output_dir() / "calibration" / "calibrated_adaptive_params.json"
+            self.cache_path = get_outputs_dir() / "calibration" / "calibrated_adaptive_params.json"
         else:
             self.cache_path = Path(cache_path)
 
