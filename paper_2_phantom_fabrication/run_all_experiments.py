@@ -12,15 +12,19 @@ Mục đích: Orchestrator trung tâm điều phối toàn bộ chuỗi thực n
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import torch
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -130,9 +134,6 @@ def run_subtask(
     return ret_code, dur
 
 
-import hashlib
-
-
 def compute_file_sha256(file_path: Path) -> str:
     """Tính toán mã băm SHA256 của file để xác thực tính toàn vẹn provenance."""
     if not file_path.exists():
@@ -235,6 +236,7 @@ def main():
 
     setup_cpu_threads(args.threads)
     hw_info = detect_hardware(args.device)
+    device = hw_info["primary_device"]
 
     out_dir = Path(args.output_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -340,7 +342,7 @@ def main():
             "device": str(device),
             "num_gpus": hw_info.get("num_gpus", 0),
             "gpu_names": hw_info.get("gpu_names", []),
-            "cpu_cores": hw_info.get("cpu_cores", 4),
+            "cpu_threads": hw_info.get("cpu_threads", os.cpu_count() or 4),
             "pytorch_version": torch.__version__,
         },
         "tasks": task_manifest,
