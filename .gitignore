@@ -71,3 +71,6 @@ Thumbs.db
 verify_pdf_render/
 verify_bao_cao_proto/
 test_dry_run_telemetry.json
+scratch/
+**/rendered_pages/
+**/audit_page_*.png

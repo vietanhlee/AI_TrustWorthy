@@ -70,7 +70,8 @@ def run_adaptive_evasion_test(
         step_alpha = 2.0 / 255.0
         eps = 16.0 / 255.0
 
-        for _ in range(5):
+        # Chu trình PGD 15 bước chuẩn hóa (khớp với Stationary Attack)
+        for _ in range(15):
             adv_var = adv.clone().detach().requires_grad_(True)
             mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
             out = model(pixel_values=adv_var, pixel_mask=mask)

@@ -1,46 +1,54 @@
 {
   "target_fpr_pct": 5.0,
-  "empirical_clean_fpr_pct": 26.67,
-  "n_cal": 15,
-  "n_test": 15,
-  "fused_threshold": 0.9333,
+  "empirical_clean_fpr_pct": 10.0,
+  "clean_map50_pct": 66.81,
+  "n_cal": 120,
+  "n_test": 280,
+  "fused_threshold": 0.975,
   "attacks": {
     "aqsm": {
-      "tpr_detection_rate_pct": 80.0,
-      "auroc": 0.88,
-      "mean_anomaly_score": 0.9022
+      "tpr_detection_rate_pct": 76.07,
+      "auroc": 0.9082,
+      "mean_anomaly_score": 0.9715,
+      "post_attack_map50_pct": 3.41
     },
     "vanishing": {
-      "tpr_detection_rate_pct": 53.33,
-      "auroc": 0.7111,
-      "mean_anomaly_score": 0.76
+      "tpr_detection_rate_pct": 17.5,
+      "auroc": 0.6051,
+      "mean_anomaly_score": 0.7627,
+      "post_attack_map50_pct": 1.92
     },
-    "task_pgd": {
-      "tpr_detection_rate_pct": 53.33,
-      "auroc": 0.7511,
-      "mean_anomaly_score": 0.8044
+    "taskpgd": {
+      "tpr_detection_rate_pct": 9.64,
+      "auroc": 0.5182,
+      "mean_anomaly_score": 0.6832,
+      "post_attack_map50_pct": 0.98
     }
   },
   "adaptive_evasion": {
     "lambda_0.2": {
       "evasion_weight_lambda": 0.2,
-      "detected_tpr_pct": 46.67,
-      "evasion_success_pct": 53.33
+      "detected_tpr_pct": 0.0,
+      "evasion_success_pct": 100.0,
+      "post_attack_map50_pct": 3.65
     },
     "lambda_0.5": {
       "evasion_weight_lambda": 0.5,
-      "detected_tpr_pct": 53.33,
-      "evasion_success_pct": 46.67
+      "detected_tpr_pct": 0.0,
+      "evasion_success_pct": 100.0,
+      "post_attack_map50_pct": 4.12
     },
     "lambda_1.0": {
       "evasion_weight_lambda": 1.0,
-      "detected_tpr_pct": 53.33,
-      "evasion_success_pct": 46.67
+      "detected_tpr_pct": 10.0,
+      "evasion_success_pct": 90.0,
+      "post_attack_map50_pct": 5.20
     },
     "lambda_2.0": {
       "evasion_weight_lambda": 2.0,
-      "detected_tpr_pct": 53.33,
-      "evasion_success_pct": 46.67
+      "detected_tpr_pct": 0.0,
+      "evasion_success_pct": 100.0,
+      "post_attack_map50_pct": 6.85
     }
   }
 }

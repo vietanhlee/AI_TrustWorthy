@@ -45,7 +45,7 @@
 \affiliation{organization={Affiliation omitted for double-blind review}}
 
 \begin{abstract}
-Real-Time Detection Transformers (RT-DETR) achieve deterministic edge throughput without Non-Maximum Suppression (NMS), yet remain vulnerable to gradient-based query manipulations (vanishing, fabrication, and ranking inversion). Securing edge Vision Transformers is impeded by prohibitive retraining costs, asymmetric distribution skew (the ``oracle tail trap''), and false-alarm explosion in uncalibrated multi-channel ensembles. In this paper, we propose a lightweight, passive reliability-aware defense framework operating entirely on forward-pass representations without architectural retraining. The architecture deploys three complementary tiers: frontline split-percentile 1D monitors, random-projected ($d=64$) Mahalanobis manifold modeling, and specialized encoder selection monitors, fused via an Extreme-Value Max-OR gate calibrated using distribution-free conformal quantiles. Evaluated on Microsoft COCO, our defense bounds clean False Positive Rates at $5.2\%$ [$3.5\%, 7.3\%$] (stable at $4.3\%$--$6.0\%$ under natural corruptions) while incurring only $2.11\%$ ($3.37\text{ ms}$) CPU latency overhead. It delivers robust multi-tier intrusion detection ($72.7\%$ on Query Vanishing, $52.7\%$ on Fabrication, $47.7\%$ on AQSM) and characterizes white-box adaptive evasion boundaries under Carlini-Tramèr principles, establishing a practical defense-in-depth blueprint for trustworthy edge perception.
+Real-Time Detection Transformers (RT-DETR) achieve deterministic edge throughput without Non-Maximum Suppression (NMS), yet remain vulnerable to gradient-based query manipulations (vanishing, fabrication, and ranking inversion). Securing edge Vision Transformers is impeded by prohibitive retraining costs, asymmetric distribution skew (the ``oracle tail trap''), and false-alarm explosion in uncalibrated multi-channel ensembles. In this paper, we propose a lightweight, passive reliability-aware defense framework operating entirely on forward-pass representations without architectural retraining. The architecture deploys three complementary tiers: frontline split-percentile 1D monitors, random-projected ($d=64$) Mahalanobis manifold modeling, and specialized encoder selection monitors, fused via an Extreme-Value Max-OR gate calibrated using distribution-free conformal quantiles. Evaluated on Microsoft COCO, our defense targets a nominal false alarm rate $\alpha=0.05$ and reliably bounds out-of-sample False Positive Rates at $5.2\%$ [$3.5\%, 7.3\%$] on unseen clean test data (stable at $4.3\%$--$6.0\%$ under natural corruptions, consistent with finite-sample binomial sampling variation) while incurring only $3.05\%$ ($11.00\text{ ms}$) CPU latency overhead. It delivers robust multi-tier intrusion detection ($72.7\%$ on Query Vanishing, $52.7\%$ on Fabrication, $47.7\%$ on AQSM) and characterizes white-box adaptive evasion boundaries under Carlini-Tramèr principles, establishing a practical defense-in-depth blueprint for trustworthy edge perception.
 \end{abstract}
 
 \begin{keyword}
@@ -88,7 +88,7 @@ The core contributions of this work are summarized as follows:
     \item \textbf{Specialized Multi-Tier Monitoring Architecture:} We introduce an orthogonal, multi-tier passive monitoring suite operating exclusively on forward-pass activations: (i) Frontline split-percentile 1D counters (\texttt{ActiveQ\_Split}, \texttt{Top1Mean\_Split}); (ii) Deep layer-wise Mahalanobis representations projected to 64 dimensions via fixed orthogonal projection; and (iii) Encoder Selection Monitoring (\texttt{ESM\_Dropoff} and \texttt{ESM\_Margin}) directly tracking encoder candidate ranking distortion.
     \item \textbf{Calibrated Extreme-Value Max-OR Fusion Gate:} We develop a distribution-free conformal fusion gate that maintains nominal false alarm control. Calibrating on $N_{\mathrm{cal}}=1200$ clean images curbs empirical clean FPR from $15.5\%$ [$12.7\%, 18.6\%$] (uncalibrated OR) to $5.2\%$ [$3.5\%, 7.3\%$] on $N_{\mathrm{test}}=600$ unseen clean images, and preserves $4.3\%$--$6.0\%$ FPR across four natural environmental corruptions (noise, blur, occlusion, brightness shift).
     \item \textbf{Empirical Multi-Attack Benchmarking and Statistical Verification:} On official COCO val2017 ($N=300$), specialized internal channels achieve high detection sensitivity against diverse threat vectors ($82.3\%$ on Query Vanishing, $57.7\%$ on AQSM, $66.3\%$ on EQF), substantially exceeding classical input-space defenses (TV energy, JPEG reconstruction), while the fused Calibrated Max-OR gate secures $72.7\%$ and $47.7\%$ respectively under strict $5.2\%$ clean FPR. Paired McNemar hypothesis tests confirm a statistically significant advantage of ESM over output-space baselines ($p = 0.0051$).
-    \item \textbf{Defensive Boundaries, Adaptive Limits, and Hardware Profiling:} We systematically characterize the operational boundaries of passive monitoring. We expose the spatial blind spot of global counters against localized $48\times 48$ patches ($2.3\%$ TPR) resulting from sparse deformable sampling ($K=4$), and benchmark resilience under white-box adaptive evasion ($12.7\%$ TPR). Hardware profiling on an Intel Core i5-12600H CPU establishes an ultra-low execution latency of $3.37\text{ ms}$ ($2.11\%$ relative overhead), validating real-time edge viability.
+    \item \textbf{Defensive Boundaries, Adaptive Limits, and Hardware Profiling:} We systematically characterize the operational boundaries of passive monitoring. We expose the spatial blind spot of global counters against localized $48\times 48$ patches ($2.3\%$ TPR) resulting from sparse deformable sampling ($K=4$), and benchmark resilience under white-box adaptive evasion ($12.7\%$ TPR). Hardware profiling on an Intel Core i5-12600H CPU establishes an ultra-low execution latency of $11.00\text{ ms}$ ($3.05\%$ relative overhead), validating real-time edge viability.
 \end{enumerate}
 
 % =====================================================================
@@ -135,7 +135,7 @@ As summarized in Table~\ref{tab:related_comparison}, existing monitoring approac
 \addlinespace[6pt]
 \midrule
 \addlinespace[6pt]
-\makecell[l]{\textbf{Calibrated}\\\textbf{Max-OR}} & \textbf{This Work} & \textbf{RT-DETR (\texttt{r18vd})} & \makecell[l]{\textbf{Yes}\\\textbf{(2.11\%, 3.37 ms)}} & \textbf{Zero} & \makecell[l]{\textbf{Strict 5.0\%}\\\textbf{Bound}} & \textbf{Yes} \\
+\makecell[l]{\textbf{Calibrated}\\\textbf{Max-OR}} & \textbf{This Work} & \textbf{RT-DETR (\texttt{r18vd})} & \makecell[l]{\textbf{Yes}\\\textbf{(3.05\%, 11.00 ms)}} & \textbf{Zero} & \makecell[l]{\textbf{Strict 5.0\%}\\\textbf{Bound}} & \textbf{Yes} \\
 \bottomrule
 \end{tabular}%
 }
@@ -232,7 +232,7 @@ with differentiable surrogate $\tilde{r}_{\mathrm{act}} = \frac{1}{N_q} \sum_{i=
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.98\textwidth]{fig/fig1_system_architecture.pdf}
-\caption{System architecture of the proposed lightweight guardrail monitoring framework for RT-DETR on edge devices. Internal query selection dynamics, deep layer representations, and output query statistics are extracted with $2.11\%$ idle Edge CPU overhead ($3.37$ ms) and routed to the Calibrated Max-OR Gate.}
+\caption{System architecture of the proposed lightweight guardrail monitoring framework for RT-DETR on edge devices. Internal query selection dynamics, deep layer representations, and output query statistics are extracted with $3.05\%$ idle Edge CPU overhead ($11.00$ ms) and routed to the Calibrated Max-OR Gate.}
 \label{fig:system_architecture}
 \end{figure}
 
@@ -292,10 +292,11 @@ where $s_{(k)}^{\mathrm{enc}}$ denotes the $k$-th order statistic of candidate c
     \begin{equation}
         S_{\mathrm{fused}}(x) = \max_{k \in \{1, \dots, M\}} q_k(x) \in [0, 1].
     \end{equation}
-    \item \textbf{Exact Threshold Calibration on Fused Distribution:} Rather than applying individual channel thresholds, the global threshold $\tau_{\mathrm{fused}}$ is calibrated directly on the empirical fused scores over $\mathcal{D}_{\mathrm{cal}}$:
+    \item \textbf{Empirical Percentile Calibration on Fused Distribution:} Rather than applying individual channel thresholds, the global threshold $\tau_{\mathrm{fused}}$ is determined via empirical quantile estimation over $\mathcal{D}_{\mathrm{cal}}$ targeting the nominal false alarm budget $\alpha = 0.05$:
     \begin{equation}
         \tau_{\mathrm{fused}} = \mathrm{Quantile}\left( \{ S_{\mathrm{fused}}(x_i) \}_{i=1}^{N_{\mathrm{cal}}}, 1 - \alpha \right).
     \end{equation}
+    On finite calibration and test samples, discrete sample steps ($1/N_{\mathrm{cal}}$), empirical ties, and finite-sample binomial variance naturally cause out-of-sample test FPR to fluctuate within its binomial confidence band ($5.2\%$ with 95\% Clopper-Pearson CI [$3.5\%, 7.3\%$] on $N_{\mathrm{test}}=600$, tightly covering the nominal $\alpha = 0.05$). We thus formulate this mechanism as an empirical sample quantile calibration targeting nominal false alarm control rather than an exact asymptotic distribution-free guarantee.
 \end{enumerate}
 
 Algorithm~\ref{alg:calibrated_max_or} details the complete offline calibration and online inference procedure.
@@ -499,13 +500,13 @@ To evaluate whether simple input-space anomaly detectors suffice without interna
 \addlinespace[6pt]
 \midrule
 \addlinespace[6pt]
-\makecell[l]{\textbf{Execution Runtime}\\\textbf{(per frame)}} & 6.09 ms & 6.18 ms & \textbf{3.37 ms} & \makecell[l]{\textbf{2.11\%}\\\textbf{(+3.37 ms)}} \\
+\makecell[l]{\textbf{Execution Runtime}\\\textbf{(per frame)}} & 6.09 ms & 6.18 ms & \textbf{11.00 ms} & \makecell[l]{\textbf{3.05\%}\\\textbf{(+11.00 ms)}} \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-While JPEG reconstruction captures 32.0\% of AQSM attacks and TV captures 12.0\%, both input-space baselines completely collapse under natural sensor noise (Gaussian noise $\sigma=16$), triggering an untenable \textbf{100.0\% false alarm rate}. Furthermore, input filtering introduces $6.09$--$6.18\text{ ms}$ per image, exceeding our complete multi-channel internal guardrail ($3.37\text{ ms}$). In contrast, Calibrated Max-OR maintains strict 4.0\%--6.0\% false alarm rates under environmental noise while capturing 84.0\% of unconstrained AQSM attacks.
+While JPEG reconstruction captures 32.0\% of AQSM attacks and TV captures 12.0\%, both input-space baselines completely collapse under natural sensor noise (Gaussian noise $\sigma=16$), triggering an untenable \textbf{100.0\% false alarm rate}. Furthermore, input filtering alters clean feature geometry without providing structural query protection, whereas our complete multi-channel internal guardrail incurs merely $11.00\text{ ms}$ ($3.05\%$ overhead). In contrast, Calibrated Max-OR maintains strict 4.0\%--6.0\% false alarm rates under environmental noise while capturing 84.0\% of unconstrained AQSM attacks.
 
 \subsection{Multiple Testing FWER Control: Calibrated Max-OR vs. Statistical Baselines}
 \label{sec:multitest_baselines}
@@ -593,12 +594,12 @@ As illustrated in Figure~\ref{fig:patch_size_sweep}, this exposes an intrinsic \
 Under 1D-targeted adaptive evasion ($\lambda = 0.5$, Figure~\ref{fig:adaptive_tradeoff}), \texttt{ActiveQ\_Split} detection drops to 2.0\% and Calibrated Max-OR is reduced to \textbf{9.0\% [6.0\%, 12.8\%]}. However, because 1D evasion does not constrain deep representations, \texttt{LayerMaha} retains a residual \textbf{27.3\% TPR}. Even under full all-tiers adaptive evasion, Calibrated Max-OR retains \textbf{12.7\% [9.1\%, 17.0\%] TPR} and \texttt{LayerMaha} retains \textbf{30.7\% TPR}. While passive guardrails cannot act as an impenetrable barrier against a fully omniscient adversary, they impose an optimization tax that forces the attacker to transition to demanding multi-objective loss formulations.
 
 \subsection{Edge Hardware Latency and Runtime Profiling}
-Table~\ref{tab:runtime_overhead} and Figure~\ref{fig:latency_breakdown} report empirical inference latency measured over 50 consecutive single-frame runs on an Intel Core i5-12600H CPU platform ($320 \times 320$, PyTorch FP32, 4 threads). Baseline RT-DETR inference requires $159.72 \pm 26.06$ ms ($\sim 6.26$ FPS). Intermediate tensor extraction adds $3.22 \pm 1.17$ ms (2.02\%), and calibrated decision scoring requires merely $0.155 \pm 0.053$ ms (0.10\%). Total monitoring execution requires $3.37 \pm 1.21$ ms, representing an ultra-low \textbf{2.11\%} relative latency overhead ($163.09$ ms total, sustaining 6.13 FPS), while consuming under $200$ KB of auxiliary memory.
+Table~\ref{tab:runtime_overhead} and Figure~\ref{fig:latency_breakdown} report empirical inference latency measured over 50 consecutive single-frame runs on an Intel Core i5-12600H CPU platform ($320 \times 320$, PyTorch FP32, 4 threads). Baseline RT-DETR inference requires $360.71 \pm 86.81$ ms ($\sim 2.77$ FPS). Intermediate tensor extraction adds $10.46 \pm 4.72$ ms (2.90\%), and calibrated decision scoring requires merely $0.545 \pm 0.301$ ms (0.15\%). Total monitoring execution requires $11.00 \pm 4.88$ ms, representing an ultra-low \textbf{3.05\%} relative latency overhead ($371.72$ ms total, sustaining 2.69 FPS), while consuming under $200$ KB of auxiliary memory.
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.88\textwidth]{fig/fig10_latency_breakdown.pdf}
-\caption{Execution latency breakdown of RT-DETR and individual guardrail components on idle Edge CPU (Intel Core i5-12600H, 4 PyTorch threads, $320 \times 320$). Total monitoring overhead is $3.37$ ms ($2.11\%$ relative overhead), sustaining $6.13$ FPS.}
+\caption{Execution latency breakdown of RT-DETR and individual guardrail components on idle Edge CPU (Intel Core i5-12600H, 4 PyTorch threads, $320 \times 320$). Total monitoring overhead is $11.00$ ms ($3.05\%$ relative overhead), sustaining $2.69$ FPS.}
 \label{fig:latency_breakdown}
 \end{figure}
 
@@ -638,7 +639,7 @@ Decision Calibration Scoring (Non-Oracle Max-OR Gate) & $0.545 \pm 0.301$ ms & 0
 Our findings provide a critical methodological lesson: in Transformer detectors, symmetric two-sided tests can render baseline monitors completely blind (AUROC 0.956 yet 0.0\% TPR under naive symmetric two-sided rejection). When clean distributions are skewed, a non-oracle split-percentile protocol is statistically necessary. Furthermore, when ensembling multiple monitors, calibration must occur on the fused extreme-value distribution to preserve calibrated false alarm bounds.
 
 \subsection{The Multi-Channel Ensembling Trade-Off: Coverage vs. Peak Sensitivity}
-For every individual attack, there exists a single optimal monitoring channel (e.g., ESM Dropoff for AQSM at \textbf{56.0\%}, ActiveQ Split for Vanishing at \textbf{82.3\%}, Layer\_Maha for DQF at \textbf{30.0\%}). However, defenders lack oracle knowledge of incoming attacks. Calibrated Max-OR trades peak oracle sensitivity for blind, multi-attack coverage without false alarm inflation, attaining empirical 5.0\% bounds ($5.2\%$ [$3.5\%, 7.3\%$] on clean test data).
+For every individual attack, there exists a single optimal monitoring channel (e.g., ESM Dropoff for AQSM at \textbf{56.0\%}, ActiveQ Split for Vanishing at \textbf{82.3\%}, Layer\_Maha for DQF at \textbf{30.0\%}). However, defenders lack oracle knowledge of incoming attacks. Calibrated Max-OR trades peak oracle sensitivity for blind, multi-attack coverage without false alarm inflation, attaining calibrated nominal false alarm control ($5.2\%$ [$3.5\%, 7.3\%$] empirical FPR on clean test data, well within sampling error of nominal $\alpha=0.05$).
 
 \subsection{Theoretical Boundary: Random Projection and the Nullspace Attack}
 To maintain edge efficiency ($0.034$ ms scoring latency), Tier 2 projects latent states from $D=256$ to $d=64$ using an orthogonal matrix $W_{\mathrm{proj}}$. The orthogonal nullspace $\mathcal{N}(W_{\mathrm{proj}})$ has dimension $256 - 64 = 192$. An omniscient adversary with direct access to $W_{\mathrm{proj}}$ can construct perturbations $\delta_H \in \mathcal{N}(W_{\mathrm{proj}})$ leaving projected states unchanged ($W_{\mathrm{proj}}^T (H + \delta_H) = W_{\mathrm{proj}}^T H$). While synthesizing pixel perturbations aligning with this 192-dimensional nullspace remains an extremely constrained non-convex problem, Moving Target Defense (MTD) via session seed randomization represents a promising countermeasure.
@@ -653,7 +654,7 @@ dropping false alarm frequency to approximately \textbf{1 alarm every 4,630 fram
 \subsection{Practical Deployment Guidelines: The Frontline Tripwire Philosophy}
 Given our findings, we recommend:
 \begin{enumerate}
-    \item \textbf{Lightweight Monitors as Frontline Tripwires:} Deploy lightweight monitors to filter out automated PGD attacks at minimal compute cost ($3.37\text{ ms} / 2.11\%$ overhead).
+    \item \textbf{Lightweight Monitors as Frontline Tripwires:} Deploy lightweight monitors to filter out automated PGD attacks at minimal compute cost ($11.00\text{ ms} / 3.05\%$ overhead).
     \item \textbf{Spatial Blind Spot Remediation:} Complement global query monitors with localized spatial tracking or input saliency filtering to address localized patches.
     \item \textbf{Temporal Voting for Video Streams:} Apply 3-of-5 temporal voting over consecutive video frames to suppress spurious alarms to one every 28 seconds of continuous driving.
     \item \textbf{Integrate Fail-Safe System Transitions:} Passive monitors must trigger system-level fail-safe transitions (e.g., radar/LiDAR fusion handover or vehicle deceleration) rather than attempting to filter attacks in isolation.
@@ -665,7 +666,7 @@ Given our findings, we recommend:
 \section{Conclusion}
 \label{sec:conclusion}
 
-This paper presented a reliability-aware defense framework for Real-Time DEtection TRansformer (RT-DETR) edge deployments. By deploying non-oracle split-percentile 1D counters, deep random-projected Mahalanobis manifold modeling, and specialized Encoder Selection Monitoring alongside a Calibrated Extreme-Value Max-OR fusion gate, our framework bounds empirical clean False Positive Rates at \textbf{5.2\% [3.5\%, 7.3\%]} on unseen test data ($4.3\%$--$6.0\%$ under natural corruptions) at merely \textbf{2.11\% (3.37 ms)} edge CPU latency overhead. The defense delivers effective multi-tier intrusion interception against query selection manipulation ($57.7\%$), query vanishing ($82.3\%$), and fabrication ($66.3\%$). Concurrently, our rigorous boundary evaluations expose the spatial blind spot of global inference monitors on localized patches ($2.3\%$ TPR) and characterize resilience limits under white-box adaptive evasion ($12.7\%$ TPR), providing a concrete scientific and engineering foundation for trustworthy edge vision.
+This paper presented a reliability-aware defense framework for Real-Time DEtection TRansformer (RT-DETR) edge deployments. By deploying non-oracle split-percentile 1D counters, deep random-projected Mahalanobis manifold modeling, and specialized Encoder Selection Monitoring alongside a Calibrated Extreme-Value Max-OR fusion gate, our framework controls the nominal false alarm budget at $\alpha=0.05$, attaining an empirical clean False Positive Rate of \textbf{5.2\% [3.5\%, 7.3\%]} on unseen test data ($4.3\%$--$6.0\%$ under natural corruptions) at merely \textbf{3.05\% (11.00 ms)} edge CPU latency overhead. The defense delivers effective multi-tier intrusion interception against query selection manipulation ($57.7\%$), query vanishing ($82.3\%$), and fabrication ($66.3\%$). Concurrently, our rigorous boundary evaluations expose the spatial blind spot of global inference monitors on localized patches ($2.3\%$ TPR) and characterize resilience limits under white-box adaptive evasion ($12.7\%$ TPR), providing a concrete scientific and engineering foundation for trustworthy edge vision.
 
 \section*{CRediT Authorship Contribution Statement}
 Author contributions and identifying details are omitted to preserve double-blind peer review.
