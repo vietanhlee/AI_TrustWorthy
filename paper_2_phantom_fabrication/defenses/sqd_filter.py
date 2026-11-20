@@ -166,9 +166,13 @@ SQDFilter = SpatialQueryDeduplicationFilter
 def evaluate_sqd_filter_on_detections(
     detections: List[Dict[str, np.ndarray]],
     divergence_threshold: float = 0.15,
+    iou_threshold: float = 0.35,
+    enable_cross_class_collision: bool = True,
 ) -> List[Dict[str, np.ndarray]]:
     """
     Áp dụng lọc trùng lặp không gian (SQD Filter) trực tiếp trên danh sách detection thô.
+    Hỗ trợ cả khử trùng lặp đồng lớp (same-class deduplication) và khử xung đột không gian
+    dị lớp do ảo giác đối kháng (cross-class collision suppression).
     detections: List các dict {"boxes": ndarray[N, 4], "scores": ndarray[N], "labels": ndarray[N]}
     """
     filtered_list = []
@@ -185,6 +189,16 @@ def evaluate_sqd_filter_on_detections(
         diff = centers[:, None, :] - centers[None, :, :]
         dists = np.sqrt(np.sum(diff ** 2, axis=-1))
 
+        # Tính ma trận IoU
+        x1 = np.maximum(boxes[:, None, 0], boxes[None, :, 0])
+        y1 = np.maximum(boxes[:, None, 1], boxes[None, :, 1])
+        x2 = np.minimum(boxes[:, None, 2], boxes[None, :, 2])
+        y2 = np.minimum(boxes[:, None, 3], boxes[None, :, 3])
+        inter = np.maximum(0.0, x2 - x1) * np.maximum(0.0, y2 - y1)
+        area = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        union = area[:, None] + area[None, :] - inter
+        ious = inter / np.maximum(union, 1e-6)
+
         order = np.argsort(-scores)
         suppressed = np.zeros(len(boxes), dtype=bool)
         keep = []
@@ -193,9 +207,17 @@ def evaluate_sqd_filter_on_detections(
             if suppressed[idx]:
                 continue
             keep.append(idx)
-            same_cls = (labels == labels[idx])
-            within_dist = (dists[idx] < divergence_threshold)
-            suppressed |= (same_cls & within_dist)
+            for other in range(len(boxes)):
+                if other == idx or suppressed[other]:
+                    continue
+                # Điều kiện 1: Khử trùng lặp đồng lớp theo khoảng cách tâm hoặc IoU
+                if labels[idx] == labels[other]:
+                    if dists[idx, other] < divergence_threshold or ious[idx, other] > iou_threshold:
+                        suppressed[other] = True
+                # Điều kiện 2: Khử xung đột không gian dị lớp (hai vật thể khác loại đè lên cùng 1 vị trí)
+                elif enable_cross_class_collision:
+                    if ious[idx, other] > iou_threshold or dists[idx, other] < 0.08:
+                        suppressed[other] = True
 
         keep = sorted(keep)
         filtered_list.append({

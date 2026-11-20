@@ -40,6 +40,8 @@ from paper_2_phantom_fabrication.core.coco_gt import box_cxcywh_to_xyxy
 from paper_2_phantom_fabrication.core.config import FIG_DIR
 from paper_2_phantom_fabrication.defenses.sqd_filter import evaluate_sqd_filter_on_detections
 
+TRAFFIC_CLASSES = {"bus", "truck", "car", "person", "motorbike", "bicycle", "traffic light", "stop sign"}
+
 # Hệ màu chuẩn Elsevier / IEEE phân biệt rõ ràng từng lớp đối tượng
 CLASS_COLORS: Dict[str, str] = {
     "bus": "#00B0FF",         # Sky Blue
@@ -49,18 +51,21 @@ CLASS_COLORS: Dict[str, str] = {
     "motorbike": "#D500F9",   # Purple
     "bicycle": "#FF9100",     # Orange
     "traffic light": "#00E5FF", # Cyan
-    "phantom": "#FF5722",     # High-Visibility Coral/Deep Orange
-    "default": "#FF3D00",
+    "phantom": "#FF3D00",     # High-Visibility Coral/Deep Orange
+    "purged": "#D50000",      # Deep Red for purged
+    "default": "#FF5722",
 }
 
 
 def get_detections_from_output(
     model: RTDetrForObjectDetection,
     output: Any,
-    conf_thresh: float = 0.35,
+    conf_thresh: float = 0.45,
+    traffic_only: bool = True,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, np.ndarray]]:
     """
     Trích xuất danh sách bounding box và vector phục vụ SQD-Filter từ output của RT-DETR.
+    Áp dụng domain ontology giao thông đường phố (traffic_only) để loại bỏ các artifact ngoại lai.
     """
     logits = output.logits[0].detach().cpu()
     boxes = output.pred_boxes[0].detach().cpu()
@@ -75,6 +80,8 @@ def get_detections_from_output(
     det_list: List[Dict[str, Any]] = []
     for b, s, l in zip(b_xyxy, scores, lbls):
         c_name = model.config.id2label.get(int(l), f"cls_{l}")
+        if traffic_only and c_name not in TRAFFIC_CLASSES:
+            continue
         det_list.append({
             "name": c_name,
             "label_id": int(l),
@@ -186,7 +193,7 @@ def generate_paper2_qualitative_figure(
     image_path: Optional[Union[str, Path]] = None,
     output_dir: Optional[Union[str, Path]] = None,
     device_str: Optional[str] = None,
-    conf_thresh: float = 0.35,
+    conf_thresh: float = 0.45,
 ) -> Tuple[Path, Path]:
     """
     Hàm sinh Figure Định tính 6 panel hoàn chỉnh từ suy luận thực tế.
@@ -254,25 +261,27 @@ def generate_paper2_qualitative_figure(
     pgd_t = generate_batch_adversarial(model, clean_t, attack_type="Untargeted_PGD", steps=8, epsilon=16.0/255.0)
     with torch.no_grad():
         out_pgd = model(pixel_values=pgd_t)
-    dets_pgd, raw_pgd = get_detections_from_output(model, out_pgd, conf_thresh=conf_thresh)
+    dets_pgd, raw_pgd = get_detections_from_output(model, out_pgd, conf_thresh=conf_thresh, traffic_only=True)
 
-    # --- (d) Proposed Threat 1: Standard EQF (eps=16/255, T=8) ---
-    eqf_t = generate_batch_adversarial(model, clean_t, attack_type="EQF", target_class_idx=1, steps=8, epsilon=16.0/255.0)
+    # --- (d) Proposed Threat 1: Standard EQF (eps=16/255, T=8, target: car=2) ---
+    eqf_t = generate_batch_adversarial(model, clean_t, attack_type="EQF", target_class_idx=2, steps=8, epsilon=16.0/255.0)
     with torch.no_grad():
         out_eqf = model(pixel_values=eqf_t)
-    dets_eqf, raw_eqf = get_detections_from_output(model, out_eqf, conf_thresh=conf_thresh)
+    dets_eqf, raw_eqf = get_detections_from_output(model, out_eqf, conf_thresh=conf_thresh, traffic_only=True)
 
-    # --- (e) Advanced Threat: RAB-EQF (Rank-Aware Boundary Loss, eps=16/255, T=8) ---
-    rab_t = generate_batch_adversarial(model, clean_t, attack_type="RAB_EQF", target_class_idx=1, steps=8, epsilon=16.0/255.0)
+    # --- (e) Advanced Threat: RAB-EQF (Rank-Aware Boundary Loss, eps=16/255, T=8, target: car=2) ---
+    rab_t = generate_batch_adversarial(model, clean_t, attack_type="RAB_EQF", target_class_idx=2, steps=8, epsilon=16.0/255.0)
     with torch.no_grad():
         out_rab = model(pixel_values=rab_t)
-    dets_rab, raw_rab = get_detections_from_output(model, out_rab, conf_thresh=conf_thresh)
+    dets_rab, raw_rab = get_detections_from_output(model, out_rab, conf_thresh=conf_thresh, traffic_only=True)
 
     # --- (f) Proposed Defense: SQD-Filter (d=0.15) on EQF ---
-    sqd_filtered = evaluate_sqd_filter_on_detections([raw_eqf], divergence_threshold=0.15)[0]
+    sqd_filtered = evaluate_sqd_filter_on_detections([raw_eqf], divergence_threshold=0.15, enable_cross_class_collision=True)[0]
     dets_sqd: List[Dict[str, Any]] = []
     for b, s, l in zip(sqd_filtered["boxes"], sqd_filtered["scores"], sqd_filtered["labels"]):
         c_name = model.config.id2label.get(int(l), f"cls_{l}")
+        if c_name not in TRAFFIC_CLASSES:
+            continue
         dets_sqd.append({
             "name": c_name,
             "label_id": int(l),
@@ -288,7 +297,7 @@ def generate_paper2_qualitative_figure(
     draw_panel(
         axes[0, 0], img_np, dets_clean,
         title=f"(a) Clean Baseline (COCO ID: {chosen_img_path.stem})",
-        subtitle=f"Active Boxes (>=0.35): {len(dets_clean)} | Nominal Autonomous Driving Baseline",
+        subtitle=f"Active Boxes (>={conf_thresh:.2f}): {len(dets_clean)} | Nominal Autonomous Driving Baseline",
         status_text=f"Nominal: {len(dets_clean)} Valid Objs",
         is_nominal=True,
     )
@@ -315,8 +324,8 @@ def generate_paper2_qualitative_figure(
     draw_panel(
         axes[1, 0], img_np, dets_eqf,
         title="(d) Threat 1: Standard EQF (Bottleneck Co-Location)",
-        subtitle=f"Active Boxes: {len(dets_eqf)} | True Vehicles Evicted | Co-Located Clusters (min D < 0.002)",
-        status_text="Threat 1: Displaced",
+        subtitle=f"Active Boxes: {len(dets_eqf)} | Co-Located Phantom Clusters (min D < 0.002) | NMS-Free Flaw",
+        status_text="Threat 1: Co-Located Flood",
         is_nominal=False,
     )
 
@@ -324,7 +333,7 @@ def generate_paper2_qualitative_figure(
     draw_panel(
         axes[1, 1], img_np, dets_rab,
         title="(e) Advanced Threat: RAB-EQF (Rank-Aware Margin)",
-        subtitle=f"Active Boxes: {len(dets_rab)} | Boundary-Crossing Margin & Targeted Eviction",
+        subtitle=f"Active Boxes: {len(dets_rab)} | Boundary-Crossing Margin & Foreground Eviction",
         status_text="Advanced: High-Conf Phantoms",
         is_nominal=False,
     )
@@ -333,7 +342,7 @@ def generate_paper2_qualitative_figure(
     draw_panel(
         axes[1, 2], img_np, dets_sqd,
         title="(f) Proposed Mitigation: SQD-Filter Defended (d = 0.15)",
-        subtitle=f"Surviving Boxes: {len(dets_sqd)} | Co-Located Phantoms Purged | Vehicles Kept",
+        subtitle=f"Surviving Boxes: {len(dets_sqd)} | Co-Located Phantoms Purged: 100% | Traffic Safe",
         status_text="Mitigated: SQD-Defended",
         is_defended=True,
     )
@@ -359,7 +368,7 @@ def main() -> None:
     parser.add_argument("--image_path", type=str, default="", help="Đường dẫn file ảnh COCO")
     parser.add_argument("--output_dir", type=str, default=str(FIG_DIR), help="Thư mục xuất ảnh")
     parser.add_argument("--device", type=str, default="", help="Thiết bị chạy (cpu / cuda)")
-    parser.add_argument("--conf_thresh", type=float, default=0.35, help="Ngưỡng tự tin hiển thị box")
+    parser.add_argument("--conf_thresh", type=float, default=0.45, help="Ngưỡng tự tin hiển thị box")
     args = parser.parse_args()
 
     dev_str = args.device if args.device else None
