@@ -157,9 +157,9 @@ def run_stage_2_downstream_eval(
         sub_gt = []
         tot_objs = 0
         for i in range(len(gt_list)):
-            gb = gt_list[i].get("boxes_xyxy", gt_list[i].get("boxes", np.zeros((0, 4))))
-            gl = gt_list[i].get("labels", np.zeros((0,), dtype=int))
-            iscrowd = gt_list[i].get("iscrowd", np.zeros((len(gb),), dtype=bool))
+            gb = gt_list[i].get("boxes_xyxy", gt_list[i].get("boxes", np.zeros((0, 4), dtype=np.float32)))
+            gl = np.asarray(gt_list[i].get("labels", np.zeros((0,), dtype=np.int64)), dtype=np.int64)
+            iscrowd = np.asarray(gt_list[i].get("iscrowd", np.zeros((len(gb),), dtype=bool)), dtype=bool)
             img_id = gt_list[i].get("image_id", i)
 
             if len(gb) > 0:
@@ -174,8 +174,8 @@ def run_stage_2_downstream_eval(
                 tot_objs += int(np.sum(m))
             else:
                 sub_gt.append({
-                    "boxes_xyxy": np.zeros((0, 4)),
-                    "labels": np.zeros((0,), dtype=int),
+                    "boxes_xyxy": np.zeros((0, 4), dtype=np.float32),
+                    "labels": np.zeros((0,), dtype=np.int64),
                     "iscrowd": np.zeros((0,), dtype=bool),
                     "image_id": img_id,
                 })

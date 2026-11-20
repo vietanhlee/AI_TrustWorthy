@@ -255,7 +255,7 @@ def load_flexible_coco_cohort(
             boxes_xyxy.append([x1, y1, x2, y2])
 
             labels.append(cat_map[cid])
-            iscrowd.append(int(ann.get("iscrowd", 0)))
+            iscrowd.append(bool(ann.get("iscrowd", 0) == 1))
 
         gt_list.append({
             "image_id": img_id,
@@ -263,11 +263,11 @@ def load_flexible_coco_cohort(
             "boxes_xyxy": np.array(boxes_xyxy, dtype=np.float32) if boxes_xyxy else np.zeros((0, 4), dtype=np.float32),
             "boxes_cxcywh": np.array(boxes_cxcywh, dtype=np.float32) if boxes_cxcywh else np.zeros((0, 4), dtype=np.float32),
             "labels": np.array(labels, dtype=np.int64) if labels else np.zeros((0,), dtype=np.int64),
-            "iscrowd": np.array(iscrowd, dtype=np.int64) if iscrowd else np.zeros((0,), dtype=np.int64),
+            "iscrowd": np.array(iscrowd, dtype=bool) if iscrowd else np.zeros((0,), dtype=bool),
             "path": fpath,
         })
 
-        valid_mask = [ic == 0 for ic in iscrowd]
+        valid_mask = [not ic for ic in iscrowd]
         hf_labels.append({
             "class_labels": torch.tensor([labels[i] for i, v in enumerate(valid_mask) if v], dtype=torch.int64),
             "boxes": torch.tensor([boxes_cxcywh[i] for i, v in enumerate(valid_mask) if v], dtype=torch.float32),
@@ -519,7 +519,8 @@ def _evaluate_class_ap_for_subset(
         gt = gt_list[idx]
         gt_mask_c = (gt["labels"] == class_id)
         gt_boxes_c = gt["boxes_xyxy"][gt_mask_c]
-        gt_crowd_c = gt["iscrowd"][gt_mask_c] if "iscrowd" in gt else np.zeros(len(gt_boxes_c), dtype=bool)
+        gt_crowd_raw = gt["iscrowd"][gt_mask_c] if "iscrowd" in gt else np.zeros(len(gt_boxes_c), dtype=bool)
+        gt_crowd_c = np.asarray(gt_crowd_raw, dtype=bool)
 
         non_crowd_boxes = gt_boxes_c[~gt_crowd_c]
         crowd_boxes = gt_boxes_c[gt_crowd_c]
@@ -680,7 +681,8 @@ def precompute_coco_match_cache(
             gt = gt_list[idx]
             gt_mask_c = (gt["labels"] == c)
             gt_boxes_c = gt["boxes_xyxy"][gt_mask_c]
-            gt_crowd_c = gt["iscrowd"][gt_mask_c] if "iscrowd" in gt else np.zeros(len(gt_boxes_c), dtype=bool)
+            gt_crowd_raw = gt["iscrowd"][gt_mask_c] if "iscrowd" in gt else np.zeros(len(gt_boxes_c), dtype=bool)
+            gt_crowd_c = np.asarray(gt_crowd_raw, dtype=bool)
             non_crowd_boxes = gt_boxes_c[~gt_crowd_c]
             crowd_boxes = gt_boxes_c[gt_crowd_c]
             n_gt_vec[idx] = len(non_crowd_boxes)
@@ -812,7 +814,8 @@ def compute_per_image_coco_aps(
     ap50_95 = np.full(len(gt_list), np.nan, dtype=np.float64)
 
     for i, gt in enumerate(gt_list):
-        crowd = gt["iscrowd"] if "iscrowd" in gt else np.zeros(len(gt["labels"]), dtype=bool)
+        crowd_raw = gt["iscrowd"] if "iscrowd" in gt else np.zeros(len(gt["labels"]), dtype=bool)
+        crowd = np.asarray(crowd_raw, dtype=bool)
         reg_labels = gt["labels"][~crowd]
         present_classes = np.unique(reg_labels)
         if len(present_classes) == 0:
