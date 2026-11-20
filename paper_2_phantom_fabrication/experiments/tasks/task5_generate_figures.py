@@ -33,6 +33,12 @@ def main():
         default=str(FIG_DIR),
         help="Thư mục xuất các biểu đồ PDF và PNG",
     )
+    parser.add_argument(
+        "--generate_qualitative",
+        action="store_true",
+        default=False,
+        help="Có sinh lại hình định tính 6-panel không (mặc định False nếu đã tồn tại).",
+    )
     args = parser.parse_args()
 
     # Tìm kiếm file telemetry
