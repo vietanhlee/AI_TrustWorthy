@@ -74,18 +74,21 @@ def main():
 
     generate_all_paper2_figures(telemetry_path=telemetry_file, fig_dir=out_fig_dir)
 
-    print("\n [TASK 5] Xuất Biểu đồ Định tính Thực nghiệm (Qualitative Visualizations 6-panel)...")
-    try:
-        from paper_2_phantom_fabrication.experiments.generate_qualitative_figure import (
-            generate_paper2_qualitative_figure,
-        )
-        generate_paper2_qualitative_figure(
-            image_path=None,
-            output_dir=out_fig_dir,
-            device_str=str(args.device) if hasattr(args, "device") and args.device else None,
-        )
-    except Exception as e:
-        print(f"[CẢNH BÁO] Không thể sinh hình định tính tự động: {e}")
+    if args.generate_qualitative or not (out_fig_dir / "fig_qualitative_detections.pdf").exists():
+        print("\n [TASK 5] Xuất Biểu đồ Định tính Thực nghiệm (Qualitative Visualizations 6-panel)...")
+        try:
+            from paper_2_phantom_fabrication.experiments.generate_qualitative_figure import (
+                generate_paper2_qualitative_figure,
+            )
+            generate_paper2_qualitative_figure(
+                image_path=None,
+                output_dir=out_fig_dir,
+                device_str=str(args.device) if hasattr(args, "device") and args.device else None,
+            )
+        except Exception as e:
+            print(f"[CẢNH BÁO] Không thể sinh hình định tính tự động: {e}")
+    else:
+        print("\n [TASK 5] Hình định tính fig_qualitative_detections.pdf đã tồn tại chuẩn. Bỏ qua tái tạo.")
 
     print(f"\n[HOÀN TẤT TASK 5] Đã xuất toàn bộ biểu đồ vector tại: {out_fig_dir}")
 

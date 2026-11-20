@@ -126,13 +126,14 @@ def _generate_figure1_nms_free_paradox(data: Dict[str, Any], f_dir: Path) -> Non
         # Annotations trên bar
         surge_pct = ((yolo_adv_lat - yolo_clean_lat) / yolo_clean_lat) * 100
         ax1.annotate(f"{yolo_clean_lat:.1f} ms", (x[0] - w / 2, yolo_clean_lat), textcoords="offset points", xytext=(0, 4), ha="center", fontsize=8)
-        ax1.annotate(f"{yolo_adv_lat:.1f} ms\n(+{surge_pct:.0f}%)", (x[0] + w / 2, yolo_adv_lat), textcoords="offset points", xytext=(0, 4), ha="center", fontsize=8, fontweight="bold", color="#d62728")
+        ax1.annotate(f"{yolo_adv_lat:.1f} ms\n(+{surge_pct:.0f}%)", (x[0] + w / 2, yolo_adv_lat), textcoords="offset points", xytext=(0, 6), ha="center", fontsize=8, fontweight="bold", color="#d62728")
 
         ax1.annotate(f"{rt_clean_lat:.1f} ms", (x[1] - w / 2, rt_clean_lat), textcoords="offset points", xytext=(0, 4), ha="center", fontsize=8)
         ax1.annotate(f"{rt_adv_lat:.1f} ms\n(Invariant)", (x[1] + w / 2, rt_adv_lat), textcoords="offset points", xytext=(0, 4), ha="center", fontsize=8, fontweight="bold", color="#2ca02c")
 
-        # Set upper limit for ax1 to fit annotation
-        ax1.set_ylim(0, max(yolo_adv_lat, rt_adv_lat) * 1.22)
+        # Set upper limit for ax1 to fit annotation comfortably
+        ax1.set_ylim(0, max(yolo_adv_lat, rt_adv_lat) * 1.35)
+        ax1.legend(loc="upper right", frameon=True)
 
         # Panel (b): Proposal Suppression vs Phantom Query Flood
         categories = ["YOLOv8 Pre-NMS\nCandidates", "YOLOv8 Post-NMS\nDetections", "RT-DETR Clean\nPhantoms", "RT-DETR EQF\nPhantoms", "RT-DETR DQF\nPhantoms"]
@@ -297,7 +298,11 @@ def _generate_figure3_downstream_cyberphysical_impact(data: Dict[str, Any], f_di
         # Chú thích kích thước ma trận
         c_dim_str = f"{clean_dim[0]}x{clean_dim[1]}" if isinstance(clean_dim, list) else str(clean_dim)
         a_dim_str = f"{adv_dim[0]}x{adv_dim[1]}" if isinstance(adv_dim, list) else str(adv_dim)
-        expansion = float(bytetrack.get("expansion_factor", 3.56))
+        raw_exp = str(bytetrack.get("expansion_factor", "3.56")).replace("x", "").strip()
+        try:
+            expansion = float(raw_exp)
+        except Exception:
+            expansion = 3.56
 
         ax1.annotate(f"{clean_lat:.3f} ms\n(Matrix: {c_dim_str})", xy=(bars[0].get_x() + bars[0].get_width() / 2, clean_lat),
                      xytext=(0, 4), textcoords="offset points", ha="center", va="bottom", fontsize=8.5)
@@ -314,15 +319,15 @@ def _generate_figure3_downstream_cyberphysical_impact(data: Dict[str, Any], f_di
         ax2.plot(dist_grid, adv_curve, "s--", color="#d62728", linewidth=2.0, label="Under Fabrication Attack")
 
         # Đánh dấu ngưỡng phanh khẩn cấp 28m
-        ax2.axvline(28.0, color="#ff7f0e", linestyle=":", linewidth=1.8, label=r"Critical Safety Limit ($d=28.0$m, TTC $\le 1.4$s)")
+        ax2.axvline(28.0, color="#ff7f0e", linestyle=":", linewidth=1.8, label=r"Critical Safety Limit ($d=28.0$m, TTC $\leq 1.4$s)")
         ax2.axvspan(0.0, 28.0, color="#d62728", alpha=0.10, label="False Emergency Braking Zone")
 
         ax2.set_xlabel("Obstacle Lookahead Distance (m)")
         ax2.set_ylabel("Critical Emergency Braking Risk (%)")
         ax2.set_title("(b) AEB Autonomous Emergency Braking Hazard", fontweight="bold")
-        ax2.set_xlim(5, 50)
-        ax2.set_ylim(-5, 115)
-        ax2.legend(loc="upper right", frameon=True, fontsize=8)
+        ax2.set_xlim(8, 82)
+        ax2.set_ylim(88, 103)
+        ax2.legend(loc="lower right", frameon=True, fontsize=8)
         ax2.grid(True, linestyle="--", alpha=0.5)
 
         plt.tight_layout()
@@ -405,17 +410,27 @@ def _generate_figure4_sqd_filter_defense(data: Dict[str, Any], f_dir: Path) -> N
         # Panel (b): Rejection Efficiency vs Edge CPU Latency Overhead
         # Scatter/Bubble trade-off
         scatter_colors = ["#7f7f7f", "#1f77b4", "#ff7f0e", "#d62728", "#2ca02c"]
+        offsets = {
+            "No Defense": (0, 10, "center"),
+            "Std NMS (IoU=0.5)": (0, 10, "center"),
+            "Threshold (tau=0.5)": (14, -12, "left"),
+            "Spatial DBSCAN": (0, -14, "center"),
+            "SQD-Filter (Ours)": (-14, 10, "right"),
+        }
 
         for i, name in enumerate(names):
             clean_ret = clean_retentions[i]
-            # Kích thước bubble tỉ lệ với Clean Retention
             bubble_size = max(clean_ret * 2.5, 50)
             ax2.scatter(latencies[i], eqf_rejections[i], s=bubble_size, color=scatter_colors[i % len(scatter_colors)],
                         edgecolor="black", alpha=0.85, label=name.replace("\n", " "))
-            offset_y = 4 if eqf_rejections[i] < 70 else -8
-            ax2.annotate(f"{name.replace(chr(10), ' ')}\n({eqf_rejections[i]:.1f}%, {latencies[i]:.2f}ms)",
+            
+            clean_key = name.replace("\n", " ")
+            dx, dy, ha_pos = offsets.get(clean_key, (0, 8, "center"))
+
+            ax2.annotate(f"{clean_key}\n({eqf_rejections[i]:.1f}%, {latencies[i]:.2f}ms)",
                          xy=(latencies[i], eqf_rejections[i]),
-                         xytext=(0, offset_y), textcoords="offset points", ha="center", fontsize=7.5)
+                         xytext=(dx, dy), textcoords="offset points", ha=ha_pos, fontsize=7.5,
+                         bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="#e0e0e0", alpha=0.85))
 
         ax2.set_xlabel("Edge CPU Execution Overhead (ms)", fontweight="bold")
         ax2.set_ylabel("Phantom Rejection Rate (%) [EQF]", fontweight="bold")
