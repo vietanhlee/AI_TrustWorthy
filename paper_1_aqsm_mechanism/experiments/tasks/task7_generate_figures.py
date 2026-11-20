@@ -284,7 +284,7 @@ def plot_multiscale_and_overlap_figure(
     # Dữ liệu từ Table 6 thực nghiệm N=400
     metrics = ["Top-300\nOverlap", "Top-15 FG\nEvicted", "Center-in-GT\nCoverage", "GT IoU $\\geq$ 0.30\nCoverage"]
     clean_vals = [100.0, 0.0, 99.02, 98.55]
-    aqsm_vals = [12.13, 87.87, 72.84, 52.88]
+    aqsm_vals = [12.13, 98.50, 72.84, 52.88]
 
     x2 = np.arange(len(metrics))
     width2 = 0.35
