@@ -118,7 +118,7 @@ def run_stage_2_downstream_eval(
         model=model,
         dataloader=dataloader,
         cohort=cohort,
-        condition_type="clean",
+        condition_type="Clean",
         target_class_idx=1,
         cache_dir=cdir,
         device=device,

@@ -56,18 +56,24 @@ def generate_all_paper2_figures(
     print("=" * 80)
 
     # 1. Figure 1: NMS-Free Paradox
-    t1_data = data.get("table1_benchmarks", {})
+    t1_data = data.get("table1_benchmarks", data.get("stage1_benchmark", data))
     if t1_data:
         try:
             rtdetr = t1_data.get("rtdetr_aggregated", {})
             yolo = t1_data.get("yolov8_aggregated", {})
             conditions = ["Clean", "Untargeted", "EQF", "DQF"]
-            r_keys = ["clean", "Untargeted_PGD", "EQF", "DQF"]
+            r_keys = ["Clean", "Untargeted_PGD", "EQF", "DQF"]
 
-            r_fps = [rtdetr.get(k, {}).get("fp_mean", 0) for k in r_keys]
-            y_fps = [yolo.get(k, {}).get("fp_mean", 0) for k in r_keys]
-            r_maps = [rtdetr.get(k, {}).get("mAP50_mean", 0) for k in r_keys]
-            y_maps = [yolo.get(k, {}).get("mAP50_mean", 0) for k in r_keys]
+            def get_stat(d, key, metric):
+                sub = d.get(key, d.get(key.lower(), d.get(key.capitalize(), {})))
+                if not sub and key in ("EQF", "DQF"):
+                    sub = d.get("Targeted_Fabrication", {})
+                return sub.get(metric, sub.get(metric.replace("_mean", ""), 0))
+
+            r_fps = [get_stat(rtdetr, k, "fp_mean") for k in r_keys]
+            y_fps = [get_stat(yolo, k, "fp_mean") for k in r_keys]
+            r_maps = [get_stat(rtdetr, k, "mAP50_mean") for k in r_keys]
+            y_maps = [get_stat(yolo, k, "mAP50_mean") for k in r_keys]
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.8))
             x = np.arange(len(conditions))
@@ -100,7 +106,7 @@ def generate_all_paper2_figures(
             print(f"[Cảnh báo] Lỗi khi vẽ Figure 1: {e}")
 
     # 2. Figure 2: Displacement Trade-off
-    t2_data = data.get("table2_budget_and_iterations", {})
+    t2_data = data.get("table2_budget_and_iterations", data.get("sensitivity_sweeps", data))
     if t2_data:
         try:
             bsweep = t2_data.get("budget_sweep", {})
@@ -128,7 +134,7 @@ def generate_all_paper2_figures(
             print(f"[Cảnh báo] Lỗi khi vẽ Figure 2: {e}")
 
     # 3. Figure 3: Downstream Cyber-Physical Impact
-    downstream = data.get("downstream_and_figures", {})
+    downstream = data.get("downstream_and_figures", data.get("table3_downstream", data))
     if downstream:
         try:
             aeb = downstream.get("aeb_simulation", {})
@@ -163,7 +169,14 @@ def generate_all_paper2_figures(
             print(f"[Cảnh báo] Lỗi khi vẽ Figure 3: {e}")
 
     # 4. Figure 4: SQD Filter vs Baseline Defenses (Table 4)
-    t4_data = data.get("table4_defenses", {}).get("defenses_aggregated", None)
+    raw_t4 = data.get("table4_defenses", None)
+    t4_data = None
+    if isinstance(raw_t4, dict) and "defenses_aggregated" in raw_t4:
+        t4_data = raw_t4["defenses_aggregated"]
+    elif raw_t4 is not None:
+        t4_data = raw_t4
+    elif "defense_evaluation" in data:
+        t4_data = data["defense_evaluation"]
     if t4_data:
         try:
             if isinstance(t4_data, list):

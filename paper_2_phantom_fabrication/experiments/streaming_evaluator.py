@@ -93,6 +93,19 @@ def run_streaming_condition_eval(
     if condition is None:
         condition = condition_type if condition_type is not None else "Clean"
 
+    # Chuẩn hóa condition về tên chính tắc (Canonical form: Clean, Gaussian_Noise, Untargeted_PGD, EQF, DQF)
+    c_norm = str(condition).strip().lower()
+    if c_norm in ("clean", "none", "identity", ""):
+        condition = "Clean"
+    elif c_norm in ("gaussian_noise", "gaussian", "noise"):
+        condition = "Gaussian_Noise"
+    elif c_norm in ("untargeted_pgd", "pgd", "untargeted"):
+        condition = "Untargeted_PGD"
+    elif c_norm == "eqf":
+        condition = "EQF"
+    elif c_norm == "dqf":
+        condition = "DQF"
+
     if cohort is not None:
         if gt_list is None:
             gt_list = cohort.get("gt_list", [])

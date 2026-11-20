@@ -32,11 +32,13 @@ def generate_batch_adversarial(
     """
     Sinh batch ảnh đối kháng trực tiếp trên GPU/CPU theo lô hiện thời.
     Bảo toàn tính liên tục trong không gian ảnh [0.0, 1.0] và ngân sách chuẩn L_inf (epsilon).
+    Chuẩn hóa tên tấn công không phân biệt hoa thường (Case-insensitive normalization).
     """
-    if attack_type == "Clean":
+    norm_type = str(attack_type).strip().lower()
+    if norm_type in ("clean", "none", "identity", ""):
         return bx
 
-    if attack_type == "Gaussian_Noise":
+    if norm_type in ("gaussian_noise", "gaussian", "noise"):
         noise = torch.randn_like(bx) * epsilon
         noise = torch.clamp(noise, -epsilon, epsilon)
         return torch.clamp(bx + noise, 0.0, 1.0)
@@ -44,32 +46,34 @@ def generate_batch_adversarial(
     # 1. Forward pass trên ảnh sạch để lấy background / inactive mask
     with torch.no_grad():
         clean_out = model(pixel_values=bx)
-        if attack_type == "EQF":
+        if norm_type == "eqf":
             clean_enc = clean_out.enc_outputs_class
             clean_enc_p = torch.sigmoid(clean_enc).max(dim=-1)[0]
             bg_mask = clean_enc_p < 0.10
-        elif attack_type == "DQF":
+        elif norm_type == "dqf":
             clean_dec = clean_out.logits
             clean_dec_p = torch.sigmoid(clean_dec).max(dim=-1)[0]
             inactive_dec_mask = clean_dec_p < 0.15
+        elif norm_type not in ("untargeted_pgd", "untargeted", "pgd"):
+            raise ValueError(f"Dạng tấn công không hợp lệ: {attack_type}")
 
     # 2. Vòng lặp tối ưu hóa Projected Gradient Descent (PGD)
     x_adv = bx.clone().detach().requires_grad_(True)
     for _ in range(steps):
         out = model(pixel_values=x_adv)
-        if attack_type == "EQF":
+        if norm_type == "eqf":
             target_logits = out.enc_outputs_class[..., target_class_idx]
             masked_target = target_logits.masked_fill(~bg_mask, -1e4)
             k_sel = min(k_fake_eqf, masked_target.shape[1])
             top_fake = masked_target.topk(k_sel, dim=-1)[0]
             loss = -top_fake.mean()
-        elif attack_type == "DQF":
+        elif norm_type == "dqf":
             target_logits = out.logits[..., target_class_idx]
             masked_target = target_logits.masked_fill(~inactive_dec_mask, -1e4)
             k_sel = min(k_fake_dqf, masked_target.shape[1])
             top_fake = masked_target.topk(k_sel, dim=-1)[0]
             loss = -top_fake.mean()
-        elif attack_type == "Untargeted_PGD":
+        elif norm_type in ("untargeted_pgd", "untargeted", "pgd"):
             probs = torch.sigmoid(out.logits)
             loss = -probs.max(dim=-1)[0].mean()
         else:

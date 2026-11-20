@@ -185,24 +185,34 @@ def build_unified_telemetry(outputs_dir: Path) -> Path:
     if t1_file.exists():
         with open(t1_file, "r", encoding="utf-8") as f:
             t1_data = json.load(f)
-            unified["stage1_benchmark"] = t1_data.get("stage1_benchmark", t1_data)
+            t1_bench = t1_data.get("stage1_benchmark", t1_data)
+            unified["stage1_benchmark"] = t1_bench
+            unified["table1_benchmarks"] = t1_bench
             if "table4_defenses" in t1_data:
                 unified["table4_defenses"] = t1_data["table4_defenses"]
+            elif "defenses_aggregated" in t1_data:
+                unified["table4_defenses"] = t1_data["defenses_aggregated"]
 
     if t2_file.exists():
         with open(t2_file, "r", encoding="utf-8") as f:
             t2_data = json.load(f)
-            unified["sensitivity_sweeps"] = t2_data.get("sensitivity_sweeps", t2_data)
+            t2_sweep = t2_data.get("sensitivity_sweeps", t2_data)
+            unified["sensitivity_sweeps"] = t2_sweep
+            unified["table2_budget_and_iterations"] = t2_sweep
 
     if t3_file.exists():
         with open(t3_file, "r", encoding="utf-8") as f:
             t3_data = json.load(f)
-            unified["downstream_and_figures"] = t3_data.get("downstream_and_figures", t3_data)
+            t3_down = t3_data.get("downstream_and_figures", t3_data)
+            unified["downstream_and_figures"] = t3_down
+            unified["table3_downstream"] = t3_data
 
     if t4_file.exists():
         with open(t4_file, "r", encoding="utf-8") as f:
             t4_data = json.load(f)
             unified["defense_evaluation"] = t4_data
+            if "table4_defenses" not in unified:
+                unified["table4_defenses"] = t4_data
 
     out_unified = outputs_dir / "paper2_complete_telemetry.json"
     save_json(unified, out_unified)
