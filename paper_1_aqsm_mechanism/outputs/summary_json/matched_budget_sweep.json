@@ -16,7 +16,8 @@
         "mAP@50": 8.1,
         "mAP@50:95": 4.25,
         "relative_drop_pct": 87.88,
-        "mean_evicted_ratio": 0.7991
+        "mean_evicted_ratio": 0.7991,
+        "top300_overlap_pct": 20.09
       },
       "eps_8": {
         "epsilon": 0.03137254901960784,
@@ -24,7 +25,8 @@
         "mAP@50": 4.86,
         "mAP@50:95": 2.19,
         "relative_drop_pct": 92.73,
-        "mean_evicted_ratio": 0.8449
+        "mean_evicted_ratio": 0.8449,
+        "top300_overlap_pct": 15.51
       },
       "eps_16": {
         "epsilon": 0.06274509803921569,
@@ -32,7 +34,8 @@
         "mAP@50": 3.41,
         "mAP@50:95": 1.45,
         "relative_drop_pct": 94.89,
-        "mean_evicted_ratio": 0.8787
+        "mean_evicted_ratio": 0.8787,
+        "top300_overlap_pct": 12.13
       }
     },
     "vanishing": {
@@ -42,7 +45,8 @@
         "mAP@50": 4.23,
         "mAP@50:95": 2.48,
         "relative_drop_pct": 93.66,
-        "mean_evicted_ratio": null
+        "mean_evicted_ratio": null,
+        "top300_overlap_pct": 45.8
       },
       "eps_8": {
         "epsilon": 0.03137254901960784,
@@ -50,7 +54,8 @@
         "mAP@50": 2.57,
         "mAP@50:95": 1.43,
         "relative_drop_pct": 96.16,
-        "mean_evicted_ratio": null
+        "mean_evicted_ratio": null,
+        "top300_overlap_pct": 36.2
       },
       "eps_16": {
         "epsilon": 0.06274509803921569,
@@ -58,7 +63,8 @@
         "mAP@50": 1.92,
         "mAP@50:95": 1.23,
         "relative_drop_pct": 97.12,
-        "mean_evicted_ratio": null
+        "mean_evicted_ratio": null,
+        "top300_overlap_pct": 30.74
       }
     },
     "taskpgd": {
@@ -68,7 +74,8 @@
         "mAP@50": 3.4,
         "mAP@50:95": 2.13,
         "relative_drop_pct": 94.91,
-        "mean_evicted_ratio": null
+        "mean_evicted_ratio": null,
+        "top300_overlap_pct": 42.1
       },
       "eps_8": {
         "epsilon": 0.03137254901960784,
@@ -76,7 +83,8 @@
         "mAP@50": 1.67,
         "mAP@50:95": 1.12,
         "relative_drop_pct": 97.5,
-        "mean_evicted_ratio": null
+        "mean_evicted_ratio": null,
+        "top300_overlap_pct": 31.5
       },
       "eps_16": {
         "epsilon": 0.06274509803921569,
@@ -84,7 +92,8 @@
         "mAP@50": 0.98,
         "mAP@50:95": 0.76,
         "relative_drop_pct": 98.53,
-        "mean_evicted_ratio": null
+        "mean_evicted_ratio": null,
+        "top300_overlap_pct": 25.97
       }
     }
   }

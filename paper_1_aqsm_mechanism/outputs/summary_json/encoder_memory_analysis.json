@@ -346,6 +346,48 @@
           ]
         }
       }
+    },
+    "gaussian": {
+      "cosine_similarity": {
+        "S3": {
+          "mean": 0.915,
+          "std": 0.021
+        },
+        "S4": {
+          "mean": 0.942,
+          "std": 0.018
+        },
+        "S5": {
+          "mean": 0.962,
+          "std": 0.014
+        },
+        "Overall": {
+          "mean": 0.924,
+          "std": 0.02
+        },
+        "Foreground": {
+          "mean": 0.921,
+          "std": 0.021
+        },
+        "Background": {
+          "mean": 0.926,
+          "std": 0.019
+        }
+      },
+      "relative_l2_perturbation": {
+        "Foreground": {
+          "mean": 0.321,
+          "std": 0.041
+        },
+        "Background": {
+          "mean": 0.384,
+          "std": 0.045
+        },
+        "Overall": {
+          "mean": 0.365,
+          "std": 0.043
+        }
+      }
     }
   }
 }

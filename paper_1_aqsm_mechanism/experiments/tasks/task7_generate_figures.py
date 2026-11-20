@@ -257,7 +257,7 @@ def plot_multiscale_and_overlap_figure(
         float(mem_res["taskpgd"]["cosine_similarity"]["S5"]["mean"]),
     ]
 
-    # Baseline đối chứng Gaussian Noise (Table 5)
+    # Baseline đối chứng Gaussian Noise (Table 5) đọc động từ JSON artifact
     if "gaussian" in mem_res and "cosine_similarity" in mem_res["gaussian"]:
         noise_cos = [
             float(mem_res["gaussian"]["cosine_similarity"]["S3"]["mean"]),
@@ -265,7 +265,7 @@ def plot_multiscale_and_overlap_figure(
             float(mem_res["gaussian"]["cosine_similarity"]["S5"]["mean"]),
         ]
     else:
-        noise_cos = [0.915, 0.942, 0.962]
+        raise KeyError("Thiếu trường 'gaussian' trong encoder_memory_analysis.json!")
 
     r1 = ax1.bar(x - 1.5 * width, noise_cos, width, label="Gaussian Noise", color="#7f7f7f", edgecolor="black", alpha=0.85)
     r2 = ax1.bar(x - 0.5 * width, vanish_cos, width, label="PGD Vanishing", color="#1f77b4", edgecolor="black", alpha=0.85)
@@ -429,30 +429,31 @@ def plot_matched_budget_figure(json_path: Path, output_pdf: Path, output_png: Pa
         vanish_pts.append(float(sweep["vanishing"][k]["mAP@50"]))
         taskpgd_pts.append(float(sweep["taskpgd"][k]["mAP@50"]))
 
-    # Top-300 overlap trajectory đọc động từ thực nghiệm:
-    # Cho AQSM: tính trực tiếp từ mean_evicted_ratio trong JSON: overlap = (1 - evicted_ratio) * 100
+    # Top-300 overlap trajectory đọc động 100% từ matched_budget_results.json
     aqsm_overlap = [100.0]
+    vanish_overlap = [100.0]
+    taskpgd_overlap = [100.0]
     for e in eps_vals:
         k = f"eps_{e}"
-        evicted = sweep["aqsm"][k].get("mean_evicted_ratio")
-        if evicted is not None:
-            aqsm_overlap.append(round((1.0 - float(evicted)) * 100.0, 2))
+        # AQSM overlap
+        if "top300_overlap_pct" in sweep["aqsm"][k]:
+            aqsm_overlap.append(float(sweep["aqsm"][k]["top300_overlap_pct"]))
+        elif sweep["aqsm"][k].get("mean_evicted_ratio") is not None:
+            aqsm_overlap.append(round((1.0 - float(sweep["aqsm"][k]["mean_evicted_ratio"])) * 100.0, 2))
         else:
-            aqsm_overlap.append(0.0)
+            raise KeyError(f"Thiếu thông tin overlap trong sweep AQSM {k}!")
 
-    # Cho Vanishing và Task PGD: đọc từ kết quả encoder_query_dynamics nếu có
-    q_dyn_path = json_path.parent / "encoder_query_dynamics.json"
-    van_eps16_ov = 30.74
-    task_eps16_ov = 25.97
-    if q_dyn_path.exists():
-        q_res = load_json(q_dyn_path).get("results", {})
-        if "vanishing" in q_res:
-            van_eps16_ov = float(q_res["vanishing"]["top300_overlap_pct"].get("mean", 30.74))
-        if "taskpgd" in q_res:
-            task_eps16_ov = float(q_res["taskpgd"]["top300_overlap_pct"].get("mean", 25.97))
+        # Vanishing overlap
+        if "top300_overlap_pct" in sweep["vanishing"][k]:
+            vanish_overlap.append(float(sweep["vanishing"][k]["top300_overlap_pct"]))
+        else:
+            raise KeyError(f"Thiếu thông tin overlap trong sweep Query Vanishing {k}!")
 
-    vanish_overlap = [100.0, 45.80, 36.20, van_eps16_ov]
-    taskpgd_overlap = [100.0, 42.10, 31.50, task_eps16_ov]
+        # Task PGD overlap
+        if "top300_overlap_pct" in sweep["taskpgd"][k]:
+            taskpgd_overlap.append(float(sweep["taskpgd"][k]["top300_overlap_pct"]))
+        else:
+            raise KeyError(f"Thiếu thông tin overlap trong sweep Task PGD {k}!")
 
     x_ticks = [0, 4, 8, 16]
     x_tick_labels = ["Clean (0)", "4/255", "8/255", "16/255"]
