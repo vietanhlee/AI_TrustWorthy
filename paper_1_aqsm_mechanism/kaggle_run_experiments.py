@@ -131,7 +131,7 @@ def main():
     # Đóng gói thư mục outputs và fig thành file ZIP
     zip_path = WORKSPACE_DIR / "paper1_experiment_results.zip"
     print(f"\n>>> Đang đóng gói kết quả vào file ZIP: {zip_path.name}...")
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
         # Thêm outputs
         for root, dirs, files in os.walk(output_dir):
             for file in files:

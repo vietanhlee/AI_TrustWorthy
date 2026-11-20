@@ -128,13 +128,13 @@ def generate_single_attack_cache(
     delta_shape = (n_total, 3, 640, 640)
 
     print(f"[CACHE GEN] Khởi tạo tệp bộ nhớ đệm Streaming Direct: {out_file.name}...")
-    with zipfile.ZipFile(out_temp_file, mode="w", compression=zipfile.ZIP_STORED) as zf:
+    with zipfile.ZipFile(out_temp_file, mode="w", compression=zipfile.ZIP_STORED, allowZip64=True) as zf:
         # 1. Ghi image_ids.npy
-        with zf.open("image_ids.npy", "w") as f_ids:
+        with zf.open("image_ids.npy", "w", force_zip64=True) as f_ids:
             np.lib.format.write_array(f_ids, np.array(image_ids, dtype=np.int64))
 
-        # 2. Ghi delta.npy theo luồng từng batch (Zero Extra Disk Space)
-        with zf.open("delta.npy", "w") as f_delta:
+        # 2. Ghi delta.npy theo luồng từng batch (Zero Extra Disk Space, ZIP64 cho file > 4GB)
+        with zf.open("delta.npy", "w", force_zip64=True) as f_delta:
             np.lib.format.write_array_header_2_0(
                 f_delta,
                 {"descr": "<f4", "fortran_order": False, "shape": delta_shape}
@@ -186,7 +186,7 @@ def generate_single_attack_cache(
             "device": str(device),
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
-        with zf.open("meta_json.npy", "w") as f_meta:
+        with zf.open("meta_json.npy", "w", force_zip64=True) as f_meta:
             np.lib.format.write_array(f_meta, np.array(json.dumps(meta_info, indent=2)))
 
     # Hoán đổi file nguyên tử (Atomic replace)
