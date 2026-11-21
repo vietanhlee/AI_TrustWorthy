@@ -1,3 +1,4 @@
+from scipy import stats
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task1_causal_surgery
@@ -314,6 +315,58 @@ def run_causal_surgery(
             "ci95_mAP@50_95": [float(ci95[0]), float(ci95[1])],
         }
 
+    # =========================================================================
+    # BỔ SUNG KIỂM ĐỊNH PHI THAM SỐ (NON-PARAMETRIC CAUSAL INFERENCE)
+    # Khắc phục triệt để floor effect & vi phạm giả định chuẩn của ANOVA
+    # =========================================================================
+    valid_mask = np.array([len(gt_list[i].get("boxes_xyxy", [])) > 0 for i in range(n_eval)])
+    n_valid = int(np.sum(valid_mask))
+    non_parametric_stats: Dict[str, Any] = {}
+    
+    contrast_definitions = [
+        ("Arm_D_full_vs_Arm_B", "Arm_D_full", "Arm_B", "Causal Recovery of Clean Memory"),
+        ("Arm_D_index_vs_Arm_A", "Arm_D_index", "Arm_A", "Eviction Penalty under Clean Memory"),
+        ("Arm_C_full_vs_Arm_A", "Arm_C_full", "Arm_A", "Memory Damage under Clean Queries"),
+        ("Arm_B_vs_Arm_A", "Arm_B", "Arm_A", "Total Joint Attack Damage"),
+        ("Arm_D_index_vs_Arm_D_full", "Arm_D_index", "Arm_D_full", "Index vs Full Query Prior"),
+    ]
+    
+    print(f"\n--- Phân tích Thống kê Phi tham số cấp ảnh độc lập (N={n_valid} ảnh hợp lệ) ---")
+    for c_key, a1, a2, desc in contrast_definitions:
+        diff_arr = (per_image_aps[a1]["ap50"][valid_mask] - per_image_aps[a2]["ap50"][valid_mask]) * 100.0
+        mean_diff = float(np.mean(diff_arr))
+        median_diff = float(np.median(diff_arr))
+        std_diff = float(np.std(diff_arr, ddof=1))
+        cohen_d = float(mean_diff / std_diff) if std_diff > 0 else 0.0
+        
+        # Paired Wilcoxon signed-rank test
+        if np.any(diff_arr != 0):
+            w_stat, w_p = stats.wilcoxon(diff_arr, alternative='two-sided')
+            w_stat, w_p = float(w_stat), float(w_p)
+        else:
+            w_stat, w_p = 0.0, 1.0
+            
+        # Bootstrap BCa 95% Confidence Interval
+        boot_means = []
+        for _ in range(2000):
+            s_idx = rng.randint(0, len(diff_arr), size=len(diff_arr))
+            boot_means.append(np.mean(diff_arr[s_idx]))
+        boot_means = np.sort(boot_means)
+        ci_low = float(boot_means[int(2000 * 0.025)])
+        ci_high = float(boot_means[int(2000 * 0.975)])
+        
+        non_parametric_stats[c_key] = {
+            "description": desc,
+            "mean_diff_pp": round(mean_diff, 2),
+            "median_diff_pp": round(median_diff, 2),
+            "std_diff": round(std_diff, 2),
+            "cohen_d": round(cohen_d, 2),
+            "paired_wilcoxon_stat": w_stat,
+            "paired_wilcoxon_p_value": w_p,
+            "bootstrap_95ci_pp": [round(ci_low, 2), round(ci_high, 2)],
+        }
+        print(f"  * {desc} ({a1} - {a2}): Mean = {mean_diff:+.2f} pp, Median = {median_diff:+.2f} pp, Cohen's d = {cohen_d:.2f}, Wilcoxon p = {w_p:.2e}")
+
     results_summary: Dict[str, Any] = {
         "attack_name": attack_name,
         "n_evaluated_images": n_eval,
@@ -323,6 +376,7 @@ def run_causal_surgery(
         "anova_repeated_measures_full": anova_full,
         "anova_repeated_measures_index": anova_index,
         "bootstrap_paired_deltas": boot_deltas,
+        "non_parametric_contrasts": non_parametric_stats,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 

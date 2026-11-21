@@ -52,83 +52,97 @@ def run_adaptive_evasion_test(
     esm_monitor: EncoderSelectionMonitor,
     n_samples: int = 15,
     lambdas: List[float] = [0.2, 0.5, 1.0, 2.0],
+    batch_size: int = 4,
 ) -> Dict[str, Any]:
     """
     Thực nghiệm tấn công thích ứng White-Box Adaptive PGD (Carlini-Tramèr):
     Kẻ tấn công vừa dìm detection mAP vừa tối ưu để né tránh ngưỡng phát hiện của ESM.
+    Hỗ trợ xử lý theo lô (mini-batching) chống tràn VRAM khi chạy quy mô lớn (lên tới 1,000 ảnh).
     """
     model = wrapper.model
     device = wrapper.device
-    test_sub = clean_imgs[:n_samples]
-    if hasattr(test_sub, "to"):
-        test_sub = test_sub.to(device)
+    n_eval = min(n_samples, len(clean_imgs))
+    target_drop = float(getattr(esm_monitor, "cal_dropoff_median", 35.0))
+    target_margin = float(getattr(esm_monitor, "cal_margin_median", 0.05))
 
     results = {}
-    print("\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM...")
+    print(f"\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM trên N={n_eval} ảnh (batch_size={batch_size})...")
+
     for lam in lambdas:
-        adv = test_sub.clone().detach().requires_grad_(True)
-        step_alpha = 2.0 / 255.0
-        eps = 16.0 / 255.0
+        all_preds = []
+        t_start = time.time()
+        for b_start in range(0, n_eval, batch_size):
+            b_end = min(n_eval, b_start + batch_size)
+            sub_clean = clean_imgs[b_start:b_end]
+            if hasattr(sub_clean, "to"):
+                sub_clean = sub_clean.to(device)
 
-        # Chu trình PGD 15 bước chuẩn hóa (khớp với Stationary Attack)
-        for _ in range(15):
-            adv_var = adv.clone().detach().requires_grad_(True)
-            mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
-            out = model(pixel_values=adv_var, pixel_mask=mask)
-            enc_logits = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
-            probs = torch.sigmoid(enc_logits)
-            max_probs, _ = probs.max(dim=-1)
+            adv = sub_clean.clone().detach()
+            step_alpha = 2.0 / 255.0
+            eps = 16.0 / 255.0
 
-            # Task Loss (Dìm điểm các query có xác suất cao)
-            k = min(15, max_probs.shape[1])
-            top_probs, _ = torch.topk(max_probs, k=k, dim=-1)
-            task_loss = (top_probs ** 2).mean()
+            # Chu trình PGD 15 bước chuẩn hóa (khớp với Stationary Attack)
+            for _ in range(15):
+                adv_var = adv.clone().detach().requires_grad_(True)
+                mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
+                out = model(pixel_values=adv_var, pixel_mask=mask)
+                enc_logits = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
+                probs = torch.sigmoid(enc_logits)
+                max_probs, _ = probs.max(dim=-1)
 
-            # Evasion Loss (Né tránh đồng thời cả Dropoff và Margin theo đúng nguyên lý Max-OR)
-            topk_vals, _ = torch.topk(max_probs, k=min(301, max_probs.shape[1]), dim=-1)
-            top1_val = topk_vals[:, 0]
-            top300_val = topk_vals[:, 299]
-            top301_val = topk_vals[:, 300] if topk_vals.shape[1] > 300 else torch.zeros_like(top300_val)
+                # Task Loss (Dìm điểm các query có xác suất cao)
+                k = min(15, max_probs.shape[1])
+                top_probs, _ = torch.topk(max_probs, k=k, dim=-1)
+                task_loss = (top_probs ** 2).mean()
 
-            diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
-            diff_margin = top300_val - top301_val
+                # Evasion Loss (Né tránh đồng thời cả Dropoff và Margin theo đúng nguyên lý Max-OR)
+                topk_vals, _ = torch.topk(max_probs, k=min(301, max_probs.shape[1]), dim=-1)
+                top1_val = topk_vals[:, 0]
+                top300_val = topk_vals[:, 299]
+                top301_val = topk_vals[:, 300] if topk_vals.shape[1] > 300 else torch.zeros_like(top300_val)
 
-            # Phạt nếu dropoff và margin lệch khỏi phân vị trung vị sạch thực tế đã fit từ calibration
-            target_drop = float(getattr(esm_monitor, "cal_dropoff_median", 35.0))
-            target_margin = float(getattr(esm_monitor, "cal_margin_median", 0.05))
+                diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
+                diff_margin = top300_val - top301_val
 
-            loss_drop = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
-            loss_margin = F.mse_loss(diff_margin, torch.full_like(diff_margin, target_margin))
-            evasion_loss = loss_drop + 10.0 * loss_margin
+                loss_drop = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
+                loss_margin = F.mse_loss(diff_margin, torch.full_like(diff_margin, target_margin))
+                evasion_loss = loss_drop + 10.0 * loss_margin
 
-            total_loss = task_loss + lam * evasion_loss
+                total_loss = task_loss + lam * evasion_loss
 
-            model.zero_grad()
-            if adv_var.grad is not None:
-                adv_var.grad.zero_()
-            total_loss.backward()
+                model.zero_grad()
+                if adv_var.grad is not None:
+                    adv_var.grad.zero_()
+                total_loss.backward()
+
+                with torch.no_grad():
+                    grad_sign = adv_var.grad.sign() if adv_var.grad is not None else torch.zeros_like(adv_var)
+                    adv = adv - step_alpha * grad_sign
+                    delta = torch.clamp(adv - sub_clean, min=-eps, max=eps)
+                    adv = torch.clamp(sub_clean + delta, min=0.0, max=1.0).detach()
 
             with torch.no_grad():
-                grad_sign = adv_var.grad.sign() if adv_var.grad is not None else torch.zeros_like(adv_var)
-                adv = adv - step_alpha * grad_sign
-                delta = torch.clamp(adv - test_sub, min=-eps, max=eps)
-                adv = torch.clamp(test_sub + delta, min=0.0, max=1.0).detach()
+                final_out = model(adv)
+                final_logits = final_out.enc_outputs_class if hasattr(final_out, "enc_outputs_class") and final_out.enc_outputs_class is not None else final_out.logits
+                preds = esm_monitor.predict(final_logits.cpu())
+                all_preds.extend(preds)
 
-        with torch.no_grad():
-            final_out = model(adv)
-            final_logits = final_out.enc_outputs_class if hasattr(final_out, "enc_outputs_class") and final_out.enc_outputs_class is not None else final_out.logits
-            preds = esm_monitor.predict(final_logits.cpu())
-            tpr_evade = float(np.mean(preds)) * 100.0
+            del adv, sub_clean
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
+        tpr_evade = float(np.mean(all_preds)) * 100.0 if len(all_preds) > 0 else 0.0
+        elapsed = time.time() - t_start
         results[f"lambda_{lam}"] = {
             "evasion_weight_lambda": lam,
+            "n_evaluated_samples": n_eval,
             "detected_tpr_pct": round(tpr_evade, 2),
             "evasion_success_pct": round(100.0 - tpr_evade, 2),
+            "elapsed_seconds": round(elapsed, 2),
         }
-        print(f"   + Lambda = {lam:3.1f} | Detection TPR = {tpr_evade:5.1f}% | Evasion Success = {100.0 - tpr_evade:5.1f}%")
+        print(f"   + Lambda = {lam:3.1f} (N={n_eval}) | Detection TPR = {tpr_evade:5.1f}% | Evasion Success = {100.0 - tpr_evade:5.1f}% ({elapsed:.1f}s)")
 
     return results
-
 
 def run_defense_evaluation(
     wrapper: RTDETRModelWrapper,
@@ -205,6 +219,7 @@ def run_defense_evaluation(
         esm_monitor=esm_fitted,
         n_samples=len(test_adaptive_imgs),
         lambdas=[0.2, 0.5, 1.0, 2.0],
+        batch_size=4,
     )
     defense_results["adaptive_evasion"] = adaptive_results
 
@@ -231,7 +246,7 @@ def run_defense_evaluation(
 def main():
     parser = create_base_parser("Empirical Defense & Adaptive Evasion Evaluation (Table 11)", task_name="Task 8")
     parser.add_argument("--cal_ratio", type=float, default=0.3, help="Tỷ lệ tập calibration không chồng lấn (mặc định 30%%)")
-    parser.add_argument("--n_adaptive", type=int, default=100, help="Số lượng ảnh kiểm thử tấn công thích ứng (mặc định 100)")
+    parser.add_argument("--n_adaptive", type=int, default=1000, help="Số lượng ảnh kiểm thử tấn công thích ứng (mặc định 1000 để chạy toàn bộ tập test)")
     args = parser.parse_args()
 
     update_experiment_paths(
