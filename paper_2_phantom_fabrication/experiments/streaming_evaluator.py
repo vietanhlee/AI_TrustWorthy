@@ -179,15 +179,25 @@ def run_streaming_condition_eval(
     temp_mmap_path = None
     if is_adv and cached_delta is None and not skip_cache_gen and image_ids is not None:
         try:
+            import shutil
             cdir.mkdir(parents=True, exist_ok=True)
             n_total = len(dataloader.dataset)
-            temp_mmap_path = cdir / f"tmp_{condition.lower()}_eps{eps_int}_{os.getpid()}_{int(time.time())}.dat"
-            temp_mmap = np.memmap(
-                temp_mmap_path,
-                dtype=np.float32,
-                mode="w+",
-                shape=(n_total, 3, 640, 640),
-            )
+            req_bytes = n_total * 3 * 640 * 640 * 4
+            disk_free = shutil.disk_usage(cdir).free
+            if disk_free >= max(req_bytes * 1.25, 2.0 * (1024 ** 3)):
+                temp_mmap_path = cdir / f"tmp_{condition.lower()}_eps{eps_int}_{os.getpid()}_{int(time.time())}.dat"
+                temp_mmap = np.memmap(
+                    temp_mmap_path,
+                    dtype=np.float32,
+                    mode="w+",
+                    shape=(n_total, 3, 640, 640),
+                )
+            else:
+                logger.info(
+                    f"    [Disk Safe] Ổ đĩa khả dụng ({disk_free / (1024**3):.2f} GB) đang thấp. "
+                    f"Tự động bỏ qua lưu cache đĩa, chạy trực tiếp On-The-Fly GPU (0 GB đĩa)."
+                )
+                temp_mmap = None
         except Exception as e:
             logger.warning(f"Không thể khởi tạo disk-backed memmap cho cache {condition}: {e}")
             temp_mmap = None

@@ -52,6 +52,25 @@ def run_stage_2_sensitivity_sweeps(
     cdir = Path(cache_dir) if cache_dir is not None else get_adv_cache_dir()
     cdir.mkdir(parents=True, exist_ok=True)
 
+    # Tự động dọn dẹp các file tạm dở dang tmp_* nếu có
+    try:
+        for tmp_f in cdir.glob("tmp_*"):
+            try:
+                tmp_f.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    import shutil
+    disk_free_gb = shutil.disk_usage(cdir).free / (1024 ** 3)
+    if disk_free_gb < 3.5:
+        logger.warning(
+            f"[DISK SAFE] Dung lượng đĩa khả dụng ({disk_free_gb:.2f} GB) đang thấp (< 3.5 GB). "
+            f"Tự động chuyển Stage 2 Sensitivity Sweeps sang chế độ On-The-Fly GPU để không tốn ổ đĩa."
+        )
+        skip_cache_gen = True
+
     if hw_info is None:
         hw_info = detect_hardware("auto" if device is None else str(device))
     if device is None:
@@ -121,6 +140,7 @@ def run_stage_2_sensitivity_sweeps(
                 cache_dir=cdir,
                 device=device,
                 detector_backend="rtdetr",
+                skip_cache_gen=skip_cache_gen,
             )
             matched = match_detections_against_gt(out["raw_detections"], cohort["gt_list"], iou_threshold=0.5)
             budget_sweep_results[f"eps_{eps_val}"][atk] = {
@@ -167,6 +187,7 @@ def run_stage_2_sensitivity_sweeps(
                 cache_dir=cdir,
                 device=device,
                 detector_backend="rtdetr",
+                skip_cache_gen=skip_cache_gen,
             )
             matched = match_detections_against_gt(out["raw_detections"], cohort["gt_list"], iou_threshold=0.5)
             iteration_sweep_results[f"steps_{st}"][atk] = {

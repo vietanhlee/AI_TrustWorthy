@@ -292,11 +292,32 @@ def main():
     if args.force_recompute:
         common_args.append("--force_recompute")
 
+    # Tự động dọn dẹp các file tạm dở dang và giám sát dung lượng đĩa
+    import shutil
+    cache_path = Path(args.cache_dir).resolve()
+    cache_path.mkdir(parents=True, exist_ok=True)
+    for tmp_f in cache_path.glob("tmp_*"):
+        try:
+            tmp_f.unlink()
+        except Exception:
+            pass
+    init_free_gb = shutil.disk_usage(cache_path).free / (1024 ** 3)
+    logger.info(f"[Disk Health] Dung lượng đĩa khả dụng ban đầu: {init_free_gb:.2f} GB")
+
     # Vòng lặp thực thi từng task
     for tid in selected_tasks:
         if tid not in TASK_REGISTRY:
             logger.warning(f"Bỏ qua task không hợp lệ: {tid}")
             continue
+
+        # Dọn dẹp file tạm trước mỗi task
+        for tmp_f in cache_path.glob("tmp_*"):
+            try:
+                tmp_f.unlink()
+            except Exception:
+                pass
+        curr_free_gb = shutil.disk_usage(cache_path).free / (1024 ** 3)
+        logger.info(f"\n>>> [Task {tid}] Bắt đầu thực thi | Dung lượng đĩa khả dụng: {curr_free_gb:.2f} GB")
 
         task_cli = list(common_args)
         if tid == 1:

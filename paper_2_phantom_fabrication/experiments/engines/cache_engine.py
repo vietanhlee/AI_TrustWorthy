@@ -75,19 +75,25 @@ def generate_single_attack_cache(
             except Exception:
                 pass
 
-    # Kiểm tra dung lượng đĩa khả dụng
+    # Tự động dọn dẹp các file tạm tmp_* còn sót lại trước khi tính toán dung lượng
+    try:
+        for tmp_f in cdir.glob("tmp_*"):
+            try:
+                tmp_f.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Kiểm tra dung lượng đĩa khả dụng với cơ chế thích ứng (Zero-Crash Adaptive Disk Guard)
     req_bytes = n_total * 3 * 640 * 640 * 4
     disk_free = shutil.disk_usage(cdir).free
     req_gb = req_bytes / (1024 ** 3)
     free_gb = disk_free / (1024 ** 3)
-    if disk_free < req_bytes * 1.05:
-        raise RuntimeError(
-            f"[LỖI DUNG LƯỢNG ĐĨA] Ổ đĩa chỉ còn {free_gb:.2f} GB khả dụng, nhưng cần ít nhất {req_gb:.2f} GB "
-            f"để lưu cache đối kháng cho {n_total} ảnh (float32 640x640)!\n"
-            f"-> Giải pháp tối ưu trên Kaggle:\n"
-            f"   1. Chỉ định số ảnh vừa vặn: Thêm tham số --num_images 300 hoặc --num_images 500 (chỉ tốn ~2.4 GB).\n"
-            f"   2. Bỏ qua Task 0 lưu cache đĩa, chạy sinh trực tiếp On-The-Fly trên GPU (tốn 0 GB đĩa): Thêm cờ --skip_cache_gen hoặc --tasks 1,2,3,4,5"
-        )
+    if disk_free < max(req_bytes * 1.15, 2.0 * (1024 ** 3)):
+        print(f"\n[CACHE ADAPTIVE] Dung lượng đĩa khả dụng ({free_gb:.2f} GB) đang thấp hơn ngưỡng an toàn (~{req_gb:.2f} GB cần thiết).")
+        print(f"[CACHE ADAPTIVE] Để bảo vệ môi trường Kaggle/Colab khỏi lỗi tràn ổ đĩa, hệ thống tự động bỏ qua ghi cache đĩa cho {attack_name.upper()} (eps={eps_int}) và chuyển sang sinh On-The-Fly trực tiếp trên GPU VRAM (tốn 0 GB đĩa đệm).")
+        return None
 
     print(f"\n[CACHE GEN] ==================================================================")
     print(f"[CACHE GEN] Đang sinh: {attack_name.upper()} | eps={eps_int}/255 ({eps:.4f}) | N={n_total} ảnh")
