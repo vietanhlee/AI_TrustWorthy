@@ -413,11 +413,11 @@ def _generate_figure4_sqd_filter_defense(data: Dict[str, Any], f_dir: Path) -> N
         # Scatter/Bubble trade-off
         scatter_colors = ["#7f7f7f", "#1f77b4", "#ff7f0e", "#d62728", "#2ca02c"]
         offsets = {
-            "No Defense": (0, 10, "center"),
+            "No Defense": (0, -14, "center"),
             "Std NMS (IoU=0.5)": (0, 10, "center"),
-            "Threshold (tau=0.5)": (14, -12, "left"),
+            "Threshold (tau=0.5)": (12, -12, "left"),
             "Spatial DBSCAN": (0, -14, "center"),
-            "SQD-Filter (Ours)": (-14, 10, "right"),
+            "SQD-Filter (Ours)": (12, 10, "left"),
         }
 
         for i, name in enumerate(names):
