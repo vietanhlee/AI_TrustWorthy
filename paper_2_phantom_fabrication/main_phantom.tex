@@ -270,8 +270,9 @@ To evaluate real-time cyber-physical feasibility under constrained computational
 \multicolumn{8}{l}{\textit{\textbf{YOLOv8-Small Baseline (Anchor-Free Convolutional + Heuristic NMS, Native $640\times 640$)}}} \\
 \textbf{YOLOv8 Clean} & 39.85 $\pm$ 1.84\% [--] & --- & 3.66 $\pm$ 0.08 & 0.00 $\pm$ 0.00 & 81.27 $\pm$ 0.07\% & --- & 14.80 ms [14.80 ms] \\
 \addlinespace[4pt]
-\textbf{YOLOv8 + Targeted Fab ($T=8$)} & 31.23 $\pm$ 1.58\% [-21.6\%] & 0.56 $\pm$ 0.00\% & \makecell[l]{34.39 $\pm$ 0.41 (Pre)\\\textbf{2.99 $\pm$ 0.06 (Post)}} & 0.01 $\pm$ 0.00 & 80.32 $\pm$ 0.00\% & --- & 14.80 ms [\textbf{541.2 ms}] (+3556.8\%) \\
+\textbf{YOLOv8 + Targeted Fab ($T=8$)} & 31.23 $\pm$ 1.58\% [-21.6\%] & 0.56 $\pm$ 0.38\% & \makecell[l]{34.39 $\pm$ 0.41 (Pre)\\\textbf{2.99 $\pm$ 0.06 (Post)}} & 0.01 $\pm$ 0.00 & 80.32 $\pm$ 1.33\% & --- & 14.80 ms [\textbf{541.2 ms}] (+3556.8\%) \\
 \bottomrule
+\multicolumn{8}{l}{\footnotesize{$^*$Evaluated at operational deployment threshold $\tau_{\mathrm{act}}=0.35$. Standard benchmark evaluation down to $\tau=0.001$ yields $68.01 \pm 1.40\%$ $\mathrm{mAP}_{50}$.}}
 \end{tabular}%
 }
 \end{table*}
@@ -379,14 +380,13 @@ Table~\ref{tab:ablation_benchmarks} reveals monotonic degradation: as perturbati
 \paragraph{Vulnerability Asymmetry Across Object Scales:}
 The right side of Table~\ref{tab:size_and_class_breakdown} deconstructs which objects suffer most from proposal displacement. Small objects ($\text{Area} < 32^2$, $N=410$) experience a $-67.6\%$ collapse in $\mathrm{AP}_{\mathrm{small}}$ (falling from $9.54\%$ nominal clean to $3.09\%$), because their localized feature responses are inherently fragile and easily overshadowed by adversarially distorted representations. Large objects ($N=859$) retain relatively stronger encoder feature energy, yet still suffer an $-82.5\%$ relative AP dropoff ($62.73\% \to 10.96\%$), confirming that proposal displacement operates systematically across all geometric scales.
 
-\paragraph{Stratified ASR Analysis: Ground-Truth Presence vs.\ Absence}
-To verify that fabrication ASR is not an artifact of testing images where the target class is absent, we stratify performance across frames with versus without genuine ground-truth objects:
+\paragraph{Stratified ASR Analysis: Target Class Robustness Across Image Contexts}
+To verify that fabrication success is not an artifact of evaluating scenes where the target category is naturally absent, we stratify performance across frames with versus without genuine ground-truth instances of the target class:
 \begin{enumerate}
-    \item For \texttt{bicycle} (ID 1), in the subset of frames actively containing ground-truth bicycles, EQF achieves $\mathbf{100.0\%}$ ASR ($20.10$ phantoms per frame) and DQF achieves $\mathbf{100.0\%}$ ASR ($26.80$ phantoms per frame). Candidate boxes in images with ground truth are strictly matched against true objects, and only boxes satisfying $\max_g \mathrm{IoU}(b, g) < 0.30$ count as phantoms.
-    \item For ubiquitous safety-critical categories such as \texttt{person} (ID 0), ground-truth pedestrians are present across the evaluation cohort. Even with strict ground-truth non-overlap verification, targeting \texttt{person} produces an average of $\mathbf{28.40}$ phantoms per frame ($100.0\%$ ASR) under EQF and $\mathbf{22.70}$ phantoms ($100.0\%$ ASR) under DQF.
-    \item For \texttt{car} (ID 2), targeting vehicles injects $\mathbf{28.00}$ phantoms ($100.0\%$ ASR) under EQF and $\mathbf{21.20}$ phantoms ($100.0\%$ ASR) under DQF.
+    \item For targeted categories such as \texttt{bicycle} (ID 1), in the subset of frames containing ground-truth instances, candidate boxes are strictly matched against true objects: only predictions satisfying $\max_g \mathrm{IoU}(b, g) < 0.30$ are registered as fabricated phantoms. Even under this strict spatial exclusion, EQF achieves $\mathbf{99.44 \pm 0.57\%}$ binary fabrication success ($18.02 \pm 0.44$ phantoms per frame) and DQF achieves $\mathbf{99.67 \pm 0.27\%}$ success ($16.73 \pm 0.18$ phantoms per frame).
+    \item For ubiquitous safety-critical categories such as \texttt{person} (ID 0) and \texttt{car} (ID 2), pedestrians and vehicles appear frequently across the COCO cohort. Fabricated queries consistently emerge across background asphalt, roadside foliage, and empty sky patches without overlapping nominal ground-truth bounding boxes, maintaining an invariant multi-class fabrication success rate exceeding $99.4\%$.
 \end{enumerate}
-Notably, across all evaluated safety-critical categories, both EQF and DQF maintain consistently high fabrication rates regardless of whether ground-truth instances are present or absent in the scene, confirming that candidate fabrication is not an artifact of background-only evaluation.
+Crucially, across all evaluated safety-critical categories, both EQF and DQF maintain consistently high fabrication volumes regardless of whether legitimate foreground instances are present in the scene, confirming that candidate query fabrication is a pervasive structural vulnerability of the query selection architecture rather than a context-dependent anomaly.
 
 % =====================================================================
 % SECTION 6: DOWNSTREAM IMPACT
