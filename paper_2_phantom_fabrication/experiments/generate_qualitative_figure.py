@@ -405,7 +405,7 @@ def generate_paper2_qualitative_figure(
     draw_panel(
         axes[1, 2], img_np, dets_sqd,
         title="(f) Proposed Mitigation: SQD-Filter Defended (d = 0.15)",
-        subtitle=f"Surviving Boxes: {len(dets_sqd)} | Co-Located Phantoms Purged: 100% | Vehicles Preserved",
+        subtitle=f"Surviving Boxes: {len(dets_sqd)} | Co-Located Cluster Deduplicated | Nominal Vehicles Retained",
         status_text="Mitigated: SQD-Defended",
         is_defended=True,
     )

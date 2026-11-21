@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from paper_2_phantom_fabrication.attacks.phantom_attacks import generate_batch_adversarial
-from paper_2_phantom_fabrication.core.adv_cache import find_cache_file
+from paper_2_phantom_fabrication.core.adv_cache import find_cache_file, make_cache_filename_stem
 from paper_2_phantom_fabrication.core.config import get_adv_cache_dir
 
 
@@ -48,8 +48,11 @@ def generate_single_attack_cache(
     eps = float(eps_int) / 255.0
     alpha = 2.0 / 255.0 if eps_int >= 8 else 1.0 / 255.0
 
-    target_npy = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}_delta.npy"
-    target_meta = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}_meta.json"
+    stem = make_cache_filename_stem(
+        attack=attack_name, eps_num=eps_int, steps=steps, target_class_idx=target_class_idx, n_eval=n_total
+    )
+    target_npy = cdir / f"{stem}_delta.npy"
+    target_meta = cdir / f"{stem}_meta.json"
     legacy_npz = cdir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
 
     # Kiểm tra nếu cache đã tồn tại và hợp lệ
@@ -58,12 +61,12 @@ def generate_single_attack_cache(
             try:
                 with open(target_meta, "r", encoding="utf-8") as f:
                     meta = json.load(f)
-                if len(meta.get("image_ids", [])) == n_total:
+                if len(meta.get("image_ids", [])) == n_total and meta.get("steps", 8) == steps and meta.get("target_class_idx", 1) == target_class_idx:
                     print(f"[CACHE GEN] Đã tìm thấy cache hoàn chỉnh tại: {target_npy.name}. Bỏ qua bước sinh.")
                     return target_npy
             except Exception:
                 pass
-        elif legacy_npz.exists():
+        elif steps == 8 and target_class_idx == 1 and legacy_npz.exists():
             try:
                 with np.load(legacy_npz, mmap_mode="r") as data:
                     if "image_ids" in data and len(data["image_ids"]) == n_total:
@@ -135,6 +138,7 @@ def generate_single_attack_cache(
         "epsilon": eps,
         "alpha": alpha,
         "steps": steps,
+        "target_class_idx": target_class_idx,
         "resolution": "640x640",
         "dtype": "float32",
         "elapsed_sec": round(elapsed, 2),

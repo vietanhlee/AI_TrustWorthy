@@ -92,7 +92,9 @@ def run_stage_2_sensitivity_sweeps(
         for atk in ["EQF", "DQF"]:
             logger.info(f"  [Budget Sweep] Đánh giá {atk} tại eps={eps_val}/255...")
             if not skip_cache_gen:
-                cf = find_cache_file(attack=atk, eps_num=eps_val, n_eval=n_eval, cache_dir=cdir)
+                cf = find_cache_file(
+                    attack=atk, eps_num=eps_val, steps=8, target_class_idx=1, n_eval=n_eval, cache_dir=cdir
+                )
                 if cf is None or force_recompute:
                     generate_single_attack_cache(
                         model=model,
@@ -135,6 +137,24 @@ def run_stage_2_sensitivity_sweeps(
         iteration_sweep_results[f"steps_{st}"] = {}
         for atk in ["EQF", "DQF"]:
             logger.info(f"  [Steps Sweep] Đánh giá {atk} tại steps={st}...")
+            if not skip_cache_gen:
+                cf = find_cache_file(
+                    attack=atk, eps_num=16, steps=st, target_class_idx=1, n_eval=n_eval, cache_dir=cdir
+                )
+                if cf is None or force_recompute:
+                    generate_single_attack_cache(
+                        model=model,
+                        dataloader=dataloader,
+                        cohort=cohort,
+                        attack_name=atk,
+                        eps_int=16,
+                        steps=st,
+                        target_class_idx=1,
+                        cache_dir=cdir,
+                        device=device,
+                        force_recompute=force_recompute,
+                    )
+
             out = run_streaming_condition_eval(
                 model=model,
                 dataloader=dataloader,

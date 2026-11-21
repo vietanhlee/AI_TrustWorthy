@@ -62,7 +62,13 @@ def load_audits(telemetry_path=None):
             audit_640["rtdetr_aggregated"] = t["table1_benchmarks"].get("rtdetr_aggregated", {})
             audit_640["yolov8_aggregated"] = t["table1_benchmarks"].get("yolov8_aggregated", {})
         if "table4_defenses" in t:
-            audit_640["defenses_aggregated"] = t["table4_defenses"].get("defenses_aggregated", [])
+            t_def = t["table4_defenses"]
+            if isinstance(t_def, dict):
+                audit_640["defenses_aggregated"] = t_def.get("defenses_aggregated", [])
+            elif isinstance(t_def, list):
+                audit_640["defenses_aggregated"] = t_def
+            else:
+                audit_640["defenses_aggregated"] = []
         if "per_seed_results" in t:
             audit_640["per_seed_results"] = t["per_seed_results"]
             

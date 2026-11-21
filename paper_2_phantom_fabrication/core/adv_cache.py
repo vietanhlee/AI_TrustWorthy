@@ -39,17 +39,39 @@ def eps_tag(eps_num: int) -> str:
     return f"eps{eps_num}"
 
 
+def make_cache_filename_stem(
+    attack: str,
+    eps_num: int = 16,
+    steps: int = 8,
+    target_class_idx: int = 1,
+    n_eval: int = 0,
+) -> str:
+    """Tạo stem tên file cache chuẩn xác bao gồm attack, eps, steps, target_class và n_eval."""
+    attack_norm = attack.lower()
+    tag = eps_tag(eps_num)
+    parts = [f"adv_cache_{attack_norm}", tag]
+    if steps != 8:
+        parts.append(f"t{steps}")
+    if target_class_idx != 1:
+        parts.append(f"cls{target_class_idx}")
+    if n_eval > 0:
+        parts.append(f"n{n_eval}")
+    return "_".join(parts)
+
+
 def find_cache_file(
     attack: str,
     eps_num: int = 16,
+    steps: int = 8,
+    target_class_idx: int = 1,
     n_eval: int = 0,
     cache_dir: Optional[Union[str, Path]] = None,
 ) -> Optional[Path]:
     """
     Tìm kiếm file cache .npy (open_memmap không tốn đĩa tạm) hoặc .npz phù hợp nhất:
-    1. Ưu tiên file .npy đúng n_eval: adv_cache_{attack}_eps{eps_num}_n{n_eval}_delta.npy
-    2. Ưu tiên file .npz đúng n_eval: adv_cache_{attack}_eps{eps_num}_n{n_eval}.npz
-    3. Tìm kiếm file khớp pattern theo dung lượng lớn nhất.
+    1. Ưu tiên file có cấu hình chính xác (attack, eps, steps, target_class_idx, n_eval).
+    2. Nếu steps == 8 và target_class_idx == 1, cho phép khớp file legacy: adv_cache_{attack}_eps{eps_num}_n{n_eval}.
+    3. Tuyệt đối KHÔNG trả về cache của steps khác hoặc class khác để tránh lỗi lặp kết quả.
     """
     cdir = Path(cache_dir) if cache_dir is not None else get_adv_cache_dir()
     if not cdir.exists():
@@ -58,8 +80,19 @@ def find_cache_file(
     attack_norm = attack.lower()
     tag = eps_tag(eps_num)
 
-    # 1. Thử file chính xác theo n_eval
-    if n_eval > 0:
+    # 1. Thử file chính xác với đầy đủ tham số
+    exact_stem = make_cache_filename_stem(
+        attack=attack_norm, eps_num=eps_num, steps=steps, target_class_idx=target_class_idx, n_eval=n_eval
+    )
+    exact_npy = cdir / f"{exact_stem}_delta.npy"
+    if exact_npy.exists():
+        return exact_npy
+    exact_npz = cdir / f"{exact_stem}.npz"
+    if exact_npz.exists():
+        return exact_npz
+
+    # 2. Nếu steps == 8 và target_class_idx == 1, kiểm tra file legacy chuẩn
+    if steps == 8 and target_class_idx == 1 and n_eval > 0:
         target_npy = cdir / f"adv_cache_{attack_norm}_{tag}_n{n_eval}_delta.npy"
         if target_npy.exists():
             return target_npy
@@ -67,34 +100,22 @@ def find_cache_file(
         if target_npz.exists():
             return target_npz
 
-    # 2. Tìm các file .npy khớp pattern
-    npy_pattern = f"adv_cache_{attack_norm}_{tag}*_delta.npy"
-    npy_candidates = sorted(list(cdir.glob(npy_pattern)), key=lambda p: p.stat().st_size, reverse=True)
-    for cand in npy_candidates:
+    # 3. Tìm các file khớp đúng đặc tả trong metadata json
+    pattern_npy = f"adv_cache_{attack_norm}_{tag}*_delta.npy"
+    for cand in sorted(list(cdir.glob(pattern_npy)), key=lambda p: p.stat().st_size, reverse=True):
         meta_file = cand.with_name(cand.name.replace("_delta.npy", "_meta.json"))
         if meta_file.exists():
             try:
                 with open(meta_file, "r", encoding="utf-8") as f:
                     meta = json.load(f)
                 c_len = len(meta.get("image_ids", []))
-                if n_eval <= 0 or c_len >= n_eval:
-                    return cand
-            except Exception:
-                continue
-
-    # 3. Tìm các file .npz khớp pattern
-    pattern = f"adv_cache_{attack_norm}_{tag}*.npz"
-    candidates = sorted(list(cdir.glob(pattern)), key=lambda p: p.stat().st_size, reverse=True)
-
-    for cand in candidates:
-        try:
-            with np.load(cand, mmap_mode="r") as data:
-                if "image_ids" in data:
-                    c_len = len(data["image_ids"])
+                c_steps = meta.get("steps", 8)
+                c_cls = meta.get("target_class_idx", 1)
+                if c_steps == steps and c_cls == target_class_idx:
                     if n_eval <= 0 or c_len >= n_eval:
                         return cand
-        except Exception:
-            continue
+            except Exception:
+                continue
 
     return None
 
@@ -102,6 +123,8 @@ def find_cache_file(
 def load_cached_adv_delta(
     attack: str,
     eps_num: int = 16,
+    steps: int = 8,
+    target_class_idx: int = 1,
     n_eval: int = 0,
     expected_image_ids: Optional[Sequence[int]] = None,
     cache_dir: Optional[Union[str, Path]] = None,
@@ -110,7 +133,14 @@ def load_cached_adv_delta(
     Nạp mảng perturbation delta từ file cache (.npy hoặc .npz) qua disk mmap_mode='r'.
     Đảm bảo delta ở định dạng float32 chuẩn, không ép kiểu uint8.
     """
-    fpath = find_cache_file(attack=attack, eps_num=eps_num, n_eval=n_eval, cache_dir=cache_dir)
+    fpath = find_cache_file(
+        attack=attack,
+        eps_num=eps_num,
+        steps=steps,
+        target_class_idx=target_class_idx,
+        n_eval=n_eval,
+        cache_dir=cache_dir,
+    )
     if fpath is None or not fpath.exists():
         return None, {}
 
@@ -212,6 +242,8 @@ def save_adv_cache(
     eps_num: int,
     image_ids: Sequence[int],
     delta_array: Union[np.ndarray, np.memmap],
+    steps: int = 8,
+    target_class_idx: int = 1,
     meta_info: Optional[Dict[str, Any]] = None,
     cache_dir: Optional[Union[str, Path]] = None,
 ) -> Path:
@@ -224,12 +256,17 @@ def save_adv_cache(
 
     n_total = len(image_ids)
     attack_norm = attack.lower()
-    out_file = cdir / f"adv_cache_{attack_norm}_{eps_tag(eps_num)}_n{n_total}.npz"
+    stem = make_cache_filename_stem(
+        attack=attack_norm, eps_num=eps_num, steps=steps, target_class_idx=target_class_idx, n_eval=n_total
+    )
+    out_file = cdir / f"{stem}.npz"
     alias_file = cdir / f"adv_cache_{attack_norm}_{eps_tag(eps_num)}.npz"
 
     meta = meta_info.copy() if meta_info is not None else {}
     meta.setdefault("attack", attack_norm)
     meta.setdefault("epsilon_num_255", eps_num)
+    meta.setdefault("steps", steps)
+    meta.setdefault("target_class_idx", target_class_idx)
     meta.setdefault("n_total", n_total)
     meta.setdefault("dtype", "float32")
     meta.setdefault("timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))

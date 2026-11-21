@@ -335,7 +335,7 @@ def run_stage_1_benchmark(
             "precision_mean": float(np.mean([r["yolov8_metrics"]["Targeted_Fabrication"]["precision_mean"] for r in all_seed_results])),
             "recall_mean": float(np.mean([r["yolov8_metrics"]["Targeted_Fabrication"]["recall_mean"] for r in all_seed_results])),
             "asr_fab_mean": float(np.mean([r["yolov8_metrics"]["Targeted_Fabrication"]["asr_fab_mean"] if "asr_fab_mean" in r["yolov8_metrics"]["Targeted_Fabrication"] else r["yolov8_metrics"]["Targeted_Fabrication"]["asr_fab_pct"] for r in all_seed_results])),
-            "latency_mean": 541.2,
+            "latency_mean": float(yolo_latency["mean_ms"]),
         }
     }
 

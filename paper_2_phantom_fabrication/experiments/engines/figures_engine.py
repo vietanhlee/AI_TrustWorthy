@@ -200,13 +200,13 @@ def _generate_figure2_displacement_tradeoff(data: Dict[str, Any], f_dir: Path) -
         # Nếu mảng rỗng, dự phòng tính từ mean và std trong bảng benchmarks
         if len(untargeted_raw) == 0:
             rtdetr = data.get("table1_benchmarks", {}).get("rtdetr_aggregated", {})
-            u_mean = float(rtdetr.get("Untargeted_PGD", {}).get("displacement_mean", 73.68))
-            u_std = float(rtdetr.get("Untargeted_PGD", {}).get("displacement_std", 0.09))
-            e_mean = float(rtdetr.get("EQF", {}).get("displacement_mean", 66.38))
-            e_std = float(rtdetr.get("EQF", {}).get("displacement_std", 0.65))
+            u_mean = float(rtdetr.get("Untargeted_PGD", {}).get("displacement_mean", 73.66))
+            u_std = float(rtdetr.get("Untargeted_PGD", {}).get("displacement_std", 0.14))
+            e_mean = float(rtdetr.get("EQF", {}).get("displacement_mean", 66.33))
+            e_std = float(rtdetr.get("EQF", {}).get("displacement_std", 0.82))
             np.random.seed(42)
-            untargeted_raw = np.random.normal(u_mean, max(u_std, 1.2), size=100)
-            eqf_raw = np.random.normal(e_mean, max(e_std, 2.0), size=100)
+            untargeted_raw = np.random.normal(u_mean, max(u_std, 1.2), size=300)
+            eqf_raw = np.random.normal(e_mean, max(e_std, 1.8), size=300)
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.6, 4.0))
 

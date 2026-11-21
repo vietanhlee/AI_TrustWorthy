@@ -101,9 +101,13 @@ def run_streaming_condition_eval(
         condition = "Gaussian_Noise"
     elif c_norm in ("untargeted_pgd", "pgd", "untargeted"):
         condition = "Untargeted_PGD"
-    elif c_norm == "eqf":
+    elif c_norm in ("eqf", "standard_eqf"):
         condition = "EQF"
-    elif c_norm == "dqf":
+    elif c_norm in ("rab_eqf", "rab", "rank_aware_eqf"):
+        condition = "RAB-EQF"
+    elif c_norm in ("dc_eqf", "dc", "dispersion_constrained_eqf"):
+        condition = "DC-EQF"
+    elif c_norm in ("dqf", "output_logit"):
         condition = "DQF"
 
     if cohort is not None:
@@ -162,12 +166,14 @@ def run_streaming_condition_eval(
         cached_delta, _ = load_cached_adv_delta(
             attack=condition,
             eps_num=eps_int,
+            steps=steps,
+            target_class_idx=target_class_idx,
             n_eval=n_total,
             expected_image_ids=image_ids,
             cache_dir=cdir,
         )
         if cached_delta is not None:
-            logger.info(f"    [Cache Hit] Nạp {condition} từ cache trên đĩa: adv_cache_{condition.lower()}_eps{eps_int}_n{len(cached_delta)}.npz (chuẩn float32)")
+            logger.info(f"    [Cache Hit] Nạp {condition} (eps={eps_int}, t={steps}, cls={target_class_idx}) từ cache trên đĩa chuẩn float32.")
 
     temp_mmap = None
     temp_mmap_path = None
@@ -352,6 +358,8 @@ def run_streaming_condition_eval(
                 eps_num=eps_int,
                 image_ids=image_ids,
                 delta_array=temp_mmap,
+                steps=steps,
+                target_class_idx=target_class_idx,
                 meta_info={
                     "epsilon": epsilon,
                     "alpha": alpha,

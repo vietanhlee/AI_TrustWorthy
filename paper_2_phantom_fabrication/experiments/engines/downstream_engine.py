@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from transformers import RTDetrForObjectDetection
 
+from paper_2_phantom_fabrication.core.adv_cache import find_cache_file
 from paper_2_phantom_fabrication.core.coco_gt import (
     discover_coco_annotations,
     evaluate_coco_predictions,
@@ -28,6 +29,7 @@ from paper_2_phantom_fabrication.core.hardware import detect_hardware
 from paper_2_phantom_fabrication.core.matcher import match_detections_against_gt
 from paper_2_phantom_fabrication.downstream.aeb_simulation import simulate_aeb_braking_events
 from paper_2_phantom_fabrication.downstream.bytetrack_sim import simulate_bytetrack_tracking_failures
+from paper_2_phantom_fabrication.experiments.engines.cache_engine import generate_single_attack_cache
 from paper_2_phantom_fabrication.experiments.streaming_evaluator import (
     get_cohort_dataloader,
     run_streaming_condition_eval,
@@ -87,6 +89,24 @@ def run_stage_2_downstream_eval(
     for c_idx in cross_classes:
         c_name = class_names[c_idx]
         logger.info(f"  [Cross-Class] Đánh giá chế tạo Phantom cho lớp: {c_name} (Class {c_idx})...")
+        if not skip_cache_gen:
+            cf = find_cache_file(
+                attack="DQF", eps_num=16, steps=8, target_class_idx=c_idx, n_eval=n_eval, cache_dir=cdir
+            )
+            if cf is None or force_recompute:
+                generate_single_attack_cache(
+                    model=model,
+                    dataloader=dataloader,
+                    cohort=cohort,
+                    attack_name="DQF",
+                    eps_int=16,
+                    steps=8,
+                    target_class_idx=c_idx,
+                    cache_dir=cdir,
+                    device=device,
+                    force_recompute=force_recompute,
+                )
+
         out_c = run_streaming_condition_eval(
             model=model,
             dataloader=dataloader,
