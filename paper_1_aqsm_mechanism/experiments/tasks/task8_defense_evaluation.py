@@ -84,15 +84,22 @@ def run_adaptive_evasion_test(
             top_probs, _ = torch.topk(max_probs, k=k, dim=-1)
             task_loss = (top_probs ** 2).mean()
 
-            # Evasion Loss (Né tránh ngưỡng ESM)
-            topk_vals, _ = torch.topk(max_probs, k=min(300, max_probs.shape[1]), dim=-1)
+            # Evasion Loss (Né tránh đồng thời cả Dropoff và Margin theo đúng nguyên lý Max-OR)
+            topk_vals, _ = torch.topk(max_probs, k=min(301, max_probs.shape[1]), dim=-1)
             top1_val = topk_vals[:, 0]
-            top300_val = topk_vals[:, -1]
-            diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
+            top300_val = topk_vals[:, 299]
+            top301_val = topk_vals[:, 300] if topk_vals.shape[1] > 300 else torch.zeros_like(top300_val)
 
-            # Phạt nếu dropoff lệch khỏi phân vị trung vị sạch thực tế đã fit từ calibration
+            diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
+            diff_margin = top300_val - top301_val
+
+            # Phạt nếu dropoff và margin lệch khỏi phân vị trung vị sạch thực tế đã fit từ calibration
             target_drop = float(getattr(esm_monitor, "cal_dropoff_median", 35.0))
-            evasion_loss = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
+            target_margin = float(getattr(esm_monitor, "cal_margin_median", 0.05))
+
+            loss_drop = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
+            loss_margin = F.mse_loss(diff_margin, torch.full_like(diff_margin, target_margin))
+            evasion_loss = loss_drop + 10.0 * loss_margin
 
             total_loss = task_loss + lam * evasion_loss
 
@@ -128,6 +135,7 @@ def run_defense_evaluation(
     dataset: Any,
     cal_ratio: float = 0.3,
     target_fpr: float = 0.05,
+    n_adaptive: int = 50,
     cache_dir: Optional[Path] = None,
     audit_logger: Any = None,
 ) -> Dict[str, Any]:
@@ -188,7 +196,8 @@ def run_defense_evaluation(
     esm_fitted.fit(cal_logits)
 
     # Đánh giá tấn công thích ứng White-Box Adaptive Evasion
-    n_adapt = min(20, n_actual - n_cal) if (n_actual - n_cal) > 0 else min(20, n_actual)
+    avail_test = n_actual - n_cal if (n_actual - n_cal) > 0 else n_actual
+    n_adapt = min(n_adaptive, avail_test)
     test_adaptive_imgs = clean_imgs[n_cal : n_cal + n_adapt]
     adaptive_results = run_adaptive_evasion_test(
         wrapper=wrapper,
@@ -222,6 +231,7 @@ def run_defense_evaluation(
 def main():
     parser = create_base_parser("Empirical Defense & Adaptive Evasion Evaluation (Table 11)", task_name="Task 8")
     parser.add_argument("--cal_ratio", type=float, default=0.3, help="Tỷ lệ tập calibration không chồng lấn (mặc định 30%%)")
+    parser.add_argument("--n_adaptive", type=int, default=100, help="Số lượng ảnh kiểm thử tấn công thích ứng (mặc định 100)")
     args = parser.parse_args()
 
     update_experiment_paths(
@@ -267,6 +277,7 @@ def main():
         dataset=dataset,
         cal_ratio=args.cal_ratio,
         target_fpr=0.05,
+        n_adaptive=args.n_adaptive,
         cache_dir=args.cache_dir,
         audit_logger=audit_logger,
     )
