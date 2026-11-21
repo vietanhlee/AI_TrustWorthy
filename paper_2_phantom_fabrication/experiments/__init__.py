@@ -13,13 +13,20 @@ Gồm các thành phần chính:
 - sqd_filter: Bộ lọc phòng thủ phân tán không gian (Spatial Query Dispersion).
 """
 
-from .sqd_filter import apply_sqd_filter
-from .streaming_evaluator import (
-    get_cohort_dataloader,
-    run_streaming_condition_eval,
-)
-from .stage1_benchmark import run_stage_1_benchmark
-from .stage2_ablations import run_stage_2_ablations
+try:
+    from .sqd_filter import apply_sqd_filter
+    from .streaming_evaluator import (
+        get_cohort_dataloader,
+        run_streaming_condition_eval,
+    )
+    from .stage1_benchmark import run_stage_1_benchmark
+    from .stage2_ablations import run_stage_2_ablations
+except ImportError:
+    apply_sqd_filter = None
+    get_cohort_dataloader = None
+    run_streaming_condition_eval = None
+    run_stage_1_benchmark = None
+    run_stage_2_ablations = None
 
 __all__ = [
     "apply_sqd_filter",

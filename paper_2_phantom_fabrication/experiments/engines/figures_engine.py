@@ -224,7 +224,7 @@ def _generate_figure2_displacement_tradeoff(data: Dict[str, Any], f_dir: Path) -
             ax1.axvline(0.15, color="#2ca02c", linestyle=":", linewidth=1.8, label=r"SQD Radius ($d_{\mathrm{thresh}}=0.15$)")
 
             # Vùng thất bại của IoU-NMS
-            ax1.axvspan(0.0, 0.15, color="#ff7f0e", alpha=0.12, label="Co-located Failure Region\n($D < 0.15, \mathrm{IoU} < 0.15$)")
+            ax1.axvspan(0.0, 0.15, color="#ff7f0e", alpha=0.12, label="Co-located Failure Region\n" + r"($D < 0.15, \mathrm{IoU} < 0.15$)")
 
             ax1.set_xlabel(r"Pairwise Normalized Center Distance ($D_{\mathrm{center}}$)")
             ax1.set_ylabel("Pairwise Intersection-over-Union (IoU)")
@@ -242,8 +242,10 @@ def _generate_figure2_displacement_tradeoff(data: Dict[str, Any], f_dir: Path) -
         e_sorted = np.sort(eqf_raw)
         e_ecdf = np.arange(1, len(e_sorted) + 1) / len(e_sorted)
 
-        ax2.step(u_sorted, u_ecdf, where="post", color="#1f77b4", linewidth=2.0, label=f"Untargeted PGD ($\mu={np.mean(untargeted_raw):.1f}\%$)")
-        ax2.step(e_sorted, e_ecdf, where="post", color="#d62728", linewidth=2.0, label=f"Targeted EQF ($\mu={np.mean(eqf_raw):.1f}\%$)")
+        u_label = r"Untargeted PGD ($\mu=" + f"{np.mean(untargeted_raw):.1f}" + r"\%$)"
+        e_label = r"Targeted EQF ($\mu=" + f"{np.mean(eqf_raw):.1f}" + r"\%$)"
+        ax2.step(u_sorted, u_ecdf, where="post", color="#1f77b4", linewidth=2.0, label=u_label)
+        ax2.step(e_sorted, e_ecdf, where="post", color="#d62728", linewidth=2.0, label=e_label)
 
         ax2.set_xlabel("Foreground Proposal Displacement Rate (%)")
         ax2.set_ylabel("Empirical Cumulative Probability")

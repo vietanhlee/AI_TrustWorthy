@@ -10,21 +10,41 @@ Mục đích: Chứa các động cơ tính toán và đánh giá thực nghiệ
   - figures_engine: Tự động kết xuất 4 biểu đồ vector xuất bản chuẩn Elsevier EAAI.
 """
 
-from paper_2_phantom_fabrication.experiments.engines.ablation_engine import (
-    run_stage_2_sensitivity_sweeps,
-)
-from paper_2_phantom_fabrication.experiments.engines.benchmark_engine import (
-    run_stage_1_benchmark,
-)
-from paper_2_phantom_fabrication.experiments.engines.cache_engine import (
-    generate_single_attack_cache,
-)
-from paper_2_phantom_fabrication.experiments.engines.defense_engine import (
-    run_comprehensive_defense_evaluation,
-)
-from paper_2_phantom_fabrication.experiments.engines.downstream_engine import (
-    run_stage_2_downstream_eval,
-)
+try:
+    from paper_2_phantom_fabrication.experiments.engines.ablation_engine import (
+        run_stage_2_sensitivity_sweeps,
+    )
+except ImportError:
+    run_stage_2_sensitivity_sweeps = None
+
+try:
+    from paper_2_phantom_fabrication.experiments.engines.benchmark_engine import (
+        run_stage_1_benchmark,
+    )
+except ImportError:
+    run_stage_1_benchmark = None
+
+try:
+    from paper_2_phantom_fabrication.experiments.engines.cache_engine import (
+        generate_single_attack_cache,
+    )
+except ImportError:
+    generate_single_attack_cache = None
+
+try:
+    from paper_2_phantom_fabrication.experiments.engines.defense_engine import (
+        run_comprehensive_defense_evaluation,
+    )
+except ImportError:
+    run_comprehensive_defense_evaluation = None
+
+try:
+    from paper_2_phantom_fabrication.experiments.engines.downstream_engine import (
+        run_stage_2_downstream_eval,
+    )
+except ImportError:
+    run_stage_2_downstream_eval = None
+
 from paper_2_phantom_fabrication.experiments.engines.figures_engine import (
     generate_all_paper2_figures,
 )

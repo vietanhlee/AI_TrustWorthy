@@ -43,6 +43,7 @@ try {
     bibtex main_phantom | Out-Null
     pdflatex -interaction=nonstopmode main_phantom.tex | Out-Null
     pdflatex -interaction=nonstopmode main_phantom.tex | Out-Null
+    Copy-Item "main_phantom.pdf" (Join-Path $submissionDir "2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf") -Force
     Copy-Item "main_phantom.pdf" (Join-Path $submissionDir "3_Paper_Phantom_Queries_Fabrication_Elsevier.pdf") -Force
     Clean-LatexArtifacts $p2Dir
     Write-Host ">>> Done: Paper 2 (Phantom Queries)" -ForegroundColor Green
