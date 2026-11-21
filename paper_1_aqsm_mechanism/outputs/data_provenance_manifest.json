@@ -1,8 +1,8 @@
 {
   "project": "paper_1_aqsm_mechanism",
   "title": "Adversarial Query Selection Manipulation (AQSM) in Real-Time DEtection TRansformer (RT-DETR)",
-  "version": "2.0.0",
-  "created_at": "2026-11-20T21:05:00+07:00",
+  "version": "3.0.0",
+  "created_at": "2026-11-21T07:45:00+07:00",
   "hardware_environment": {
     "execution_platform": "Kaggle Cloud Platform (2x Tesla T4, 29.12 GB VRAM, Linux 6.18.55+)",
     "cuda_version": "13.0",
@@ -33,16 +33,23 @@
   },
   "cohort_definitions": {
     "empirical_evaluation_cohort": {
-      "description": "Tập ảnh thực nghiệm chuẩn COCO val2017 native 640x640 đánh giá toàn diện 9 tasks, N=400 images (valid intra-subject paired samples N=397 chứa ground-truth bounding boxes, df=[1, 396])",
-      "n_images": 400,
-      "n_valid_intra_subject": 397,
+      "description": "Tập ảnh thực nghiệm chuẩn COCO val2017 native 640x640 đánh giá toàn diện 9 tasks, N=1000 images (valid intra-subject paired samples N=992 chứa ground-truth bounding boxes, df=[1, 991])",
+      "n_images": 1000,
+      "n_valid_intra_subject": 992,
       "dataset": "Microsoft COCO val2017 (instances_val2017.json)",
       "num_classes": 80,
       "resamples": 2000,
       "degrees_of_freedom": [
         1,
-        396
-      ]
+        991
+      ],
+      "alpha_significance": 0.05
+    },
+    "defense_calibration_cohort": {
+      "description": "Tập hiệu chuẩn tách biệt (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
+      "n_calibration": 300,
+      "n_test": 700,
+      "percentile_quantile": 0.05
     }
   },
   "tables": {

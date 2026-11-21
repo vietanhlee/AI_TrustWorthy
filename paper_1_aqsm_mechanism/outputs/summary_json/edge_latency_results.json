@@ -8,60 +8,60 @@
     "gpu_name": "Tesla T4",
     "cuda_capability": "7.5"
   },
-  "throughput_fps": 25.92,
+  "throughput_fps": 25.78,
   "stages": {
     "Backbone": {
-      "mean_ms": 19.819,
-      "std_ms": 0.469,
-      "median_ms": 19.833,
-      "p95_ms": 20.613,
-      "p99_ms": 20.806,
-      "min_ms": 18.654,
-      "max_ms": 20.88
+      "mean_ms": 20.055,
+      "std_ms": 0.525,
+      "median_ms": 20.13,
+      "p95_ms": 20.805,
+      "p99_ms": 21.092,
+      "min_ms": 18.619,
+      "max_ms": 21.155
     },
     "Hybrid_Encoder": {
-      "mean_ms": 10.472,
-      "std_ms": 0.365,
-      "median_ms": 10.481,
-      "p95_ms": 11.082,
-      "p99_ms": 11.462,
-      "min_ms": 9.769,
-      "max_ms": 12.11
+      "mean_ms": 10.553,
+      "std_ms": 0.334,
+      "median_ms": 10.557,
+      "p95_ms": 11.086,
+      "p99_ms": 11.466,
+      "min_ms": 9.694,
+      "max_ms": 12.036
     },
     "Query_Selection": {
-      "mean_ms": 1.676,
-      "std_ms": 0.069,
-      "median_ms": 1.673,
-      "p95_ms": 1.745,
-      "p99_ms": 1.769,
-      "min_ms": 1.557,
-      "max_ms": 2.598
+      "mean_ms": 1.698,
+      "std_ms": 0.099,
+      "median_ms": 1.696,
+      "p95_ms": 1.776,
+      "p99_ms": 1.803,
+      "min_ms": 1.562,
+      "max_ms": 3.197
     },
     "Deformable_Decoder": {
-      "mean_ms": 6.309,
-      "std_ms": 0.429,
-      "median_ms": 6.211,
-      "p95_ms": 7.127,
-      "p99_ms": 7.669,
-      "min_ms": 5.705,
-      "max_ms": 8.547
+      "mean_ms": 6.199,
+      "std_ms": 0.558,
+      "median_ms": 6.053,
+      "p95_ms": 7.054,
+      "p99_ms": 7.813,
+      "min_ms": 5.688,
+      "max_ms": 12.2
     },
     "End_to_End_Total": {
-      "mean_ms": 38.581,
-      "std_ms": 1.013,
-      "median_ms": 38.534,
-      "p95_ms": 40.195,
-      "p99_ms": 40.825,
-      "min_ms": 36.332,
-      "max_ms": 44.4
+      "mean_ms": 38.791,
+      "std_ms": 1.037,
+      "median_ms": 38.706,
+      "p95_ms": 40.367,
+      "p99_ms": 41.378,
+      "min_ms": 36.433,
+      "max_ms": 45.172
     }
   },
   "percentage_breakdown": {
-    "Backbone_pct": 51.37,
-    "Hybrid_Encoder_pct": 27.14,
-    "Query_Selection_pct": 4.34,
-    "Deformable_Decoder_pct": 16.35
+    "Backbone_pct": 51.7,
+    "Hybrid_Encoder_pct": 27.2,
+    "Query_Selection_pct": 4.38,
+    "Deformable_Decoder_pct": 15.98
   },
   "timing_invariance_note": "RT-DETR eliminates NMS sponge attacks; computational latency remains deterministic across clean and perturbed inputs.",
-  "timestamp": "2026-11-20 12:29:18"
+  "timestamp": "2026-11-21 06:45:58"
 }

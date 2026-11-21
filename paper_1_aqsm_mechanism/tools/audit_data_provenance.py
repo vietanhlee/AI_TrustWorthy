@@ -129,7 +129,7 @@ def audit_numerical_values(tex_content: str) -> List[str]:
 
 def main():
     print("=" * 75)
-    print(" [PAPER 1 AUDIT] KIỂM ĐỊNH TOÀN DIỆN TÍNH TOÀN VẸN & DATA PROVENANCE N=400")
+    print(" [PAPER 1 AUDIT] KIỂM ĐỊNH TOÀN DIỆN TÍNH TOÀN VẸN & DATA PROVENANCE N=1000")
     print("=" * 75)
 
     if not MANIFEST_PATH.exists():
@@ -170,11 +170,11 @@ def main():
     else:
         print(">>> [CẢNH BÁO] Chưa tìm thấy khai báo S = 8,400 trong main.tex!")
 
-    # 4. Kiểm tra ghi nhận Cỡ mẫu N=400
-    if "N = 400" in tex_content or "N=400" in tex_content:
-        print(">>> 4. Bản thảo main.tex ghi nhận minh bạch và chính xác cỡ mẫu thực nghiệm N = 400 (N_valid = 397, df=[1, 396]).")
+    # 4. Kiểm tra ghi nhận Cỡ mẫu N=1000
+    if "N = 1,000" in tex_content or "N=1,000" in tex_content or "N = 1000" in tex_content:
+        print(">>> 4. Bản thảo main.tex ghi nhận minh bạch và chính xác cỡ mẫu thực nghiệm N = 1,000 (N_valid = 992, df=[1, 991]).")
     else:
-        print(">>> [CẢNH BÁO] main.tex chưa ghi rõ cỡ mẫu N = 400!")
+        print(">>> [CẢNH BÁO] main.tex chưa ghi rõ cỡ mẫu N = 1,000!")
 
     print("\n" + "=" * 75)
     if not art_errors and not num_errors:

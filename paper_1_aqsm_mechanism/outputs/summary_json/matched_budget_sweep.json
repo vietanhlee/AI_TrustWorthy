@@ -1,99 +1,90 @@
 {
   "experiment": "Table 9 & Figure 8: Matched-Budget Perturbation Sweep",
-  "n_images": 400,
+  "n_images": 1000,
   "model": "RT-DETR-R18vd",
   "device": "cuda",
-  "timestamp": "2026-11-20 12:28:53",
+  "timestamp": "2026-11-21 06:45:32",
   "clean_baseline": {
-    "mAP@50": 66.81,
-    "mAP@50:95": 49.47
+    "mAP@50": 65.5,
+    "mAP@50:95": 48.89
   },
   "sweep_results": {
     "aqsm": {
       "eps_4": {
         "epsilon": 0.01568627450980392,
         "epsilon_str": "4/255",
-        "mAP@50": 8.1,
-        "mAP@50:95": 4.25,
-        "relative_drop_pct": 87.88,
-        "mean_evicted_ratio": 0.7991,
-        "top300_overlap_pct": 20.09
+        "mAP@50": 6.32,
+        "mAP@50:95": 3.42,
+        "relative_drop_pct": 90.35,
+        "mean_evicted_ratio": 0.8052
       },
       "eps_8": {
         "epsilon": 0.03137254901960784,
         "epsilon_str": "8/255",
-        "mAP@50": 4.86,
-        "mAP@50:95": 2.19,
-        "relative_drop_pct": 92.73,
-        "mean_evicted_ratio": 0.8449,
-        "top300_overlap_pct": 15.51
+        "mAP@50": 3.73,
+        "mAP@50:95": 1.83,
+        "relative_drop_pct": 94.31,
+        "mean_evicted_ratio": 0.8383
       },
       "eps_16": {
         "epsilon": 0.06274509803921569,
         "epsilon_str": "16/255",
-        "mAP@50": 3.41,
-        "mAP@50:95": 1.45,
-        "relative_drop_pct": 94.89,
-        "mean_evicted_ratio": 0.8787,
-        "top300_overlap_pct": 12.13
+        "mAP@50": 2.99,
+        "mAP@50:95": 1.53,
+        "relative_drop_pct": 95.43,
+        "mean_evicted_ratio": 0.8762
       }
     },
     "vanishing": {
       "eps_4": {
         "epsilon": 0.01568627450980392,
         "epsilon_str": "4/255",
-        "mAP@50": 4.23,
-        "mAP@50:95": 2.48,
-        "relative_drop_pct": 93.66,
-        "mean_evicted_ratio": null,
-        "top300_overlap_pct": 45.8
+        "mAP@50": 3.27,
+        "mAP@50:95": 1.98,
+        "relative_drop_pct": 95.01,
+        "mean_evicted_ratio": null
       },
       "eps_8": {
         "epsilon": 0.03137254901960784,
         "epsilon_str": "8/255",
-        "mAP@50": 2.57,
-        "mAP@50:95": 1.43,
-        "relative_drop_pct": 96.16,
-        "mean_evicted_ratio": null,
-        "top300_overlap_pct": 36.2
+        "mAP@50": 1.95,
+        "mAP@50:95": 1.2,
+        "relative_drop_pct": 97.02,
+        "mean_evicted_ratio": null
       },
       "eps_16": {
         "epsilon": 0.06274509803921569,
         "epsilon_str": "16/255",
-        "mAP@50": 1.92,
-        "mAP@50:95": 1.23,
-        "relative_drop_pct": 97.12,
-        "mean_evicted_ratio": null,
-        "top300_overlap_pct": 30.74
+        "mAP@50": 0.9,
+        "mAP@50:95": 0.48,
+        "relative_drop_pct": 98.62,
+        "mean_evicted_ratio": null
       }
     },
     "taskpgd": {
       "eps_4": {
         "epsilon": 0.01568627450980392,
         "epsilon_str": "4/255",
-        "mAP@50": 3.4,
-        "mAP@50:95": 2.13,
-        "relative_drop_pct": 94.91,
-        "mean_evicted_ratio": null,
-        "top300_overlap_pct": 42.1
+        "mAP@50": 2.49,
+        "mAP@50:95": 1.6,
+        "relative_drop_pct": 96.2,
+        "mean_evicted_ratio": null
       },
       "eps_8": {
         "epsilon": 0.03137254901960784,
         "epsilon_str": "8/255",
-        "mAP@50": 1.67,
-        "mAP@50:95": 1.12,
-        "relative_drop_pct": 97.5,
-        "mean_evicted_ratio": null,
-        "top300_overlap_pct": 31.5
+        "mAP@50": 1.43,
+        "mAP@50:95": 1.0,
+        "relative_drop_pct": 97.82,
+        "mean_evicted_ratio": null
       },
       "eps_16": {
         "epsilon": 0.06274509803921569,
         "epsilon_str": "16/255",
-        "mAP@50": 0.98,
-        "mAP@50:95": 0.76,
-        "relative_drop_pct": 98.53,
-        "mean_evicted_ratio": null,
-        "top300_overlap_pct": 25.97
+        "mAP@50": 0.83,
+        "mAP@50:95": 0.45,
+        "relative_drop_pct": 98.73,
+        "mean_evicted_ratio": null
       }
     }
   }
