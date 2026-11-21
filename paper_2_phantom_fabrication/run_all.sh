@@ -163,4 +163,20 @@ echo "    -> $FIG_DIR/fig1_nms_free_paradox.pdf"
 echo "    -> $FIG_DIR/fig2_displacement_tradeoff.pdf"
 echo "    -> $FIG_DIR/fig3_downstream_cyberphysical_impact.pdf"
 echo "    -> $FIG_DIR/fig4_sqd_filter_defense.pdf"
+echo ""
+echo " 3. Tự động biên dịch bản thảo LaTeX và xuất PDF nộp bài Elsevier EAAI..."
+if command -v pdflatex &>/dev/null; then
+    pdflatex -interaction=nonstopmode main_phantom.tex > /dev/null 2>&1 || true
+    bibtex main_phantom > /dev/null 2>&1 || true
+    pdflatex -interaction=nonstopmode main_phantom.tex > /dev/null 2>&1 || true
+    pdflatex -interaction=nonstopmode main_phantom.tex > /dev/null 2>&1 || true
+    if [ -f "main_phantom.pdf" ]; then
+        mkdir -p ../SUBMISSION_PDFS
+        cp main_phantom.pdf ../SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf
+        cp main_phantom.pdf ../SUBMISSION_PDFS/3_Paper_Phantom_Queries_Fabrication_Elsevier.pdf
+        echo "    -> Đã xuất PDF hoàn thiện 24 trang chuẩn: ../SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf"
+    fi
+else
+    echo "    -> Lưu ý: Không tìm thấy pdflatex trên PATH, bỏ qua biên dịch PDF tự động."
+fi
 echo "======================================================================"

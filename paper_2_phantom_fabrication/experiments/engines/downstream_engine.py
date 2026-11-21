@@ -71,6 +71,7 @@ def run_stage_2_downstream_eval(
         img_folder, ann_file, n_samples=n_samples, seed=42, img_size=640, preload_images=False
     )
     dataloader = get_cohort_dataloader(cohort, batch_size=batch_size, device=device)
+    n_eval = len(cohort["image_ids"])
 
     raw_model = RTDetrForObjectDetection.from_pretrained("PekingU/rtdetr_r18vd")
     raw_model.eval()
