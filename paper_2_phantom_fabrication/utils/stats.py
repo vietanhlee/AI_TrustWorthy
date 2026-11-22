@@ -7,6 +7,7 @@ Mục đích: Cung cấp các phương pháp thống kê khoa học và kiểm �
   - Paired difference statistical tests (Wilcoxon / t-test).
 """
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -15,11 +16,12 @@ from scipy import stats
 
 def bootstrap_ci_95(
     data: Sequence[float],
-    n_boot: int = 1000,
+    n_boot: int = 10000,
     seed: int = 42,
 ) -> Tuple[float, float]:
     """
-    Tính khoảng tin cậy 95% bằng phương pháp Bootstrap Resampling.
+    Tính khoảng tin cậy 95% bằng phương pháp Bootstrap Resampling (10,000 lần lặp).
+    Đảm bảo tính chính xác khoa học và không phụ thuộc giả định chuẩn.
     """
     arr = np.asarray(data, dtype=np.float64)
     if len(arr) == 0:
@@ -37,6 +39,33 @@ def bootstrap_ci_95(
     lower = float(np.percentile(boot_means, 2.5))
     upper = float(np.percentile(boot_means, 97.5))
     return (round(lower, 4), round(upper, 4))
+
+
+def save_per_image_telemetry(
+    records: List[Dict[str, Any]],
+    output_path: Union[str, Path],
+) -> Path:
+    """
+    Lưu trữ kết quả chi tiết từng ảnh ra file JSONL phục vụ thẩm định khoa học (Data Provenance).
+    """
+    import json
+    p = Path(output_path).resolve()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        for r in records:
+            # Chuyển đổi an toàn các kiểu dữ liệu NumPy
+            clean_r = {}
+            for k, v in r.items():
+                if isinstance(v, (np.integer, int)):
+                    clean_r[k] = int(v)
+                elif isinstance(v, (np.floating, float)):
+                    clean_r[k] = float(v)
+                elif isinstance(v, np.ndarray):
+                    clean_r[k] = v.tolist()
+                else:
+                    clean_r[k] = v
+            f.write(json.dumps(clean_r) + "\n")
+    return p
 
 
 def wilson_score_interval(

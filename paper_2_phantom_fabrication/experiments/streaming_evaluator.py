@@ -21,6 +21,7 @@ import torchvision.transforms.functional as TF
 from tqdm import tqdm
 
 from paper_2_phantom_fabrication.attacks.phantom_attacks import generate_batch_adversarial
+from paper_2_phantom_fabrication.attacks.yolo_attacks import generate_yolo_adversarial_batch
 from paper_2_phantom_fabrication.core.adv_cache import (
     get_adv_cache_dir,
     load_cached_adv_delta,
@@ -32,6 +33,10 @@ from paper_2_phantom_fabrication.core.coco_gt import (
     postprocess_rtdetr_predictions,
 )
 from paper_2_phantom_fabrication.core.matcher import match_detections_against_gt
+from paper_2_phantom_fabrication.core.metrics import (
+    compute_disentangled_precision_breakdown,
+    compute_phantom_metrics,
+)
 
 logger = logging.getLogger("StreamingEvaluator")
 
@@ -227,6 +232,7 @@ def run_streaming_condition_eval(
             noise = torch.clamp(noise, -epsilon, epsilon)
             adv_b = torch.clamp(bx + noise, 0.0, 1.0)
         else:
+            k_eqf = kwargs.get("k_fake_eqf", 50)
             adv_b = generate_batch_adversarial(
                 model=model,
                 bx=bx,
@@ -235,6 +241,7 @@ def run_streaming_condition_eval(
                 epsilon=epsilon,
                 alpha=alpha,
                 steps=steps,
+                k_fake_eqf=k_eqf,
             )
             if temp_mmap is not None:
                 delta_b = (adv_b - bx).detach().cpu().to(torch.float32).numpy()
@@ -327,22 +334,44 @@ def run_streaming_condition_eval(
                     displ = 0.0
                 displacement_rates.append(displ)
 
-        # 5. Nếu có đánh giá song song YOLOv8 (cho Clean hoặc EQF)
-        if not is_yolo and yolo_model is not None and condition in ["Clean", "EQF"]:
+        # 5. Nếu có đánh giá song song YOLOv8 (cho Clean hoặc EQF / EQF_Preserve)
+        if not is_yolo and yolo_model is not None and condition in ["Clean", "EQF", "EQF_Preserve"]:
+            raw_yolo_pt = getattr(yolo_model, "model", None)
+            yolo_raw_preds = None
+            if raw_yolo_pt is not None:
+                try:
+                    with torch.no_grad():
+                        raw_out = raw_yolo_pt(adv_b)
+                        if isinstance(raw_out, (list, tuple)):
+                            yolo_raw_preds = raw_out[0].detach()
+                        else:
+                            yolo_raw_preds = raw_out.detach()
+                except Exception:
+                    yolo_raw_preds = None
+
             for i in range(bsz):
                 global_idx = int(batch_indices[i])
                 adv_cpu = adv_b[i].detach().cpu()
-                img_pil = TF.to_pil_image(adv_cpu)
+                img_pil = TF.to_pil_image(adv_cpu.clamp(0.0, 1.0))
+
+                # Đếm số lượng candidate raw pre-NMS thật sự trên lưới (confidence >= 0.35)
+                pre_cnt = 0
+                if yolo_raw_preds is not None and i < len(yolo_raw_preds):
+                    cls_scores = yolo_raw_preds[i, 4:, :]  # [80, 8400]
+                    max_cls_p = cls_scores.max(dim=0)[0]  # [8400]
+                    pre_cnt = int((max_cls_p >= 0.35).sum().item())
+
                 try:
                     y_out = yolo_model(img_pil, verbose=False, conf=0.35, iou=0.50)[0]
                     ypb = y_out.boxes.xyxyn.cpu().numpy()
                     yps = y_out.boxes.conf.cpu().numpy()
                     ypl = y_out.boxes.cls.cpu().numpy().astype(int)
-                    pre_cnt = min(int(len(ypb) * 8.5 + 10), 100)
                     post_cnt = len(ypb)
+                    if pre_cnt == 0:
+                        pre_cnt = post_cnt
                 except Exception:
                     ypb, yps, ypl = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
-                    pre_cnt, post_cnt = 46, 5
+                    post_cnt = 0
 
                 gt_b = gt_list[global_idx]["boxes_xyxy"] if global_idx < len(gt_list) else np.zeros((0, 4))
                 gt_l = gt_list[global_idx]["labels"] if global_idx < len(gt_list) else np.zeros((0,), dtype=int)
@@ -394,6 +423,12 @@ def run_streaming_condition_eval(
     map_bench = evaluate_coco_predictions(post_bench_all, gt_list)["mAP@50"]
     map_oper = evaluate_coco_predictions(post_oper_all, gt_list)["mAP@50"]
 
+    phantom_stats = compute_phantom_metrics(matched_stats)
+    tot_tp = phantom_stats["total_tp"]
+    tot_fp_target = phantom_stats["total_fp_target"]
+    tot_fp_other = phantom_stats["total_fp_other"]
+    disentangled = compute_disentangled_precision_breakdown(tot_tp, tot_fp_target, tot_fp_other)
+
     res: Dict[str, Any] = {
         "mAP50_benchmark": float(map_bench),
         "mAP50_operational": float(map_oper),
@@ -407,10 +442,15 @@ def run_streaming_condition_eval(
         "phantoms_mean": float(np.mean([m["phantoms"] for m in matched_stats])) if matched_stats else 0.0,
         "precision_mean": float(np.mean([m["precision"] for m in matched_stats])) if matched_stats else 0.0,
         "recall_mean": float(np.mean([m["recall"] for m in matched_stats])) if matched_stats else 0.0,
-        "asr_fab_pct": float(np.mean([m["is_asr"] for m in matched_stats]) * 100.0) if matched_stats else 0.0,
+        "asr_fab_pct": float(phantom_stats["asr_1_pct"]),
+        "asr_1_pct": float(phantom_stats["asr_1_pct"]),
+        "asr_3_pct": float(phantom_stats["asr_3_pct"]),
+        "asr_5_pct": float(phantom_stats["asr_5_pct"]),
+        "disentangled_precision": disentangled,
         "displacement_rate_mean": float(np.mean(displacement_rates)) if displacement_rates else 0.0,
         "displacement_rates_raw": [float(round(d, 2)) for d in displacement_rates] if displacement_rates else [],
         "matched_stats": matched_stats,
+        "per_image_results": matched_stats,
         "post_oper": post_oper_all,
         "clean_topk": torch.cat(clean_topk_list, dim=0) if clean_topk_list else None,
         "logits": torch.cat(logits_saved_list, dim=0) if logits_saved_list else None,

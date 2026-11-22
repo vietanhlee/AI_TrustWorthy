@@ -30,6 +30,10 @@ def _match_single_image(
 ) -> Dict[str, Any]:
     """
     Khớp các hộp dự đoán với ground truth của 1 ảnh theo Greedy Bipartite Matching.
+    Đảm bảo định nghĩa khoa học nghiêm ngặt:
+    - Phantom: Bounding box của lớp mục tiêu (target_cls) có IoU < 0.30 với MỌI GT cùng lớp mục tiêu.
+    - Phân tách rõ ràng: True Positives (TP), False Positives lớp mục tiêu (FP_target), False Positives lớp khác (FP_other).
+    - Multi-level ASR: is_asr_1 (>=1 phantom), is_asr_3 (>=3 phantoms), is_asr_5 (>=5 phantoms).
     """
     n_pred = len(pred_boxes)
     n_gt = len(gt_boxes)
@@ -38,28 +42,45 @@ def _match_single_image(
         return {
             "tp": 0,
             "fp": 0,
+            "fp_target": 0,
+            "fp_other": 0,
             "precision": 100.0,
             "recall": 0.0 if n_gt > 0 else 100.0,
             "phantoms": 0,
             "active": 0,
             "is_asr": 0,
+            "is_asr_1": 0,
+            "is_asr_3": 0,
+            "is_asr_5": 0,
         }
+
+    # Lấy các chỉ số GT thuộc lớp mục tiêu
+    target_gt_idx = np.where(gt_labels == target_cls)[0] if n_gt > 0 else np.array([], dtype=int)
 
     if n_gt == 0:
         phantoms = int(np.sum(pred_labels == target_cls))
+        fp_target = phantoms
+        fp_other = n_pred - fp_target
         return {
             "tp": 0,
             "fp": n_pred,
+            "fp_target": fp_target,
+            "fp_other": fp_other,
             "precision": 0.0,
             "recall": 100.0,
             "phantoms": phantoms,
             "active": n_pred,
-            "is_asr": 1 if phantoms > 0 else 0,
+            "is_asr": 1 if phantoms >= 1 else 0,
+            "is_asr_1": 1 if phantoms >= 1 else 0,
+            "is_asr_3": 1 if phantoms >= 3 else 0,
+            "is_asr_5": 1 if phantoms >= 5 else 0,
         }
 
     iou_mat = compute_iou_matrix(pred_boxes, gt_boxes)
     matched_gt = set()
-    tp, fp, phantoms = 0, 0, 0
+    tp, fp = 0, 0
+    fp_target, fp_other = 0, 0
+    phantoms = 0
 
     sorted_idx = np.argsort(-pred_scores)
     for p_idx in sorted_idx:
@@ -79,24 +100,38 @@ def _match_single_image(
             matched_gt.add(best_gt_idx)
         else:
             fp += 1
-            # Kiểm tra xem FP này có phải là Phantom Query thuộc lớp mục tiêu không
             if p_lbl == target_cls:
-                max_any_gt_iou = np.max(iou_mat[p_idx]) if n_gt > 0 else 0.0
-                if max_any_gt_iou < phantom_iou_max:
+                fp_target += 1
+                # Kiểm tra nghiêm ngặt: IoU < 0.30 với MỌI GT cùng lớp mục tiêu
+                if len(target_gt_idx) > 0:
+                    max_target_iou = np.max(iou_mat[p_idx, target_gt_idx])
+                else:
+                    max_target_iou = 0.0
+                
+                if max_target_iou < phantom_iou_max:
                     phantoms += 1
+            else:
+                fp_other += 1
 
     precision = (tp / (tp + fp) * 100.0) if (tp + fp) > 0 else 0.0
     recall = (tp / n_gt * 100.0) if n_gt > 0 else 100.0
-    is_asr = 1 if phantoms > 0 else 0
+    is_asr_1 = 1 if phantoms >= 1 else 0
+    is_asr_3 = 1 if phantoms >= 3 else 0
+    is_asr_5 = 1 if phantoms >= 5 else 0
 
     return {
         "tp": tp,
         "fp": fp,
+        "fp_target": fp_target,
+        "fp_other": fp_other,
         "precision": precision,
         "recall": recall,
         "phantoms": phantoms,
         "active": n_pred,
-        "is_asr": is_asr,
+        "is_asr": is_asr_1,
+        "is_asr_1": is_asr_1,
+        "is_asr_3": is_asr_3,
+        "is_asr_5": is_asr_5,
     }
 
 
@@ -174,6 +209,13 @@ def match_detections_against_gt(
             total_gt += len(g_b)
             per_image_results.append(res_i)
 
+        n_valid_images = max(1, len(per_image_results))
+        total_fp_target = sum(r.get("fp_target", 0) for r in per_image_results)
+        total_fp_other = sum(r.get("fp_other", 0) for r in per_image_results)
+        asr_1_count = sum(r.get("is_asr_1", 0) for r in per_image_results)
+        asr_3_count = sum(r.get("is_asr_3", 0) for r in per_image_results)
+        asr_5_count = sum(r.get("is_asr_5", 0) for r in per_image_results)
+
         precision = (total_tp / (total_tp + total_fp) * 100.0) if (total_tp + total_fp) > 0 else 0.0
         recall = (total_tp / total_gt * 100.0) if total_gt > 0 else 100.0
         f1 = (2.0 * precision * recall / (precision + recall)) / 100.0 if (precision + recall) > 0 else 0.0
@@ -181,11 +223,17 @@ def match_detections_against_gt(
         return {
             "total_tp": total_tp,
             "total_fp": total_fp,
+            "total_fp_target": total_fp_target,
+            "total_fp_other": total_fp_other,
             "total_phantoms": total_phantoms,
             "total_active": total_active,
             "precision": round(precision, 2),
             "recall": round(recall, 2),
             "f1": round(f1, 4),
+            "asr_1_pct": round(asr_1_count / n_valid_images * 100.0, 2),
+            "asr_3_pct": round(asr_3_count / n_valid_images * 100.0, 2),
+            "asr_5_pct": round(asr_5_count / n_valid_images * 100.0, 2),
+            "asr_pct": round(asr_1_count / n_valid_images * 100.0, 2),
             "tp": total_tp,
             "fp": total_fp,
             "phantoms": total_phantoms,

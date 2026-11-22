@@ -4,18 +4,24 @@ Module: paper_2_phantom_fabrication.attacks.phantom_attacks
 Mục đích: Cài đặt các thuật toán tấn công đối kháng chế tạo đối tượng ma (Phantom Queries)
 trên kiến trúc RT-DETR theo từng lô ảnh (Batch-level Adversarial Perturbation Generation).
 
-Các đòn tấn công:
+Các đòn tấn công khoa học:
   1. Clean: Giữ nguyên ảnh gốc không nhiễu.
   2. Gaussian_Noise: Nhiễu Gauss ngẫu nhiên chuẩn hóa cùng ngân sách L_inf (baseline).
-  3. EQF (Encoder Query Fabrication): Tối ưu hóa phân hạng để đẩy các query nền (background queries)
+  3. EQF (Encoder Query Fabrication): Tối ưu hóa phân hạng để đẩy K_bg query nền (background queries)
      có điểm số phân loại thuộc lớp mục tiêu vượt ngưỡng chọn lọc S=300 của Deformable Encoder.
-  4. DQF (Decoder Query Fabrication): Khai thác không gian Deformable Cross-Attention tầng Decoder
+  4. EQF_Preserve (Foreground-Preserving EQF): Biến thể EQF bổ sung thành phần ràng buộc bảo toàn
+     đặc trưng/logits của các query vật thể thật (Foreground Preservation Loss). Dùng để kiểm chứng
+     nhân quả: vật thể thật bị mất do cạnh tranh slot (slot competition) hay do suy thoái biểu diễn (representation collapse).
+  5. DQF (Decoder Query Fabrication): Khai thác không gian Deformable Cross-Attention tầng Decoder
      để kích hoạt cực đại xác suất dự đoán của các query nhàn rỗi (inactive queries).
-  5. Untargeted_PGD: Tối đa hóa xác suất cực đại tổng quát trên mọi lớp danh định.
+  6. RAB_EQF (Rank-Aware Bottleneck EQF): Đẩy query nền vượt ngưỡng và chủ động triệt tiêu query vật thể thật.
+  7. DC_EQF (Dispersion-Constrained EQF): Tấn công thích ứng ép phân tán tâm hình học để vượt qua bộ lọc khoảng cách.
+  8. Untargeted_PGD: Tối đa hóa xác suất cực đại tổng quát trên mọi lớp danh định.
 """
 
-from typing import Optional
+from typing import Optional, Union
 import torch
+import torch.nn.functional as F
 
 
 def generate_batch_adversarial(
@@ -28,6 +34,8 @@ def generate_batch_adversarial(
     steps: int = 8,
     k_fake_eqf: int = 50,
     k_fake_dqf: int = 15,
+    lambda_fg_preserve: float = 2.0,
+    anchor_selection_mode: str = "lowest_conf",
 ) -> torch.Tensor:
     """
     Sinh batch ảnh đối kháng trực tiếp trên GPU/CPU theo lô hiện thời.
@@ -46,11 +54,15 @@ def generate_batch_adversarial(
     # 1. Forward pass trên ảnh sạch để lấy background / foreground / inactive mask
     with torch.no_grad():
         clean_out = model(pixel_values=bx)
-        if norm_type in ("eqf", "standard_eqf", "rab_eqf", "rab", "rank_aware_eqf"):
+        if norm_type in (
+            "eqf", "standard_eqf", "eqf_preserve", "eqf_with_fg_preserve",
+            "rab_eqf", "rab", "rank_aware_eqf"
+        ):
             clean_enc = clean_out.enc_outputs_class
             clean_enc_p = torch.sigmoid(clean_enc).max(dim=-1)[0]
             bg_mask = clean_enc_p < 0.10
             fg_mask = clean_enc_p >= 0.35
+            clean_fg_logits = clean_enc.clone()
         elif norm_type in ("dqf", "output_logit", "output_logit_attack", "dc_eqf", "dc", "dispersion_constrained_eqf"):
             clean_dec = clean_out.logits
             clean_dec_p = torch.sigmoid(clean_dec).max(dim=-1)[0]
@@ -62,22 +74,41 @@ def generate_batch_adversarial(
     x_adv = bx.clone().detach().requires_grad_(True)
     for _ in range(steps):
         out = model(pixel_values=x_adv)
+        
         if norm_type in ("eqf", "standard_eqf"):
+            # EQF Chuẩn: Tối đa hóa logit lớp mục tiêu cho k_fake_eqf queries nền
             target_logits = out.enc_outputs_class[..., target_class_idx]
             masked_target = target_logits.masked_fill(~bg_mask, -1e4)
             k_sel = min(k_fake_eqf, masked_target.shape[1])
             top_fake = masked_target.topk(k_sel, dim=-1)[0]
             loss = -top_fake.mean()
 
-        elif norm_type in ("rab_eqf", "rab", "rank_aware_eqf"):
-            # Rank-Aware Boundary EQF: Đẩy background vượt ngưỡng và triệt tiêu query vật thể thật
+        elif norm_type in ("eqf_preserve", "eqf_with_fg_preserve"):
+            # EQF Bảo toàn Foreground: Đẩy background queries nhưng phạt sự sai lệch trên foreground
             target_logits = out.enc_outputs_class[..., target_class_idx]
             masked_target = target_logits.masked_fill(~bg_mask, -1e4)
             k_sel = min(k_fake_eqf, masked_target.shape[1])
             top_fake = masked_target.topk(k_sel, dim=-1)[0]
             loss_push = -top_fake.mean()
 
-            # Thành phần triệt tiêu vật thể thật (Foreground eviction)
+            if fg_mask.sum() > 0:
+                # Bảo toàn cả điểm số lớp thực tế của các object thật
+                adv_fg = out.enc_outputs_class[fg_mask]
+                orig_fg = clean_fg_logits[fg_mask]
+                loss_fg_preserve = F.mse_loss(adv_fg, orig_fg)
+            else:
+                loss_fg_preserve = torch.tensor(0.0, device=bx.device)
+
+            loss = loss_push + lambda_fg_preserve * loss_fg_preserve
+
+        elif norm_type in ("rab_eqf", "rab", "rank_aware_eqf"):
+            # Rank-Aware Boundary EQF: Đẩy background vượt ngưỡng và chủ động triệt tiêu query vật thể thật
+            target_logits = out.enc_outputs_class[..., target_class_idx]
+            masked_target = target_logits.masked_fill(~bg_mask, -1e4)
+            k_sel = min(k_fake_eqf, masked_target.shape[1])
+            top_fake = masked_target.topk(k_sel, dim=-1)[0]
+            loss_push = -top_fake.mean()
+
             if fg_mask.sum() > 0:
                 fg_logits = out.enc_outputs_class[fg_mask]
                 loss_evict = fg_logits.max(dim=-1)[0].mean()
@@ -87,7 +118,7 @@ def generate_batch_adversarial(
             loss = loss_push + 0.5 * loss_evict
 
         elif norm_type in ("dc_eqf", "dc", "dispersion_constrained_eqf"):
-            # Dispersion-Constrained EQF: Ràng buộc phân tán tâm hình học để vượt qua SQD-Filter
+            # Dispersion-Constrained EQF: Ràng buộc phân tán tâm hình học để né bộ lọc khoảng cách
             target_logits = out.logits[..., target_class_idx]
             masked_target = target_logits.masked_fill(~inactive_dec_mask, -1e4)
             k_sel = min(k_fake_dqf, masked_target.shape[1])
@@ -95,7 +126,6 @@ def generate_batch_adversarial(
             top_fake = masked_target[0, top_indices]
             loss_push = -top_fake.mean()
 
-            # Phạt khoảng cách tâm hình học nhỏ hơn d_min = 0.15
             centers = out.pred_boxes[0, top_indices, :2]  # [k_sel, 2]
             diff = centers.unsqueeze(0) - centers.unsqueeze(1)
             dist = torch.sqrt((diff ** 2).sum(dim=-1) + 1e-6)

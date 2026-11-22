@@ -100,9 +100,10 @@ def run_stage_2_sensitivity_sweeps(
 
     budget_sweep_results: Dict[str, Any] = {}
     iteration_sweep_results: Dict[str, Any] = {}
+    dose_response_sweep_results: Dict[str, Any] = {}
 
-    # 1. Perturbation Budget Sweep: eps in {4, 8, 12, 16}
-    epsilons = [4, 8, 12, 16]
+    # 1. Perturbation Budget Sweep: eps in {2, 4, 8, 12, 16}
+    epsilons = [2, 4, 8, 12, 16]
     for eps_val in epsilons:
         eps_f = float(eps_val) / 255.0
         alpha_f = 2.0 / 255.0 if eps_val >= 8 else 1.0 / 255.0
@@ -148,11 +149,15 @@ def run_stage_2_sensitivity_sweeps(
                 "mAP75": round(out["metrics"]["mAP@75"], 2),
                 "fp_count": matched["total_fp"],
                 "tp_count": matched["total_tp"],
+                "phantoms": matched.get("total_phantoms", matched["total_fp"]),
+                "asr_pct": matched.get("asr_pct", 0.0),
+                "asr_1_pct": matched.get("asr_1_pct", 0.0),
+                "asr_3_pct": matched.get("asr_3_pct", 0.0),
                 "f1": round(matched["f1"], 4),
             }
 
-    # 2. Optimization Steps Sweep: steps in {2, 4, 8, 15}
-    steps_list = [2, 4, 8, 15]
+    # 2. Optimization Steps Sweep: steps in {2, 4, 8, 15, 30}
+    steps_list = [2, 4, 8, 15, 30]
     for st in steps_list:
         iteration_sweep_results[f"steps_{st}"] = {}
         for atk in ["EQF", "DQF"]:
@@ -195,10 +200,46 @@ def run_stage_2_sensitivity_sweeps(
                 "mAP75": round(out["metrics"]["mAP@75"], 2),
                 "fp_count": matched["total_fp"],
                 "tp_count": matched["total_tp"],
+                "phantoms": matched.get("total_phantoms", matched["total_fp"]),
+                "asr_pct": matched.get("asr_pct", 0.0),
+                "asr_1_pct": matched.get("asr_1_pct", 0.0),
+                "asr_3_pct": matched.get("asr_3_pct", 0.0),
                 "f1": round(matched["f1"], 4),
+            }
+
+    # 3. Dose-Response Sweep: Quét số lượng background anchors K_bg in {5, 10, 25, 50, 100, 200}
+    # Tách biệt kiểm chứng giả thuyết cạnh tranh slot (slot competition) vs phá hủy biểu diễn
+    k_bg_list = [5, 10, 25, 50, 100, 200]
+    for k_val in k_bg_list:
+        dose_response_sweep_results[f"k_{k_val}"] = {}
+        for atk in ["EQF", "EQF_Preserve"]:
+            logger.info(f"  [Dose-Response Sweep] Đánh giá {atk} tại K_bg={k_val}...")
+            out = run_streaming_condition_eval(
+                model=model,
+                dataloader=dataloader,
+                cohort=cohort,
+                condition_type=atk,
+                target_class_idx=1,
+                attack_eps=16.0 / 255.0,
+                attack_alpha=2.0 / 255.0,
+                attack_steps=8,
+                cache_dir=cdir,
+                device=device,
+                detector_backend="rtdetr",
+                skip_cache_gen=True,  # Luôn sinh On-The-Fly GPU cho dose-response
+                k_fake_eqf=k_val,
+            )
+            matched = match_detections_against_gt(out["raw_detections"], cohort["gt_list"], iou_threshold=0.5)
+            dose_response_sweep_results[f"k_{k_val}"][atk] = {
+                "mAP50": round(out["metrics"]["mAP@50"], 2),
+                "fp_count": matched["total_fp"],
+                "phantoms": matched.get("total_phantoms", matched["total_fp"]),
+                "displacement_rate": round(out.get("displacement_rate_mean", 0.0), 2),
+                "asr_1_pct": matched.get("asr_1_pct", 0.0),
             }
 
     return {
         "budget_sweep": budget_sweep_results,
         "iteration_sweep": iteration_sweep_results,
+        "dose_response_sweep": dose_response_sweep_results,
     }
