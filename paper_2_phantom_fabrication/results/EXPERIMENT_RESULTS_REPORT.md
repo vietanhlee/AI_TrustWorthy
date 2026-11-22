@@ -1,7 +1,7 @@
 # BÁO CÁO TỔNG KẾT THỰC NGHIỆM KHOA HỌC: PAPER 2
 **Đề tài:** *Adversarial Object Fabrication in Real-Time Detection Transformers*
-**Thời gian sinh:** 2026-11-22 19:37:55
-**Git Commit:** `6160321d51e54b4a8e4a391141c8231ae4a994ec` | **Branch:** `master`
+**Thời gian sinh:** 2026-11-22 19:54:34
+**Git Commit:** `46f2702094d959cc0c126504681beae98731ff52` | **Branch:** `master`
 **Tuyên bố xuất xứ:** *100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics.*
 
 ---

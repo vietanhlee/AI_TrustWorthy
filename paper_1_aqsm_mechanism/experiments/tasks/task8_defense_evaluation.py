@@ -178,6 +178,7 @@ def run_adaptive_evasion_test(
             "evasion_weight_lambda": lam,
             "n_evaluated_samples": n_eval,
             "detected_tpr_pct": round(tpr_evade, 2),
+            "evasion_success_pct": round(cond_evade, 2),
             "raw_monitor_bypass_pct": round(raw_bypass, 2),
             "attack_effective_rate_pct": round(eff_rate, 2),
             "conditioned_evasion_success_pct": round(cond_evade, 2),
