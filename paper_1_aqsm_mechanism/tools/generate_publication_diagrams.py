@@ -7,6 +7,8 @@ Guarantees clean typography, generous padding, and zero text overlap.
 """
 
 from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")  # Chế độ headless bắt buộc cho Linux / Kaggle / Docker
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 

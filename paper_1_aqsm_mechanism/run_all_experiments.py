@@ -88,7 +88,18 @@ def run_subtask(
 
     elapsed = time.time() - t0
     if ret_code != 0:
-        raise RuntimeError(f"Task thất bại với mã lỗi {ret_code}: {task_name}")
+        err_tail = ""
+        if log_file and log_file.exists():
+            try:
+                with open(log_file, "r", encoding="utf-8", errors="replace") as f_check:
+                    lines = f_check.readlines()
+                    err_tail = "".join(lines[-25:])
+            except Exception:
+                pass
+        err_msg = f"Task thất bại với mã lỗi {ret_code}: {task_name}"
+        if err_tail.strip():
+            err_msg += f"\n\n[TRÍCH XUẤT 25 DÒNG CUỐI TỪ NHẬT KÝ LOG: {log_file.name}]:\n{err_tail}"
+        raise RuntimeError(err_msg)
 
     print(f"\n >>> [HOÀN THÀNH] {task_name} trong {format_duration(elapsed)} ({elapsed:.2f}s)")
     return elapsed

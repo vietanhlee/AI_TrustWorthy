@@ -5,6 +5,8 @@ and Encoder Selection Monitor (ESM) Guardrail at Native 640x640 Resolution.
 """
 
 from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")  # Chế độ headless bắt buộc cho Linux / Kaggle / Docker
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
