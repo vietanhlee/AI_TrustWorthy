@@ -121,8 +121,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 PYTHON_CMD="python"
-if command -v python3 &>/dev/null; then
+if [ -f "../.venv/Scripts/python.exe" ]; then
+    PYTHON_CMD="../.venv/Scripts/python.exe"
+elif [ -f ".venv/Scripts/python.exe" ]; then
+    PYTHON_CMD=".venv/Scripts/python.exe"
+elif [ -f "../.venv/bin/python" ]; then
+    PYTHON_CMD="../.venv/bin/python"
+elif [ -f ".venv/bin/python" ]; then
+    PYTHON_CMD=".venv/bin/python"
+elif command -v python3 &>/dev/null && python3 --version &>/dev/null; then
     PYTHON_CMD="python3"
+elif command -v python &>/dev/null && python --version &>/dev/null; then
+    PYTHON_CMD="python"
 fi
 
 echo "======================================================================"

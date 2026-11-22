@@ -225,7 +225,27 @@ def run_streaming_condition_eval(
             delta_np = cached_delta[sub_indices]
             delta_tensor = torch.from_numpy(delta_np.astype(np.float32)).to(device)
             adv_b = torch.clamp(bx + delta_tensor, 0.0, 1.0)
-        elif is_yolo or condition == "Clean":
+        elif is_yolo:
+            if condition == "Clean":
+                adv_b = bx
+            elif condition == "Gaussian_Noise":
+                noise = torch.randn_like(bx) * epsilon
+                noise = torch.clamp(noise, -epsilon, epsilon)
+                adv_b = torch.clamp(bx + noise, 0.0, 1.0)
+            else:
+                adv_b = generate_yolo_adversarial_batch(
+                    yolo_model=model,
+                    bx=bx,
+                    attack_mode="localized",
+                    target_class_idx=target_class_idx,
+                    epsilon=epsilon,
+                    alpha=alpha,
+                    steps=steps,
+                    k_fake_anchors=30,
+                    preserve_foreground=("Preserve" in condition),
+                    device=device,
+                )
+        elif condition == "Clean":
             adv_b = bx
         elif condition == "Gaussian_Noise":
             noise = torch.randn_like(bx) * epsilon
@@ -259,17 +279,44 @@ def run_streaming_condition_eval(
             # 2a. Suy luận YOLOv8 trên lô đối kháng
             bsz = len(batch_indices)
             yolo_batch_dets = []
+
+            raw_yolo_pt = getattr(model, "model", model)
+            yolo_raw_preds = None
+            if raw_yolo_pt is not None:
+                try:
+                    with torch.no_grad():
+                        raw_out = raw_yolo_pt(adv_b)
+                        if isinstance(raw_out, (list, tuple)):
+                            yolo_raw_preds = raw_out[0].detach()
+                        else:
+                            yolo_raw_preds = raw_out.detach()
+                except Exception:
+                    yolo_raw_preds = None
+
             for i in range(bsz):
                 global_idx = int(batch_indices[i])
                 img_t = adv_b[i].detach().cpu()
                 img_pil = TF.to_pil_image(img_t.clamp(0.0, 1.0))
+
+                # Đếm số lượng candidate raw pre-NMS thật sự trên lưới (confidence >= 0.35)
+                pre_cnt = 0
+                if yolo_raw_preds is not None and i < len(yolo_raw_preds):
+                    cls_scores = yolo_raw_preds[i, 4:, :]  # [80, 8400]
+                    max_cls_p = cls_scores.max(dim=0)[0]  # [8400]
+                    pre_cnt = int((max_cls_p >= 0.35).sum().item())
+
                 try:
                     y_out = model(img_pil, verbose=False, conf=0.35, iou=0.50)[0]
                     ypb = y_out.boxes.xyxyn.cpu().numpy()
                     yps = y_out.boxes.conf.cpu().numpy()
                     ypl = y_out.boxes.cls.cpu().numpy().astype(int)
+                    post_cnt = len(ypb)
+                    if pre_cnt == 0:
+                        pre_cnt = post_cnt
                 except Exception:
                     ypb, yps, ypl = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,), dtype=int)
+                    post_cnt = 0
+
                 det_dict = {"boxes": ypb, "scores": yps, "labels": ypl}
                 yolo_batch_dets.append(det_dict)
 
@@ -277,6 +324,8 @@ def run_streaming_condition_eval(
                 gt_l = gt_list[global_idx]["labels"] if global_idx < len(gt_list) else np.zeros((0,), dtype=int)
                 m_res = match_detections_against_gt(ypb, yps, ypl, gt_b, gt_l, target_cls=target_class_idx)
                 matched_stats.append(m_res)
+                yolo_pre_nms.append(pre_cnt)
+                yolo_post_nms.append(post_cnt)
 
             post_bench_all.extend(yolo_batch_dets)
             post_oper_all.extend(yolo_batch_dets)
@@ -334,14 +383,31 @@ def run_streaming_condition_eval(
                     displ = 0.0
                 displacement_rates.append(displ)
 
-        # 5. Nếu có đánh giá song song YOLOv8 (cho Clean hoặc EQF / EQF_Preserve)
-        if not is_yolo and yolo_model is not None and condition in ["Clean", "EQF", "EQF_Preserve"]:
-            raw_yolo_pt = getattr(yolo_model, "model", None)
+        # 5. Nếu có đánh giá song song YOLOv8 (cho Clean hoặc Targeted_Fabrication / EQF / EQF_Preserve)
+        if not is_yolo and yolo_model is not None and condition in ["Clean", "EQF", "EQF_Preserve", "Targeted_Fabrication"]:
+            if condition == "Clean":
+                yolo_eval_b = bx
+            else:
+                # White-box targeted fabrication trực tiếp cho YOLOv8 (Mục 4.5 main_phantom.tex)
+                yolo_eval_b = generate_yolo_adversarial_batch(
+                    yolo_model=yolo_model,
+                    bx=bx,
+                    attack_mode="localized",
+                    target_class_idx=target_class_idx,
+                    epsilon=epsilon,
+                    alpha=alpha,
+                    steps=steps,
+                    k_fake_anchors=30,
+                    preserve_foreground=("Preserve" in condition),
+                    device=device,
+                )
+
+            raw_yolo_pt = getattr(yolo_model, "model", yolo_model)
             yolo_raw_preds = None
             if raw_yolo_pt is not None:
                 try:
                     with torch.no_grad():
-                        raw_out = raw_yolo_pt(adv_b)
+                        raw_out = raw_yolo_pt(yolo_eval_b)
                         if isinstance(raw_out, (list, tuple)):
                             yolo_raw_preds = raw_out[0].detach()
                         else:
@@ -351,7 +417,7 @@ def run_streaming_condition_eval(
 
             for i in range(bsz):
                 global_idx = int(batch_indices[i])
-                adv_cpu = adv_b[i].detach().cpu()
+                adv_cpu = yolo_eval_b[i].detach().cpu()
                 img_pil = TF.to_pil_image(adv_cpu.clamp(0.0, 1.0))
 
                 # Đếm số lượng candidate raw pre-NMS thật sự trên lưới (confidence >= 0.35)
@@ -383,6 +449,9 @@ def run_streaming_condition_eval(
 
         # Giải phóng bộ nhớ batch
         del bx, adv_b
+        if not is_yolo and yolo_model is not None and condition not in ["Clean"]:
+            if 'yolo_eval_b' in locals():
+                del yolo_eval_b
         if out is not None:
             del out, logits_b, boxes_b
         if device.type == "cuda":
@@ -457,11 +526,19 @@ def run_streaming_condition_eval(
         "pred_boxes": torch.cat(boxes_saved_list, dim=0) if boxes_saved_list else None,
     }
 
-    if yolo_model is not None and condition in ["Clean", "EQF"]:
-        res["yolo_matched"] = yolo_matched
-        res["yolo_preds"] = yolo_preds
+    if (is_yolo or yolo_model is not None) and condition in ["Clean", "EQF", "EQF_Preserve", "Targeted_Fabrication"]:
+        res["yolo_matched"] = yolo_matched if not is_yolo else matched_stats
+        res["yolo_preds"] = yolo_preds if not is_yolo else post_bench_all
         res["yolo_pre_nms"] = yolo_pre_nms
         res["yolo_post_nms"] = yolo_post_nms
+        if yolo_pre_nms and yolo_post_nms:
+            rej_list = [
+                float((1.0 - post / max(pre, 1)) * 100.0)
+                for pre, post in zip(yolo_pre_nms, yolo_post_nms)
+            ]
+            res["yolo_rejection_rate_mean"] = float(np.mean(rej_list))
+        else:
+            res["yolo_rejection_rate_mean"] = 0.0
 
     gc.collect()
     return res

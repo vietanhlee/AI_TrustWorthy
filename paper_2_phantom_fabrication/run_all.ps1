@@ -1,10 +1,4 @@
-﻿﻿<#
-.SYNOPSIS
-    Master Execution Script for Paper 2 on Windows PowerShell.
-    Chạy chuỗi thực nghiệm Paper 2 (Task 0 -> Task 6) với kiến trúc Zero-OOM khép kín.
-#>
-
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param (
     [string]$FolderImage = "",
     [string]$Annotations = "",

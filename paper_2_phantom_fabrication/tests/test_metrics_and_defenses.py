@@ -12,6 +12,19 @@ Kiểm thử tự động tính đúng đắn khoa học của:
   7. Representation Guardrails: Hiệu chuẩn Prototype và tính AUROC phát hiện đối kháng.
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Đảm bảo xử lý lỗi OpenMP duplicate runtime trên môi trường Windows / Anaconda
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+# Tự động nạp thư mục gốc của repository vào sys.path để pytest / unittest chạy trực tiếp
+TESTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_DIR.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 import unittest
 import numpy as np
 import torch

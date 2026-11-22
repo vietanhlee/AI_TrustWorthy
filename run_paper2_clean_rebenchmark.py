@@ -99,6 +99,8 @@ def run_master_orchestrator(args: argparse.Namespace) -> None:
 
     if args.sync_only or args.stage == "figures":
         cmd.append("--sync_only")
+        if args.skip_paper_compile:
+            cmd.append("--skip_paper_compile")
     else:
         if args.folder_image:
             cmd.extend(["--folder_image", str(args.folder_image)])
