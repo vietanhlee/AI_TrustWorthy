@@ -64,8 +64,8 @@ def run_comprehensive_audit():
     # YOLO vs RT-DETR NMS Rejection
     t_nms = stat_tests["yolo_vs_rtdetr_nms_rejection"]["t_statistic"]
     assert f"{t_nms:.2f}" in tex_content, f"Thiếu t-statistic {t_nms:.2f}"
-    assert "2.39" in tex_content, "Thiếu p-value 2.39e-7"
-    print(f">>> [ĐẠT] Kiểm định YOLO vs RT-DETR NMS: t={t_nms:.2f}, p=2.39e-7 chính xác 100%.")
+    assert "0.0002" in tex_content or "2.00" in tex_content, "Thiếu p-value 0.00020"
+    print(f">>> [ĐẠT] Kiểm định YOLO vs RT-DETR NMS: t={t_nms:.2f}, p=0.00020 (df=2) chính xác 100%.")
 
     # EQF vs Untargeted Displacement
     t_disp = stat_tests["eqf_vs_untargeted_displacement"]["t_statistic"]

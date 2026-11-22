@@ -416,8 +416,9 @@
       "yolo_nms_mean": 0.0,
       "rtdetr_nms_mean": 7.10654545839721,
       "t_statistic": -70.77093302659937,
-      "p_value": 2.3886565661699403e-07,
-      "significant_at_001": true
+      "p_value": 0.00019959980607002657,
+      "significant_at_001": true,
+      "df": 2
     },
     "eqf_vs_untargeted_displacement": {
       "eqf_displacement_mean": 66.4011111111111,
