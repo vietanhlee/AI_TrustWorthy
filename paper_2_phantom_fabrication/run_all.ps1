@@ -1,16 +1,14 @@
-﻿<#
+﻿﻿<#
 .SYNOPSIS
     Master Execution Script for Paper 2 on Windows PowerShell.
-    Chạy chuỗi thực nghiệm Paper 2 (Task 0 -> Task 5) với kiến trúc Zero-OOM.
+    Chạy chuỗi thực nghiệm Paper 2 (Task 0 -> Task 6) với kiến trúc Zero-OOM khép kín.
 #>
 
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory=$true)]
-    [string]$FolderImage,
-
+    [string]$FolderImage = "",
     [string]$Annotations = "",
-    [string]$Tasks = "0,1,2,3,4,5",
+    [string]$Tasks = "0,1,2,3,4,5,6",
     [string]$Stage = "all",
     [int]$NumImages = 0,
     [string]$Seeds = "42,123,456",
@@ -20,17 +18,19 @@ param (
     [string]$CacheDir = "cache/adv_cache_640",
     [string]$FigDir = "fig",
     [switch]$SkipCacheGen,
-    [switch]$ForceRecompute
+    [switch]$ForceRecompute,
+    [switch]$SyncOnly,
+    [switch]$SkipPaperCompile
 )
 
 $ErrorActionPreference = "Stop"
 
-if ($Stage -eq "benchmark") {
-    $Tasks = "0,1,4"
+if ($SyncOnly -or ($Stage -eq "figures") -or ($Stage -eq "sync")) {
+    $Tasks = "5,6"
+} elseif ($Stage -eq "benchmark") {
+    $Tasks = "0,1,4,5,6"
 } elseif ($Stage -eq "ablations") {
-    $Tasks = "2,3"
-} elseif ($Stage -eq "figures") {
-    $Tasks = "5"
+    $Tasks = "2,3,5,6"
 }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -46,7 +46,11 @@ if (Test-Path "..\.venv\Scripts\python.exe") {
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host " KHỞI ĐỘNG HỆ THỐNG THỰC NGHIỆM PAPER 2 (WINDOWS POWERSHELL)" -ForegroundColor Cyan
 Write-Host "----------------------------------------------------------------------"
-Write-Host " Thư mục ảnh COCO : $FolderImage"
+if ($FolderImage) {
+    Write-Host " Thư mục ảnh COCO : $FolderImage"
+} else {
+    Write-Host " Chế độ thực thi  : Hậu xử lý / Đồng bộ (Sync Only)"
+}
 Write-Host " Python Engine    : $PythonCmd"
 Write-Host " Danh sách Tasks  : $Tasks"
 Write-Host " Thiết bị         : $Device"
@@ -55,7 +59,6 @@ Write-Host "====================================================================
 
 $CmdArgs = @(
     "run_all_experiments.py",
-    "--folder_image", $FolderImage,
     "--tasks", $Tasks,
     "--num_images", $NumImages,
     "--seeds", $Seeds,
@@ -66,6 +69,9 @@ $CmdArgs = @(
     "--fig_dir", $FigDir
 )
 
+if ($FolderImage) {
+    $CmdArgs += @("--folder_image", $FolderImage)
+}
 if ($Annotations) {
     $CmdArgs += @("--annotations", $Annotations)
 }
@@ -74,6 +80,12 @@ if ($SkipCacheGen) {
 }
 if ($ForceRecompute) {
     $CmdArgs += @("--force_recompute")
+}
+if ($SyncOnly) {
+    $CmdArgs += @("--sync_only")
+}
+if ($SkipPaperCompile) {
+    $CmdArgs += @("--skip_paper_compile")
 }
 
 & $PythonCmd $CmdArgs

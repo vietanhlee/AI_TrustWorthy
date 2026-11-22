@@ -80,6 +80,11 @@ TASK_REGISTRY: Dict[int, Dict[str, Any]] = {
         "script": "experiments/tasks/task5_generate_figures.py",
         "description": "Tự động xuất 4 đồ thị vector chuẩn xuất bản Elsevier",
     },
+    6: {
+        "name": "Task 6: Post-Run Scientific Pipeline (Report, Sync, Paper, Verify)",
+        "script": "experiments/tasks/task6_post_run_pipeline.py",
+        "description": "Tự động hóa toàn diện: Báo cáo Markdown, đồng bộ LaTeX, build PDF 24 trang, kiểm toán",
+    },
 }
 
 
@@ -226,12 +231,14 @@ def build_unified_telemetry(outputs_dir: Path) -> Path:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Master Orchestrator - Paper 2 Empirical Experiment Suite (Task 0 -> Task 5)",
+        description="Master Orchestrator - Paper 2 Empirical Experiment Suite (Task 0 -> Task 6)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--folder_image", type=str, required=True, help="Đường dẫn thư mục ảnh COCO (e.g. val2017)")
+    parser.add_argument("--folder_image", type=str, default="", help="Đường dẫn thư mục ảnh COCO (e.g. val2017)")
     parser.add_argument("--annotations", type=str, default="", help="Đường dẫn file annotations COCO JSON")
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5", help="Danh sách task ID thực thi (e.g. '0,1,2,3,4,5' hoặc 'all')")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6", help="Danh sách task ID thực thi (e.g. '0,1,2,3,4,5,6' hoặc 'all')")
+    parser.add_argument("--sync_only", action="store_true", default=False, help="Chế độ hậu xử lý: Chỉ chạy Task 5 & 6 (sinh hình, báo cáo Markdown, đồng bộ TeX, build PDF 24 trang)")
+    parser.add_argument("--skip_paper_compile", action="store_true", default=False, help="Bỏ qua biên dịch TeX (ví dụ trên môi trường cloud không có pdflatex)")
     parser.add_argument("--num_images", type=int, default=0, help="Số ảnh giới hạn (0 = chạy toàn bộ)")
     parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán: auto, cuda, cpu")
     parser.add_argument("--batch_size", type=int, default=0, help="Batch size suy luận (0 = tự động)")
@@ -244,6 +251,15 @@ def main():
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc tính toán lại từ đầu")
     args = parser.parse_args()
 
+    if not args.sync_only and not args.folder_image:
+        # Tự động dò tìm thư mục COCO val2017 mặc định
+        if Path("data/coco5k/val2017").exists():
+            args.folder_image = "data/coco5k/val2017"
+        elif Path("../data/coco5k/val2017").exists():
+            args.folder_image = "../data/coco5k/val2017"
+        else:
+            parser.error("Thiếu tham số bắt buộc --folder_image (trừ khi chạy ở chế độ --sync_only)!")
+
     setup_cpu_threads(args.threads)
     hw_info = detect_hardware(args.device)
     device = hw_info["primary_device"]
@@ -254,7 +270,10 @@ def main():
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Xác định danh sách task cần chạy
-    if args.tasks.strip().lower() == "all":
+    if args.sync_only:
+        selected_tasks = [5, 6]
+        logger.info("Chế độ --sync_only: Bỏ qua Tasks 0-4, chỉ thực thi Task 5 (Figures) và Task 6 (Post-Run Pipeline).")
+    elif args.tasks.strip().lower() == "all":
         selected_tasks = sorted(list(TASK_REGISTRY.keys()))
     else:
         selected_tasks = sorted([int(t.strip()) for t in args.tasks.split(",") if t.strip()])
@@ -277,7 +296,7 @@ def main():
 
     # Tham số cơ bản chuyển tiếp tới các task con
     common_args = [
-        "--folder_image", str(Path(args.folder_image).resolve()),
+        "--folder_image", str(Path(args.folder_image).resolve()) if args.folder_image else "",
         "--num_images", str(args.num_images),
         "--device", str(args.device),
         "--batch_size", str(args.batch_size),
@@ -324,6 +343,10 @@ def main():
             task_cli.extend(["--seeds", args.seeds])
         elif tid == 5:
             task_cli.extend(["--fig_dir", str(Path(args.fig_dir).resolve())])
+        elif tid == 6:
+            task_cli.extend(["--expected_pages", "24"])
+            if args.skip_paper_compile:
+                task_cli.append("--skip_paper_compile")
 
         ret_code, dur = run_subtask(
             task_id=tid,

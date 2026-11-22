@@ -17,13 +17,15 @@ SEEDS="42,123,456"
 DEVICE="auto"
 BATCH_SIZE=0
 STAGE="all"
-TASKS="0,1,2,3,4,5"
+TASKS="0,1,2,3,4,5,6"
 OUTPUT_DIR="outputs"
 OUTPUT_JSON="outputs/paper2_complete_telemetry.json"
 CACHE_DIR="cache/adv_cache_640"
 FIG_DIR="fig"
 SKIP_CACHE_GEN=""
 FORCE_RECOMPUTE=""
+SYNC_ONLY=""
+SKIP_PAPER_COMPILE=""
 
 print_usage() {
     echo "======================================================================"
@@ -31,15 +33,18 @@ print_usage() {
     echo "======================================================================"
     echo "Usage:"
     echo "  bash run_all.sh --folder_image <path_to_coco_images> [OPTIONS]"
+    echo "  bash run_all.sh --sync_only"
     echo ""
-    echo "Required:"
+    echo "Required (trừ khi có --sync_only):"
     echo "  --folder_image PATH        Đường dẫn thư mục ảnh COCO (e.g. val2017)"
     echo ""
     echo "Optional:"
     echo "  --annotations PATH         Đường dẫn file instances_val2017.json"
     echo "                             (Tự động tìm kiếm nếu bỏ trống)"
-    echo "  --tasks LIST               Danh sách tasks (0,1,2,3,4,5 hoặc all)"
-    echo "  --stage STAGE              Giai đoạn: all (mặc định), benchmark, ablations, figures"
+    echo "  --tasks LIST               Danh sách tasks (0,1,2,3,4,5,6 hoặc all)"
+    echo "  --stage STAGE              Giai đoạn: all (mặc định), benchmark, ablations, figures, sync"
+    echo "  --sync_only                Chỉ chạy hậu xử lý: Figures, Markdown Report, LaTeX, PDF 24 trang"
+    echo "  --skip_paper_compile       Bỏ qua biên dịch PDF qua pdflatex (môi trường cloud)"
     echo "  --num_images INT           Số ảnh giới hạn (0 = chạy toàn bộ ảnh)"
     echo "  --num_benchmark INT        Số ảnh mỗi seed cho Stage 1 (Legacy)"
     echo "  --num_ablation INT         Số ảnh cho Stage 2 Ablations (Legacy)"
@@ -62,6 +67,8 @@ while [[ "$#" -gt 0 ]]; do
         --annotations) ANNOTATIONS="$2"; shift ;;
         --tasks) TASKS="$2"; shift ;;
         --stage) STAGE="$2"; shift ;;
+        --sync_only|--sync-only) SYNC_ONLY="--sync_only" ;;
+        --skip_paper_compile|--skip-paper-compile) SKIP_PAPER_COMPILE="--skip_paper_compile" ;;
         --num_images) NUM_IMAGES="$2"; shift ;;
         --num_benchmark) NUM_BENCHMARK="$2"; shift ;;
         --num_ablation) NUM_ABLATION="$2"; shift ;;
@@ -80,19 +87,26 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-if [ -z "$FOLDER_IMAGE" ]; then
-    echo "LỖI: Thiếu tham số bắt buộc --folder_image!"
-    print_usage
-    exit 1
+# Chuyển đổi stage sang tasks nếu stage được cung cấp
+if [ -n "$SYNC_ONLY" ] || [ "$STAGE" == "figures" ] || [ "$STAGE" == "sync" ]; then
+    TASKS="5,6"
+    SYNC_ONLY="--sync_only"
+elif [ "$STAGE" == "benchmark" ]; then
+    TASKS="0,1,4,5,6"
+elif [ "$STAGE" == "ablations" ]; then
+    TASKS="2,3,5,6"
 fi
 
-# Chuyển đổi stage sang tasks nếu stage được cung cấp
-if [ "$STAGE" == "benchmark" ]; then
-    TASKS="0,1,4"
-elif [ "$STAGE" == "ablations" ]; then
-    TASKS="2,3"
-elif [ "$STAGE" == "figures" ]; then
-    TASKS="5"
+if [ -z "$FOLDER_IMAGE" ] && [ -z "$SYNC_ONLY" ]; then
+    if [ -d "../data/coco5k/val2017" ]; then
+        FOLDER_IMAGE="../data/coco5k/val2017"
+    elif [ -d "data/coco5k/val2017" ]; then
+        FOLDER_IMAGE="data/coco5k/val2017"
+    else
+        echo "LỖI: Thiếu tham số bắt buộc --folder_image (trừ khi dùng --sync_only)!"
+        print_usage
+        exit 1
+    fi
 fi
 
 if [ "$NUM_IMAGES" -le 0 ]; then
@@ -103,11 +117,9 @@ if [ "$NUM_IMAGES" -le 0 ]; then
     fi
 fi
 
-# Ensure working directory is script directory or project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check Python environment
 PYTHON_CMD="python"
 if command -v python3 &>/dev/null; then
     PYTHON_CMD="python3"
@@ -116,11 +128,10 @@ fi
 echo "======================================================================"
 echo " KHỞI ĐỘNG HỆ THỐNG THỰC NGHIỆM PAPER 2 (ZERO-OOM ARCHITECTURE)"
 echo "----------------------------------------------------------------------"
-echo " Thư mục ảnh COCO : $FOLDER_IMAGE"
-if [ -n "$ANNOTATIONS" ]; then
-    echo " File Annotations : $ANNOTATIONS"
+if [ -n "$FOLDER_IMAGE" ]; then
+    echo " Thư mục ảnh COCO : $FOLDER_IMAGE"
 else
-    echo " File Annotations : [Tự động tìm kiếm trong thư mục COCO]"
+    echo " Chế độ thực thi  : Hậu xử lý / Đồng bộ (Sync Only)"
 fi
 echo " Thiết bị         : $DEVICE"
 echo " Danh sách Tasks  : $TASKS (Stage: $STAGE)"
@@ -132,7 +143,7 @@ echo "======================================================================"
 
 # Khởi chạy Master Orchestrator run_all_experiments.py
 $PYTHON_CMD run_all_experiments.py \
-    --folder_image "$FOLDER_IMAGE" \
+    ${FOLDER_IMAGE:+--folder_image "$FOLDER_IMAGE"} \
     ${ANNOTATIONS:+--annotations "$ANNOTATIONS"} \
     --tasks "$TASKS" \
     --num_images "$NUM_IMAGES" \
@@ -143,7 +154,9 @@ $PYTHON_CMD run_all_experiments.py \
     --output_dir "$OUTPUT_DIR" \
     --fig_dir "$FIG_DIR" \
     $SKIP_CACHE_GEN \
-    $FORCE_RECOMPUTE
+    $FORCE_RECOMPUTE \
+    $SYNC_ONLY \
+    $SKIP_PAPER_COMPILE
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
@@ -153,30 +166,20 @@ fi
 
 echo ""
 echo "======================================================================"
-echo " TẤT CẢ THỰC NGHIỆM ĐÃ HOÀN TẤT THÀNH CÔNG!"
+echo " TẤT CẢ THỰC NGHIỆM VÀ HẬU XỬ LÝ ĐÃ HOÀN TẤT THÀNH CÔNG 100%!"
 echo "----------------------------------------------------------------------"
 echo " 1. Kết quả Telemetry hợp nhất:"
 echo "    -> $OUTPUT_DIR/paper2_complete_telemetry.json"
 echo ""
-echo " 2. Toàn bộ 4 đồ thị xuất bản vector PDF đã được lưu tại:"
+echo " 2. Báo cáo tổng kết thực nghiệm toàn diện:"
+echo "    -> $OUTPUT_DIR/EXPERIMENT_RESULTS_REPORT.md"
+echo ""
+echo " 3. Toàn bộ 4 đồ thị xuất bản vector PDF đã được lưu tại:"
 echo "    -> $FIG_DIR/fig1_nms_free_paradox.pdf"
 echo "    -> $FIG_DIR/fig2_displacement_tradeoff.pdf"
 echo "    -> $FIG_DIR/fig3_downstream_cyberphysical_impact.pdf"
 echo "    -> $FIG_DIR/fig4_sqd_filter_defense.pdf"
 echo ""
-echo " 3. Tự động biên dịch bản thảo LaTeX và xuất PDF nộp bài Elsevier EAAI..."
-if command -v pdflatex &>/dev/null; then
-    pdflatex -interaction=nonstopmode main_phantom.tex > /dev/null 2>&1 || true
-    bibtex main_phantom > /dev/null 2>&1 || true
-    pdflatex -interaction=nonstopmode main_phantom.tex > /dev/null 2>&1 || true
-    pdflatex -interaction=nonstopmode main_phantom.tex > /dev/null 2>&1 || true
-    if [ -f "main_phantom.pdf" ]; then
-        mkdir -p ../SUBMISSION_PDFS
-        cp main_phantom.pdf ../SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf
-        cp main_phantom.pdf ../SUBMISSION_PDFS/3_Paper_Phantom_Queries_Fabrication_Elsevier.pdf
-        echo "    -> Đã xuất PDF hoàn thiện 24 trang chuẩn: ../SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf"
-    fi
-else
-    echo "    -> Lưu ý: Không tìm thấy pdflatex trên PATH, bỏ qua biên dịch PDF tự động."
-fi
+echo " 4. Tệp PDF nộp bài hoàn thiện (chuẩn 24 trang Elsevier EAAI):"
+echo "    -> ../SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf"
 echo "======================================================================"

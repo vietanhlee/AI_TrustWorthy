@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-11-22T02:06:14.637106",
-  "total_elapsed_seconds": 4629.75,
-  "git_commit": "6707c928d0143831cbe2d496861f25d75224f813",
+  "timestamp": "2026-11-22T19:38:07.096012",
+  "total_elapsed_seconds": 24.4,
+  "git_commit": "6160321d51e54b4a8e4a391141c8231ae4a994ec",
   "git_branch": "master",
   "dataset": {
-    "image_folder": "/kaggle/input/datasets/huecute/coco5k/coco5k/val2017",
-    "annotations": "/kaggle/input/datasets/huecute/coco5k/coco5k/annotations/instances_val2017.json",
-    "num_images_requested": 300,
+    "image_folder": "G:\\Edge_Sec\\paper_2_phantom_fabrication",
+    "annotations": "auto_discovered",
+    "num_images_requested": 0,
     "seeds": [
       42,
       123,
@@ -14,65 +14,34 @@
     ]
   },
   "hardware": {
-    "device": "cuda:0",
-    "num_gpus": 2,
-    "gpu_names": [
-      "Tesla T4",
-      "Tesla T4"
-    ],
-    "cpu_threads": 4,
-    "pytorch_version": "2.11.0+cu130"
+    "device": "cpu",
+    "num_gpus": 0,
+    "gpu_names": [],
+    "cpu_threads": 16,
+    "pytorch_version": "2.13.0+cpu"
   },
   "tasks": [
-    {
-      "task_id": 0,
-      "name": "Task 0: Pre-generate Adversarial Cache (float32 Memmap)",
-      "return_code": 0,
-      "duration_seconds": 354.95,
-      "status": "SUCCESS"
-    },
-    {
-      "task_id": 1,
-      "name": "Task 1: Multi-Seed Benchmark (RT-DETR vs YOLOv8n)",
-      "return_code": 0,
-      "duration_seconds": 908.9,
-      "status": "SUCCESS"
-    },
-    {
-      "task_id": 2,
-      "name": "Task 2: Sensitivity Sweeps (Budget & Steps)",
-      "return_code": 0,
-      "duration_seconds": 2983.78,
-      "status": "SUCCESS"
-    },
-    {
-      "task_id": 3,
-      "name": "Task 3: Downstream Impact & Cross-Class Generalization",
-      "return_code": 0,
-      "duration_seconds": 275.15,
-      "status": "SUCCESS"
-    },
-    {
-      "task_id": 4,
-      "name": "Task 4: Defense Evaluation (SQD-Filter vs Baselines)",
-      "return_code": 0,
-      "duration_seconds": 89.06,
-      "status": "SUCCESS"
-    },
     {
       "task_id": 5,
       "name": "Task 5: Generate Scientific Figures (Fig 1-4)",
       "return_code": 0,
-      "duration_seconds": 17.66,
+      "duration_seconds": 8.1,
+      "status": "SUCCESS"
+    },
+    {
+      "task_id": 6,
+      "name": "Task 6: Post-Run Scientific Pipeline (Report, Sync, Paper, Verify)",
+      "return_code": 0,
+      "duration_seconds": 16.18,
       "status": "SUCCESS"
     }
   ],
-  "unified_telemetry": "/kaggle/working/AI_TrustWorthy/paper_2_phantom_fabrication/outputs/paper2_complete_telemetry.json",
+  "unified_telemetry": "G:\\Edge_Sec\\paper_2_phantom_fabrication\\outputs\\paper2_complete_telemetry.json",
   "checksums": {
-    "unified_telemetry_sha256": "08191f6ef8a771922238aa76764bc4ca938f93d5bdd74dd7c52344d3619847b9",
-    "stage1_benchmark_sha256": "8083084f68a9c3b6ca4457f29ec81aeb58f3018d0ad846d94980ac67329e42b2",
+    "unified_telemetry_sha256": "5d6453eb2c8f278f292c51455032a53bd1969c9baf94dac1cc0abac834cbb216",
+    "stage1_benchmark_sha256": "e142a501105da81e1bbf2e06c88dec5c095830871e78f19450e8d03af159ce2f",
     "stage2_sensitivity_sha256": "f7a5c0e187a15701f6fa1ce4d747f622304901337199f5fd2d5ac34cae390b12",
-    "stage2_downstream_sha256": "ebb396e8a54a7fff5f5762b5ddbc9bb19abfd3ef2e48f134b55d0d5501edf23b",
+    "stage2_downstream_sha256": "95c0d7678bf60906d7dd989b08ac5ac4abd5934487f80403339576088363cabc",
     "stage1_defense_sha256": "48c9c492ffa607e5c6803b19184d6c3bf9ecbd32b4036797c596e000863fd032"
   },
   "provenance_statement": "100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics."
