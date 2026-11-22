@@ -74,6 +74,7 @@ def run_subtask(
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 encoding="utf-8",
+                errors="replace",
                 bufsize=1,
             )
             for line in proc.stdout:

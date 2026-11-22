@@ -538,7 +538,7 @@ def plot_defense_evaluation_figure(json_path: Path, output_pdf: Path, output_png
         evade_tpr = []
         evasion_success = []
         for l_key, l_data in sorted(adapt.items()):
-            if isinstance(l_data, dict) and ("detected_tpr_pct" in l_data or "evasion_success_pct" in l_data):
+            if isinstance(l_data, dict) and any(k in l_data for k in ["detected_tpr_pct", "evasion_success_pct", "conditioned_evasion_success_pct", "raw_monitor_bypass_pct"]):
                 try:
                     l_val = float(l_data.get("evasion_weight_lambda", l_key.replace("lambda_", "")))
                 except ValueError:
@@ -546,7 +546,14 @@ def plot_defense_evaluation_figure(json_path: Path, output_pdf: Path, output_png
                 lambdas.append(l_val)
                 tpr_val = float(l_data.get("detected_tpr_pct", 1.5))
                 evade_tpr.append(tpr_val)
-                evasion_success.append(float(l_data.get("evasion_success_pct", 100.0 - tpr_val)))
+                ev_succ = l_data.get(
+                    "evasion_success_pct",
+                    l_data.get(
+                        "conditioned_evasion_success_pct",
+                        l_data.get("raw_monitor_bypass_pct", 100.0 - tpr_val),
+                    ),
+                )
+                evasion_success.append(float(ev_succ if ev_succ is not None else (100.0 - tpr_val)))
 
         if lambdas:
             ax2.plot(lambdas, evade_tpr, "o-", color="#d62728", linewidth=2.0, label="Detection TPR (%)")
