@@ -1,51 +1,51 @@
 {
   "Unprotected_DQF": {
-    "mAP50": 11.0,
-    "mAP75": 7.92,
-    "fp_count": 9126,
-    "tp_count": 542,
-    "precision": 561.0,
-    "recall": 2770.0,
-    "f1": 0.0932
+    "mAP50": 9.51,
+    "mAP75": 6.85,
+    "fp_count": 9205,
+    "tp_count": 550,
+    "precision": 564.0,
+    "recall": 2810.0,
+    "f1": 0.0939
   },
   "SQD_Filter_Ours": {
-    "fp_count": 2265,
-    "tp_count": 280,
-    "precision": 1100.0,
-    "recall": 1431.0,
-    "f1": 0.1244,
-    "fp_reduction_pct": 75.18
+    "fp_count": 2404,
+    "tp_count": 286,
+    "precision": 1063.0,
+    "recall": 1461.0,
+    "f1": 0.1231,
+    "fp_reduction_pct": 73.88
   },
   "JPEG_Quality75": {
-    "mAP50": 34.42,
-    "mAP75": 24.78,
-    "fp_count": 4035,
-    "tp_count": 882,
-    "f1": 0.2566,
-    "fp_reduction_pct": 55.79
+    "mAP50": 35.03,
+    "mAP75": 25.22,
+    "fp_count": 4028,
+    "tp_count": 928,
+    "f1": 0.2685,
+    "fp_reduction_pct": 56.24
   },
   "Gaussian_Blur": {
-    "mAP50": 40.5,
-    "mAP75": 29.16,
-    "fp_count": 2189,
-    "tp_count": 967,
-    "f1": 0.3783,
-    "fp_reduction_pct": 76.01
+    "mAP50": 40.79,
+    "mAP75": 29.37,
+    "fp_count": 2235,
+    "tp_count": 976,
+    "f1": 0.3777,
+    "fp_reduction_pct": 75.72
   },
   "Median_Filter": {
-    "mAP50": 34.02,
-    "mAP75": 24.49,
-    "fp_count": 3558,
-    "tp_count": 891,
-    "f1": 0.2782,
-    "fp_reduction_pct": 61.01
+    "mAP50": 34.74,
+    "mAP75": 25.01,
+    "fp_count": 3472,
+    "tp_count": 918,
+    "f1": 0.2893,
+    "fp_reduction_pct": 62.28
   },
   "BitDepth_4bit": {
-    "mAP50": 14.28,
-    "mAP75": 10.28,
-    "fp_count": 8764,
-    "tp_count": 593,
-    "f1": 0.1048,
-    "fp_reduction_pct": 3.97
+    "mAP50": 14.33,
+    "mAP75": 10.32,
+    "fp_count": 8741,
+    "tp_count": 618,
+    "f1": 0.1092,
+    "fp_reduction_pct": 5.04
   }
 }

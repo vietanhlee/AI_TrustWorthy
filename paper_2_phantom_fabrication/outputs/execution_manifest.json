@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-21T14:46:16.265483",
-  "total_elapsed_seconds": 3201.49,
-  "git_commit": "53f212285eddac96dad232e0724493937f39729a",
+  "timestamp": "2026-11-22T02:06:14.637106",
+  "total_elapsed_seconds": 4629.75,
+  "git_commit": "6707c928d0143831cbe2d496861f25d75224f813",
   "git_branch": "master",
   "dataset": {
     "image_folder": "/kaggle/input/datasets/huecute/coco5k/coco5k/val2017",
@@ -28,52 +28,52 @@
       "task_id": 0,
       "name": "Task 0: Pre-generate Adversarial Cache (float32 Memmap)",
       "return_code": 0,
-      "duration_seconds": 379.55,
+      "duration_seconds": 354.95,
       "status": "SUCCESS"
     },
     {
       "task_id": 1,
       "name": "Task 1: Multi-Seed Benchmark (RT-DETR vs YOLOv8n)",
       "return_code": 0,
-      "duration_seconds": 958.41,
+      "duration_seconds": 908.9,
       "status": "SUCCESS"
     },
     {
       "task_id": 2,
       "name": "Task 2: Sensitivity Sweeps (Budget & Steps)",
       "return_code": 0,
-      "duration_seconds": 1456.3,
+      "duration_seconds": 2983.78,
       "status": "SUCCESS"
     },
     {
       "task_id": 3,
       "name": "Task 3: Downstream Impact & Cross-Class Generalization",
       "return_code": 0,
-      "duration_seconds": 297.93,
+      "duration_seconds": 275.15,
       "status": "SUCCESS"
     },
     {
       "task_id": 4,
       "name": "Task 4: Defense Evaluation (SQD-Filter vs Baselines)",
       "return_code": 0,
-      "duration_seconds": 91.04,
+      "duration_seconds": 89.06,
       "status": "SUCCESS"
     },
     {
       "task_id": 5,
       "name": "Task 5: Generate Scientific Figures (Fig 1-4)",
       "return_code": 0,
-      "duration_seconds": 17.09,
+      "duration_seconds": 17.66,
       "status": "SUCCESS"
     }
   ],
   "unified_telemetry": "/kaggle/working/AI_TrustWorthy/paper_2_phantom_fabrication/outputs/paper2_complete_telemetry.json",
   "checksums": {
-    "unified_telemetry_sha256": "9e317f1dcb484c1e40a7f41e2fc6afe44ae2534a2f5f2682ebcafca12ac8cd23",
-    "stage1_benchmark_sha256": "f0bec9a88f4da2fc2935f6a87e13df582d8c2498490866b1af259fb6df3cf22b",
-    "stage2_sensitivity_sha256": "6678491bcf99792ffa6c823195350e0862e811a60d87a411e513b9ccf05b1aab",
-    "stage2_downstream_sha256": "b8c49a0ebae25a02b835db4d170fd67b8a75b3a8b505e82f1dfa2637e2e27595",
-    "stage1_defense_sha256": "4d0346607699db867162b3ffc4cfbfab8731e2bfe6c6cd926f12ba9fad93669a"
+    "unified_telemetry_sha256": "08191f6ef8a771922238aa76764bc4ca938f93d5bdd74dd7c52344d3619847b9",
+    "stage1_benchmark_sha256": "8083084f68a9c3b6ca4457f29ec81aeb58f3018d0ad846d94980ac67329e42b2",
+    "stage2_sensitivity_sha256": "f7a5c0e187a15701f6fa1ce4d747f622304901337199f5fd2d5ac34cae390b12",
+    "stage2_downstream_sha256": "ebb396e8a54a7fff5f5762b5ddbc9bb19abfd3ef2e48f134b55d0d5501edf23b",
+    "stage1_defense_sha256": "48c9c492ffa607e5c6803b19184d6c3bf9ecbd32b4036797c596e000863fd032"
   },
   "provenance_statement": "100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics."
 }
