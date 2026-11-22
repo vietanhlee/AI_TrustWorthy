@@ -106,8 +106,10 @@ class DETRAttackGenerator:
         images: torch.Tensor,
         steps: Optional[int] = None,
         alpha: Optional[float] = None,
-        margin: float = 0.20,
+        margin: Optional[float] = None,
+        margin_logit: float = 1.0,
         lambda_rank: float = 1.0,
+        lambda_elev: float = 0.5,
         fg_selection_mode: str = "clean_prediction_proxy",
         gt_boxes: Optional[Sequence[np.ndarray]] = None,
     ) -> torch.Tensor:
@@ -120,6 +122,12 @@ class DETRAttackGenerator:
         3. Gây ra hiện tượng "Bỏ đói thông tin" (Information Starvation) ở Deformable Decoder:
            Reference points nạp vào Decoder bị đặt vào khoảng trống rác, khiến Decoder hoàn toàn mất dấu vật thể thật.
 
+        Đặc tính toán học chuẩn mực:
+        - Ranking Margin Loss được tính toán trong KHÔNG GIAN LOGIT (z_j - z_{(300)} + gamma_logit),
+          đảm bảo khi z_j <= z_{(300)} - gamma_logit thì ReLU(.) bão hòa về đúng 0 tuyệt đối,
+          khắc phục triệt để lỗi vô hiệu hóa bão hòa khi dùng trong không gian xác suất bị chặn [0, 1].
+        - Đưa tham số lambda_elev (trọng số nâng nền) vào biểu thức tối ưu hóa tường minh.
+
         Tham số fg_selection_mode:
             - 'clean_prediction_proxy': (Mặc định chuẩn thực tế test-time)
               Kẻ tấn công không có nhãn ground-truth người gán, sử dụng Top-15 queries có độ tự tin cao nhất
@@ -131,6 +139,7 @@ class DETRAttackGenerator:
         adv_images = images.clone().detach().to(self.device)
         n_steps = steps if steps is not None else self.num_steps
         step_alpha = alpha if alpha is not None else self.alpha
+        effective_margin = margin_logit if margin is None else float(margin)
 
         # Bước 1: Xác định tập candidate đại diện cho vật thể thật
         with torch.no_grad():
@@ -180,41 +189,262 @@ class DETRAttackGenerator:
             k_bg = min(30, S)
             _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)  # [B, k_bg]
 
-        # Bước 2: Tối ưu hóa PGD thao túng ranking và dìm điểm
+        # Bước 2: Tối ưu hóa PGD thao túng ranking và dìm điểm trong không gian logit
         for _ in range(n_steps):
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, return_dict=True)
-            
+
             if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
                 enc_logits = outputs.enc_outputs_class  # [B, S, C]
             else:
                 enc_logits = outputs.logits
 
-            enc_probs = torch.sigmoid(enc_logits)  # [B, S, C]
-
-            # 1. Suppression Loss: Ép điểm của real object candidates về 0
-            fg_probs = torch.gather(enc_probs, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
-            max_fg_probs, _ = fg_probs.max(dim=-1)  # [B, k_fg]
-            loss_suppress = (max_fg_probs ** 2).mean()
+            # 1. Suppression Loss: Ép xác suất nhận diện của real object candidates về 0
+            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_fg_logits, _ = fg_logits.max(dim=-1)  # [B, k_fg]
+            fg_probs = torch.sigmoid(max_fg_logits)
+            loss_suppress = (fg_probs ** 2).mean()
 
             # 2. Ngưỡng điểm của ứng viên thứ 300 trong toàn bộ S candidates (8,400 tại 640x640)
-            max_all_probs, _ = enc_probs.max(dim=-1)  # [B, S]
-            val_at_300, _ = torch.kthvalue(max_all_probs, k=max_all_probs.shape[1] - 300 + 1, dim=-1)  # [B]
-            
-            # Ranking Margin Loss: Ép điểm real object candidate phải nhỏ hơn ngưỡng top-300 một biên độ margin
-            loss_rank = F.relu(max_fg_probs - val_at_300.unsqueeze(-1) + margin).mean()
+            max_all_logits, _ = enc_logits.max(dim=-1)  # [B, S]
+            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)  # [B]
+
+            # Margin Ranking Loss trong không gian Logit (-inf, +inf):
+            # Khi max_fg_logits <= val_at_300_logit - effective_margin, ReLU(.) bão hòa về 0 chuẩn mực toán học!
+            loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + effective_margin).mean()
 
             # 3. Đẩy điểm background candidates lên để chiếm chỗ trong Top-300
-            bg_probs = torch.gather(enc_probs, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
-            max_bg_probs, _ = bg_probs.max(dim=-1)  # [B, k_bg]
-            loss_bg_boost = -(max_bg_probs).mean()
+            bg_logits = torch.gather(enc_logits, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_bg_logits, _ = bg_logits.max(dim=-1)  # [B, k_bg]
+            loss_bg_boost = -torch.sigmoid(max_bg_logits).mean()
 
-            total_loss = loss_suppress + lambda_rank * loss_rank + 0.5 * loss_bg_boost
+            total_loss = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
 
             self.model.zero_grad()
             if adv_images.grad is not None:
                 adv_images.grad.zero_()
             total_loss.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
+                adv_images = adv_images - step_alpha * grad_sign
+                delta = torch.clamp(adv_images - images, min=-self.epsilon, max=self.epsilon)
+                adv_images = torch.clamp(images + delta, min=0.0, max=1.0).detach()
+
+        return adv_images
+
+    @torch.enable_grad()
+    def generate_memory_isolated_query_attack(
+        self,
+        images: torch.Tensor,
+        steps: Optional[int] = None,
+        alpha: Optional[float] = None,
+        margin_logit: float = 1.0,
+        lambda_rank: float = 1.0,
+        lambda_elev: float = 0.5,
+        lambda_mem: float = 20.0,
+        fg_selection_mode: str = "clean_prediction_proxy",
+        gt_boxes: Optional[Sequence[np.ndarray]] = None,
+    ) -> torch.Tensor:
+        """
+        Memory-Isolated / Feature-Constrained AQSM Attack (Nhóm đối chứng cô lập kênh Query Selection):
+        Khai thác loss phạt độ lệch Feature Memory (Memory Penalty Loss) để ép encoder memory
+        giữ nguyên vẹn tối đa so với ảnh sạch (Cosine similarity > 0.95), cô lập thuần túy
+        kênh Query Selection để chứng minh độc lập tác động nhân quả của việc thao túng query.
+        """
+        self.model.eval()
+        adv_images = images.clone().detach().to(self.device)
+        n_steps = steps if steps is not None else self.num_steps
+        step_alpha = alpha if alpha is not None else self.alpha
+
+        # Bước 1: Trích xuất đặc trưng sạch tham chiếu (Clean Memory Reference)
+        with torch.no_grad():
+            clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
+            if hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None:
+                clean_enc_logits = clean_out.enc_outputs_class
+            else:
+                clean_enc_logits = clean_out.logits
+
+            clean_enc_probs = torch.sigmoid(clean_enc_logits)
+            max_clean_probs, _ = clean_enc_probs.max(dim=-1)
+            B, S = max_clean_probs.shape
+            k_fg = min(15, S)
+
+            _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)
+            k_bg = min(30, S)
+            _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)
+
+            # Lưu giữ hidden states của encoder và coordinate logits sạch
+            clean_enc_hidden = (
+                [h.detach() for h in clean_out.encoder_last_hidden_state]
+                if getattr(clean_out, "encoder_last_hidden_state", None) is not None
+                else None
+            )
+            clean_coords = (
+                clean_out.enc_outputs_coord_logits.detach()
+                if getattr(clean_out, "enc_outputs_coord_logits", None) is not None
+                else None
+            )
+
+        # Bước 2: Tối ưu hóa PGD kết hợp hàm phạt bảo toàn Feature Memory
+        for _ in range(n_steps):
+            adv_images.requires_grad_(True)
+            outputs = self.model(pixel_values=adv_images, return_dict=True)
+
+            if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
+                enc_logits = outputs.enc_outputs_class
+            else:
+                enc_logits = outputs.logits
+
+            # AQSM Task Objectives (trong không gian Logit)
+            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_fg_logits, _ = fg_logits.max(dim=-1)
+            fg_probs = torch.sigmoid(max_fg_logits)
+            loss_suppress = (fg_probs ** 2).mean()
+
+            max_all_logits, _ = enc_logits.max(dim=-1)
+            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)
+            loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + margin_logit).mean()
+
+            bg_logits = torch.gather(enc_logits, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_bg_logits, _ = bg_logits.max(dim=-1)
+            loss_bg_boost = -torch.sigmoid(max_bg_logits).mean()
+
+            loss_aqsm = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
+
+            # Feature Memory Preservation Penalty: Ép Memory không bị biến dạng
+            loss_mem_pen = torch.zeros((), device=self.device)
+            if clean_enc_hidden is not None and getattr(outputs, "encoder_last_hidden_state", None) is not None:
+                for h_adv, h_cln in zip(outputs.encoder_last_hidden_state, clean_enc_hidden):
+                    cos_sim = F.cosine_similarity(h_adv.flatten(2), h_cln.flatten(2), dim=-1).mean()
+                    mse = F.mse_loss(h_adv, h_cln)
+                    loss_mem_pen = loss_mem_pen + (1.0 - cos_sim) + 5.0 * mse
+            if clean_coords is not None and getattr(outputs, "enc_outputs_coord_logits", None) is not None:
+                loss_mem_pen = loss_mem_pen + F.mse_loss(outputs.enc_outputs_coord_logits, clean_coords)
+
+            total_loss = loss_aqsm + lambda_mem * loss_mem_pen
+
+            self.model.zero_grad()
+            if adv_images.grad is not None:
+                adv_images.grad.zero_()
+            total_loss.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
+                adv_images = adv_images - step_alpha * grad_sign
+                delta = torch.clamp(adv_images - images, min=-self.epsilon, max=self.epsilon)
+                adv_images = torch.clamp(images + delta, min=0.0, max=1.0).detach()
+
+        return adv_images
+
+    @torch.enable_grad()
+    def generate_pure_memory_attack(
+        self,
+        images: torch.Tensor,
+        steps: Optional[int] = None,
+        alpha: Optional[float] = None,
+    ) -> torch.Tensor:
+        """
+        Pure Feature Memory Disruption Attack (Nhóm đối chứng phá hủy đặc trưng thuần túy):
+        Chỉ tập trung phá hủy độ tương đồng biểu diễn không gian (Feature Memory Cosine Similarity)
+        của Hybrid Encoder mà hoàn toàn KHÔNG có hàm mục tiêu xếp hạng Query Selection
+        (loại bỏ hoàn toàn loss_suppress, loss_rank, loss_bg_boost).
+        """
+        self.model.eval()
+        adv_images = images.clone().detach().to(self.device)
+        n_steps = steps if steps is not None else self.num_steps
+        step_alpha = alpha if alpha is not None else self.alpha
+
+        with torch.no_grad():
+            clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
+            clean_enc_hidden = (
+                [h.detach() for h in clean_out.encoder_last_hidden_state]
+                if getattr(clean_out, "encoder_last_hidden_state", None) is not None
+                else None
+            )
+
+        for _ in range(n_steps):
+            adv_images.requires_grad_(True)
+            outputs = self.model(pixel_values=adv_images, return_dict=True)
+
+            # Cực tiểu hóa Cosine Similarity giữa adversarial memory và clean memory (tối đa hóa 1 - cosine)
+            loss_mem = torch.zeros((), device=self.device)
+            if clean_enc_hidden is not None and getattr(outputs, "encoder_last_hidden_state", None) is not None:
+                for h_adv, h_cln in zip(outputs.encoder_last_hidden_state, clean_enc_hidden):
+                    cos_sim = F.cosine_similarity(h_adv.flatten(2), h_cln.flatten(2), dim=-1).mean()
+                    loss_mem = loss_mem + cos_sim  # Tối thiểu hóa cosine bằng gradient descent
+            else:
+                # Fallback nếu không có encoder_last_hidden_state: phá hủy logits phân loại chung
+                logits = outputs.logits
+                loss_mem = torch.sigmoid(logits).mean()
+
+            self.model.zero_grad()
+            if adv_images.grad is not None:
+                adv_images.grad.zero_()
+            loss_mem.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
+                adv_images = adv_images - step_alpha * grad_sign
+                delta = torch.clamp(adv_images - images, min=-self.epsilon, max=self.epsilon)
+                adv_images = torch.clamp(images + delta, min=0.0, max=1.0).detach()
+
+        return adv_images
+
+    @torch.enable_grad()
+    def generate_adaptive_sqa_attack(
+        self,
+        images: torch.Tensor,
+        sqa_module: Any,
+        steps: Optional[int] = None,
+        alpha: Optional[float] = None,
+    ) -> torch.Tensor:
+        """
+        Adaptive White-box Attack on SQA (Kiểm định tấn công thích ứng SQA theo chuẩn Carlini-Tramèr):
+        Kẻ tấn công biết rõ sự hiện diện của N_static anchors tĩnh được tiêm vào Deformable Decoder,
+        thực hiện backpropagation xuyên suốt qua cả 300 dynamic queries VÀ N_static static queries.
+        """
+        from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
+            extract_encoder_components,
+            run_decoder_from_components,
+        )
+
+        self.model.eval()
+        adv_images = images.clone().detach().to(self.device)
+        n_steps = steps if steps is not None else self.num_steps
+        step_alpha = alpha if alpha is not None else self.alpha
+
+        for _ in range(n_steps):
+            adv_images.requires_grad_(True)
+            # Trích xuất components với gradient khả vi
+            core_model = getattr(self.wrapper, "model", self.model)
+            c_comp = extract_encoder_components(core_model, adv_images)
+
+            # Ghép queries động và queries tĩnh
+            aug_target, aug_ref = sqa_module.augment(c_comp["target"], c_comp["init_reference_points"])
+
+            # Chạy decoder qua toàn bộ queries
+            dec_out = run_decoder_from_components(
+                model=core_model,
+                target=aug_target,
+                source_flatten=c_comp["source_flatten"],
+                init_reference_points=aug_ref,
+                spatial_shapes=c_comp["spatial_shapes"],
+                spatial_shapes_list=c_comp["spatial_shapes_list"],
+                level_start_index=c_comp["level_start_index"],
+            )
+
+            # Tấn công thích ứng: dìm toàn bộ confidence scores của cả dynamic lẫn static queries
+            probs = torch.sigmoid(dec_out["logits"])
+            max_probs, _ = probs.max(dim=-1)  # [B, 300 + N_static]
+            k_top = min(20, max_probs.shape[1])
+            top_p, _ = torch.topk(max_probs, k=k_top, dim=-1)
+            loss = (top_p ** 2).mean()
+
+            self.model.zero_grad()
+            if adv_images.grad is not None:
+                adv_images.grad.zero_()
+            loss.backward()
 
             with torch.no_grad():
                 grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
@@ -612,8 +842,10 @@ class DETRAttackGenerator:
         images: torch.Tensor,
         steps: Optional[int] = None,
         alpha: Optional[float] = None,
-        margin: float = 0.20,
+        margin: Optional[float] = None,
+        margin_logit: float = 1.0,
         lambda_rank: float = 1.0,
+        lambda_elev: float = 0.5,
         lambda_esm: float = 2.0,
         clean_dropoff_bounds: Tuple[float, float] = (12.0, 140.0),
         clean_margin_bounds: Tuple[float, float] = (0.015, 0.115),
@@ -631,6 +863,7 @@ class DETRAttackGenerator:
         adv_images = images.clone().detach().to(self.device)
         n_steps = steps if steps is not None else self.num_steps
         step_alpha = alpha if alpha is not None else self.alpha
+        effective_margin = margin_logit if margin is None else float(margin)
 
         # Xác định foreground và background candidates trên ảnh sạch
         with torch.no_grad():
@@ -672,20 +905,22 @@ class DETRAttackGenerator:
 
             enc_probs = torch.sigmoid(enc_logits)
             max_all_probs, _ = enc_probs.max(dim=-1)  # [B, S]
+            max_all_logits, _ = enc_logits.max(dim=-1)
 
-            # 1. AQSM Task Loss: Dìm foreground và nâng background
-            fg_probs = torch.gather(enc_probs, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
-            max_fg_probs, _ = fg_probs.max(dim=-1)
-            loss_suppress = (max_fg_probs ** 2).mean()
+            # 1. AQSM Task Loss: Dìm foreground và nâng background trong không gian Logit
+            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_fg_logits, _ = fg_logits.max(dim=-1)
+            fg_probs = torch.sigmoid(max_fg_logits)
+            loss_suppress = (fg_probs ** 2).mean()
 
-            val_at_300, _ = torch.kthvalue(max_all_probs, k=max_all_probs.shape[1] - 300 + 1, dim=-1)
-            loss_rank = F.relu(max_fg_probs - val_at_300.unsqueeze(-1) + margin).mean()
+            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)
+            loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + effective_margin).mean()
 
-            bg_probs = torch.gather(enc_probs, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
-            max_bg_probs, _ = bg_probs.max(dim=-1)
-            loss_bg_boost = -(max_bg_probs).mean()
+            bg_logits = torch.gather(enc_logits, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_bg_logits, _ = bg_logits.max(dim=-1)
+            loss_bg_boost = -torch.sigmoid(max_bg_logits).mean()
 
-            task_loss = loss_suppress + lambda_rank * loss_rank + 0.5 * loss_bg_boost
+            task_loss = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
 
             # 2. ESM Evasion Loss: Giữ dropoff và margin trong vùng sạch chuẩn
             topk_vals, _ = torch.topk(max_all_probs, k=min(300, max_all_probs.shape[1]), dim=-1)

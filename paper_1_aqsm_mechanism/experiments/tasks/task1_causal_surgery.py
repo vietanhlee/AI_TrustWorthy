@@ -367,12 +367,39 @@ def run_causal_surgery(
         }
         print(f"  * {desc} ({a1} - {a2}): Mean = {mean_diff:+.2f} pp, Median = {median_diff:+.2f} pp, Cohen's d = {cohen_d:.2f}, Wilcoxon p = {w_p:.2e}")
 
+    # Tính Per-image cell means cho từng nhánh can thiệp (Arm A, B, C_full, C_index, D_full, D_index)
+    per_image_cell_means: Dict[str, Dict[str, float]] = {}
+    for arm in arms:
+        val_50 = per_image_aps[arm]["ap50"][valid_mask] * 100.0
+        val_95 = per_image_aps[arm]["ap50_95"][valid_mask] * 100.0
+        per_image_cell_means[arm] = {
+            "ap50_mean": round(float(np.mean(val_50)), 2),
+            "ap50_std": round(float(np.std(val_50, ddof=1)), 2) if len(val_50) > 1 else 0.0,
+            "ap50_sem": round(float(np.std(val_50, ddof=1) / np.sqrt(len(val_50))), 2) if len(val_50) > 1 else 0.0,
+            "ap50_median": round(float(np.median(val_50)), 2),
+            "ap95_mean": round(float(np.mean(val_95)), 2),
+            "ap95_std": round(float(np.std(val_95, ddof=1)), 2) if len(val_95) > 1 else 0.0,
+            "ap95_sem": round(float(np.std(val_95, ddof=1) / np.sqrt(len(val_95))), 2) if len(val_95) > 1 else 0.0,
+            "ap95_median": round(float(np.median(val_95)), 2),
+        }
+
+    arm_definitions = {
+        "Arm_A": "Clean Baseline: Clean Memory M_clean, Clean Query Prior Q_clean (Top-300 clean)",
+        "Arm_B": "Full Joint Attack: Adversarial Memory M_adv, Adversarial Query Prior Q_adv (Top-300 adv)",
+        "Arm_C_full": "Intervention: Adversarial Memory M_adv, Clean Query Prior Q_clean (Top-300 clean content & coordinates)",
+        "Arm_C_index": "Intervention: Adversarial Memory M_adv, Query Prior gathered from Adversarial Encoder using Clean Indices I_clean",
+        "Arm_D_full": "Intervention: Clean Memory M_clean, Adversarial Query Prior Q_adv (Top-300 adv content & coordinates)",
+        "Arm_D_index": "Intervention: Clean Memory M_clean, Query Prior gathered from Clean Encoder using Adversarial Indices I_adv",
+    }
+
     results_summary: Dict[str, Any] = {
         "attack_name": attack_name,
         "n_evaluated_images": n_eval,
         "mean_evicted_ratio": float(np.mean(evicted_ratios)),
         "std_evicted_ratio": float(np.std(evicted_ratios)),
         "point_maps": point_maps,
+        "per_image_cell_means": per_image_cell_means,
+        "arm_definitions": arm_definitions,
         "anova_repeated_measures_full": anova_full,
         "anova_repeated_measures_index": anova_index,
         "bootstrap_paired_deltas": boot_deltas,

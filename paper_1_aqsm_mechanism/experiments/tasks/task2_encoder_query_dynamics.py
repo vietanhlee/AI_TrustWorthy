@@ -35,6 +35,7 @@ if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
+from paper_1_aqsm_mechanism.core.coco_gt import compute_dataset_gt_union_null_baseline
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
@@ -207,10 +208,22 @@ def run_encoder_query_dynamics_evaluation(
             "object_coverage": {
                 "center_in_gt_clean_pct": summarize_metric_list(cov_center_c),
                 "center_in_gt_adv_pct": summarize_metric_list(cov_center_a),
+                "gt_object_coverage_center_clean_pct": summarize_metric_list(cov_center_c),
+                "gt_object_coverage_center_adv_pct": summarize_metric_list(cov_center_a),
                 "iou50_clean_pct": summarize_metric_list(cov_iou50_c),
                 "iou50_adv_pct": summarize_metric_list(cov_iou50_a),
                 "iou30_clean_pct": summarize_metric_list(cov_iou30_c),
                 "iou30_adv_pct": summarize_metric_list(cov_iou30_a),
+            },
+            "anchor_foreground_ratio": {
+                "clean_top300_fg_ratio_pct": summarize_metric_list([r.get("anchor_foreground_ratio_clean", r.get("fg_query_ratio_clean_top300", 0.0)) * 100.0 for r in all_query_records]),
+                "adv_top300_fg_ratio_pct": summarize_metric_list([r.get("anchor_foreground_ratio_adv", r.get("fg_query_ratio_adv_top300", 0.0)) * 100.0 for r in all_query_records]),
+            },
+            "spatial_clustering": {
+                "clean_annd": summarize_metric_list([r["clean_annd"] for r in all_query_records if "clean_annd" in r]),
+                "adv_annd": summarize_metric_list([r["adv_annd"] for r in all_query_records if "adv_annd" in r]),
+                "clean_spatial_variance": summarize_metric_list([r["clean_spatial_variance"] for r in all_query_records if "clean_spatial_variance" in r]),
+                "adv_spatial_variance": summarize_metric_list([r["adv_spatial_variance"] for r in all_query_records if "adv_spatial_variance" in r]),
             },
             "score_spectrum": {
                 "clean_s1": summarize_metric_list([r["clean_s1"] for r in all_query_records]),
@@ -288,6 +301,10 @@ def run_encoder_query_dynamics_evaluation(
     save_json(mem_payload, json_path_mem)
     print(f">>> Đã xuất JSON Table 5: {json_path_mem}")
 
+    # Tính phân phối thực nghiệm của Null Baseline (Exact GT Union Area)
+    print("\n>>> Đang tính toán phân phối thực nghiệm của Null Baseline (Exact GT Union Area)...")
+    null_baseline_stats = compute_dataset_gt_union_null_baseline(gt_list)
+
     json_path_query = summary_json_dir / "query_selection_dynamics.json"
     query_payload = {
         "experiment": "Table 6: Query Selection Perturbation Dynamics",
@@ -295,6 +312,7 @@ def run_encoder_query_dynamics_evaluation(
         "model": MODEL_NAME,
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "empirical_null_baseline": null_baseline_stats,
         "results": results_by_attack,
     }
     save_json(query_payload, json_path_query)

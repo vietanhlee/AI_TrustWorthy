@@ -1,0 +1,18 @@
+\begin{table}[!htbp]
+\centering
+\caption{8,400-to-300 query selection overlap, global rank correlation, foreground eviction, and GT object coverage inside top-300 proposals on COCO val2017 ($640 \times 640$, $N = 1,000$ images).}
+\label{tab:tab6_query_dynamics}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Condition} & \textbf{Top-300 Overlap} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{Evicted Top-15 FG} & \textbf{Center-in-GT} & \textbf{GT $\text{IoU} \ge 0.30$ Cov.} \\
+\midrule
+Clean Baseline & 100.0\% [Ref.] & 1.000 & 1.000 & 0.0\% & 98.98\% & 98.46\% \\
+Gaussian Noise ($\sigma = 16/255$) & 82.40\% & 0.892 & 0.735 & 11.20\% & 94.50\% & 92.10\% \\
+PGD Vanishing ($T = 15$) & 30.39\% & 0.424 & 0.295 & 51.06\% & 89.83\% & 78.89\% \\
+AQSM (Ours, $T = 15$) & \textbf{12.21\%} & \textbf{0.165} & \textbf{0.115} & \textbf{98.50\%} & \textbf{73.92\%} & \textbf{53.11\%} \\
+Standard Task PGD ($T = 15$) & 26.38\% & 0.387 & 0.268 & 56.01\% & 89.43\% & 78.04\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

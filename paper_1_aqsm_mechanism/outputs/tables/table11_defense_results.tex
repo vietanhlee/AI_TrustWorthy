@@ -1,0 +1,24 @@
+\begin{table}[!htbp]
+\centering
+\caption{Empirical detection performance of the Encoder Selection Monitor (ESM) on independent COCO val2017 test images ($N_{\text{test}} = 700$) and white-box Carlini-Tram\`er adaptive evasion boundary at native $640 \times 640$ resolution. Demonstrates that while ESM flags stationary AQSM ($\text{TPR} = 64.57\%$, $\text{AUROC} = 0.9161$), a white-box adaptive adversary ($\lambda_{\mathrm{evade}} \ge 0.2$) successfully evades runtime detection ($\text{TPR} \le 1.71\%$, evasion rate $\ge 98.29\%$) while sustaining destructive task degradation ($\text{mAP@50} \le 6.85\%$ vs.\ $65.50\%$ clean).}
+\label{tab:tab11_defense_results}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Evaluated Condition} & \textbf{Detection TPR (\%)} & \textbf{Empirical FPR (\%)} & \textbf{AUROC} & \textbf{Mean Anomaly Score} & \textbf{Post-Attack mAP@50 (\%)\textsuperscript{\textdagger}} \\
+\midrule
+Clean Test Baseline & --- & 6.57\% [Union Bound 5.0\%] & --- & 0.4950 & 65.50\% \\
+Stationary AQSM ($\epsilon = 16/255$) & \textbf{64.57\%} & 6.57\% & \textbf{0.9161} & 0.9562 & 2.50\% \\
+Stationary Standard Task PGD ($\epsilon = 16/255$) & 7.14\% & 6.57\% & 0.4840 & 0.6594 & 0.67\% \\
+Stationary Query Vanishing ($\epsilon = 16/255$) & 8.86\% & 6.57\% & 0.5700 & 0.7321 & 1.16\% \\
+\midrule
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & 1.57\% & --- & $< 0.50$\textsuperscript{*} & Evasion: 98.43\% & 3.65\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{1.71\%} & --- & $< 0.50$\textsuperscript{*} & \textbf{Evasion: 98.29\%} & \textbf{4.12\%} \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & 1.00\% & --- & $< 0.50$\textsuperscript{*} & Evasion: 99.00\% & 5.20\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & 1.14\% & --- & $< 0.50$\textsuperscript{*} & Evasion: 98.86\% & 6.85\% \\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the full evaluation cohort ($N = 1,000$); adaptive evasion mAP is evaluated on the independent test split ($N_{\text{test}} = 700$).}} \\
+\multicolumn{6}{l}{\footnotesize{*Under adaptive evasion, detection TPR ($1.00\% - 1.71\%$) falls below clean FPR ($6.57\%$), yielding $\text{AUROC} < 0.50$.}} \\
+\end{tabular}%
+}
+\end{table}

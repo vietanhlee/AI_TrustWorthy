@@ -34,7 +34,7 @@ param (
     [int]$Threads = 8,
 
     [Parameter(Mandatory = $false)]
-    [string]$Tasks = "0,1,2,3,4,5,6,7,8",
+    [string]$Tasks = "0,1,2,3,4,5,6,8,7,9",
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipCacheGen,

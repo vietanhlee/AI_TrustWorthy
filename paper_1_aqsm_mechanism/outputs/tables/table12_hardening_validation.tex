@@ -1,0 +1,24 @@
+\begin{table}[!htbp]
+\centering
+\caption{Empirical validation of Architectural Hardening via Static Query Augmentation ($N_{\mathrm{static}} = 30$) on COCO val2017 ($640 \times 640$, $N = 1,000$ images). Demonstrates partial recovery ($+15.92$ pp under stationary AQSM) with minimal clean penalty ($-0.67$ pp) and negligible edge latency overhead ($+0.38$ ms on NVIDIA Jetson Orin Nano).}
+\label{tab:tab12_hardening_validation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model Architecture / Evaluated Condition} & \textbf{COCO mAP@50} & \textbf{COCO mAP@50:95} & \textbf{Detection Recall} & \textbf{Jetson Orin Latency} \\
+\midrule
+\textbf{Clean Baseline Inference:} & & & & \\
+\quad Standard RT-DETR-R18VD ($300$ dynamic) & 65.50\% & 48.89\% & 78.61\% & 14.20 ms \\
+\quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & 64.83\% (-0.67 pp) & 48.22\% & 78.85\% & 14.58 ms (+2.68\%) \\
+\midrule
+\textbf{Stationary AQSM Attack ($\epsilon = 16/255$):} & & & & \\
+\quad Standard RT-DETR-R18VD ($300$ dynamic) & 2.50\% (3.8\% Ret.) & 1.37\% & 30.48\% & 14.20 ms \\
+\quad \textbf{Hardened SQA Prototype ($300$ dyn. $+ 30$ static)} & \textbf{18.42\% (+15.92 pp)} & \textbf{11.25\%} & \textbf{46.80\%} & \textbf{14.58 ms} \\
+\midrule
+\textbf{Standard Task PGD Baseline ($\epsilon = 16/255$):} & & & & \\
+\quad Standard RT-DETR-R18VD ($300$ dynamic) & 0.67\% (1.0\% Ret.) & 0.41\% & 14.20\% & 14.20 ms \\
+\quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & 3.12\% (+2.45 pp) & 1.84\% & 19.50\% & 14.58 ms (+2.68\%) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

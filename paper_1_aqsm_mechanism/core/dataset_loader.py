@@ -191,6 +191,10 @@ class OnTheFlyAdvImageBatchProxy:
             attacker = self._get_attacker()
             if self.attack_name == "aqsm":
                 adv_batch = attacker.generate_query_selection_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["aqsm_mem_constrained", "memory_isolated_query", "aqsm_mem"]:
+                adv_batch = attacker.generate_memory_isolated_query_attack(clean_batch, steps=self.steps, alpha=self.alpha)
+            elif self.attack_name in ["pure_memory", "pure_memory_attack"]:
+                adv_batch = attacker.generate_pure_memory_attack(clean_batch, steps=self.steps, alpha=self.alpha)
             elif self.attack_name in ["vanishing", "query_vanishing"]:
                 adv_batch = attacker.generate_vanishing_attack(clean_batch, steps=self.steps, alpha=self.alpha)
             elif self.attack_name in ["taskpgd", "task_pgd"]:

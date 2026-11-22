@@ -1,0 +1,7 @@
+Model Architecture / Evaluated Condition,COCO mAP@50,COCO mAP@50:95,Detection Recall,Jetson Orin Latency
+Clean Baseline: Standard RT-DETR-R18VD (300 dynamic),65.50%,48.89%,78.61%,14.20 ms
+Clean Baseline: Hardened SQA Prototype (300 dyn. + 30 static),64.83% (-0.67 pp),48.22%,78.85%,14.58 ms (+2.68%)
+Stationary AQSM: Standard RT-DETR-R18VD (300 dynamic),2.50% (3.8% Ret.),1.37%,30.48%,14.20 ms
+Stationary AQSM: Hardened SQA Prototype (300 dyn. + 30 static),18.42% (+15.92 pp),11.25%,46.80%,14.58 ms
+Standard Task PGD: Standard RT-DETR-R18VD (300 dynamic),0.67% (1.0% Ret.),0.41%,14.20%,14.20 ms
+Standard Task PGD: Hardened SQA Prototype (300 dyn. + 30 static),3.12% (+2.45 pp),1.84%,19.50%,14.58 ms (+2.68%)

@@ -317,6 +317,52 @@ def _cxcywh_to_xyxy_np(boxes: np.ndarray) -> np.ndarray:
     return np.stack([cx - 0.5 * w, cy - 0.5 * h, cx + 0.5 * w, cy + 0.5 * h], axis=-1)
 
 
+def compute_spatial_clustering_metrics(boxes_or_centers: np.ndarray) -> Dict[str, float]:
+    """
+    Tính các chỉ số gom cụm không gian (Spatial Clustering) và phân tán (Spatial Dispersion):
+    1. Average Nearest Neighbor Distance (ANND):
+       ANND = (1 / N) * sum_{i=1}^N min_{j != i} ||c_i - c_j||_2
+       Khi các anchor bị gom cụm cục bộ vào các điểm mù / nền, ANND sụt giảm rõ rệt.
+    2. Spatial Variance & Standard Deviation (sigma_x, sigma_y, total_variance):
+       Đo lường mức độ bao phủ toàn diện của các anchors trên toàn bộ canvas [0, 1]^2.
+    """
+    pts = np.asarray(boxes_or_centers, dtype=np.float64)
+    if pts.ndim == 2 and pts.shape[1] >= 4:
+        # Nếu truyền vào [N, 4], lấy tâm [cx, cy]
+        centers = pts[:, :2]
+    elif pts.ndim == 2 and pts.shape[1] == 2:
+        centers = pts
+    else:
+        return {"annd": float("nan"), "spatial_variance": float("nan"), "spatial_std_x": float("nan"), "spatial_std_y": float("nan")}
+
+    N = len(centers)
+    if N < 2:
+        return {"annd": float("nan"), "spatial_variance": 0.0, "spatial_std_x": 0.0, "spatial_std_y": 0.0}
+
+    # Ma trận khoảng cách Euclid N x N
+    diff = centers[:, None, :] - centers[None, :, :]  # [N, N, 2]
+    dist_mat = np.sqrt(np.sum(diff ** 2, axis=-1))    # [N, N]
+    np.fill_diagonal(dist_mat, np.inf)
+
+    # Nearest neighbor distance cho từng anchor
+    min_nnd = np.min(dist_mat, axis=1)  # [N]
+    annd = float(np.mean(min_nnd))
+
+    # Spatial variance quanh trọng tâm
+    mean_center = np.mean(centers, axis=0, keepdims=True)
+    sq_dist_to_mean = np.sum((centers - mean_center) ** 2, axis=-1)
+    spatial_variance = float(np.mean(sq_dist_to_mean))
+    std_x = float(np.std(centers[:, 0]))
+    std_y = float(np.std(centers[:, 1]))
+
+    return {
+        "annd": round(annd, 6),
+        "spatial_variance": round(spatial_variance, 6),
+        "spatial_std_x": round(std_x, 6),
+        "spatial_std_y": round(std_y, 6),
+    }
+
+
 def analyze_query_selection_batch(
     clean_comp: Dict[str, Any],
     adv_comp: Dict[str, Any],
@@ -419,6 +465,10 @@ def analyze_query_selection_batch(
         sc_sorted = np.sort(sc)[::-1]
         sa_sorted = np.sort(sa)[::-1]
 
+        # Thống kê gom cụm không gian ANND và Spatial Dispersion cho Top-300 anchors
+        clean_spatial = compute_spatial_clustering_metrics(anchors_sig[ic])
+        adv_spatial = compute_spatial_clustering_metrics(anchors_sig[ia])
+
         records.append({
             "n_gt": int(len(gt_b)),
             "top300_overlap": float(inter_300 / 300.0),
@@ -435,6 +485,23 @@ def analyze_query_selection_batch(
             "median_rank_shift_fg_tokens": fg_rank_shift,
             "evicted_top15_ratio": evicted_top15,
             "median_rank_shift_top15": median_rank_shift_top15,
+            # Tách bạch rõ 2 nhóm metric theo chuẩn phản biện:
+            # 1. gt_object_coverage_center (axis=0): Tỷ lệ GT objects có >=1 anchor tâm nằm trong
+            "gt_object_coverage_center_clean": cov_center_c,
+            "gt_object_coverage_center_adv": cov_center_a,
+            # 2. anchor_foreground_ratio (axis=1): Tỷ lệ trong 300 anchors có tâm nằm trong GT
+            "anchor_foreground_ratio_clean": fg_ratio_clean_300,
+            "anchor_foreground_ratio_adv": fg_ratio_adv_300,
+            # Thước đo gom cụm không gian ANND & Spatial Dispersion
+            "clean_annd": clean_spatial["annd"],
+            "adv_annd": adv_spatial["annd"],
+            "clean_spatial_variance": clean_spatial["spatial_variance"],
+            "adv_spatial_variance": adv_spatial["spatial_variance"],
+            "clean_spatial_std_x": clean_spatial["spatial_std_x"],
+            "clean_spatial_std_y": clean_spatial["spatial_std_y"],
+            "adv_spatial_std_x": adv_spatial["spatial_std_x"],
+            "adv_spatial_std_y": adv_spatial["spatial_std_y"],
+            # Backward compatibility aliases
             "fg_query_ratio_clean_top300": fg_ratio_clean_300,
             "fg_query_ratio_adv_top300": fg_ratio_adv_300,
             "cov_center_clean": cov_center_c,

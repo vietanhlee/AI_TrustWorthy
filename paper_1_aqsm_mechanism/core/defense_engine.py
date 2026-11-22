@@ -16,6 +16,7 @@ cho RT-DETR tại tầng biên:
 
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
+import sklearn.metrics as skm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -137,6 +138,75 @@ class EncoderSelectionMonitor:
         return (fused_score >= self.fused_thresh).astype(int)
 
 
+class SpatialConsistencyMonitor:
+    """
+    Bộ giám sát tính nhất quán không gian (Spatial-Consistency Monitor):
+    Phát hiện sự mất đồng bộ không gian giữa tọa độ Anchor / Reference Points ban đầu
+    và phân bố dự đoán hoặc lấy mẫu Deformable Cross-Attention của Deformable Decoder.
+    Dưới đòn AQSM, anchors bị dịch chuyển cưỡng bức vào vùng nền lộn xộn,
+    làm sai lệch rõ rệt độ phân tán không gian (spatial dispersion) và khoảng cách dịch chuyển tham chiếu.
+    """
+    def __init__(self, target_fpr: float = 0.05):
+        self.target_fpr = target_fpr
+        self.disp_mon = SingleFeatureMonitor(target_fpr=target_fpr)
+        self.drift_mon = SingleFeatureMonitor(target_fpr=target_fpr)
+        self.fused_thresh: float = 0.0
+        self.is_fitted: bool = False
+
+    @staticmethod
+    def extract_features(
+        init_ref_boxes: torch.Tensor,
+        pred_boxes: torch.Tensor,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Trích xuất (dispersion, drift):
+        - dispersion: Bán kính phân tán không gian trung bình của các anchors [B].
+        - drift: Độ dịch chuyển L2 trung bình giữa init reference points và predicted boxes [B].
+        """
+        # Tự động nhận diện không gian logit (-inf, +inf) hay không gian tọa độ chuẩn hóa [0, 1]
+        ref_sig = torch.sigmoid(init_ref_boxes) if (init_ref_boxes.max() > 1.5 or init_ref_boxes.min() < -0.5) else torch.clamp(init_ref_boxes, 0.0, 1.0)
+        pred_sig = torch.sigmoid(pred_boxes) if (pred_boxes.max() > 1.5 or pred_boxes.min() < -0.5) else torch.clamp(pred_boxes, 0.0, 1.0)
+
+        ref_np = ref_sig.detach().cpu().numpy()
+        pred_np = pred_sig.detach().cpu().numpy()
+
+        # 1. Spatial dispersion: khoảng cách từ mỗi anchor tới tâm trung bình của ảnh
+        mean_center = np.mean(ref_np[..., :2], axis=1, keepdims=True)  # [B, 1, 2]
+        dispersion = np.mean(np.sqrt(np.sum((ref_np[..., :2] - mean_center) ** 2, axis=-1)), axis=1)  # [B]
+
+        # 2. Reference drift: độ dịch chuyển từ ref point sang predicted box center
+        drift = np.mean(np.sqrt(np.sum((pred_np[..., :2] - ref_np[..., :2]) ** 2, axis=-1)), axis=1)  # [B]
+
+        return dispersion, drift
+
+    def fit(self, ref_boxes_list: Sequence[torch.Tensor], pred_boxes_list: Sequence[torch.Tensor]) -> None:
+        all_disp = []
+        all_drift = []
+        for r, p in zip(ref_boxes_list, pred_boxes_list):
+            disp, drift = self.extract_features(r, p)
+            all_disp.extend(disp.tolist())
+            all_drift.extend(drift.tolist())
+
+        self.disp_mon.fit(all_disp)
+        self.drift_mon.fit(all_drift)
+
+        s_disp = self.disp_mon.score(all_disp)
+        s_drift = self.drift_mon.score(all_drift)
+        max_scores = np.maximum(s_disp, s_drift)
+        self.fused_thresh = float(np.percentile(max_scores, (1.0 - self.target_fpr) * 100.0))
+        self.is_fitted = True
+
+    def score(self, init_ref_boxes: torch.Tensor, pred_boxes: torch.Tensor) -> np.ndarray:
+        disp, drift = self.extract_features(init_ref_boxes, pred_boxes)
+        s_disp = self.disp_mon.score(disp)
+        s_drift = self.drift_mon.score(drift)
+        return np.maximum(s_disp, s_drift)
+
+    def predict(self, init_ref_boxes: torch.Tensor, pred_boxes: torch.Tensor) -> np.ndarray:
+        scores = self.score(init_ref_boxes, pred_boxes)
+        return (scores >= self.fused_thresh).astype(int)
+
+
 def evaluate_defense_cohort(
     model_wrapper: Any,
     clean_tensors: torch.Tensor,
@@ -149,6 +219,7 @@ def evaluate_defense_cohort(
     1. Dùng n_cal ảnh sạch đầu tiên để fit ngưỡng 5.0% FPR.
     2. Đánh giá FPR trên (N - n_cal) ảnh sạch còn lại (Zero Data Leakage).
     3. Đánh giá TPR (Detection Rate) trên các đòn tấn công đối kháng.
+    4. Tính AUROC chính xác qua toàn bộ đường cong phân bố bằng sklearn.metrics.roc_auc_score.
     """
     model = model_wrapper.model
     model.eval()
@@ -229,17 +300,16 @@ def evaluate_defense_cohort(
         scores_adv = esm.score(adv_logits_cat)
         tpr = float(np.mean(preds_adv)) * 100.0
 
-        # Tính AUROC phân loại sạch vs tấn công
+        # Tính AUROC thực tế qua toàn bộ đường cong phân bố bằng sklearn.metrics.roc_auc_score
         all_labels = np.concatenate([np.zeros(n_test), np.ones(n_test)])
         clean_scores = esm.score(test_logits_cat)
         all_scores = np.concatenate([clean_scores, scores_adv])
 
-        # AUROC via Wilcoxon-Mann-Whitney
-        n0 = n_test
-        n1 = n_test
-        ranks = np.argsort(np.argsort(all_scores)) + 1
-        r_sum = np.sum(ranks[all_labels == 1])
-        auroc = float((r_sum - n1 * (n1 + 1) / 2.0) / (n0 * n1))
+        try:
+            auroc = float(skm.roc_auc_score(all_labels, all_scores))
+        except Exception:
+            # Fallback nếu phân bố hằng số
+            auroc = 0.5000
 
         results["attacks"][atk_name] = {
             "tpr_detection_rate_pct": round(tpr, 2),

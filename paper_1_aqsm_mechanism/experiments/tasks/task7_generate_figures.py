@@ -2,10 +2,10 @@
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task7_generate_figures
 Mục đích: Đọc số liệu thực nghiệm THẬT 100% từ các file JSON trong summary_json/
-được sinh ra từ quá trình chạy trên Kaggle (N = 400 COCO val2017), tự động vẽ
+được sinh ra từ quá trình chạy trên Kaggle (N = 1,000 COCO val2017), tự động vẽ
 toàn bộ các biểu đồ vector PDF/PNG xuất bản chuẩn Elsevier EAAI:
   - Figure 3: Proposal Score Spectrum Across Top-300 Bottleneck & Logit Distribution
-  - Figure 4 / 5: Repeated-Measures 2x2 Causal Tensor-Swap on COCO val2017 (N = 400) & ANOVA Effects
+  - Figure 4 / 5: Repeated-Measures 2x2 Causal Tensor-Swap on COCO val2017 (N = 1,000) & ANOVA Effects
   - Figure 5 / 6: Multi-Scale Cosine Degradation (S3/S4/S5) & Proposal Overlap/Coverage Dynamics
   - Figure 6 / 7: Deformable Attention Telemetry (Normalized Entropy vs Spatial FG Hit Rate)
   - Figure 7 / 8: Matched-Budget Robustness Comparison across Perturbation Budgets
@@ -157,7 +157,7 @@ def plot_causal_swap_figure(json_path: Path, output_pdf: Path, output_png: Path)
     rects2 = ax1.bar(x + width / 2, map95_vals, width, label="mAP@50:95 (%)", color="#aec7e8", edgecolor="black", alpha=0.85)
 
     ax1.set_ylabel("Detection Accuracy (%)", fontweight="bold")
-    ax1.set_title("(a) Canonical Intervention Arms (N = 400, 640x640)", fontweight="bold", fontsize=10)
+    ax1.set_title("(a) Canonical Intervention Arms (N = 1,000, 640x640)", fontweight="bold", fontsize=10)
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=8.5)
     ax1.legend(loc="upper right", frameon=True)

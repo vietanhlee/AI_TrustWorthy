@@ -31,7 +31,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
     parser.add_argument("--max_samples", type=int, default=300, help="Số lượng ảnh thực nghiệm (mặc định 300 ảnh theo chuẩn Paper 1)")
     parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples")
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7", help="Danh sách tasks cần chạy")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7,9", help="Danh sách tasks cần chạy")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8 cho Task 5")
     args = parser.parse_args()

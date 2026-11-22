@@ -1,0 +1,5 @@
+Condition,Overall Cosine,Per-Scale Cosine (S3/S4/S5),FG Rel. L2,BG Rel. L2,FG/BG Ratio,Cosine Gap (S5 - S4)
+Gaussian Noise (sigma = 16/255),0.9240,0.915 / 0.942 / 0.962,0.3210,0.3840,0.8359,+0.020
+PGD Vanishing (T = 15),0.6874,0.702 / 0.639 / 0.649,0.7746,0.7997,0.9686,+0.010
+"AQSM (Ours, T = 15)",0.5753,0.592 / 0.507 / 0.585,0.8727,0.9782,0.8921,+0.077
+Standard Task PGD (T = 15),0.6626,0.681 / 0.608 / 0.592,0.8141,0.8287,0.9824,-0.016

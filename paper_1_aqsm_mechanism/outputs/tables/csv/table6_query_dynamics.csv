@@ -1,0 +1,6 @@
+Condition,Top-300 Overlap,Spearman rho,Kendall tau,Evicted Top-15 FG,Center-in-GT,GT IoU >= 0.30 Cov.
+Clean Baseline,100.0% [Ref.],1.000,1.000,0.0%,98.98%,98.46%
+Gaussian Noise (sigma = 16/255),82.40%,0.892,0.735,11.20%,94.50%,92.10%
+PGD Vanishing (T = 15),30.39%,0.424,0.295,51.06%,89.83%,78.89%
+"AQSM (Ours, T = 15)",12.21%,0.165,0.115,98.50%,73.92%,53.11%
+Standard Task PGD (T = 15),26.38%,0.387,0.268,56.01%,89.43%,78.04%

@@ -144,6 +144,14 @@ def _build_task_registry(
             "--fig_dir", str(args.fig_dir),
         ]
 
+    # Task 9 args
+    def build_task9_args() -> List[str]:
+        return [
+            "--output_dir", str(args.output_dir),
+            "--tables_dir", str(Path(args.output_dir) / "tables"),
+            "--verify_tex",
+        ]
+
     return {
         0: {
             "name": "Task 0 (Cache Gen)",
@@ -209,6 +217,13 @@ def _build_task_registry(
             "args_builder": build_task7_args,
             "log_file": logs_dir / "task7_generate_figures.log",
         },
+        9: {
+            "name": "Task 9 (Table Generation)",
+            "title": "Task 9: Generate Publication Tables (LaTeX snippets, Markdown, CSV)",
+            "script": tasks_dir / "task9_generate_tables.py",
+            "args_builder": build_task9_args,
+            "log_file": logs_dir / "task9_generate_tables.log",
+        },
     }
 
 
@@ -233,7 +248,7 @@ def main():
     parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU tối đa cho PyTorch")
 
     # 4. Tham số lựa chọn task
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,8,7)")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7,9", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,8,7,9)")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã tồn tại")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache từ đầu kể cả khi đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh thêm cache eps 4 và 8 cho Task 5")

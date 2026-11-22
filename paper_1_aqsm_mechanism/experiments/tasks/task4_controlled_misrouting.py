@@ -48,6 +48,7 @@ from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
     _box_iou_np,
+    compute_spatial_clustering_metrics,
     extract_encoder_components,
     run_decoder_from_components,
 )
@@ -97,6 +98,52 @@ def compute_object_recall(
     ious = _box_iou_np(gt_boxes_xyxy, act_boxes)
     max_ious = np.max(ious, axis=1)
     return float(np.mean(max_ious >= iou_thresh))
+
+
+def sample_exact_matched_shift_4d(
+    clean_box: np.ndarray,
+    aqsm_box: np.ndarray,
+    rng: np.random.RandomState,
+    scale_factor: float = 1.0,
+    max_tries: int = 50,
+) -> np.ndarray:
+    """
+    Sinh tọa độ box dịch chuyển ngẫu nhiên [cx, cy, w, h] sao cho sau phép chiếu/clipping
+    vào [0, 1]^4, độ dịch chuyển thực tế sau clipping (realized post-clipping displacement)
+    khớp CHÍNH XÁC 100% với độ dịch chuyển AQSM cả về Center L2 và Size L2.
+    """
+    d_center = float(np.linalg.norm(aqsm_box[:2] - clean_box[:2])) * scale_factor
+    d_size = float(np.linalg.norm(aqsm_box[2:] - clean_box[2:])) * scale_factor
+
+    def _sample_exact_2d(p: np.ndarray, target_d: float) -> np.ndarray:
+        if target_d <= 1e-7:
+            return p.copy()
+        for _ in range(max_tries):
+            theta = rng.uniform(0, 2 * np.pi)
+            u = np.array([np.cos(theta), np.sin(theta)])
+            p_cand = p + target_d * u
+            if np.all(p_cand >= 0.0) and np.all(p_cand <= 1.0):
+                return p_cand
+        # Fallback bisection search nếu góc ngẫu nhiên chạm biên canvas
+        u = np.array([0.5, 0.5]) - p
+        u_norm = np.linalg.norm(u)
+        if u_norm > 1e-6:
+            u = u / u_norm
+            lo, hi = 0.0, 2.0
+            for _ in range(30):
+                mid = 0.5 * (lo + hi)
+                clipped = np.clip(p + mid * u, 0.0, 1.0)
+                dist = np.linalg.norm(clipped - p)
+                if dist < target_d:
+                    lo = mid
+                else:
+                    hi = mid
+            return np.clip(p + 0.5 * (lo + hi) * u, 0.0, 1.0)
+        return np.clip(p, 0.0, 1.0)
+
+    center_shifted = _sample_exact_2d(clean_box[:2], d_center)
+    size_shifted = _sample_exact_2d(clean_box[2:], d_size)
+    return np.concatenate([center_shifted, size_shifted])
 
 
 def run_controlled_misrouting_evaluation(
@@ -184,11 +231,12 @@ def run_controlled_misrouting_evaluation(
 
         for s in seeds:
             rng = np.random.RandomState(s)
-            noise = rng.randn(cur_bsz, 300, 4)
-            noise_norm = np.maximum(np.linalg.norm(noise, axis=-1, keepdims=True), 1e-8)
-            unit_noise = noise / noise_norm
-            target_disp = np.mean(mean_l2_per_img)
-            shifted_boxes_np = np.clip(c_ref_np + unit_noise * target_disp, 0.0, 1.0)
+            shifted_boxes_np = np.zeros_like(c_ref_np)
+            for b in range(cur_bsz):
+                for i in range(300):
+                    shifted_boxes_np[b, i] = sample_exact_matched_shift_4d(
+                        c_ref_np[b, i], a_ref_np[b, i], rng, scale_factor=1.0
+                    )
             shifted_boxes_safe = np.clip(shifted_boxes_np, 1e-6, 1.0 - 1e-6)
             shift_logits = torch.from_numpy(np.log(shifted_boxes_safe / (1.0 - shifted_boxes_safe))).to(device).float()
             b_ref_tensors[f"Random_Shift_seed{s}"] = shift_logits
@@ -226,6 +274,9 @@ def run_controlled_misrouting_evaluation(
                 fg_hit = compute_ref_fg_hit(ref_sig_np[b, :, :2], gt_boxes)
                 recall = compute_object_recall(batch_preds[b], gt_boxes)
 
+                # Đo đạc gom cụm không gian ANND và độ phân tán spatial variance
+                clust_metrics = compute_spatial_clustering_metrics(ref_sig_np[b, :, :2])
+
                 disp_metrics_by_cond[cond].append({
                     "l2_full": l2_full,
                     "l2_center": l2_center,
@@ -236,6 +287,10 @@ def run_controlled_misrouting_evaluation(
                     "delta_h": dh,
                     "fg_hit": fg_hit,
                     "recall": recall,
+                    "annd": clust_metrics["annd"],
+                    "spatial_variance": clust_metrics["spatial_variance"],
+                    "spatial_std_x": clust_metrics["spatial_std_x"],
+                    "spatial_std_y": clust_metrics["spatial_std_y"],
                 })
 
     print(">>> Đang đánh giá COCO mAP toàn cục cho tất cả các nhánh...")
@@ -254,6 +309,8 @@ def run_controlled_misrouting_evaluation(
             "delta_l2": float(np.mean([m["l2_full"] for m in disp_metrics_by_cond[cond]])),
             "delta_center_l2": float(np.mean([m["l2_center"] for m in disp_metrics_by_cond[cond]])),
             "delta_size_l2": float(np.mean([m["l2_size"] for m in disp_metrics_by_cond[cond]])),
+            "annd": float(np.mean([m["annd"] for m in disp_metrics_by_cond[cond]])),
+            "spatial_variance": float(np.mean([m["spatial_variance"] for m in disp_metrics_by_cond[cond]])),
         }
         per_image_aps[cond] = ap50_vec
 
@@ -292,6 +349,8 @@ def run_controlled_misrouting_evaluation(
             "recall_pct": round(map_results["Clean_Baseline"]["recall"], 2),
             "fg_hit_pct": round(map_results["Clean_Baseline"]["fg_hit"], 2),
             "delta_l2": 0.0000,
+            "annd": round(map_results["Clean_Baseline"]["annd"], 4),
+            "spatial_variance": round(map_results["Clean_Baseline"]["spatial_variance"], 4),
             "delta_map50_ci95": [0.0, 0.0],
         },
         "Random_Reassignment": {
@@ -302,6 +361,8 @@ def run_controlled_misrouting_evaluation(
             "recall_pct_mean": round(float(np.mean(reassign_recall)), 2),
             "fg_hit_pct_mean": round(float(np.mean(reassign_fghit)), 2),
             "delta_l2": round(map_results["Random_Reassign_seed42"]["delta_l2"], 4),
+            "annd_mean": round(float(np.mean([map_results[f"Random_Reassign_seed{s}"]["annd"] for s in seeds])), 4),
+            "spatial_variance_mean": round(float(np.mean([map_results[f"Random_Reassign_seed{s}"]["spatial_variance"] for s in seeds])), 4),
             "delta_map50_ci95": [round(boot_ci_reassign["ci_95"][0], 2), round(boot_ci_reassign["ci_95"][1], 2)],
             "wilcoxon_p": boot_ci_reassign["wilcoxon_p"],
         },
@@ -313,6 +374,8 @@ def run_controlled_misrouting_evaluation(
             "recall_pct_mean": round(float(np.mean(shift_recall)), 2),
             "fg_hit_pct_mean": round(float(np.mean(shift_fghit)), 2),
             "delta_l2": round(float(np.mean(shift_l2)), 4),
+            "annd_mean": round(float(np.mean([map_results[f"Random_Shift_seed{s}"]["annd"] for s in seeds])), 4),
+            "spatial_variance_mean": round(float(np.mean([map_results[f"Random_Shift_seed{s}"]["spatial_variance"] for s in seeds])), 4),
             "delta_map50_ci95": [round(boot_ci_shift["ci_95"][0], 2), round(boot_ci_shift["ci_95"][1], 2)],
             "wilcoxon_p": boot_ci_shift["wilcoxon_p"],
         },
@@ -324,10 +387,63 @@ def run_controlled_misrouting_evaluation(
             "delta_l2": round(map_results["AQSM_Misrouting"]["delta_l2"], 4),
             "delta_center_l2": round(map_results["AQSM_Misrouting"]["delta_center_l2"], 4),
             "delta_size_l2": round(map_results["AQSM_Misrouting"]["delta_size_l2"], 4),
+            "annd": round(map_results["AQSM_Misrouting"]["annd"], 4),
+            "spatial_variance": round(map_results["AQSM_Misrouting"]["spatial_variance"], 4),
             "delta_map50_ci95": [round(boot_ci_aqsm["ci_95"][0], 2), round(boot_ci_aqsm["ci_95"][1], 2)],
             "wilcoxon_p": boot_ci_aqsm["wilcoxon_p"],
         },
     }
+
+    # Đánh giá Dose-Response Curve theo các mức delta in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
+    print("\n>>> Đang tính toán đường Dose-Response Curve (delta in [0.1 .. 1.0])...")
+    deltas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
+    dose_curve = {}
+    rng_dose = np.random.RandomState(42)
+    n_dose_eval = min(50, n_total)
+    sub_gt = gt_list[:n_dose_eval]
+
+    for d_val in deltas:
+        d_preds = []
+        d_l2_list = []
+        for b_idx in range(int(np.ceil(n_dose_eval / batch_size))):
+            s_i = b_idx * batch_size
+            e_i = min(s_i + batch_size, n_dose_eval)
+            b_clean = clean_imgs[s_i:e_i].to(device)
+            b_adv = adv_imgs[s_i:e_i].to(device)
+            with torch.no_grad():
+                cc = extract_encoder_components(model, b_clean)
+                ca = extract_encoder_components(model, b_adv)
+                c_np = torch.sigmoid(cc["init_reference_points"]).cpu().numpy()
+                a_np = torch.sigmoid(ca["init_reference_points"]).cpu().numpy()
+                bsz_d = e_i - s_i
+                shifted_np = np.zeros_like(c_np)
+                for b_sub in range(bsz_d):
+                    for q_i in range(300):
+                        shifted_np[b_sub, q_i] = sample_exact_matched_shift_4d(
+                            c_np[b_sub, q_i], a_np[b_sub, q_i], rng_dose, scale_factor=d_val
+                        )
+                d_l2_list.append(float(np.mean(np.sqrt(np.sum((shifted_np - c_np) ** 2, axis=-1)))))
+                sh_safe = np.clip(shifted_np, 1e-6, 1.0 - 1e-6)
+                sh_logits = torch.from_numpy(np.log(sh_safe / (1.0 - sh_safe))).to(device).float()
+                dec_out = run_decoder_from_components(
+                    model=model,
+                    target=cc["target"],
+                    source_flatten=cc["source_flatten"],
+                    init_reference_points=sh_logits,
+                    spatial_shapes=cc["spatial_shapes"],
+                    spatial_shapes_list=cc["spatial_shapes_list"],
+                    level_start_index=cc["level_start_index"],
+                )
+                d_preds.extend(postprocess_rtdetr_predictions(dec_out["logits"], dec_out["pred_boxes"], mode="hf_multilabel"))
+
+        eval_d = evaluate_coco_predictions(d_preds, sub_gt)
+        dose_curve[f"delta_{d_val}"] = {
+            "delta": d_val,
+            "mean_l2_displacement": round(float(np.mean(d_l2_list)), 4),
+            "mAP@50": round(float(eval_d["mAP@50"]), 2),
+            "mAP@50:95": round(float(eval_d["mAP@50:95"]), 2),
+        }
+        print(f"   * Delta = {d_val:.1f} | Realized L2 = {np.mean(d_l2_list):.4f} | mAP@50 = {eval_d['mAP@50']:.2f}%")
 
     summary_json_dir = get_summary_json_dir()
     summary_json_dir.mkdir(parents=True, exist_ok=True)
@@ -343,6 +459,7 @@ def run_controlled_misrouting_evaluation(
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "table8_summary": summary_table8,
         "detailed_by_condition": map_results,
+        "dose_response_curve": dose_curve,
     }
     save_json(t8_payload, json_path)
     save_json(t8_payload, summary_json_dir / "controlled_misrouting_results.json")

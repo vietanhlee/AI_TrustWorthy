@@ -1,0 +1,21 @@
+\begin{table}[!htbp]
+\centering
+\caption{Matched-budget mechanistic comparison on COCO val2017 at native $640 \times 640$ resolution across $\epsilon \in \{4/255, 8/255, 16/255\}$ on $N = 1,000$ images. Demonstrates that Standard Task PGD degrades detection metrics across budgets, while AQSM isolates encoder query eviction and spatial misrouting.}
+\label{tab:tab9_matched_budget}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccc}
+\toprule
+\textbf{Perturb. Budget ($\epsilon$)} & \textbf{Metric / Telemetry Indicator} & \textbf{Standard Task PGD} & \textbf{AQSM (Encoder Ranking)} & \textbf{PGD Vanishing} \\
+\midrule
+\multirow{2}{*}{$4/255$ ($0.0157$)} & COCO mAP@50 (mAP@50:95) & 3.01\% (1.97\%) & 7.34\% (4.08\%) & 3.18\% (2.00\%) \\
+& Relative Drop / Retention & $-$95.41\% (4.6\% Ret.) & $-$88.80\% (11.2\% Ret.) & $-$95.14\% (4.9\% Ret.) \\
+\midrule
+\multirow{2}{*}{$8/255$ ($0.0314$)} & COCO mAP@50 (mAP@50:95) & 0.81\% (0.49\%) & 3.89\% (1.88\%) & 2.28\% (1.35\%) \\
+& Relative Drop / Retention & $-$98.76\% (1.2\% Ret.) & $-$94.07\% (5.9\% Ret.) & $-$96.53\% (3.5\% Ret.) \\
+\midrule
+\multirow{2}{*}{$16/255$ ($0.0627$)} & COCO mAP@50 (mAP@50:95) & 0.67\% (0.41\%) & \textbf{2.50\% (1.37\%)} & 1.16\% (0.68\%) \\
+& Relative Drop / Retention & $-$98.98\% (1.0\% Ret.) & \textbf{$-$96.19\% (3.8\% Ret.)} & $-$98.22\% (1.8\% Ret.) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

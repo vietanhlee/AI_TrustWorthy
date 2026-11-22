@@ -33,7 +33,7 @@
   },
   "cohort_definitions": {
     "empirical_evaluation_cohort": {
-      "description": "Tập ảnh thực nghiệm chuẩn COCO val2017 native 640x640 đánh giá toàn diện 9 tasks, N=1000 images (valid intra-subject paired samples N=992 chứa ground-truth bounding boxes, df=[1, 991])",
+      "description": "T\u1eadp \u1ea3nh th\u1ef1c nghi\u1ec7m chu\u1ea9n COCO val2017 native 640x640 \u0111\u00e1nh gi\u00e1 to\u00e0n di\u1ec7n 9 tasks, N=1000 images (valid intra-subject paired samples N=992 ch\u1ee9a ground-truth bounding boxes, df=[1, 991])",
       "n_images": 1000,
       "n_valid_intra_subject": 992,
       "dataset": "Microsoft COCO val2017 (instances_val2017.json)",
@@ -46,7 +46,7 @@
       "alpha_significance": 0.05
     },
     "defense_calibration_cohort": {
-      "description": "Tập hiệu chuẩn tách biệt (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
+      "description": "T\u1eadp hi\u1ec7u chu\u1ea9n t\u00e1ch bi\u1ec7t (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
       "n_calibration": 300,
       "n_test": 700,
       "percentile_quantile": 0.05
@@ -57,7 +57,7 @@
       "table_number": 1,
       "caption": "Component-wise ablation of the Tripartite AQSM Objective on COCO val2017",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/matched_budget_results.json",
         "outputs/summary_json/query_selection_dynamics.json"
@@ -67,26 +67,26 @@
       "table_number": 2,
       "caption": "COCO val2017 object detection performance across controls and adversarial tiers",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/matched_budget_results.json",
         "outputs/raw_csv/matched_budget_sweep_raw.csv"
       ],
       "metrics": {
-        "Clean_mAP50": 66.81,
-        "Clean_mAP50_95": 49.47,
-        "AQSM_16_mAP50": 3.41,
-        "AQSM_16_mAP50_95": 1.45,
-        "Vanishing_16_mAP50": 1.92,
-        "TaskPGD_16_mAP50": 0.98
+        "Clean_mAP50": 65.5,
+        "Clean_mAP50_95": 48.89,
+        "AQSM_16_mAP50": 2.5,
+        "AQSM_16_mAP50_95": 1.37,
+        "Vanishing_16_mAP50": 1.16,
+        "TaskPGD_16_mAP50": 0.67
       }
     },
     "tab:tab3_causal_surgery": {
       "table_number": 3,
       "caption": "Factorial causal mechanism isolation on COCO val2017 benchmark at native 640x640 resolution",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
-      "n_valid_intra_subject": 397,
+      "n_evaluated_images": 1000,
+      "n_valid_intra_subject": 992,
       "source_artifacts": [
         "outputs/summary_json/causal_swap_results_aqsm.json",
         "outputs/summary_json/causal_swap_results_vanishing.json",
@@ -94,25 +94,26 @@
         "outputs/raw_csv/causal_anova_per_image_aqsm.csv"
       ],
       "key_mappings": {
-        "Arm_A_mAP50": 66.81,
-        "Arm_B_mAP50": 3.41,
-        "Arm_C_full_mAP50": 7.74,
-        "Arm_D_full_mAP50": 25.25,
-        "Arm_D_index_mAP50": 34.32,
-        "ANOVA_ME_M": -44.38,
-        "ANOVA_ME_Q": -28.89,
-        "ANOVA_Interaction": 12.99,
-        "partial_eta2_M": 0.82,
-        "partial_eta2_Q": 0.731,
-        "partial_eta2_Interaction": 0.309
+        "Arm_A_mAP50": 65.5,
+        "Arm_B_mAP50": 2.5,
+        "Arm_C_full_mAP50": 6.25,
+        "Arm_C_index_mAP50": 3.07,
+        "Arm_D_full_mAP50": 25.11,
+        "Arm_D_index_mAP50": 33.04,
+        "ANOVA_ME_M": -44.97,
+        "ANOVA_ME_Q": -28.24,
+        "ANOVA_Interaction": 12.47,
+        "partial_eta2_M": 0.806,
+        "partial_eta2_Q": 0.735,
+        "partial_eta2_Interaction": 0.291
       }
     },
     "tab:tab4_anova_decomp": {
       "table_number": 4,
       "caption": "ANOVA Factorial Decomposition and Causal Effect Attribution across Attack Formulations on COCO val2017",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
-      "n_valid_intra_subject": 397,
+      "n_evaluated_images": 1000,
+      "n_valid_intra_subject": 992,
       "source_artifacts": [
         "outputs/summary_json/causal_swap_results_aqsm.json",
         "outputs/summary_json/causal_swap_results_vanishing.json",
@@ -123,73 +124,73 @@
       "table_number": 5,
       "caption": "Encoder memory feature perturbation on COCO val2017 across feature scales and semantic regions",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/encoder_memory_analysis.json"
       ],
       "metrics": {
-        "AQSM_Overall_Cosine": 0.5715,
-        "AQSM_S3_Cosine": 0.5881,
-        "AQSM_S4_Cosine": 0.5021,
-        "AQSM_S5_Cosine": 0.5837,
-        "AQSM_FG_Rel_L2": 0.8776,
-        "AQSM_BG_Rel_L2": 0.9809
+        "AQSM_Overall_Cosine": 0.5753,
+        "AQSM_S3_Cosine": 0.5917,
+        "AQSM_S4_Cosine": 0.5074,
+        "AQSM_S5_Cosine": 0.5846,
+        "AQSM_FG_Rel_L2": 0.8727,
+        "AQSM_BG_Rel_L2": 0.9782
       }
     },
     "tab:tab6_query_dynamics": {
       "table_number": 6,
       "caption": "8,400-to-300 query selection overlap, rank correlation, foreground eviction, and GT coverage",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/query_selection_dynamics.json",
         "outputs/raw_csv/encoder_query_dynamics_raw.csv"
       ],
       "metrics": {
-        "AQSM_Top300_Overlap": 12.13,
+        "AQSM_Top300_Overlap": 12.21,
         "AQSM_Evicted_Top15": 98.5,
-        "AQSM_Center_in_GT": 72.84,
-        "Clean_Center_in_GT": 99.02
+        "AQSM_Center_in_GT": 73.92,
+        "Clean_Center_in_GT": 98.98
       }
     },
     "tab:tab7_attention_telemetry": {
       "table_number": 7,
       "caption": "Deformable decoder cross-attention telemetry on COCO val2017",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/deformable_attention_telemetry.json",
         "outputs/raw_csv/attention_telemetry_per_image.csv"
       ],
       "metrics": {
-        "Clean_Entropy": 0.8261,
-        "AQSM_Entropy": 0.8155,
-        "Vanishing_Entropy": 0.8489,
-        "Clean_FG_Hit": 62.27,
-        "AQSM_FG_Hit": 38.26
+        "Clean_Entropy": 0.8263,
+        "AQSM_Entropy": 0.8146,
+        "Vanishing_Entropy": 0.8495,
+        "Clean_FG_Hit": 63.51,
+        "AQSM_FG_Hit": 38.77
       }
     },
     "tab:tab8_controlled_misrouting": {
       "table_number": 8,
       "caption": "Controlled spatial misrouting and query perturbation on COCO val2017",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/controlled_misrouting_results.json",
         "outputs/raw_csv/controlled_misrouting_per_image.csv"
       ],
       "metrics": {
-        "Clean_mAP50": 66.81,
-        "Random_Reassign_mAP50": 62.75,
-        "Random_Shift_mAP50": 22.55,
-        "AQSM_Misrouting_mAP50": 24.34
+        "Clean_mAP50": 65.5,
+        "Random_Reassign_mAP50": 60.87,
+        "Random_Shift_mAP50": 21.55,
+        "AQSM_Misrouting_mAP50": 23.9
       }
     },
     "tab:tab9_matched_budget": {
       "table_number": 9,
       "caption": "Matched-budget mechanistic comparison across perturbation levels epsilon in {4, 8, 16}",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/matched_budget_results.json",
         "outputs/raw_csv/matched_budget_sweep_raw.csv"
@@ -199,7 +200,7 @@
       "table_number": 10,
       "caption": "Inference latency, active query counts, and computational sponge evaluation on physical edge hardware and cloud profiling",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/latency_profile.json",
         "outputs/summary_json/edge_latency_results.json",
@@ -210,33 +211,33 @@
       "table_number": 11,
       "caption": "Empirical detection performance of Encoder Selection Monitor (ESM) and adaptive evasion boundary",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
-      "n_test_images": 280,
+      "n_evaluated_images": 1000,
+      "n_test_images": 700,
       "source_artifacts": [
         "outputs/summary_json/defense_esm_evaluation.json"
       ],
       "metrics": {
-        "Clean_FPR": 10.0,
-        "AQSM_TPR": 76.07,
-        "AQSM_AUROC": 0.9082,
-        "Adaptive_Evasion_TPR_lambda_0.5": 0.0
+        "Clean_FPR": 6.57,
+        "AQSM_TPR": 64.57,
+        "AQSM_AUROC": 0.9161,
+        "Adaptive_Evasion_TPR_lambda_0.5": 1.71
       }
     },
     "tab:tab12_hardening_validation": {
       "table_number": 12,
       "caption": "Empirical validation of Architectural Hardening via Static Query Augmentation",
       "active_cohort": "empirical_evaluation_cohort",
-      "n_evaluated_images": 400,
+      "n_evaluated_images": 1000,
       "source_artifacts": [
         "outputs/summary_json/hardening_evaluation_results.json"
       ],
       "metrics": {
-        "Clean_Default_mAP50": 66.81,
-        "Clean_Hardened_mAP50": 66.14,
-        "AQSM_Default_mAP50": 3.41,
+        "Clean_Default_mAP50": 65.5,
+        "Clean_Hardened_mAP50": 64.83,
+        "AQSM_Default_mAP50": 2.5,
         "AQSM_Hardened_mAP50": 18.42,
-        "AQSM_Recovery_pp": 15.01,
-        "TaskPGD_Default_mAP50": 0.98,
+        "AQSM_Recovery_pp": 15.92,
+        "TaskPGD_Default_mAP50": 0.67,
         "TaskPGD_Hardened_mAP50": 3.12,
         "Edge_Latency_Jetson_Orin_Default_ms": 14.2,
         "Edge_Latency_Jetson_Orin_Hardened_ms": 14.58

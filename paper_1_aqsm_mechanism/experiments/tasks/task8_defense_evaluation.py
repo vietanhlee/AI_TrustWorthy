@@ -29,7 +29,14 @@ from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.defense_engine import (
     EncoderSelectionMonitor,
+    SpatialConsistencyMonitor,
     evaluate_defense_cohort,
+)
+from paper_1_aqsm_mechanism.core.hardening_prototype import (
+    StaticQueryAugmenter,
+    evaluate_sqa_empirical_ablation,
+    evaluate_sqa_hardening,
+    save_hardening_results,
 )
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.experiments.audit_logger import ExperimentAuditLogger
@@ -58,6 +65,12 @@ def run_adaptive_evasion_test(
     Thực nghiệm tấn công thích ứng White-Box Adaptive PGD (Carlini-Tramèr):
     Kẻ tấn công vừa dìm detection mAP vừa tối ưu để né tránh ngưỡng phát hiện của ESM.
     Hỗ trợ xử lý theo lô (mini-batching) chống tràn VRAM khi chạy quy mô lớn (lên tới 1,000 ảnh).
+
+    Đặc biệt điều kiện hóa Evasion Success (Conditioned Evasion Success):
+    Một mẫu chỉ được coi là Né tránh Thành công Thực sự (True Evasion) khi và chỉ khi:
+    1. Vượt qua bộ giám sát ESM (anomaly_score < threshold, tức detected = 0).
+    2. ĐỒNG THỜI đánh sập thành công khả năng phát hiện của detector (confidence dìm sâu hoặc mAP sụp đổ).
+    Nếu chỉ né được monitor mà không làm sụp detector thì attack thất bại!
     """
     model = wrapper.model
     device = wrapper.device
@@ -69,13 +82,22 @@ def run_adaptive_evasion_test(
     print(f"\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM trên N={n_eval} ảnh (batch_size={batch_size})...")
 
     for lam in lambdas:
-        all_preds = []
+        all_monitor_preds = []
+        all_attack_effective = []
+        all_conditioned_evasion = []
         t_start = time.time()
         for b_start in range(0, n_eval, batch_size):
             b_end = min(n_eval, b_start + batch_size)
             sub_clean = clean_imgs[b_start:b_end]
             if hasattr(sub_clean, "to"):
                 sub_clean = sub_clean.to(device)
+
+            # Tính điểm tự tin tối đa trên ảnh sạch làm mốc so sánh
+            with torch.no_grad():
+                clean_ref_out = model(sub_clean)
+                clean_ref_probs = torch.sigmoid(clean_ref_out.logits)
+                clean_max_p, _ = clean_ref_probs.max(dim=-1)
+                clean_top_confs = clean_max_p.max(dim=-1).values.cpu().numpy()  # [B]
 
             adv = sub_clean.clone().detach()
             step_alpha = 2.0 / 255.0
@@ -125,22 +147,43 @@ def run_adaptive_evasion_test(
                 final_out = model(adv)
                 final_logits = final_out.enc_outputs_class if hasattr(final_out, "enc_outputs_class") and final_out.enc_outputs_class is not None else final_out.logits
                 preds = esm_monitor.predict(final_logits.cpu())
-                all_preds.extend(preds)
+                all_monitor_preds.extend(preds)
+
+                # Đo đạc tính hiệu quả của đòn tấn công (detection suppression effectiveness)
+                adv_final_probs = torch.sigmoid(final_out.logits)
+                adv_max_p, _ = adv_final_probs.max(dim=-1)
+                adv_top_confs = adv_max_p.max(dim=-1).values.cpu().numpy()
+
+                for b_i in range(len(preds)):
+                    is_detected = bool(preds[b_i] == 1)
+                    # Tấn công hiệu quả khi conf tối đa bị dìm < 0.35 hoặc giảm > 50% so với clean
+                    is_effective = bool(adv_top_confs[b_i] < 0.35 or adv_top_confs[b_i] < clean_top_confs[b_i] * 0.5)
+                    # Conditioned Evasion: Không bị phát hiện VÀ tấn công vẫn hiệu quả!
+                    is_conditioned = bool((not is_detected) and is_effective)
+
+                    all_attack_effective.append(int(is_effective))
+                    all_conditioned_evasion.append(int(is_conditioned))
 
             del adv, sub_clean
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-        tpr_evade = float(np.mean(all_preds)) * 100.0 if len(all_preds) > 0 else 0.0
+        tpr_evade = float(np.mean(all_monitor_preds)) * 100.0 if len(all_monitor_preds) > 0 else 0.0
+        raw_bypass = 100.0 - tpr_evade
+        eff_rate = float(np.mean(all_attack_effective)) * 100.0 if len(all_attack_effective) > 0 else 0.0
+        cond_evade = float(np.mean(all_conditioned_evasion)) * 100.0 if len(all_conditioned_evasion) > 0 else 0.0
+
         elapsed = time.time() - t_start
         results[f"lambda_{lam}"] = {
             "evasion_weight_lambda": lam,
             "n_evaluated_samples": n_eval,
             "detected_tpr_pct": round(tpr_evade, 2),
-            "evasion_success_pct": round(100.0 - tpr_evade, 2),
+            "raw_monitor_bypass_pct": round(raw_bypass, 2),
+            "attack_effective_rate_pct": round(eff_rate, 2),
+            "conditioned_evasion_success_pct": round(cond_evade, 2),
             "elapsed_seconds": round(elapsed, 2),
         }
-        print(f"   + Lambda = {lam:3.1f} (N={n_eval}) | Detection TPR = {tpr_evade:5.1f}% | Evasion Success = {100.0 - tpr_evade:5.1f}% ({elapsed:.1f}s)")
+        print(f"   + Lambda = {lam:3.1f} (N={n_eval}) | Detected TPR = {tpr_evade:5.1f}% | Raw Bypass = {raw_bypass:5.1f}% | Conditioned Evasion = {cond_evade:5.1f}% ({elapsed:.1f}s)")
 
     return results
 
@@ -181,9 +224,11 @@ def run_defense_evaluation(
         adv_dict[atk] = adv_imgs
 
     # Xác định n_cal theo tỷ lệ hoặc tối đa 1000 ảnh
+    n_total = n_actual
     n_cal = min(1000, max(50, int(n_actual * cal_ratio)))
     if n_actual <= 100:
         n_cal = max(10, n_actual // 2)
+    n_test = n_total - n_cal
 
     # Đánh giá TPR @ 5% FPR trên Clean vs Adversarial
     defense_results = evaluate_defense_cohort(
@@ -209,6 +254,83 @@ def run_defense_evaluation(
     esm_fitted = EncoderSelectionMonitor(target_fpr=target_fpr)
     esm_fitted.fit(cal_logits)
 
+    # Đánh giá Spatial-Consistency Monitor (SCM)
+    print("\n[Defense Eval] Đánh giá Spatial-Consistency Monitor (SCM)...")
+    cal_refs = []
+    cal_preds_b = []
+    with torch.no_grad():
+        for i in range(0, n_cal, 10):
+            end_i = min(i + 10, n_cal)
+            b = clean_imgs[i : end_i]
+            if hasattr(b, "to"):
+                b = b.to(device)
+            out = wrapper.model(b)
+            r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
+            cal_refs.append(r.cpu())
+            cal_preds_b.append(out.pred_boxes.cpu())
+
+    scm = SpatialConsistencyMonitor(target_fpr=target_fpr)
+    scm.fit(cal_refs, cal_preds_b)
+
+    # Đánh giá SCM trên Clean Test (FPR)
+    test_clean_refs = []
+    test_clean_preds_b = []
+    with torch.no_grad():
+        for i in range(0, n_test, 10):
+            start_idx = n_cal + i
+            end_idx = min(start_idx + 10, n_total)
+            b = clean_imgs[start_idx : end_idx]
+            if hasattr(b, "to"):
+                b = b.to(device)
+            out = wrapper.model(b)
+            r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
+            test_clean_refs.append(r.cpu())
+            test_clean_preds_b.append(out.pred_boxes.cpu())
+
+    scm_clean_scores = scm.score(torch.cat(test_clean_refs, dim=0), torch.cat(test_clean_preds_b, dim=0))
+    scm_clean_fpr = float(np.mean(scm_clean_scores >= scm.fused_thresh)) * 100.0
+
+    scm_results = {
+        "target_fpr_pct": target_fpr * 100.0,
+        "empirical_clean_fpr_pct": round(scm_clean_fpr, 2),
+        "fused_threshold": round(scm.fused_thresh, 4),
+        "attacks": {},
+    }
+
+    import sklearn.metrics as skm
+    for atk_name, adv_full in adv_dict.items():
+        test_adv_refs = []
+        test_adv_preds_b = []
+        with torch.no_grad():
+            for i in range(0, n_test, 10):
+                start_idx = n_cal + i
+                end_idx = min(start_idx + 10, n_total)
+                b = adv_full[start_idx : end_idx]
+                if hasattr(b, "to"):
+                    b = b.to(device)
+                out = wrapper.model(b)
+                r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
+                test_adv_refs.append(r.cpu())
+                test_adv_preds_b.append(out.pred_boxes.cpu())
+
+        scores_adv_scm = scm.score(torch.cat(test_adv_refs, dim=0), torch.cat(test_adv_preds_b, dim=0))
+        tpr_scm = float(np.mean(scores_adv_scm >= scm.fused_thresh)) * 100.0
+        all_lbls = np.concatenate([np.zeros(n_test), np.ones(n_test)])
+        all_scs = np.concatenate([scm_clean_scores, scores_adv_scm])
+        try:
+            auroc_scm = float(skm.roc_auc_score(all_lbls, all_scs))
+        except Exception:
+            auroc_scm = 0.5000
+
+        scm_results["attacks"][atk_name] = {
+            "tpr_detection_rate_pct": round(tpr_scm, 2),
+            "auroc": round(auroc_scm, 4),
+            "mean_anomaly_score": round(float(np.mean(scores_adv_scm)), 4),
+        }
+        print(f"   + [SCM] {atk_name.upper():12s}: TPR = {tpr_scm:5.2f}% | AUROC = {auroc_scm:.4f}")
+
+    defense_results["spatial_consistency_monitor"] = scm_results
+
     # Đánh giá tấn công thích ứng White-Box Adaptive Evasion
     avail_test = n_actual - n_cal if (n_actual - n_cal) > 0 else n_actual
     n_adapt = min(n_adaptive, avail_test)
@@ -223,6 +345,11 @@ def run_defense_evaluation(
     )
     defense_results["adaptive_evasion"] = adaptive_results
 
+    # Đánh giá kiến trúc gia cố SQA (Section 7.2)
+    print("\n[Defense Eval] Đánh giá Đề xuất Gia cố Kiến trúc SQA (Section 7.2 - Table 12)...")
+    sqa_results = evaluate_sqa_hardening()
+    defense_results["sqa_hardening"] = sqa_results
+
     summary_json_dir = get_summary_json_dir()
     summary_json_dir.mkdir(parents=True, exist_ok=True)
 
@@ -235,6 +362,9 @@ def run_defense_evaluation(
     summary_path_alias = summary_json_dir / "defense_evaluation_summary.json"
     save_json(defense_results, summary_path_alias)
     print(f">>> Đã lưu alias Table 11 ra: {summary_path_alias}")
+
+    hardening_path = summary_json_dir / "hardening_evaluation_results.json"
+    save_hardening_results(sqa_results, hardening_path)
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()

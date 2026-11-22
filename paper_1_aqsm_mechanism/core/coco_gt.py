@@ -57,6 +57,62 @@ def box_cxcywh_to_xyxy(boxes: Union[torch.Tensor, np.ndarray]) -> Union[torch.Te
     return np.stack([cx - 0.5 * w, cy - 0.5 * h, cx + 0.5 * w, cy + 0.5 * h], axis=-1)
 
 
+def compute_image_gt_union_area(
+    boxes_xyxy: np.ndarray,
+    resolution: int = 640,
+) -> float:
+    """
+    Tính chính xác diện tích hợp hình học (Exact Union Area) của các GT bounding boxes
+    trong một ảnh trên canvas chuẩn hóa [0, 1]^2 bằng phương pháp raster hóa ma trận boolean.
+
+    Tỷ lệ này đại diện cho Phân phối Thực nghiệm của Null Baseline (Null Area Ratio):
+    Xác suất một anchor ngẫu nhiên rơi trúng vùng vật thể thuần túy do may mắn.
+    """
+    if len(boxes_xyxy) == 0:
+        return 0.0
+
+    boxes = np.asarray(boxes_xyxy, dtype=np.float64)
+    grid = np.zeros((resolution, resolution), dtype=bool)
+
+    for box in boxes:
+        x1 = int(np.clip(round(box[0] * resolution), 0, resolution))
+        y1 = int(np.clip(round(box[1] * resolution), 0, resolution))
+        x2 = int(np.clip(round(box[2] * resolution), 0, resolution))
+        y2 = int(np.clip(round(box[3] * resolution), 0, resolution))
+        if x2 > x1 and y2 > y1:
+            grid[y1:y2, x1:x2] = True
+
+    return float(np.mean(grid))
+
+
+def compute_dataset_gt_union_null_baseline(
+    gt_list: Sequence[Dict[str, Any]],
+    resolution: int = 640,
+) -> Dict[str, Any]:
+    """
+    Tính toán phân phối thực nghiệm của Null Baseline (Exact GT Union Area)
+    trên toàn bộ tập ảnh COCO thực tế thay vì hằng số cố định.
+    """
+    per_image_union_areas = []
+    for gt in gt_list:
+        boxes = gt.get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32))
+        crowd = gt.get("iscrowd", np.zeros(len(boxes), dtype=bool))
+        non_crowd_boxes = boxes[~crowd] if len(boxes) > 0 and len(crowd) == len(boxes) else boxes
+        area = compute_image_gt_union_area(non_crowd_boxes, resolution=resolution)
+        per_image_union_areas.append(area)
+
+    arr = np.array(per_image_union_areas, dtype=np.float64)
+    return {
+        "mean_pct": round(float(np.mean(arr)) * 100.0, 2),
+        "std_pct": round(float(np.std(arr, ddof=1)) * 100.0, 2) if len(arr) > 1 else 0.0,
+        "median_pct": round(float(np.median(arr)) * 100.0, 2),
+        "ci95_pct": [round(float(np.percentile(arr, 2.5)) * 100.0, 2), round(float(np.percentile(arr, 97.5)) * 100.0, 2)],
+        "min_pct": round(float(np.min(arr)) * 100.0, 2) if len(arr) > 0 else 0.0,
+        "max_pct": round(float(np.max(arr)) * 100.0, 2) if len(arr) > 0 else 0.0,
+        "per_image_union_areas": [round(float(v), 6) for v in per_image_union_areas],
+    }
+
+
 def compute_iou_matrix(boxes1: np.ndarray, boxes2: np.ndarray) -> np.ndarray:
     """Tính ma trận IoU giữa hai tập hộp [N, 4] và [M, 4] dạng xyxy."""
     if len(boxes1) == 0 or len(boxes2) == 0:

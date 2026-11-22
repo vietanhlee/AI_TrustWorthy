@@ -150,6 +150,12 @@ def generate_single_attack_cache(
                     b_adv = attacker.generate_vanishing_attack(b_clean, steps=steps, alpha=alpha)
                 elif attack_name.lower() in ["taskpgd", "task_pgd"]:
                     b_adv = attacker.generate_standard_task_pgd(b_clean, steps=steps, alpha=alpha)
+                elif attack_name.lower() in ["aqsm_mem_constrained", "aqsm_mem", "mem_constrained"]:
+                    b_adv = attacker.generate_memory_isolated_query_attack(b_clean, steps=steps, alpha=alpha)
+                elif attack_name.lower() in ["pure_memory", "mem_pure"]:
+                    b_adv = attacker.generate_pure_memory_attack(b_clean, steps=steps, alpha=alpha)
+                elif attack_name.lower() in ["adaptive_sqa", "sqa_adaptive"]:
+                    b_adv = attacker.generate_adaptive_sqa_attack(b_clean, steps=steps, alpha=alpha)
                 else:
                     raise ValueError(f"Đòn tấn công không được hỗ trợ: {attack_name}")
 

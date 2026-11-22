@@ -1,0 +1,5 @@
+Condition / Strategy,Seed,mAP@50 (Rel.),mAP@50:95,Recall,Displ. (L2),Center Disp. (L2),Size Disp. (L2),Ref FG Hit
+Clean Reference Baseline,---,65.50% (100.0%),48.89%,78.61%,0.0000,0.0000,0.0000,68.93%
+Random Reassignment (Mean ± Std),5 seeds,60.87 ± 0.33% (92.9%),45.51 ± 0.19%,74.67 ± 0.35%,0.5508,0.3812,0.3122,68.93%
+"Random Shift (Matched L2, Mean ± Std)",5 seeds,21.55 ± 0.42% (32.9%),14.30 ± 0.23%,40.87 ± 0.52%,0.5176 ± 0.0010,0.3690,0.3080,32.90%
+AQSM Spatial Misrouting,---,23.90% (36.5%),16.06%,30.48%,0.6468,0.4924,0.3068,39.86%
