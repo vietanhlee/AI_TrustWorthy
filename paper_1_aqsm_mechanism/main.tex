@@ -178,7 +178,7 @@ We operate under a standard white-box threat model following rigorous evaluation
 \end{itemize}
 
 \subsection{Two-Tier Adversarial Threat Taxonomy}
-We structure attacks into a two-tier taxonomy designed to systematically isolate failure modes at the encoder selection boundary versus decoder output heads.
+We structure attacks into a two-tier taxonomy designed to systematically probe and decompose failure modes between the encoder memory representations and query selection priors versus decoder output heads.
 
 \subsubsection{Tier 1: Adversarial Query Selection Manipulation (AQSM)}
 Adversarial Query Selection Manipulation (AQSM) targets the core vulnerability of RT-DETR: the 8,400-to-300 dynamic query selection interface. The Hybrid Encoder outputs multi-scale feature maps $M = \{S_3, S_4, S_5\}$ and classification logits $S \in \mathbb{R}^{S \times C}$ across $S = 8,400$ candidate anchors ($S_3: 80 \times 80 = 6,400; S_4: 40 \times 40 = 1,600; S_5: 20 \times 20 = 400$). The top-$N_q$ ($N_q = 300$) candidates are selected via Eq.~(\ref{eq:query_selection_intro}).

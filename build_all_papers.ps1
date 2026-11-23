@@ -4,7 +4,10 @@
 # Paper 2: Phantom Queries Fabrication (Elsevier)
 # Paper 3: Split-Percentile Defense Guardrails
 # ==============================================================================
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
+if (Test-Path Variable:\PSNativeCommandUseErrorActionPreference) {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
 $rootDir = $PSScriptRoot
 $submissionDir = Join-Path $rootDir "SUBMISSION_PDFS"
 

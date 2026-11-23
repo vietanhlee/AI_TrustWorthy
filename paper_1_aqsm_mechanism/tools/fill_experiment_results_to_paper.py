@@ -46,21 +46,86 @@ TABLE_LABELS = [
     (12, "tab:tab12_hardening_validation", "table12_hardening_validation.tex"),
 ]
 
+KNOWN_PAPER1_JSON_FILES = {
+    "causal_swap_results_aqsm.json",
+    "causal_swap_results_taskpgd.json",
+    "causal_swap_results_vanishing.json",
+    "controlled_misrouting_results.json",
+    "defense_esm_evaluation.json",
+    "defense_evaluation_summary.json",
+    "deformable_attention_telemetry.json",
+    "edge_latency_results.json",
+    "encoder_memory_analysis.json",
+    "encoder_query_dynamics.json",
+    "latency_profile.json",
+    "matched_budget_results.json",
+    "matched_budget_sweep.json",
+    "mechanism_telemetry_results.json",
+    "query_selection_dynamics.json",
+    "tautology_control_results.json",
+}
 
-def sync_json_artifacts(source_dir: Path, target_dir: Path) -> int:
-    """Sao chép các file JSON artifact từ nguồn vào thư mục summary_json chuẩn."""
-    if source_dir.resolve() == target_dir.resolve():
+
+def resolve_summary_source_dir(source_path: Path) -> Path:
+    """Tự động phân giải thư mục chứa JSON artifacts nếu người dùng truyền root thư mục."""
+    candidates = [
+        source_path / "paper_1_aqsm_mechanism" / "outputs" / "summary_json",
+        source_path / "outputs" / "summary_json",
+        source_path / "summary_json",
+        source_path,
+    ]
+    for cand in candidates:
+        if cand.exists() and any((cand / k).exists() for k in KNOWN_PAPER1_JSON_FILES):
+            return cand
+    return source_path
+
+
+def get_cohort_sample_size(json_dir: Path) -> Optional[int]:
+    """Trích xuất cỡ mẫu n_evaluated_images từ causal_swap_results_aqsm.json nếu có."""
+    target_file = json_dir / "causal_swap_results_aqsm.json"
+    if target_file.exists():
+        try:
+            with open(target_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("n_evaluated_images")
+        except Exception:
+            pass
+    return None
+
+
+def sync_json_artifacts(source_dir: Path, target_dir: Path, allow_downgrade: bool = False) -> int:
+    """Sao chép an toàn các file JSON artifact từ nguồn vào thư mục summary_json chuẩn."""
+    resolved_src = resolve_summary_source_dir(source_dir)
+
+    if resolved_src.resolve() == target_dir.resolve():
         print(f"[SYNC] Thư mục nguồn trùng với thư mục đích: {target_dir}. Bỏ qua copy.")
         return len(list(target_dir.glob("*.json")))
 
     target_dir.mkdir(parents=True, exist_ok=True)
-    json_files = list(source_dir.glob("**/*.json"))
+
+    src_n = get_cohort_sample_size(resolved_src)
+    tgt_n = get_cohort_sample_size(target_dir)
+
+    print(f"[KIỂM ĐỊNH COHORT] Cỡ mẫu nguồn (source N): {src_n} | Cỡ mẫu hiện tại (target N): {tgt_n}")
+
+    if tgt_n and src_n and src_n < tgt_n and not allow_downgrade:
+        print("=" * 80)
+        print(f"[CẢNH BÁO BẢO VỆ DỮ LIỆU] Phát hiện xung đột quy mô thực nghiệm:")
+        print(f"  - Thư mục nguồn ({resolved_src.name}): N = {src_n} (chuỗi test nhanh/trung gian)")
+        print(f"  - Thư mục đích ({target_dir.name}): N = {tgt_n} (chuỗi toàn diện COCO chuẩn)")
+        print(f"  - Cơ chế tự động bảo vệ giữ nguyên dữ liệu N = {tgt_n} để duy trì độ tin cậy và liêm chính dữ liệu.")
+        print(f"  - Nếu bạn muốn ghi đè hạ cấp xuống N = {src_n}, vui lòng thêm cờ --allow_downgrade.")
+        print("=" * 80)
+        return len(list(target_dir.glob("*.json")))
+
+    # Chỉ sao chép các file JSON thuộc Paper 1
+    json_files = [jf for jf in resolved_src.glob("**/*.json") if jf.name in KNOWN_PAPER1_JSON_FILES]
     count = 0
     for jf in json_files:
         dest = target_dir / jf.name
         shutil.copyfile(jf, dest)
         count += 1
-    print(f"[SYNC] Đã sao chép {count} file JSON artifact từ {source_dir} -> {target_dir}")
+    print(f"[SYNC] Đã sao chép {count} file JSON artifact chuẩn Paper 1 từ {resolved_src} -> {target_dir}")
     return count
 
 
@@ -140,6 +205,12 @@ def main():
         default=str(PAPER_DIR / "main.tex"),
         help="Đường dẫn file bản thảo LaTeX main.tex",
     )
+    parser.add_argument(
+        "--allow_downgrade",
+        action="store_true",
+        default=False,
+        help="Cho phép ghi đè hạ cấp dữ liệu nếu nguồn có cỡ mẫu nhỏ hơn đích",
+    )
     args = parser.parse_args()
 
     results_dir = Path(args.results_dir).resolve()
@@ -152,10 +223,11 @@ def main():
     print(f" Nguồn kết quả JSON : {results_dir}")
     print(f" Thư mục summary đích: {target_summary_dir}")
     print(f" Bản thảo LaTeX     : {main_tex_path}")
+    print(f" Cho phép hạ cấp N  : {args.allow_downgrade}")
     print("=" * 80)
 
     # 1. Đồng bộ file JSON
-    sync_json_artifacts(results_dir, target_summary_dir)
+    sync_json_artifacts(results_dir, target_summary_dir, allow_downgrade=args.allow_downgrade)
 
     # 2. Sinh lại toàn bộ 12 bảng biểu
     print("\n>>> Bước 1/3: Kết xuất lại toàn bộ 12 bảng biểu LaTeX từ dữ liệu thực nghiệm...")
