@@ -44,6 +44,10 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.core.coco_gt import (
+    compute_dataset_gt_union_null_baseline,
+    compute_image_gt_union_area,
+)
 from paper_1_aqsm_mechanism.experiments.config import (
     COCO_ANN_FILE,
     OUTPUTS_DIR,
@@ -198,15 +202,9 @@ def compute_multi_null_spatial_baselines(
             grid_hit_ratios.append(0.0)
             continue
         
-        # Exact GT union area via pixel mask integration (640x640)
-        mask = np.zeros((64, 64), dtype=bool)
-        for b in boxes:
-            x1 = int(np.clip(b[0] * 64, 0, 63))
-            y1 = int(np.clip(b[1] * 64, 0, 63))
-            x2 = int(np.clip(b[2] * 64 + 1, 0, 64))
-            y2 = int(np.clip(b[3] * 64 + 1, 0, 64))
-            mask[y1:y2, x1:x2] = True
-        union_areas.append(float(np.mean(mask)))
+        # Exact GT union area via pixel rasterization at native 640x640 resolution
+        area = compute_image_gt_union_area(boxes, resolution=640)
+        union_areas.append(area)
 
         # Grid random selection: lấy ngẫu nhiên 300 anchor từ 8400
         rand_idx = rng.choice(len(grid_8400), size=300, replace=False)
@@ -281,12 +279,12 @@ def analyze_nonparametric_causal_surgery(
     valid_df = df[df["gt_box_count"] > 0].copy()
     n_valid = len(valid_df)
 
-    # 1. Per-image AP cell values (in percentage 0-100)
-    y_A = valid_df["arm_A_ap50"].values * 100.0        # Y_00: Clean Mem + Clean Query
-    y_B = valid_df["arm_B_ap50"].values * 100.0        # Y_11: Adv Mem + Adv Query
-    y_C_full = valid_df["arm_C_full_ap50"].values * 100.0  # Y_10: Adv Mem + Clean Query
-    y_D_full = valid_df["arm_D_full_ap50"].values * 100.0  # Y_01: Clean Mem + Adv Query
-    y_D_idx = valid_df["arm_D_index_ap50"].values * 100.0  # Clean Mem + Adv Index
+    # 1. Per-image AP cell values (in percentage 0-100, already scaled in CSV)
+    y_A = valid_df["arm_A_ap50"].values        # Y_00: Clean Mem + Clean Query
+    y_B = valid_df["arm_B_ap50"].values        # Y_11: Adv Mem + Adv Query
+    y_C_full = valid_df["arm_C_full_ap50"].values  # Y_10: Adv Mem + Clean Query
+    y_D_full = valid_df["arm_D_full_ap50"].values  # Y_01: Clean Mem + Adv Query
+    y_D_idx = valid_df["arm_D_index_ap50"].values  # Clean Mem + Adv Index
 
     # 2. Main Effects per-image (Macro)
     # ME_M = 0.5 * [(Y_10 - Y_00) + (Y_11 - Y_01)]

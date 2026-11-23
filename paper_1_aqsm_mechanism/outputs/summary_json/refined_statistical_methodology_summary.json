@@ -2,15 +2,15 @@
   "nonparametric_causal_surgery": {
     "sample_size": 992,
     "per_image_macro": {
-      "ME_Memory_pp": -4388.07,
+      "ME_Memory_pp": -43.88,
       "ME_Memory_ci95": [
-        -4529.12,
-        -4252.84
+        -45.29,
+        -42.53
       ],
-      "ME_Query_pp": -2714.28,
+      "ME_Query_pp": -27.14,
       "ME_Query_ci95": [
-        -2823.43,
-        -2604.01
+        -28.23,
+        -26.04
       ],
       "share_percentage": {
         "Memory_pct": 61.78,
@@ -39,34 +39,34 @@
     "pairwise_wilcoxon_contrasts": {
       "clean_memory_recovery (Arm D_full vs B)": {
         "W": 367.0,
-        "p": 9.706079853656318e-131,
+        "p": 9.650429043848431e-131,
         "r_rb": 0.9977
       },
       "pure_index_eviction (Arm D_index vs A)": {
-        "W": 5748.5,
-        "p": 7.084510420520055e-116,
-        "r_rb": 0.9599
+        "W": 5739.5,
+        "p": 6.839684000755498e-116,
+        "r_rb": 0.96
       },
       "pure_memory_corruption (Arm C_full vs A)": {
-        "W": 757.0,
-        "p": 5.537933329368353e-153,
+        "W": 756.5,
+        "p": 5.539509098519338e-153,
         "r_rb": 0.9965
       },
       "total_attack_collapse (Arm B vs A)": {
         "W": 0.0,
-        "p": 7.341762527427683e-161,
+        "p": 7.35017904370309e-161,
         "r_rb": 1.0
       }
     }
   },
   "multi_null_spatial_baselines": {
     "per_image_gt_union_area_null": {
-      "mean_pct": 46.47,
-      "std_pct": 29.66,
-      "median_pct": 42.87,
+      "mean_pct": 44.23,
+      "std_pct": 29.53,
+      "median_pct": 39.28,
       "ci95_pct": [
-        2.34,
-        100.0
+        1.49,
+        98.04
       ],
       "min_pct": 0.0,
       "max_pct": 100.0
