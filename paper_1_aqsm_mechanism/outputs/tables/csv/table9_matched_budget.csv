@@ -1,7 +1,7 @@
 Perturb. Budget (eps),Metric / Telemetry Indicator,Standard Task PGD,AQSM (Encoder Ranking),PGD Vanishing
-4/255 (0.0157),COCO mAP@50 (mAP@50:95),3.01% (1.97%),7.34% (4.08%),3.18% (2.00%)
-,Relative Drop / Retention,-95.41% (4.6% Ret.),-88.80% (11.2% Ret.),-95.14% (4.9% Ret.)
-8/255 (0.0314),COCO mAP@50 (mAP@50:95),0.81% (0.49%),3.89% (1.88%),2.28% (1.35%)
-,Relative Drop / Retention,-98.76% (1.2% Ret.),-94.07% (5.9% Ret.),-96.53% (3.5% Ret.)
-16/255 (0.0627),COCO mAP@50 (mAP@50:95),0.67% (0.41%),2.50% (1.37%),1.16% (0.68%)
-,Relative Drop / Retention,-98.98% (1.0% Ret.),-96.19% (3.8% Ret.),-98.22% (1.8% Ret.)
+4/255 (0.0157),COCO mAP@50 (mAP@50:95),2.68% (1.68%),8.61% (4.67%),4.06% (2.48%)
+,Relative Drop / Retention,-95.90% (4.1% Ret.),-86.86% (13.1% Ret.),-93.80% (6.2% Ret.)
+8/255 (0.0314),COCO mAP@50 (mAP@50:95),1.46% (0.95%),5.66% (3.07%),1.60% (0.93%)
+,Relative Drop / Retention,-97.78% (2.2% Ret.),-91.36% (8.6% Ret.),-97.56% (2.4% Ret.)
+16/255 (0.0627),COCO mAP@50 (mAP@50:95),0.86% (0.61%),3.07% (1.61%),1.72% (1.05%)
+,Relative Drop / Retention,-98.69% (1.3% Ret.),-95.31% (4.7% Ret.),-97.37% (2.6% Ret.)

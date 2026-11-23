@@ -262,6 +262,43 @@ def audit_numerical_values(tex_content: str) -> List[str]:
     return errors
 
 
+def audit_zero_stale_markers(tex_content: str) -> List[str]:
+    """Kiểm tra tuyệt đối không còn bất kỳ số liệu preliminary cũ nào tồn tại trong main.tex."""
+    stale_patterns = [
+        (r"2\.50", "Old AQSM mAP@50 (2.50% thay vì 3.07%)"),
+        (r"1\.16", "Old Query Vanishing mAP@50 (1.16% thay vì 1.72%)"),
+        (r"6\.25", "Old Arm C_full mAP@50 (6.25% thay vì 7.45%)"),
+        (r"3\.42\b", "Old 300th inflation (3.42x thay vì 2.96x) hoặc Arm C_idx (3.42% thay vì 3.98%)"),
+        (r"25\.11", "Old Arm D_full (25.11% thay vì 26.58%)"),
+        (r"33\.04", "Old Arm D_index (33.04% thay vì 35.44%)"),
+        (r"67\.97", "Old Memory SS share (67.97% thay vì 68.99%)"),
+        (r"26\.81", "Old Query SS share (26.81% thay vì 26.40%)"),
+        (r"0\.806", "Old partial eta^2 Memory (0.806 thay vì 0.795)"),
+        (r"12\.21", "Old Top-300 overlap (12.21% thay vì 16.45%)"),
+        (r"98\.50", "Old Evicted Top-15 FG (98.50% thay vì 96.93%)"),
+        (r"73\.92", "Old Center-in-GT (73.92% thay vì 77.78%)"),
+        (r"0\.7901", "Old Attention entropy AQSM (0.7901 thay vì 0.7944)"),
+        (r"0\.8146", "Old Layer 1 Attention entropy AQSM (0.8146 thay vì 0.8191)"),
+        (r"38\.77", "Old Foreground hit rate AQSM (38.77% thay vì 43.21%)"),
+        (r"21\.55", "Old Random shift mAP (21.55% thay vì 30.97%)"),
+        (r"23\.90", "Old AQSM misrouting mAP (23.90% thay vì 25.12%)"),
+        (r"0\.9161", "Old ESM AUROC (0.9161 thay vì 0.7593)"),
+        (r"64\.57", "Old ESM TPR (64.57% thay vì 37.14%)"),
+        (r"15\.92", "Old SQA recovery (+15.92 pp thay vì +15.35 pp / +15.01 pp)"),
+        (r"0\.1359", "Old 300th proposal score (0.1359 thay vì 0.1007)"),
+        (r"0\.0727", "Old 300th proposal score (0.0727 thay vì 0.1007)"),
+        (r"0\.0213", "Old 300th proposal score clean (0.0213 thay vì 0.0341)"),
+        (r"40\.39", "Old Arm D_full degradation (-40.39 pp thay vì -38.92 pp)"),
+    ]
+    errors = []
+    lines = tex_content.splitlines()
+    for pattern, desc in stale_patterns:
+        for idx, line in enumerate(lines):
+            if re.search(pattern, line) and not line.strip().startswith("%"):
+                errors.append(f"Dòng {idx+1}: Phát hiện tàn dư preliminary {desc} -> '{line.strip()[:80]}'")
+    return errors
+
+
 def main():
     print("=" * 80)
     print(" [PAPER 1 AUDIT] KIỂM ĐỊNH TOÀN DIỆN TÍNH TOÀN VẸN & DATA PROVENANCE N=1000")
@@ -299,6 +336,15 @@ def main():
     else:
         print(">>> 2. Tất cả số liệu Table 1-12 (Causal Surgery, ANOVA, Telemetry, Misrouting, Matched-Budget, Hardware Latency, ESM & SQA Hardening) khớp 100% với JSON artifact!")
 
+    # 2b. Audit quét sạch tàn dư preliminary cũ (Zero Stale Markers)
+    stale_errors = audit_zero_stale_markers(tex_content)
+    if stale_errors:
+        print("\n[LỖI TÀN DƯ SỐ LIỆU PRELIMINARY CŨ]:")
+        for e in stale_errors:
+            print(f"  - {e}")
+    else:
+        print(">>> 2b. [ĐẠT CHUẨN] Hoàn toàn không còn bất kỳ số liệu preliminary cũ nào trong main.tex!")
+
     # 3. Kiểm tra chú thích Native 640x640 và S=8400
     if "S = 8,400" in tex_content or "8,400" in tex_content:
         print(">>> 3. Bản thảo main.tex đã khai báo chuẩn hóa S = 8,400 tokens đa tỉ lệ.")
@@ -312,13 +358,13 @@ def main():
         print(">>> [CẢNH BÁO] main.tex chưa ghi rõ cỡ mẫu N = 1,000!")
 
     print("\n" + "=" * 80)
-    if not art_errors and not num_errors:
+    if not art_errors and not num_errors and not stale_errors:
         print(" [KẾT QUẢ AUDIT] HOÀN TẤT THÀNH CÔNG: DATA PROVENANCE VÀ SỐ LIỆU HỢP LỆ VÀ LIÊM CHÍNH 100%!")
     else:
         print(" [KẾT QUẢ AUDIT] CẦN ĐIỀU CHỈNH CÁC CẢNH BÁO TRÊN.")
     print("=" * 80)
 
-    if art_errors or num_errors:
+    if art_errors or num_errors or stale_errors:
         sys.exit(1)
 
 

@@ -1,8 +1,8 @@
 {
   "status": "SUCCESS",
-  "timestamp": "2026-11-21 14:43:31",
-  "total_runtime_sec": 18194.17,
-  "total_runtime_formatted": "05h:03m:14s",
+  "timestamp": "2026-11-22 19:31:42",
+  "total_runtime_sec": 19336.76,
+  "total_runtime_formatted": "05h:22m:16s",
   "dataset": {
     "image_folder": "/kaggle/input/datasets/huecute/coco5k/coco5k/val2017",
     "total_images": 5000,
@@ -30,15 +30,16 @@
     "recommended_batch_size": 58
   },
   "task_execution_times_sec": {
-    "Task 0 (Cache Gen)": 3224.7223887443542,
-    "Task 1 (Causal Surgery)": 2787.1747319698334,
-    "Task 2 (Encoder Dynamics)": 579.678909778595,
-    "Task 3 (Attention Telemetry)": 335.43789076805115,
-    "Task 4 (Tautology Refutation)": 505.2026252746582,
-    "Task 5 (Matched Sweep)": 6786.979756355286,
-    "Task 6 (Latency Profiler)": 24.48034167289734,
-    "Task 8 (Defense Evaluation)": 3933.6090433597565,
-    "Task 7 (Figure Generation)": 15.57943320274353
+    "Task 0 (Cache Gen)": 3328.2833445072174,
+    "Task 1 (Causal Surgery)": 2906.182040452957,
+    "Task 2 (Encoder Dynamics)": 629.5576107501984,
+    "Task 3 (Attention Telemetry)": 356.24038076400757,
+    "Task 4 (Tautology Refutation)": 830.2715334892273,
+    "Task 5 (Matched Sweep)": 6990.804099082947,
+    "Task 6 (Latency Profiler)": 26.97740411758423,
+    "Task 8 (Defense Evaluation)": 4246.48787355423,
+    "Task 7 (Figure Generation)": 18.10564613342285,
+    "Task 9 (Table Generation)": 2.1947014331817627
   },
   "task_statuses": {
     "Task 0 (Cache Gen)": "PASS",
@@ -49,7 +50,8 @@
     "Task 5 (Matched Sweep)": "PASS",
     "Task 6 (Latency Profiler)": "PASS",
     "Task 8 (Defense Evaluation)": "PASS",
-    "Task 7 (Figure Generation)": "PASS"
+    "Task 7 (Figure Generation)": "PASS",
+    "Task 9 (Table Generation)": "PASS"
   },
   "output_artifacts": {
     "summary_json_directory": "outputs/summary_json",

@@ -1,17 +1,17 @@
 \begin{table}[!htbp]
 \centering
-\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0108$, from $0.8009 \to 0.7901, d = -0.21$; Layer 1: $0.8263 \to 0.8146$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $38.77\%$ (Wilcoxon $W = 32,188.0, p < 0.001, d = -1.03$).}
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$).}
 \label{tab:tab7_attention_telemetry}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Condition} & \textbf{Norm. Attention Entropy} & \textbf{Spatial Sampling Hit Rate (FG)} & \textbf{Reference Drift ($\Delta p$)} & \textbf{Dropoff Ratio} & \textbf{Score Margin} \\
 \midrule
-Clean Baseline & 0.8009 $\pm$ 0.0453 & 63.51\% [61.8, 65.2] & 0.0000 & 37.51 $\pm$ 25.80 & 0.7984 $\pm$ 0.1281 \\
+Clean Baseline & 0.8009 $\pm$ 0.0423 & 63.51\% [61.8, 65.2] & 0.0000 & 37.51 $\pm$ 25.80 & 0.7984 $\pm$ 0.1281 \\
 Gaussian Noise ($\sigma = 16/255$) & 0.8005 $\pm$ 0.0430 & 58.40\% [55.8, 61.0] & 0.0150 & 32.10 $\pm$ 21.40 & 0.7650 $\pm$ 0.1250 \\
-PGD Vanishing ($T = 15$) & \textbf{0.8495 $\pm$ 0.0283} & 48.82\% [45.8, 51.8] & 0.4302 $\pm$ 0.0505 & 18.71 $\pm$ 13.01 & 0.3351 $\pm$ 0.1691 \\
-AQSM (Ours, $T = 15$) & \textbf{0.7901 $\pm$ 0.0260} & \textbf{38.77\% [36.7, 40.8]} & \textbf{0.4924 $\pm$ 0.0605} & \textbf{6.90 $\pm$ 3.72} & \textbf{0.6580 $\pm$ 0.0907} \\
-Standard Task PGD ($T = 15$) & 0.8366 $\pm$ 0.0293 & 52.07\% [49.2, 54.9] & 0.4285 $\pm$ 0.0524 & 42.42 $\pm$ 29.40 & 0.7372 $\pm$ 0.1582 \\
+PGD Vanishing ($T = 15$) & \textbf{0.8334 $\pm$ 0.0286} & 48.37\% [45.8, 51.8] & 0.4286 $\pm$ 0.0532 & 17.93 $\pm$ 11.62 & 0.3314 $\pm$ 0.1717 \\
+AQSM (Ours, $T = 15$) & \textbf{0.7944 $\pm$ 0.0285} & \textbf{43.21\% [41.2, 45.2]} & \textbf{0.4722 $\pm$ 0.0656} & \textbf{10.84 $\pm$ 7.75} & \textbf{0.6731 $\pm$ 0.1175} \\
+Standard Task PGD ($T = 15$) & 0.8141 $\pm$ 0.0291 & 52.17\% [49.2, 54.9] & 0.4288 $\pm$ 0.0516 & 41.60 $\pm$ 28.06 & 0.7287 $\pm$ 0.1648 \\
 \bottomrule
 \end{tabular}%
 }

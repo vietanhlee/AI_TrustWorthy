@@ -1,23 +1,23 @@
 \begin{table}[!htbp]
 \centering
-\caption{ANOVA Factorial Decomposition and Causal Effect Attribution across Attack Formulations on COCO val2017 ($640 \times 640$, $S = 8,400$; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$, $\text{df}_1 = 1, \text{df}_2 = 991$). Highlights that query prior displacement represents an essential secondary failure mode under AQSM ($\eta_p^2 = 0.735$), in contrast to Query Vanishing where degradation is concentrated almost entirely in memory ($\eta_p^2 = 0.835$).}
+\caption{ANOVA Factorial Decomposition and Causal Effect Attribution across Attack Formulations on COCO val2017 ($640 \times 640$, $S = 8,400$; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$, $\text{df}_1 = 1, \text{df}_2 = 991$). Highlights that query prior displacement represents an essential secondary failure mode under AQSM ($\eta_p^2 = 0.704$), in contrast to Query Vanishing where degradation is concentrated almost entirely in memory ($\eta_p^2 = 0.828$).}
 \label{tab:tab4_anova_decomp}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Attack Formulation} & \textbf{Factor} & \textbf{Sum of Squares} & \textbf{df} & \textbf{Mean Square} & \textbf{$F$-Statistic} & \textbf{Partial $\eta_p^2$} \\
 \midrule
-\multirow{3}{*}{AQSM (Ours)} & Memory ($M$) & 2006395.4 & 1 & 2006395.4 & 4112.1 & 0.806 ($p < 0.001$) \\
-& Query Prior ($Q$) & 791287.8 & 1 & 791287.8 & 2753.4 & 0.735 ($p < 0.001$) \\
-& Interaction ($M \times Q$) & 154315.4 & 1 & 154315.4 & 406.3 & 0.291 ($p < 0.001$) \\
+\multirow{3}{*}{AQSM (Ours)} & Memory ($M$) & 1910115.1 & 1 & 1910115.1 & 3845.4 & 0.795 ($p < 0.001$) \\
+& Query Prior ($Q$) & 730836.6 & 1 & 730836.6 & 2351.8 & 0.704 ($p < 0.001$) \\
+& Interaction ($M \times Q$) & 127634.4 & 1 & 127634.4 & 328.4 & 0.249 ($p < 0.001$) \\
 \midrule
-\multirow{3}{*}{PGD Vanishing} & Memory ($M$) & 2904618.6 & 1 & 2904618.6 & 5006.4 & 0.835 ($p < 0.001$) \\
-& Query Prior ($Q$) & 353224.0 & 1 & 353224.0 & 1491.7 & 0.601 ($p < 0.001$) \\
-& Interaction ($M \times Q$) & 2665.8 & 1 & 2665.8 & 9.4 & 0.009 ($p = 0.0022$) \\
+\multirow{3}{*}{PGD Vanishing} & Memory ($M$) & 2923889.6 & 1 & 2923889.6 & 4783.8 & 0.828 ($p < 0.001$) \\
+& Query Prior ($Q$) & 333331.9 & 1 & 333331.9 & 1509.8 & 0.604 ($p < 0.001$) \\
+& Interaction ($M \times Q$) & 2226.2 & 1 & 2226.2 & 7.8 & 0.008 ($p = 0.0022$) \\
 \midrule
-\multirow{3}{*}{Standard Task PGD} & Memory ($M$) & 3989350.8 & 1 & 3989350.8 & 6509.4 & 0.868 ($p < 0.001$) \\
-& Query Prior ($Q$) & 205538.2 & 1 & 205538.2 & 1121.9 & 0.531 ($p < 0.001$) \\
-& Interaction ($M \times Q$) & 48337.5 & 1 & 48337.5 & 217.6 & 0.180 ($p < 0.001$) \\
+\multirow{3}{*}{Standard Task PGD} & Memory ($M$) & 4083127.8 & 1 & 4083127.8 & 6277.7 & 0.864 ($p < 0.001$) \\
+& Query Prior ($Q$) & 184455.6 & 1 & 184455.6 & 958.5 & 0.492 ($p < 0.001$) \\
+& Interaction ($M \times Q$) & 47800.8 & 1 & 47800.8 & 237.1 & 0.193 ($p < 0.001$) \\
 \bottomrule
 \end{tabular}%
 }
