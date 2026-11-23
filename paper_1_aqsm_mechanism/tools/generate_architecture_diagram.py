@@ -88,7 +88,7 @@ def draw_system_architecture(output_pdf: Path, output_png: Path):
     ax.add_patch(b4)
     ax.text(75.25, 86, "Deformable Decoder", ha="center", **subtitle_font)
     ax.text(75.25, 80, "3/6 Layers, 300 Queries", ha="center", color="#2b6cb0", **body_font)
-    ax.text(75.25, 74, "Cross-Attention:\n• Ref. Points: $B_{\\mathrm{init}}$\n• Sampling Offsets: $\\Delta p$\nSpatial Misrouting:\nFG Hit: $63.5\\% \\to 43.2\\%$\n(Sharp weights, displaced)",
+    ax.text(75.25, 72, "Cross-Attention:\n• Ref. Points: $B_{\\mathrm{init}}$\n• Sampling Offsets: $\\Delta p$\nSpatial Misrouting:\nFG Hit: $63.5\\% \\to 43.2\\%$\n(Offsets displaced to BG)",
             ha="center", color="#4a5568", **small_font)
 
     # Arrow 4 -> 5
@@ -101,7 +101,7 @@ def draw_system_architecture(output_pdf: Path, output_png: Path):
     ax.add_patch(b5)
     ax.text(92.25, 86, "Predictions", ha="center", **subtitle_font)
     ax.text(92.25, 80, "No NMS", ha="center", color="#2f855a", fontweight="bold", **body_font)
-    ax.text(92.25, 72, "Classes $\\hat{P}$\nBoxes $\\hat{B}$\nDeterministic\nEdge Latency\n(Sponge Proof)",
+    ax.text(92.25, 70, "Classes $\\hat{P}$\nBoxes $\\hat{B}$\nDeterministic\n$\\mathcal{O}(1)$ Graph",
             ha="center", color="#4a5568", **small_font)
 
     # -------------------------------------------------------------

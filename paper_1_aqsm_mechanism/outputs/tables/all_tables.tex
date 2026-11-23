@@ -33,13 +33,13 @@ $\mathcal{L}_{\mathrm{rank}} + \mathcal{L}_{\mathrm{elev}}$ & 6.85\% [$-$89.5\%]
 \toprule
 \textbf{Threat Tier \& Condition} & \textbf{mAP@50 [Rel. Drop]} & \textbf{mAP@50:95 [Rel.]} & \textbf{Active Boxes} & \textbf{$\text{ASR}_{\text{obj}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{silence}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{starve}}$ [CI 95\%]} \\
 \midrule
-Nominal Clean Baseline & 65.50\% [Ref.] & 48.89\% [Ref.] & $4.52 \pm 3.10$ & 0.0\% [Reference] & 0.0\% [Reference] & 0.0\% [Reference] \\
+Nominal Clean Baseline & 65.50\% [Ref.] & 48.89\% [Ref.] & $4.52 \pm 3.10$ & 0.0\% [Reference] & 0.0\% [Reference] & 17.5\% [15.3, 19.9] \\
 Gaussian Noise ($\sigma = 16/255$) & 58.12\% [$-$11.3\%] & 40.15\% [$-$17.9\%] & $4.25 \pm 2.65$ & 11.2\% [8.5, 14.2] & 0.8\% [0.2, 2.1] & 6.4\% [4.1, 9.5] \\
 Uniform Noise ($\pm 16/255$) & 60.85\% [$-$7.1\%] & 42.40\% [$-$13.3\%] & $4.38 \pm 2.80$ & 7.8\% [5.4, 10.6] & 0.4\% [0.1, 1.5] & 4.2\% [2.4, 6.8] \\
 \midrule
-Tier 1: AQSM ($\epsilon = 16/255$) & \textbf{3.07\% [$-$95.3\%]} & \textbf{1.61\% [$-$96.7\%]} & $7.15 \pm 4.30$ & \textbf{98.5\% [97.1, 99.5]} & 12.8\% [9.5, 16.8] & \textbf{87.8\% [84.2, 91.0]} \\
-Tier 2: Query Vanishing ($\epsilon = 16/255$) & 1.72\% [$-$97.4\%] & 1.05\% [$-$97.9\%] & $0.18 \pm 0.52$ & 97.8\% [95.5, 99.1] & \textbf{52.4\% [46.8, 58.1]} & 69.6\% [65.2, 74.0] \\
-Baseline: Standard Task PGD ($\epsilon = 16/255$) & 0.86\% [$-$98.7\%] & 0.61\% [$-$98.8\%] & $29.40 \pm 8.70$ & 96.2\% [93.1, 98.4] & 0.0\% [0.0, 1.0] & 73.6\% [68.9, 78.3] \\
+Tier C: AQSM ($\epsilon = 16/255$) & \textbf{3.07\% [$-$95.3\%]} & \textbf{1.61\% [$-$96.7\%]} & $7.15 \pm 4.30$ & \textbf{98.5\% [97.1, 99.5]} & 12.8\% [9.5, 16.8] & \textbf{80.4\% [77.9, 82.8]} \\
+Tier B: Query Vanishing ($\epsilon = 16/255$) & 1.72\% [$-$97.4\%] & 1.05\% [$-$97.9\%] & $0.18 \pm 0.52$ & 97.8\% [95.5, 99.1] & \textbf{52.4\% [46.8, 58.1]} & 51.4\% [48.3, 54.6] \\
+Tier B: Standard Task PGD ($\epsilon = 16/255$) & 0.86\% [$-$98.7\%] & 0.61\% [$-$98.8\%] & $29.40 \pm 8.70$ & 96.2\% [93.1, 98.4] & 0.0\% [0.0, 1.0] & 12.8\% [11.0, 14.9] \\
 \bottomrule
 \end{tabular}%
 }

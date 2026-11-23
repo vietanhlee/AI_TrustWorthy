@@ -35,7 +35,9 @@ from edge_sec_pro.core.dataset import load_coco_images
 from edge_sec_pro.transformer_monitors.detr_wrapper import RTDETRModelWrapper
 
 DEFAULT_SAMPLE_IDX = 6  # COCO val2017 test[6] (image_id=159791): kitchen scene
-CACHE_DIR = RESULTS_DIR / "checkpoints" / "adv_cache"
+CACHE_DIR = WORKSPACE_ROOT / "paper_1_aqsm_mechanism" / "cache" / "adv_cache_640"
+if not CACHE_DIR.exists():
+    CACHE_DIR = RESULTS_DIR / "checkpoints" / "adv_cache"
 
 
 def load_cached_adv_tensor(clean_tensor: torch.Tensor, cache_name: str, sample_idx: int) -> torch.Tensor:
@@ -177,7 +179,7 @@ def main() -> None:
     wrapper = RTDETRModelWrapper("PekingU/rtdetr_r18vd", device=device)
     wrapper.model.eval()
 
-    _, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=320, seed=42)
+    _, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=640, seed=42)
     clean_tensor = test_imgs[DEFAULT_SAMPLE_IDX : DEFAULT_SAMPLE_IDX + 1]
 
     # 1. Clean
@@ -193,7 +195,7 @@ def main() -> None:
     aq16_info = analyze_detections(wrapper, aq16_tensor)
 
     # 4. AQSM eps=4 (Low Budget)
-    aq4_tensor = load_cached_adv_tensor(clean_tensor, "adv_cache_aqsm_eps4_n100.npz", DEFAULT_SAMPLE_IDX)
+    aq4_tensor = load_cached_adv_tensor(clean_tensor, "adv_cache_aqsm_eps4_n300.npz", DEFAULT_SAMPLE_IDX)
     aq4_info = analyze_detections(wrapper, aq4_tensor)
 
     # 5. Vanishing eps=16
@@ -228,7 +230,7 @@ def main() -> None:
     # Panel (c): AQSM eps=16
     draw_panel(
         axes[0, 2], aq16_tensor[0].permute(1, 2, 0).numpy(), aq16_info,
-        title=r"(c) Tier 1: AQSM ($\epsilon=16/255$, $T=15$ steps)",
+        title=r"(c) Tier C: AQSM ($\epsilon=16/255$, $T=15$ steps)",
         subtitle=f"Active Boxes: {aq16_info['n_active']} (0 true kept) | Max Conf: {aq16_info['max_conf']:.2f} (Spurious noise)",
         status_text="AQSM: 0 Kept (Evicted)",
         is_nominal=False,
@@ -237,7 +239,7 @@ def main() -> None:
     # Panel (d): AQSM Low Budget eps=4
     draw_panel(
         axes[1, 0], aq4_tensor[0].permute(1, 2, 0).numpy(), aq4_info,
-        title=r"(d) Tier 1: AQSM Low-Budget ($\epsilon=4/255$, $T=15$ steps)",
+        title=r"(d) Tier C: AQSM Low-Budget ($\epsilon=4/255$, $T=15$ steps)",
         subtitle=f"Active Boxes: {aq4_info['n_active']} (0 true kept) | Subtle perturbation, no false-alarm flooding",
         status_text="Stealthy Eviction: 0 Kept",
         is_nominal=False,
@@ -246,7 +248,7 @@ def main() -> None:
     # Panel (e): PGD Vanishing
     draw_panel(
         axes[1, 1], van_tensor[0].permute(1, 2, 0).numpy(), van_info,
-        title=r"(e) Tier 2: PGD Vanishing ($\epsilon=16/255$, $T=15$ steps)",
+        title=r"(e) Tier B: PGD Vanishing ($\epsilon=16/255$, $T=15$ steps)",
         subtitle=f"Active Boxes: {van_info['n_active']} (Complete scene blackout) | Confidences suppressed below threshold",
         status_text="Scene Blackout: 0 Kept",
         is_nominal=False,
@@ -255,7 +257,7 @@ def main() -> None:
     # Panel (f): Standard Task PGD
     draw_panel(
         axes[1, 2], task_tensor[0].permute(1, 2, 0).numpy(), task_info,
-        title=r"(f) Tier 2: Standard Task PGD (Hungarian Loss, $\epsilon=16/255$)",
+        title=r"(f) Tier B: Standard Task PGD (Hungarian Loss, $\epsilon=16/255$)",
         subtitle=f"Active Boxes: {task_info['n_active']} (0 true kept) | Concentrated foreground destruction + False-alarm flooding",
         status_text="FG Silenced + Box Flood",
         is_nominal=False,
@@ -273,12 +275,13 @@ def main() -> None:
 
     for d in destinations:
         d.mkdir(parents=True, exist_ok=True)
-        pdf_path = d / "fig11_qualitative_detections.pdf"
-        png_path = d / "fig11_qualitative_detections.png"
-        fig.savefig(pdf_path, bbox_inches="tight", dpi=300)
-        fig.savefig(png_path, bbox_inches="tight", dpi=300)
-        print(f"  -> Saved: {pdf_path}")
-        print(f"  -> Saved: {png_path}")
+        for prefix in ["fig3_qualitative_detections", "fig11_qualitative_detections"]:
+            pdf_path = d / f"{prefix}.pdf"
+            png_path = d / f"{prefix}.png"
+            fig.savefig(pdf_path, bbox_inches="tight", dpi=300)
+            fig.savefig(png_path, bbox_inches="tight", dpi=300)
+            print(f"  -> Saved: {pdf_path}")
+            print(f"  -> Saved: {png_path}")
 
     plt.close(fig)
     print("Done! Figure 3 has been regenerated cleanly with NO EQF!")

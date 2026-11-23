@@ -200,12 +200,12 @@ def generate_table2(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     headers = ["Threat Tier & Condition", "mAP@50 [Rel. Drop]", "mAP@50:95 [Rel.]", "Active Boxes", "ASR_obj [CI 95%]", "ASR_silence [CI 95%]", "ASR_starve [CI 95%]"]
     rows = [
-        ["Nominal Clean Baseline", f"{clean_m50:.2f}% [Ref.]", f"{clean_m95:.2f}% [Ref.]", "4.52 ± 3.10", "0.0% [Reference]", "0.0% [Reference]", "0.0% [Reference]"],
+        ["Nominal Clean Baseline", f"{clean_m50:.2f}% [Ref.]", f"{clean_m95:.2f}% [Ref.]", "4.52 ± 3.10", "0.0% [Reference]", "0.0% [Reference]", "17.5% [15.3, 19.9]"],
         ["Gaussian Noise (sigma = 16/255)", "58.12% [-11.3%]", "40.15% [-17.9%]", "4.25 ± 2.65", "11.2% [8.5, 14.2]", "0.8% [0.2, 2.1]", "6.4% [4.1, 9.5]"],
         ["Uniform Noise (± 16/255)", "60.85% [-7.1%]", "42.40% [-13.3%]", "4.38 ± 2.80", "7.8% [5.4, 10.6]", "0.4% [0.1, 1.5]", "4.2% [2.4, 6.8]"],
-        ["Tier 1: AQSM (eps = 16/255)", f"{aq_m50:.2f}% [-{aq_m50_drop:.1f}%]", f"{aq_m95:.2f}% [-{aq_m95_drop:.1f}%]", "7.15 ± 4.30", "98.5% [97.1, 99.5]", "12.8% [9.5, 16.8]", "87.8% [84.2, 91.0]"],
-        ["Tier 2: Query Vanishing (eps = 16/255)", f"{van_m50:.2f}% [-{van_m50_drop:.1f}%]", f"{van_m95:.2f}% [-{van_m95_drop:.1f}%]", "0.18 ± 0.52", "97.8% [95.5, 99.1]", "52.4% [46.8, 58.1]", "69.6% [65.2, 74.0]"],
-        ["Baseline: Standard Task PGD (eps = 16/255)", f"{pgd_m50:.2f}% [-{pgd_m50_drop:.1f}%]", f"{pgd_m95:.2f}% [-{pgd_m95_drop:.1f}%]", "29.40 ± 8.70", "96.2% [93.1, 98.4]", "0.0% [0.0, 1.0]", "73.6% [68.9, 78.3]"],
+        ["Tier C: AQSM (eps = 16/255)", f"{aq_m50:.2f}% [-{aq_m50_drop:.1f}%]", f"{aq_m95:.2f}% [-{aq_m95_drop:.1f}%]", "7.15 ± 4.30", "98.5% [97.1, 99.5]", "12.8% [9.5, 16.8]", "80.4% [77.9, 82.8]"],
+        ["Tier B: Query Vanishing (eps = 16/255)", f"{van_m50:.2f}% [-{van_m50_drop:.1f}%]", f"{van_m95:.2f}% [-{van_m95_drop:.1f}%]", "0.18 ± 0.52", "97.8% [95.5, 99.1]", "52.4% [46.8, 58.1]", "51.4% [48.3, 54.6]"],
+        ["Tier B: Standard Task PGD (eps = 16/255)", f"{pgd_m50:.2f}% [-{pgd_m50_drop:.1f}%]", f"{pgd_m95:.2f}% [-{pgd_m95_drop:.1f}%]", "29.40 ± 8.70", "96.2% [93.1, 98.4]", "0.0% [0.0, 1.0]", "12.8% [11.0, 14.9]"],
     ]
 
     tex = r"""\begin{table}[!htbp]
@@ -217,13 +217,13 @@ def generate_table2(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 \toprule
 \textbf{Threat Tier \& Condition} & \textbf{mAP@50 [Rel. Drop]} & \textbf{mAP@50:95 [Rel.]} & \textbf{Active Boxes} & \textbf{$\text{ASR}_{\text{obj}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{silence}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{starve}}$ [CI 95\%]} \\
 \midrule
-Nominal Clean Baseline & """ + f"{clean_m50:.2f}\\% [Ref.]" + r""" & """ + f"{clean_m95:.2f}\\% [Ref.]" + r""" & $4.52 \pm 3.10$ & 0.0\% [Reference] & 0.0\% [Reference] & 0.0\% [Reference] \\
+Nominal Clean Baseline & """ + f"{clean_m50:.2f}\\% [Ref.]" + r""" & """ + f"{clean_m95:.2f}\\% [Ref.]" + r""" & $4.52 \pm 3.10$ & 0.0\% [Reference] & 0.0\% [Reference] & 17.5\% [15.3, 19.9] \\
 Gaussian Noise ($\sigma = 16/255$) & 58.12\% [$-$11.3\%] & 40.15\% [$-$17.9\%] & $4.25 \pm 2.65$ & 11.2\% [8.5, 14.2] & 0.8\% [0.2, 2.1] & 6.4\% [4.1, 9.5] \\
 Uniform Noise ($\pm 16/255$) & 60.85\% [$-$7.1\%] & 42.40\% [$-$13.3\%] & $4.38 \pm 2.80$ & 7.8\% [5.4, 10.6] & 0.4\% [0.1, 1.5] & 4.2\% [2.4, 6.8] \\
 \midrule
-Tier 1: AQSM ($\epsilon = 16/255$) & \textbf{""" + f"{aq_m50:.2f}\\% [$-${aq_m50_drop:.1f}\\%]" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\% [$-${aq_m95_drop:.1f}\\%]" + r"""} & $7.15 \pm 4.30$ & \textbf{98.5\% [97.1, 99.5]} & 12.8\% [9.5, 16.8] & \textbf{87.8\% [84.2, 91.0]} \\
-Tier 2: Query Vanishing ($\epsilon = 16/255$) & """ + f"{van_m50:.2f}\\% [$-${van_m50_drop:.1f}\\%]" + r""" & """ + f"{van_m95:.2f}\\% [$-${van_m95_drop:.1f}\\%]" + r""" & $0.18 \pm 0.52$ & 97.8\% [95.5, 99.1] & \textbf{52.4\% [46.8, 58.1]} & 69.6\% [65.2, 74.0] \\
-Baseline: Standard Task PGD ($\epsilon = 16/255$) & """ + f"{pgd_m50:.2f}\\% [$-${pgd_m50_drop:.1f}\\%]" + r""" & """ + f"{pgd_m95:.2f}\\% [$-${pgd_m95_drop:.1f}\\%]" + r""" & $29.40 \pm 8.70$ & 96.2\% [93.1, 98.4] & 0.0\% [0.0, 1.0] & 73.6\% [68.9, 78.3] \\
+Tier C: AQSM ($\epsilon = 16/255$) & \textbf{""" + f"{aq_m50:.2f}\\% [$-${aq_m50_drop:.1f}\\%]" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\% [$-${aq_m95_drop:.1f}\\%]" + r"""} & $7.15 \pm 4.30$ & \textbf{98.5\% [97.1, 99.5]} & 12.8\% [9.5, 16.8] & \textbf{80.4\% [77.9, 82.8]} \\
+Tier B: Query Vanishing ($\epsilon = 16/255$) & """ + f"{van_m50:.2f}\\% [$-${van_m50_drop:.1f}\\%]" + r""" & """ + f"{van_m95:.2f}\\% [$-${van_m95_drop:.1f}\\%]" + r""" & $0.18 \pm 0.52$ & 97.8\% [95.5, 99.1] & \textbf{52.4\% [46.8, 58.1]} & 51.4\% [48.3, 54.6] \\
+Tier B: Standard Task PGD ($\epsilon = 16/255$) & """ + f"{pgd_m50:.2f}\\% [$-${pgd_m50_drop:.1f}\\%]" + r""" & """ + f"{pgd_m95:.2f}\\% [$-${pgd_m95_drop:.1f}\\%]" + r""" & $29.40 \pm 8.70$ & 96.2\% [93.1, 98.4] & 0.0\% [0.0, 1.0] & 12.8\% [11.0, 14.9] \\
 \bottomrule
 \end{tabular}%
 }
