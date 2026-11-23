@@ -62,19 +62,21 @@ from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json, 
 
 
 def summarize_metric_list(arr: Sequence[float]) -> Dict[str, float]:
-    """Tính toán bộ chỉ số thống kê mô tả (Mean, Std, Median, Min, Max, 95% CI)."""
+    """Tính toán bộ chỉ số thống kê mô tả (Mean, Std, SEM, Median, Min, Max, 95% CI)."""
     a = np.asarray(arr, dtype=np.float64)
     valid = a[~np.isnan(a)]
     if len(valid) == 0:
-        return {"mean": float("nan"), "std": float("nan"), "median": float("nan"), "ci_95": [float("nan"), float("nan")]}
+        return {"mean": float("nan"), "std": float("nan"), "sem": float("nan"), "median": float("nan"), "ci_95": [float("nan"), float("nan")]}
     mean = float(np.mean(valid))
     std = float(np.std(valid, ddof=1)) if len(valid) > 1 else 0.0
+    sem = float(std / np.sqrt(len(valid))) if len(valid) > 1 else 0.0
     med = float(np.median(valid))
     ci_low = float(np.percentile(valid, 2.5))
     ci_high = float(np.percentile(valid, 97.5))
     return {
         "mean": round(mean, 4),
         "std": round(std, 4),
+        "sem": round(sem, 4),
         "median": round(med, 4),
         "ci_95": [round(ci_low, 4), round(ci_high, 4)],
     }

@@ -63,9 +63,20 @@ def run_set_distance_and_coverage_evaluation(
         max_samples=max_samples,
     )
 
-    p_npz = Path("C:/Users/levie/Downloads/results (2)/AI_TrustWorthy/paper_1_aqsm_mechanism/cache/adv_cache_640/adv_cache_aqsm_eps16_n1000.npz")
-    if not p_npz.exists():
-        p_npz = Path("paper_1_aqsm_mechanism/cache/adv_cache_640/adv_cache_aqsm_eps16_n300.npz")
+    candidates_npz = [
+        Path(__file__).resolve().parent.parent / "cache" / "adv_cache_640" / "adv_cache_aqsm_eps16_n1000.npz",
+        Path(__file__).resolve().parent.parent / "cache" / "adv_cache_640" / "adv_cache_aqsm_eps16_n300.npz",
+        Path("paper_1_aqsm_mechanism/cache/adv_cache_640/adv_cache_aqsm_eps16_n300.npz"),
+        Path("cache/adv_cache_640/adv_cache_aqsm_eps16_n300.npz"),
+        Path("C:/Users/levie/Downloads/results (2)/AI_TrustWorthy/paper_1_aqsm_mechanism/cache/adv_cache_640/adv_cache_aqsm_eps16_n1000.npz"),
+    ]
+    p_npz = None
+    for cand in candidates_npz:
+        if cand.exists():
+            p_npz = cand
+            break
+    if p_npz is None:
+        raise FileNotFoundError(f"Không tìm thấy file adv_cache_aqsm_eps16 trong các đường dẫn: {candidates_npz}")
     f_npz = np.load(str(p_npz))
     cached_deltas = f_npz["delta"][:max_samples] if "delta" in f_npz else f_npz["delta_f16"][:max_samples]
 

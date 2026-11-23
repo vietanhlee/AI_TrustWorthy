@@ -105,6 +105,7 @@ def compute_dataset_gt_union_null_baseline(
     return {
         "mean_pct": round(float(np.mean(arr)) * 100.0, 2),
         "std_pct": round(float(np.std(arr, ddof=1)) * 100.0, 2) if len(arr) > 1 else 0.0,
+        "sem_pct": round(float(np.std(arr, ddof=1) / np.sqrt(len(arr))) * 100.0, 2) if len(arr) > 1 else 0.0,
         "median_pct": round(float(np.median(arr)) * 100.0, 2),
         "ci95_pct": [round(float(np.percentile(arr, 2.5)) * 100.0, 2), round(float(np.percentile(arr, 97.5)) * 100.0, 2)],
         "min_pct": round(float(np.min(arr)) * 100.0, 2) if len(arr) > 0 else 0.0,

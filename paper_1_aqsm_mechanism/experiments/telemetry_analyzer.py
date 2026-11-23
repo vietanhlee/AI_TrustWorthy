@@ -301,9 +301,15 @@ def run_mechanism_telemetry_cohort(
 
     t_stat_ent, p_val_ent = float("nan"), float("nan")
     t_stat_hit, p_val_hit = float("nan"), float("nan")
+    w_stat_ent, p_val_w_ent = float("nan"), float("nan")
+    w_stat_hit, p_val_w_hit = float("nan"), float("nan")
+    d_ent, d_hit = float("nan"), float("nan")
 
     target_atk = "aqsm" if "aqsm" in adv_imgs_dict else list(adv_imgs_dict.keys())[0] if adv_imgs_dict else None
     if target_atk is not None:
+        diff_ent = np.array(cond_results[target_atk]["entropy_l3"]) - np.array(cond_results["clean"]["entropy_l3"])
+        diff_hit = np.array(cond_results[target_atk]["fg_hit_rate"]) - np.array(cond_results["clean"]["fg_hit_rate"])
+
         t_stat_ent, p_val_ent = stats.ttest_rel(
             cond_results["clean"]["entropy_l3"],
             cond_results[target_atk]["entropy_l3"],
@@ -312,18 +318,30 @@ def run_mechanism_telemetry_cohort(
             cond_results["clean"]["fg_hit_rate"],
             cond_results[target_atk]["fg_hit_rate"],
         )
+        if np.any(diff_ent != 0):
+            w_stat_ent, p_val_w_ent = stats.wilcoxon(diff_ent)
+        if np.any(diff_hit != 0):
+            w_stat_hit, p_val_w_hit = stats.wilcoxon(diff_hit)
+        d_ent = float(np.mean(diff_ent) / (np.std(diff_ent, ddof=1) + 1e-12))
+        d_hit = float(np.mean(diff_hit) / (np.std(diff_hit, ddof=1) + 1e-12))
 
     cohort_stats: Dict[str, Any] = {}
     for cond in all_conditions:
+        n_c = len(cond_results[cond]["entropy_l1"])
+        sqrt_n = np.sqrt(n_c) if n_c > 0 else 1.0
         cohort_stats[cond] = {
             "mean_entropy_l1": float(np.mean(cond_results[cond]["entropy_l1"])),
             "std_entropy_l1": float(np.std(cond_results[cond]["entropy_l1"])),
+            "sem_entropy_l1": float(np.std(cond_results[cond]["entropy_l1"]) / sqrt_n),
             "mean_entropy_l2": float(np.mean(cond_results[cond]["entropy_l2"])),
             "std_entropy_l2": float(np.std(cond_results[cond]["entropy_l2"])),
+            "sem_entropy_l2": float(np.std(cond_results[cond]["entropy_l2"]) / sqrt_n),
             "mean_entropy_l3": float(np.mean(cond_results[cond]["entropy_l3"])),
             "std_entropy_l3": float(np.std(cond_results[cond]["entropy_l3"])),
+            "sem_entropy_l3": float(np.std(cond_results[cond]["entropy_l3"]) / sqrt_n),
             "mean_fg_hit_rate": float(np.mean(cond_results[cond]["fg_hit_rate"])),
             "std_fg_hit_rate": float(np.std(cond_results[cond]["fg_hit_rate"])),
+            "sem_fg_hit_rate": float(np.std(cond_results[cond]["fg_hit_rate"]) / sqrt_n),
             "mean_dropoff_ratio": float(np.mean(cond_results[cond]["dropoff_ratio"])),
             "std_dropoff_ratio": float(np.std(cond_results[cond]["dropoff_ratio"])),
             "mean_score_margin": float(np.mean(cond_results[cond]["score_margin"])),
@@ -332,15 +350,22 @@ def run_mechanism_telemetry_cohort(
             "mean_top300_score": float(np.mean(cond_results[cond]["top300_score"])),
             "mean_ref_drift": float(np.mean(cond_results[cond]["ref_drift"])),
             "std_ref_drift": float(np.std(cond_results[cond]["ref_drift"])),
+            "sem_ref_drift": float(np.std(cond_results[cond]["ref_drift"]) / sqrt_n),
         }
 
     cohort_stats["hypothesis_tests"] = {
         "target_attack": target_atk,
         "entropy_invariance_t_stat": float(t_stat_ent),
         "entropy_invariance_p_value": float(p_val_ent),
+        "entropy_wilcoxon_w": float(w_stat_ent),
+        "entropy_wilcoxon_p": float(p_val_w_ent),
+        "entropy_cohen_d": float(d_ent),
         "entropy_invariant_at_alpha_05": bool(p_val_ent > 0.05) if not np.isnan(p_val_ent) else True,
         "fg_hit_degradation_t_stat": float(t_stat_hit),
         "fg_hit_degradation_p_value": float(p_val_hit),
+        "fg_hit_wilcoxon_w": float(w_stat_hit),
+        "fg_hit_wilcoxon_p": float(p_val_w_hit),
+        "fg_hit_cohen_d": float(d_hit),
         "fg_hit_collapsed_at_alpha_01": bool(p_val_hit < 0.01) if not np.isnan(p_val_hit) else True,
     }
 
