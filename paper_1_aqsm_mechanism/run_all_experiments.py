@@ -143,7 +143,7 @@ def _build_task_registry(
 
     # Task 6 args
     def build_task6_args() -> List[str]:
-        n_runs_val = str(min(300, args.max_samples)) if args.max_samples is not None else "300"
+        n_runs_val = str(args.max_samples) if args.max_samples is not None else "1000"
         t6_args = [
             "--folder_image", str(args.folder_image),
             "--annotations", str(args.annotations),

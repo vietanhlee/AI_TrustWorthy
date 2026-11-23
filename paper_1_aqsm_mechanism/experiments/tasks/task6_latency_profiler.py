@@ -320,9 +320,10 @@ def profile_pipeline_latency(
 
 def main():
     parser = create_base_parser("Hardware Latency Profiler (Table 10)", task_name="Task 6")
-    parser.add_argument("--n_runs", type=int, default=300, help="Số lần lặp đo đạc độ trễ (mặc định: 300)")
+    parser.add_argument("--n_runs", type=int, default=None, help="Số lần lặp đo đạc độ trễ (mặc định: lấy theo max_samples hoặc 1000)")
     parser.add_argument("--warmup", type=int, default=30, help="Số lần chạy khởi động trước khi đo (mặc định: 30)")
     args = parser.parse_args()
+    effective_n_runs = args.n_runs if args.n_runs is not None else (args.max_samples or 1000)
 
     chosen_model = resolve_model_name(getattr(args, "model", None))
     update_experiment_paths(
@@ -355,7 +356,7 @@ def main():
 
     audit_logger.log_metadata({
         "folder_image": str(args.folder_image),
-        "n_runs": args.n_runs,
+        "n_runs": effective_n_runs,
         "warmup": args.warmup,
         "threads": args.threads,
         "device": str(device),
@@ -367,7 +368,7 @@ def main():
     profile_pipeline_latency(
         wrapper=wrapper,
         sample_img=sample_img,
-        n_runs=args.n_runs,
+        n_runs=effective_n_runs,
         n_warmup=args.warmup,
         audit_logger=audit_logger,
     )

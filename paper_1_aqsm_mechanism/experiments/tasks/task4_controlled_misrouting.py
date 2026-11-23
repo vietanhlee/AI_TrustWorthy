@@ -156,6 +156,7 @@ def run_controlled_misrouting_evaluation(
     n_boot: int = N_BOOTSTRAP,
     cache_dir: Optional[Path] = None,
     audit_logger: Any = None,
+    n_dose_samples: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Thực hiện đánh giá toàn diện kiểm chứng Spatial Specificity và phản bác Tautology.
@@ -401,7 +402,7 @@ def run_controlled_misrouting_evaluation(
     deltas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
     dose_curve = {}
     rng_dose = np.random.RandomState(42)
-    n_dose_eval = min(50, n_total)
+    n_dose_eval = n_total if n_dose_samples is None else min(n_dose_samples, n_total)
     sub_gt = gt_list[:n_dose_eval]
 
     for d_val in deltas:
@@ -499,6 +500,7 @@ def run_controlled_misrouting_evaluation(
 def main():
     parser = create_base_parser("Controlled Misrouting & Tautology Refutation (Table 8)", task_name="Task 4")
     parser.add_argument("--n_boot", type=int, default=N_BOOTSTRAP, help="Số vòng lặp Bootstrap")
+    parser.add_argument("--n_dose_samples", type=int, default=None, help="Số ảnh tính toán Dose-Response Curve (mặc định lấy toàn bộ cohort)")
     args = parser.parse_args()
 
     chosen_model = resolve_model_name(getattr(args, "model", None))
@@ -549,6 +551,7 @@ def main():
         n_boot=args.n_boot,
         cache_dir=Path(args.cache_dir),
         audit_logger=audit_logger,
+        n_dose_samples=args.n_dose_samples,
     )
 
     audit_logger.close()
