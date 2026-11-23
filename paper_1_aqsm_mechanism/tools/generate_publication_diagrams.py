@@ -229,7 +229,7 @@ def draw_fig2_taxonomy(output_pdf: Path, output_png: Path):
     ax.text(50.0, 76.0,
             "• Target: Learned static embeddings\n  or bipartite Hungarian matching.\n\n"
             "• Attack Method: Standard Task PGD\n  (classification loss + box GIoU loss)\n  or Query Vanishing on logits.\n\n"
-            "• Failure Mode: Global scene blackout\n  or chaotic false-alarm flooding\n  (>60 false boxes per image).\n\n"
+            "• Failure Mode: Global scene blackout\n  or chaotic false-alarm flooding\n  (up to ~29.4 false alarms per image).\n\n"
             "• Interface: Decoder prediction heads.",
             ha="center", va="top", color="#475569", **small_font)
 
