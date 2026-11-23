@@ -12,6 +12,7 @@ FOLDER_IMAGE=""
 ANNOTATIONS=""
 NUM_IMAGES=0
 MAX_SAMPLES=0
+MODEL="r18"
 DEVICE="auto"
 BATCH_SIZE=0
 TASKS="0,1,2,3,4,5,6,8,7,9"
@@ -32,6 +33,7 @@ print_usage() {
     echo "  --folder_image PATH        Đường dẫn thư mục ảnh COCO (e.g. val2017)"
     echo ""
     echo "Optional:"
+    echo "  --model ARCH               Kiến trúc mô hình: r18 (mặc định), r50, hoặc checkpoint"
     echo "  --annotations PATH         Đường dẫn file instances_val2017.json"
     echo "  --tasks LIST               Danh sách tasks (0,1,2,3,4,5,6,8,7)"
     echo "  --num_images INT           Số ảnh giới hạn (0 = chạy toàn bộ ảnh)"
@@ -52,6 +54,7 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --folder_image) FOLDER_IMAGE="$2"; shift ;;
         --annotations) ANNOTATIONS="$2"; shift ;;
+        --model) MODEL="$2"; shift ;;
         --tasks) TASKS="$2"; shift ;;
         --num_images) NUM_IMAGES="$2"; shift ;;
         --max_samples) MAX_SAMPLES="$2"; shift ;;
@@ -92,6 +95,7 @@ echo "======================================================================"
 echo " 🚀 KHỞI ĐỘNG HỆ THỐNG THỰC NGHIỆM PAPER 1: DYNAMIC QUERY SELECTION"
 echo "----------------------------------------------------------------------"
 echo " Thư mục ảnh COCO : $FOLDER_IMAGE"
+echo " Kiến trúc mô hình: $MODEL"
 if [ -n "$ANNOTATIONS" ]; then
     echo " File Annotations : $ANNOTATIONS"
 else
@@ -129,6 +133,7 @@ fi
 $PYTHON_CMD run_all_experiments.py \
     --folder_image "$FOLDER_IMAGE" \
     --device "$DEVICE" \
+    --model "$MODEL" \
     --tasks "$TASKS" \
     --cache_dir "$CACHE_DIR" \
     --output_dir "$OUTPUT_DIR" \
@@ -156,4 +161,13 @@ echo "    -> $FIG_DIR/fig4_causal_swap_n300.pdf"
 echo "    -> $FIG_DIR/fig6_attention_scattering_comparison.pdf"
 echo "    -> $FIG_DIR/fig7_matched_budget_sweep.pdf"
 echo "    -> $FIG_DIR/fig8_defense_evaluation.pdf"
+
+if command -v zip &>/dev/null; then
+    echo ""
+    echo " 3. Đang tự động đóng gói kết quả vào file ZIP..."
+    zip -q -r "paper1_experiment_results.zip" "$OUTPUT_DIR" "$FIG_DIR" 2>/dev/null || true
+    if [ -f "paper1_experiment_results.zip" ]; then
+        echo "    -> File tải về tiện lợi: $(pwd)/paper1_experiment_results.zip"
+    fi
+fi
 echo "======================================================================"
