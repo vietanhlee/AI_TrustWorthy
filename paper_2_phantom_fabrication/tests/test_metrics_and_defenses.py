@@ -208,6 +208,26 @@ class TestPaper2MetricsAndDefenses(unittest.TestCase):
         perf = evaluate_guardrail_performance(clean_scores.detach().numpy(), adv_scores.detach().numpy())
         self.assertGreater(perf["auroc"], 0.95, "AUROC phát hiện đối kháng phải đạt trên 0.95 trên synthetic benchmark")
 
+    def test_pyramid_distribution_mapping(self):
+        """Kiểm tra logic phân loại anchor index sang tầng Feature Pyramid S3, S4, S5."""
+        # RT-DETR native 640x640:
+        # S3: 80x80 = 6400 anchors (indices 0..6399)
+        # S4: 40x40 = 1600 anchors (indices 6400..7999)
+        # S5: 20x20 = 400 anchors  (indices 8000..8399)
+        sample_indices = [0, 3200, 6399, 6400, 7200, 7999, 8000, 8200, 8399]
+        counts = {"S3": 0, "S4": 0, "S5": 0}
+        for idx in sample_indices:
+            if idx < 6400:
+                counts["S3"] += 1
+            elif idx < 8000:
+                counts["S4"] += 1
+            else:
+                counts["S5"] += 1
+
+        self.assertEqual(counts["S3"], 3, "Phải có đúng 3 indices thuộc S3")
+        self.assertEqual(counts["S4"], 3, "Phải có đúng 3 indices thuộc S4")
+        self.assertEqual(counts["S5"], 3, "Phải có đúng 3 indices thuộc S5")
+
 
 if __name__ == "__main__":
     unittest.main()

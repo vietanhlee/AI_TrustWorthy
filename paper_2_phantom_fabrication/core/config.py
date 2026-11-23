@@ -10,12 +10,12 @@ giám sát suy luận thời gian thực trên phần cứng biên đều đư�
 """
 
 import os
+# Ngăn ngừa lỗi xung đột OpenMP giữa PyTorch và các thư viện C++ trên Windows
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 import torch
-
-# Ngăn ngừa lỗi xung đột OpenMP giữa PyTorch và các thư viện C++ trên Windows
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # -----------------------------------------------------------------------------
 # 1. ĐƯỜNG DẪN HỆ THỐNG VÀ THƯ MỤC LÀM VIỆC

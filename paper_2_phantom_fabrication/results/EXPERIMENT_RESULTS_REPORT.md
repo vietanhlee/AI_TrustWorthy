@@ -1,7 +1,7 @@
 # BÁO CÁO TỔNG KẾT THỰC NGHIỆM KHOA HỌC: PAPER 2
 **Đề tài:** *Adversarial Object Fabrication in Real-Time Detection Transformers*
-**Thời gian sinh:** 2026-11-23 14:18:05
-**Git Commit:** `2c71a4854512eae07ff956e6d57f04f558152c2f` | **Branch:** `master`
+**Thời gian sinh:** 2026-11-23 14:32:21
+**Git Commit:** `847d7c9266635d54cb0d121931e6b7bb0bfca46f` | **Branch:** `master`
 **Tuyên bố xuất xứ:** *100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics.*
 
 ---
@@ -14,7 +14,7 @@
 | **RT-DETR-R18 (EQF - Bottleneck)** | **19.44 ± 0.25** | 4.31 ± 0.21 | **5.80 ± 0.47** | **-56.62 (-90.7%)** | **100.00%** | **7.11 ± 0.14%** |
 | **RT-DETR-R18 (DQF - Output Logit)**| 18.88 ± 0.27 | 5.31 ± 0.16 | 5.82 ± 0.45 | -56.60 (-90.7%) | 99.89% | — |
 | **YOLOv8n (Clean)** | 0.02 ± 0.01 | 81.27 ± 0.07 | 39.85 ± 1.84 | — | 0.00% | — |
-| **YOLOv8n (Targeted Grid Attack)** | **5.11 ± 0.42** | 7.53 ± 3.37 | **3.76 ± 2.97** | **-39.76 (-90.6%)** | **100.00%** | **88.91 ± 0.44%** |
+| **YOLOv8n (Targeted Grid Attack)** | **3.00 ± 0.09** | 81.32 ± 0.38 | **32.00 ± 2.17** | **-39.76 (-90.6%)** | **1.44%** | **0.00 ± 0.00%** |
 
 ---
 ## 2. BẢNG 2: QUÉT ĐỘ NHẠY NGÂN SÁCH NHIỄU & SỐ BƯỚC PGD (TABLE 2)
