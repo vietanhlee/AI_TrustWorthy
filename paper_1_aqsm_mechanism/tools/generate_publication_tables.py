@@ -409,9 +409,9 @@ def generate_table4(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     headers = ["Attack Formulation", "Factor", "Sum of Squares", "df", "Mean Square", "F-Statistic", "Partial eta_p^2"]
     rows = [
-        ["AQSM (Ours)", "Memory (M)", f"{ss_m:.1f}", "1", f"{ss_m:.1f}", f"{f_m:.1f}", f"{eta_m:.3f} (p < 0.001)"],
-        ["AQSM (Ours)", "Query Prior (Q)", f"{ss_q:.1f}", "1", f"{ss_q:.1f}", f"{f_q:.1f}", f"{eta_q:.3f} (p < 0.001)"],
-        ["AQSM (Ours)", "Interaction (M x Q)", f"{ss_inter:.1f}", "1", f"{ss_inter:.1f}", f"{f_inter:.1f}", f"{eta_inter:.3f} (p < 0.001)"],
+        ["AQSM (Probe)", "Memory (M)", f"{ss_m:.1f}", "1", f"{ss_m:.1f}", f"{f_m:.1f}", f"{eta_m:.3f} (p < 0.001)"],
+        ["AQSM (Probe)", "Query Prior (Q)", f"{ss_q:.1f}", "1", f"{ss_q:.1f}", f"{f_q:.1f}", f"{eta_q:.3f} (p < 0.001)"],
+        ["AQSM (Probe)", "Interaction (M x Q)", f"{ss_inter:.1f}", "1", f"{ss_inter:.1f}", f"{f_inter:.1f}", f"{eta_inter:.3f} (p < 0.001)"],
         ["PGD Vanishing", "Memory (M)", f"{ss_m_van:.1f}", "1", f"{ss_m_van:.1f}", f"{f_m_van:.1f}", f"{eta_m_van:.3f} (p < 0.001)"],
         ["PGD Vanishing", "Query Prior (Q)", f"{ss_q_van:.1f}", "1", f"{ss_q_van:.1f}", f"{f_q_van:.1f}", f"{eta_q_van:.3f} (p < 0.001)"],
         ["PGD Vanishing", "Interaction (M x Q)", f"{ss_inter_van:.1f}", "1", f"{ss_inter_van:.1f}", f"{f_inter_van:.1f}", f"{eta_inter_van:.3f} (p = 0.0022)"],
@@ -429,7 +429,7 @@ def generate_table4(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 \toprule
 \textbf{Attack Formulation} & \textbf{Factor} & \textbf{Sum of Squares} & \textbf{df} & \textbf{Mean Square} & \textbf{$F$-Statistic} & \textbf{Partial $\eta_p^2$} \\
 \midrule
-\multirow{3}{*}{AQSM (Ours)} & Memory ($M$) & """ + f"{ss_m:.1f}" + r""" & 1 & """ + f"{ss_m:.1f}" + r""" & """ + f"{f_m:.1f}" + r""" & """ + f"{eta_m:.3f}" + r""" ($p < 0.001$) \\
+\multirow{3}{*}{AQSM (Probe)} & Memory ($M$) & """ + f"{ss_m:.1f}" + r""" & 1 & """ + f"{ss_m:.1f}" + r""" & """ + f"{f_m:.1f}" + r""" & """ + f"{eta_m:.3f}" + r""" ($p < 0.001$) \\
 & Query Prior ($Q$) & """ + f"{ss_q:.1f}" + r""" & 1 & """ + f"{ss_q:.1f}" + r""" & """ + f"{f_q:.1f}" + r""" & """ + f"{eta_q:.3f}" + r""" ($p < 0.001$) \\
 & Interaction ($M \times Q$) & """ + f"{ss_inter:.1f}" + r""" & 1 & """ + f"{ss_inter:.1f}" + r""" & """ + f"{f_inter:.1f}" + r""" & """ + f"{eta_inter:.3f}" + r""" ($p < 0.001$) \\
 \midrule
@@ -487,7 +487,7 @@ def generate_table5(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     rows = [
         ["Gaussian Noise (sigma = 16/255)", "0.9240", "0.915 / 0.942 / 0.962", "0.3210", "0.3840", "0.8359", "+0.020"],
         ["PGD Vanishing (T = 15)", f"{van_cos_ov:.4f}", f"{van_cos_s3:.3f} / {van_cos_s4:.3f} / {van_cos_s5:.3f}", f"{van_l2_fg:.4f}", f"{van_l2_bg:.4f}", f"{van_l2_fg/van_l2_bg if van_l2_bg > 0 else 1.0:.4f}", f"+{van_cos_s5 - van_cos_s4:.3f}"],
-        ["AQSM (Ours, T = 15)", f"{aq_cos_ov:.4f}", f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}", f"{aq_l2_fg:.4f}", f"{aq_l2_bg:.4f}", f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}", f"+{aq_cos_s5 - aq_cos_s4:.3f}"],
+        ["AQSM Probe (T = 15)", f"{aq_cos_ov:.4f}", f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}", f"{aq_l2_fg:.4f}", f"{aq_l2_bg:.4f}", f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}", f"+{aq_cos_s5 - aq_cos_s4:.3f}"],
         ["Standard Task PGD (T = 15)", f"{pgd_cos_ov:.4f}", f"{pgd_cos_s3:.3f} / {pgd_cos_s4:.3f} / {pgd_cos_s5:.3f}", f"{pgd_l2_fg:.4f}", f"{pgd_l2_bg:.4f}", f"{pgd_l2_fg/pgd_l2_bg if pgd_l2_bg > 0 else 1.0:.4f}", f"{pgd_cos_s5 - pgd_cos_s4:.3f}"],
     ]
 
@@ -502,7 +502,7 @@ def generate_table5(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 \midrule
 Gaussian Noise ($\sigma = 16/255$) & 0.9240 & 0.915 / 0.942 / 0.962 & 0.3210 & 0.3840 & 0.8359 & $+0.020$ \\
 PGD Vanishing ($T = 15$) & """ + f"{van_cos_ov:.4f}" + r""" & """ + f"{van_cos_s3:.3f} / {van_cos_s4:.3f} / {van_cos_s5:.3f}" + r""" & """ + f"{van_l2_fg:.4f}" + r""" & """ + f"{van_l2_bg:.4f}" + r""" & """ + f"{van_l2_fg/van_l2_bg if van_l2_bg > 0 else 1.0:.4f}" + r""" & """ + f"+{van_cos_s5 - van_cos_s4:.3f}" + r""" \\
-AQSM (Ours, $T = 15$) & \textbf{""" + f"{aq_cos_ov:.4f}" + r"""} & \textbf{""" + f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}" + r"""} & \textbf{""" + f"{aq_l2_fg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_bg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}" + r"""} & \textbf{+""" + f"{aq_cos_s5 - aq_cos_s4:.3f}" + r"""} \\
+AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_cos_ov:.4f}" + r"""} & \textbf{""" + f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}" + r"""} & \textbf{""" + f"{aq_l2_fg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_bg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}" + r"""} & \textbf{+""" + f"{aq_cos_s5 - aq_cos_s4:.3f}" + r"""} \\
 Standard Task PGD ($T = 15$) & """ + f"{pgd_cos_ov:.4f}" + r""" & """ + f"{pgd_cos_s3:.3f} / {pgd_cos_s4:.3f} / {pgd_cos_s5:.3f}" + r""" & """ + f"{pgd_l2_fg:.4f}" + r""" & """ + f"{pgd_l2_bg:.4f}" + r""" & """ + f"{pgd_l2_fg/pgd_l2_bg if pgd_l2_bg > 0 else 1.0:.4f}" + r""" & """ + f"{pgd_cos_s5 - pgd_cos_s4:.3f}" + r""" \\
 \bottomrule
 \end{tabular}%
@@ -559,7 +559,7 @@ def generate_table6(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
         ["Clean Baseline", "100.0% [Ref.]", "1.000", "1.000", "0.0%", f"{clean_cg:.2f}%", f"{clean_iou30:.2f}%"],
         ["Gaussian Noise (sigma = 16/255)", "82.40%", "0.892", "0.735", "11.20%", "94.50%", "92.10%"],
         ["PGD Vanishing (T = 15)", f"{van_ov:.2f}%", f"{van_rho:.3f}", f"{van_tau:.3f}", f"{van_ev:.2f}%", f"{van_cg:.2f}%", f"{van_iou30:.2f}%"],
-        ["AQSM (Ours, T = 15)", f"{aq_ov:.2f}%", f"{aq_rho:.3f}", f"{aq_tau:.3f}", f"{aq_ev:.2f}%", f"{aq_cg:.2f}%", f"{aq_iou30:.2f}%"],
+        ["AQSM Probe (T = 15)", f"{aq_ov:.2f}%", f"{aq_rho:.3f}", f"{aq_tau:.3f}", f"{aq_ev:.2f}%", f"{aq_cg:.2f}%", f"{aq_iou30:.2f}%"],
         ["Standard Task PGD (T = 15)", f"{pgd_ov:.2f}%", f"{pgd_rho:.3f}", f"{pgd_tau:.3f}", f"{pgd_ev:.2f}%", f"{pgd_cg:.2f}%", f"{pgd_iou30:.2f}%"],
     ]
 
@@ -575,7 +575,7 @@ def generate_table6(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 Clean Baseline & 100.0\% [Ref.] & 1.000 & 1.000 & 0.0\% & """ + f"{clean_cg:.2f}\\%" + r""" & """ + f"{clean_iou30:.2f}\\%" + r""" \\
 Gaussian Noise ($\sigma = 16/255$) & 82.40\% & 0.892 & 0.735 & 11.20\% & 94.50\% & 92.10\% \\
 PGD Vanishing ($T = 15$) & """ + f"{van_ov:.2f}\\%" + r""" & """ + f"{van_rho:.3f}" + r""" & """ + f"{van_tau:.3f}" + r""" & """ + f"{van_ev:.2f}\\%" + r""" & """ + f"{van_cg:.2f}\\%" + r""" & """ + f"{van_iou30:.2f}\\%" + r""" \\
-AQSM (Ours, $T = 15$) & \textbf{""" + f"{aq_ov:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rho:.3f}" + r"""} & \textbf{""" + f"{aq_tau:.3f}" + r"""} & \textbf{""" + f"{aq_ev:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cg:.2f}\\%" + r"""} & \textbf{""" + f"{aq_iou30:.2f}\\%" + r"""} \\
+AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_ov:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rho:.3f}" + r"""} & \textbf{""" + f"{aq_tau:.3f}" + r"""} & \textbf{""" + f"{aq_ev:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cg:.2f}\\%" + r"""} & \textbf{""" + f"{aq_iou30:.2f}\\%" + r"""} \\
 Standard Task PGD ($T = 15$) & """ + f"{pgd_ov:.2f}\\%" + r""" & """ + f"{pgd_rho:.3f}" + r""" & """ + f"{pgd_tau:.3f}" + r""" & """ + f"{pgd_ev:.2f}\\%" + r""" & """ + f"{pgd_cg:.2f}\\%" + r""" & """ + f"{pgd_iou30:.2f}\\%" + r""" \\
 \bottomrule
 \end{tabular}%
@@ -650,13 +650,13 @@ def generate_table7(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
         ["Clean Baseline", f"{cl_ent:.4f} ± {cl_ent_std:.4f}", f"{cl_hit:.2f}%", f"{cl_drift:.4f}", f"{cl_drop:.2f} ± {cl_drop_std:.2f}", f"{cl_marg:.4f} ± {cl_marg_std:.4f}"],
         ["Gaussian Noise (sigma = 16/255)", "0.8005 ± 0.0430", "58.40%", "0.0150", "32.10 ± 21.40", "0.7650 ± 0.1250"],
         ["PGD Vanishing (T = 15)", f"{van_ent:.4f} ± {van_ent_std:.4f}", f"{van_hit:.2f}%", f"{van_drift:.4f} ± {van_drift_std:.4f}", f"{van_drop:.2f} ± {van_drop_std:.2f}", f"{van_marg:.4f} ± {van_marg_std:.4f}"],
-        ["AQSM (Ours, T = 15)", f"{aq_ent:.4f} ± {aq_ent_std:.4f}", f"{aq_hit:.2f}%", f"{aq_drift:.4f} ± {aq_drift_std:.4f}", f"{aq_drop:.2f} ± {aq_drop_std:.2f}", f"{aq_marg:.4f} ± {aq_marg_std:.4f}"],
+        ["AQSM Probe (T = 15)", f"{aq_ent:.4f} ± {aq_ent_std:.4f}", f"{aq_hit:.2f}%", f"{aq_drift:.4f} ± {aq_drift_std:.4f}", f"{aq_drop:.2f} ± {aq_drop_std:.2f}", f"{aq_marg:.4f} ± {aq_marg_std:.4f}"],
         ["Standard Task PGD (T = 15)", f"{pgd_ent:.4f} ± {pgd_ent_std:.4f}", f"{pgd_hit:.2f}%", f"{pgd_drift:.4f} ± {pgd_drift_std:.4f}", f"{pgd_drop:.2f} ± {pgd_drop_std:.2f}", f"{pgd_marg:.4f} ± {pgd_marg_std:.4f}"],
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$). Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2258$).}
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.13, r_{\mathrm{rb}} = -0.173$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$). Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2258$).}
 \label{tab:tab7_attention_telemetry}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
@@ -666,7 +666,7 @@ def generate_table7(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 Clean Baseline & """ + f"{cl_ent:.4f} $\\pm$ {cl_ent_std:.4f}" + r""" & """ + f"{cl_hit:.2f}\\% [61.8, 65.2]" + r""" & 0.0000 & """ + f"{cl_drop:.2f} $\\pm$ {cl_drop_std:.2f}" + r""" & """ + f"{cl_marg:.4f} $\\pm$ {cl_marg_std:.4f}" + r""" \\
 Gaussian Noise ($\sigma = 16/255$) & 0.8005 $\pm$ 0.0430 & 58.40\% [55.8, 61.0] & 0.0150 & 32.10 $\pm$ 21.40 & 0.7650 $\pm$ 0.1250 \\
 PGD Vanishing ($T = 15$) & \textbf{""" + f"{van_ent:.4f} $\\pm$ {van_ent_std:.4f}" + r"""} & """ + f"{van_hit:.2f}\\% [45.8, 51.8]" + r""" & """ + f"{van_drift:.4f} $\\pm$ {van_drift_std:.4f}" + r""" & """ + f"{van_drop:.2f} $\\pm$ {van_drop_std:.2f}" + r""" & """ + f"{van_marg:.4f} $\\pm$ {van_marg_std:.4f}" + r""" \\
-AQSM (Ours, $T = 15$) & \textbf{""" + f"{aq_ent:.4f} $\\pm$ {aq_ent_std:.4f}" + r"""} & \textbf{""" + f"{aq_hit:.2f}\\% [41.2, 45.2]" + r"""} & \textbf{""" + f"{aq_drift:.4f} $\\pm$ {aq_drift_std:.4f}" + r"""} & \textbf{""" + f"{aq_drop:.2f} $\\pm$ {aq_drop_std:.2f}" + r"""} & \textbf{""" + f"{aq_marg:.4f} $\\pm$ {aq_marg_std:.4f}" + r"""} \\
+AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_ent:.4f} $\\pm$ {aq_ent_std:.4f}" + r"""} & \textbf{""" + f"{aq_hit:.2f}\\% [41.2, 45.2]" + r"""} & \textbf{""" + f"{aq_drift:.4f} $\\pm$ {aq_drift_std:.4f}" + r"""} & \textbf{""" + f"{aq_drop:.2f} $\\pm$ {aq_drop_std:.2f}" + r"""} & \textbf{""" + f"{aq_marg:.4f} $\\pm$ {aq_marg_std:.4f}" + r"""} \\
 Standard Task PGD ($T = 15$) & """ + f"{pgd_ent:.4f} $\\pm$ {pgd_ent_std:.4f}" + r""" & """ + f"{pgd_hit:.2f}\\% [49.2, 54.9]" + r""" & """ + f"{pgd_drift:.4f} $\\pm$ {pgd_drift_std:.4f}" + r""" & """ + f"{pgd_drop:.2f} $\\pm$ {pgd_drop_std:.2f}" + r""" & """ + f"{pgd_marg:.4f} $\\pm$ {pgd_marg_std:.4f}" + r""" \\
 \bottomrule
 \end{tabular}%

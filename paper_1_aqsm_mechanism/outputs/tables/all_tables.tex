@@ -87,7 +87,7 @@ $\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.249$ ($F=328.4, p < 0.001$) 
 \toprule
 \textbf{Attack Formulation} & \textbf{Factor} & \textbf{Sum of Squares} & \textbf{df} & \textbf{Mean Square} & \textbf{$F$-Statistic} & \textbf{Partial $\eta_p^2$} \\
 \midrule
-\multirow{3}{*}{AQSM (Ours)} & Memory ($M$) & 1910115.1 & 1 & 1910115.1 & 3845.4 & 0.795 ($p < 0.001$) \\
+\multirow{3}{*}{AQSM (Probe)} & Memory ($M$) & 1910115.1 & 1 & 1910115.1 & 3845.4 & 0.795 ($p < 0.001$) \\
 & Query Prior ($Q$) & 730836.6 & 1 & 730836.6 & 2351.8 & 0.704 ($p < 0.001$) \\
 & Interaction ($M \times Q$) & 127634.4 & 1 & 127634.4 & 328.4 & 0.249 ($p < 0.001$) \\
 \midrule
@@ -116,7 +116,7 @@ $\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.249$ ($F=328.4, p < 0.001$) 
 \midrule
 Gaussian Noise ($\sigma = 16/255$) & 0.9240 & 0.915 / 0.942 / 0.962 & 0.3210 & 0.3840 & 0.8359 & $+0.020$ \\
 PGD Vanishing ($T = 15$) & 0.6884 & 0.703 / 0.641 / 0.649 & 0.7748 & 0.8005 & 0.9679 & +0.009 \\
-AQSM (Ours, $T = 15$) & \textbf{0.6100} & \textbf{0.626 / 0.547 / 0.606} & \textbf{0.8458} & \textbf{0.9180} & \textbf{0.9214} & \textbf{+0.058} \\
+AQSM Probe ($T = 15$) & \textbf{0.6100} & \textbf{0.626 / 0.547 / 0.606} & \textbf{0.8458} & \textbf{0.9180} & \textbf{0.9214} & \textbf{+0.058} \\
 Standard Task PGD ($T = 15$) & 0.6630 & 0.681 / 0.609 / 0.592 & 0.8111 & 0.8284 & 0.9791 & -0.016 \\
 \bottomrule
 \end{tabular}%
@@ -137,7 +137,7 @@ Standard Task PGD ($T = 15$) & 0.6630 & 0.681 / 0.609 / 0.592 & 0.8111 & 0.8284 
 Clean Baseline & 100.0\% [Ref.] & 1.000 & 1.000 & 0.0\% & 98.98\% & 98.46\% \\
 Gaussian Noise ($\sigma = 16/255$) & 82.40\% & 0.892 & 0.735 & 11.20\% & 94.50\% & 92.10\% \\
 PGD Vanishing ($T = 15$) & 30.96\% & 0.426 & 0.297 & 50.19\% & 90.11\% & 79.13\% \\
-AQSM (Ours, $T = 15$) & \textbf{16.45\%} & \textbf{0.264} & \textbf{0.184} & \textbf{96.93\%} & \textbf{77.78\%} & \textbf{59.25\%} \\
+AQSM Probe ($T = 15$) & \textbf{16.45\%} & \textbf{0.264} & \textbf{0.184} & \textbf{96.93\%} & \textbf{77.78\%} & \textbf{59.25\%} \\
 Standard Task PGD ($T = 15$) & 26.06\% & 0.386 & 0.267 & 56.87\% & 89.00\% & 76.78\% \\
 \bottomrule
 \end{tabular}%
@@ -148,7 +148,7 @@ Standard Task PGD ($T = 15$) & 26.06\% & 0.386 & 0.267 & 56.87\% & 89.00\% & 76.
 % --- TABLE7_ATTENTION_TELEMETRY ---
 \begin{table}[!htbp]
 \centering
-\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$). Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2258$).}
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.13, r_{\mathrm{rb}} = -0.173$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$). Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2258$).}
 \label{tab:tab7_attention_telemetry}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
@@ -158,7 +158,7 @@ Standard Task PGD ($T = 15$) & 26.06\% & 0.386 & 0.267 & 56.87\% & 89.00\% & 76.
 Clean Baseline & 0.8009 $\pm$ 0.0423 & 63.51\% [61.8, 65.2] & 0.0000 & 37.51 $\pm$ 25.80 & 0.7984 $\pm$ 0.1281 \\
 Gaussian Noise ($\sigma = 16/255$) & 0.8005 $\pm$ 0.0430 & 58.40\% [55.8, 61.0] & 0.0150 & 32.10 $\pm$ 21.40 & 0.7650 $\pm$ 0.1250 \\
 PGD Vanishing ($T = 15$) & \textbf{0.8334 $\pm$ 0.0286} & 48.37\% [45.8, 51.8] & 0.4286 $\pm$ 0.0532 & 17.93 $\pm$ 11.62 & 0.3314 $\pm$ 0.1717 \\
-AQSM (Ours, $T = 15$) & \textbf{0.7944 $\pm$ 0.0285} & \textbf{43.21\% [41.2, 45.2]} & \textbf{0.4722 $\pm$ 0.0656} & \textbf{10.84 $\pm$ 7.75} & \textbf{0.6731 $\pm$ 0.1175} \\
+AQSM Probe ($T = 15$) & \textbf{0.7944 $\pm$ 0.0285} & \textbf{43.21\% [41.2, 45.2]} & \textbf{0.4722 $\pm$ 0.0656} & \textbf{10.84 $\pm$ 7.75} & \textbf{0.6731 $\pm$ 0.1175} \\
 Standard Task PGD ($T = 15$) & 0.8141 $\pm$ 0.0291 & 52.17\% [49.2, 54.9] & 0.4288 $\pm$ 0.0516 & 41.60 $\pm$ 28.06 & 0.7287 $\pm$ 0.1648 \\
 \bottomrule
 \end{tabular}%

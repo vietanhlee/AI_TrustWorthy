@@ -131,7 +131,7 @@
       "signed_fraction_of_total_drop_pct": {
         "Memory_M": 61.783392619024326,
         "Query_Q": 38.216607380975674,
-        "note": "Y_11 - Y_00 = ME_M + ME_Q (tổng đúng 100%)"
+        "note": "Y_11 - Y_00 = ME_M + ME_Q (t\u1ed5ng \u0111\u00fang 100%)"
       },
       "l1_marginal_share_pct": {
         "Memory_M": 53.27496839079103,
@@ -206,7 +206,7 @@
       "signed_fraction_of_total_drop_pct": {
         "Memory_M": 78.41388676247816,
         "Query_Q": 21.586113237521847,
-        "note": "Y_11 - Y_00 = ME_M + ME_Q (tổng đúng 100%)"
+        "note": "Y_11 - Y_00 = ME_M + ME_Q (t\u1ed5ng \u0111\u00fang 100%)"
       },
       "l1_marginal_share_pct": {
         "Memory_M": 67.99937315565764,
@@ -318,12 +318,13 @@
       "median_diff_pp": 2668.3,
       "std_diff": 2971.07,
       "cohen_d": 1.1,
-      "paired_wilcoxon_stat": 367.5,
-      "paired_wilcoxon_p_value": 9.655322955182417e-131,
+      "paired_wilcoxon_stat": 367.0,
+      "paired_wilcoxon_p_value": 9.650429043848431e-131,
       "bootstrap_95ci_pp": [
-        3069.59,
-        3439.16
-      ]
+        3071.28,
+        3442.6
+      ],
+      "rank_biserial_r": 0.9976626288101698
     },
     "Arm_D_index_vs_Arm_A": {
       "description": "Eviction Penalty under Clean Memory",
@@ -331,12 +332,13 @@
       "median_diff_pp": -2365.55,
       "std_diff": 2642.86,
       "cohen_d": -0.99,
-      "paired_wilcoxon_stat": 5749.0,
-      "paired_wilcoxon_p_value": 7.090554684682164e-116,
+      "paired_wilcoxon_stat": 5739.5,
+      "paired_wilcoxon_p_value": 6.839684000755498e-116,
       "bootstrap_95ci_pp": [
-        -2794.53,
-        -2457.68
-      ]
+        -2786.52,
+        -2457.09
+      ],
+      "rank_biserial_r": -0.9599899617640806
     },
     "Arm_C_full_vs_Arm_A": {
       "description": "Memory Damage under Clean Queries",
@@ -344,12 +346,13 @@
       "median_diff_pp": -5411.54,
       "std_diff": 2980.2,
       "cohen_d": -1.85,
-      "paired_wilcoxon_stat": 757.0,
-      "paired_wilcoxon_p_value": 5.548631185123904e-153,
+      "paired_wilcoxon_stat": 756.5,
+      "paired_wilcoxon_p_value": 5.539509098519338e-153,
       "bootstrap_95ci_pp": [
-        -5706.53,
-        -5342.53
-      ]
+        -5707.47,
+        -5341.11
+      ],
+      "rank_biserial_r": -0.9965125874158112
     },
     "Arm_B_vs_Arm_A": {
       "description": "Total Joint Attack Damage",
@@ -358,11 +361,12 @@
       "std_diff": 2617.42,
       "cohen_d": -2.71,
       "paired_wilcoxon_stat": 0.0,
-      "paired_wilcoxon_p_value": 7.351446588908796e-161,
+      "paired_wilcoxon_p_value": 7.35017904370309e-161,
       "bootstrap_95ci_pp": [
-        -7265.49,
-        -6929.34
-      ]
+        -7262.52,
+        -6937.72
+      ],
+      "rank_biserial_r": -1.0
     },
     "Arm_D_index_vs_Arm_D_full": {
       "description": "Index vs Full Query Prior",
@@ -370,12 +374,13 @@
       "median_diff_pp": 129.72,
       "std_diff": 2446.21,
       "cohen_d": 0.5,
-      "paired_wilcoxon_stat": 35785.0,
-      "paired_wilcoxon_p_value": 3.4847991665686513e-53,
+      "paired_wilcoxon_stat": 35765.0,
+      "paired_wilcoxon_p_value": 3.2783147966758334e-53,
       "bootstrap_95ci_pp": [
-        1082.9,
-        1382.74
-      ]
+        1079.42,
+        1382.61
+      ],
+      "rank_biserial_r": 0.6836747328946438
     }
   },
   "timestamp": "2026-11-22 15:21:01"

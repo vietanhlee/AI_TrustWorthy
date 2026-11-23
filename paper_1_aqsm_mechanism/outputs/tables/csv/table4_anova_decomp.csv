@@ -1,7 +1,7 @@
 Attack Formulation,Factor,Sum of Squares,df,Mean Square,F-Statistic,Partial eta_p^2
-AQSM (Ours),Memory (M),1910115.1,1,1910115.1,3845.4,0.795 (p < 0.001)
-AQSM (Ours),Query Prior (Q),730836.6,1,730836.6,2351.8,0.704 (p < 0.001)
-AQSM (Ours),Interaction (M x Q),127634.4,1,127634.4,328.4,0.249 (p < 0.001)
+AQSM (Probe),Memory (M),1910115.1,1,1910115.1,3845.4,0.795 (p < 0.001)
+AQSM (Probe),Query Prior (Q),730836.6,1,730836.6,2351.8,0.704 (p < 0.001)
+AQSM (Probe),Interaction (M x Q),127634.4,1,127634.4,328.4,0.249 (p < 0.001)
 PGD Vanishing,Memory (M),2923889.6,1,2923889.6,4783.8,0.828 (p < 0.001)
 PGD Vanishing,Query Prior (Q),333331.9,1,333331.9,1509.8,0.604 (p < 0.001)
 PGD Vanishing,Interaction (M x Q),2226.2,1,2226.2,7.8,0.008 (p = 0.0022)
