@@ -1,6 +1,6 @@
 # BÁO CÁO TỔNG KẾT THỰC NGHIỆM KHOA HỌC: PAPER 2
 **Đề tài:** *Adversarial Object Fabrication in Real-Time Detection Transformers*
-**Thời gian sinh:** 2026-11-23 14:09:58
+**Thời gian sinh:** 2026-11-23 14:18:05
 **Git Commit:** `2c71a4854512eae07ff956e6d57f04f558152c2f` | **Branch:** `master`
 **Tuyên bố xuất xứ:** *100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics.*
 
@@ -89,7 +89,7 @@
 - **Kiểm định 2 (EQF vs Untargeted PGD Proposal Displacement):**
   - $t = -12.73, df = 2 \implies p = 0.0061$ (có ý nghĩa ở mức $\alpha=0.01$).
 - **Kiểm định 3 (RT-DETR vs YOLOv8 Phantom Inflation):**
-  - $t = 107.73, df = 2 \implies p = 8.61e-5$.
+  - $t = 107.73, df = 2 \implies p = 8.61e-05$.
 
 ---
 *Báo cáo được tạo tự động bởi Post-Run Scientific Pipeline. Toàn bộ số liệu khớp 100% với TeX Manuscript.*

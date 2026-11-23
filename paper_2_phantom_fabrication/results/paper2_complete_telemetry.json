@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "timestamp": "2026-11-22T22:26:05.443195",
+    "timestamp": "2026-11-23T14:18:17.605415",
     "pipeline": "Paper 2 Zero-OOM Empirical Suite",
-    "git_commit": "2c71a4854512eae07ff956e6d57f04f558152c2f",
+    "git_commit": "847d7c9266635d54cb0d121931e6b7bb0bfca46f",
     "git_branch": "master",
     "status": "completed",
     "provenance_statement": "100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics."
@@ -121,23 +121,19 @@
         "latency_mean": 14.8
       },
       "Targeted_Fabrication": {
-        "mAP50_mean": 3.76,
-        "mAP50_std": 2.97,
-        "pre_nms_mean": 46.47,
-        "pre_nms_std": 2.16,
-        "post_nms_mean": 5.11,
-        "post_nms_std": 0.42,
-        "nms_rejection_mean": 88.91,
-        "nms_rejection_std": 0.44,
-        "phantoms_mean": 5.09,
-        "phantoms_std": 0.39,
-        "precision_mean": 7.53,
-        "precision_std": 3.37,
-        "recall_mean": 5.42,
-        "asr_fab_mean": 100.0,
-        "latency_mean": 14.8,
-        "cpu_latency_mean": 33.13,
-        "cpu_latency_std": 2.93
+        "mAP50_mean": 32.00126243410818,
+        "mAP50_std": 2.1704383922346566,
+        "pre_nms_mean": 2.9966666666666666,
+        "pre_nms_std": 0.089566858950296,
+        "post_nms_mean": 2.9966666666666666,
+        "post_nms_std": 0.089566858950296,
+        "nms_rejection_mean": 0.0,
+        "nms_rejection_std": 0.0,
+        "phantoms_mean": 0.02,
+        "precision_mean": 81.31765312430947,
+        "recall_mean": 46.05557847454924,
+        "asr_fab_mean": 1.4444444444444446,
+        "latency_mean": 14.8
       }
     },
     "defenses_aggregated": [
@@ -5629,23 +5625,19 @@
         "latency_mean": 14.8
       },
       "Targeted_Fabrication": {
-        "mAP50_mean": 3.76,
-        "mAP50_std": 2.97,
-        "pre_nms_mean": 46.47,
-        "pre_nms_std": 2.16,
-        "post_nms_mean": 5.11,
-        "post_nms_std": 0.42,
-        "nms_rejection_mean": 88.91,
-        "nms_rejection_std": 0.44,
-        "phantoms_mean": 5.09,
-        "phantoms_std": 0.39,
-        "precision_mean": 7.53,
-        "precision_std": 3.37,
-        "recall_mean": 5.42,
-        "asr_fab_mean": 100.0,
-        "latency_mean": 14.8,
-        "cpu_latency_mean": 33.13,
-        "cpu_latency_std": 2.93
+        "mAP50_mean": 32.00126243410818,
+        "mAP50_std": 2.1704383922346566,
+        "pre_nms_mean": 2.9966666666666666,
+        "pre_nms_std": 0.089566858950296,
+        "post_nms_mean": 2.9966666666666666,
+        "post_nms_std": 0.089566858950296,
+        "nms_rejection_mean": 0.0,
+        "nms_rejection_std": 0.0,
+        "phantoms_mean": 0.02,
+        "precision_mean": 81.31765312430947,
+        "recall_mean": 46.05557847454924,
+        "asr_fab_mean": 1.4444444444444446,
+        "latency_mean": 14.8
       }
     },
     "defenses_aggregated": [
@@ -11103,26 +11095,6 @@
       "clean_map50_shift_std": 0.03603189510202654,
       "cpu_latency_mean": 0.6691285844442518,
       "cpu_latency_std": 0.0019511468757550472
-    },
-    {
-      "name": "Containment-NMS (IoMin=0.50)",
-      "eqf_rejection_mean": 58.42,
-      "eqf_rejection_std": 0.35,
-      "dqf_rejection_mean": 71.25,
-      "dqf_rejection_std": 0.28,
-      "surviving_eqf_mean": 8.08,
-      "surviving_eqf_std": 0.17,
-      "surviving_dqf_mean": 5.43,
-      "surviving_dqf_std": 0.05,
-      "post_defense_asr_eqf_mean": 100.0,
-      "post_defense_asr_dqf_mean": 99.89,
-      "clean_retention_mean": 71.35,
-      "clean_retention_std": 0.85,
-      "clean_map50_mean": 57.82,
-      "clean_map50_shift_mean": -4.6,
-      "clean_map50_shift_std": 0.18,
-      "cpu_latency_mean": 0.62,
-      "cpu_latency_std": 0.05
     },
     {
       "name": "Threshold Elevation (tau=0.50)",

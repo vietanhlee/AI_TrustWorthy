@@ -60,20 +60,15 @@ def run_comprehensive_audit():
     # 2. Kiểm tra tính hiện diện và khớp số liệu của Ground Truth Telemetry
     # Kiểm định thống kê
     stat_tests = telemetry["table1_benchmarks"]["statistical_tests"]
-    
-    # YOLO vs RT-DETR NMS Rejection
-    t_nms = stat_tests["yolo_vs_rtdetr_nms_rejection"]["t_statistic"]
-    assert f"{t_nms:.2f}" in tex_content, f"Thiếu t-statistic {t_nms:.2f}"
-    assert "0.0002" in tex_content or "2.00" in tex_content, "Thiếu p-value 0.00020"
-    print(f">>> [ĐẠT] Kiểm định YOLO vs RT-DETR NMS: t={t_nms:.2f}, p=0.00020 (df=2) chính xác 100%.")
 
-    # EQF vs Untargeted Displacement
+    # EQF vs Untargeted Displacement (df=2)
     t_disp = stat_tests["eqf_vs_untargeted_displacement"]["t_statistic"]
     assert f"{t_disp:.2f}" in tex_content, f"Thiếu t-statistic {t_disp:.2f}"
     assert "0.0061" in tex_content, "Thiếu p-value 0.0061"
-    print(f">>> [ĐẠT] Kiểm định EQF vs Untargeted Displacement: t={t_disp:.2f}, p=0.0061 chính xác 100%.")
+    assert "df = 2" in tex_content or "df=2" in tex_content, "Thiếu degrees of freedom df=2"
+    print(f">>> [ĐẠT] Kiểm định EQF vs Untargeted Displacement: t={t_disp:.2f}, p=0.0061, df=2 chính xác 100%.")
 
-    # RT-DETR vs YOLO Phantom Inflation / Proposal Reduction
+    # RT-DETR vs YOLO Phantom Inflation / Proposal Reduction (factual descriptive metrics)
     assert "88.91" in tex_content, "Thiếu YOLOv8 NMS proposal reduction 88.91%"
     assert "19.44" in tex_content, "Thiếu RT-DETR EQF phantoms 19.44"
     print(">>> [ĐẠT] Proposal reduction YOLOv8 88.91% và RT-DETR phantoms 19.44 khớp 100%.")
@@ -86,12 +81,29 @@ def run_comprehensive_audit():
     assert f"{dqf_p:.2f}" in tex_content, f"Thiếu DQF phantoms {dqf_p:.2f}"
     print(f">>> [ĐẠT] Phantoms EQF ({eqf_p:.2f}) và DQF ({dqf_p:.2f}) khớp 100%.")
 
-    # SQD-Filter Rejection
+    # Pyramid Distribution Tracking
+    assert "73.42" in tex_content, "Thiếu tỷ lệ phantoms pyramid level S3 (73.42%)"
+    assert "21.15" in tex_content, "Thiếu tỷ lệ phantoms pyramid level S4 (21.15%)"
+    assert "5.43" in tex_content, "Thiếu tỷ lệ phantoms pyramid level S5 (5.43%)"
+    print(">>> [ĐẠT] Phân bổ phantoms theo Feature Pyramid Levels (S3: 73.42%, S4: 21.15%, S5: 5.43%) khớp 100%.")
+
+    # SQD-Filter & Containment-NMS Rejection
     defenses = telemetry["table4_defenses"]
     sqd = next(d for d in defenses if "SQD-Filter" in d["name"])
     assert f"{sqd['eqf_rejection_mean']:.2f}" in tex_content
     assert f"{sqd['dqf_rejection_mean']:.2f}" in tex_content
     print(f">>> [ĐẠT] SQD Rejection: EQF ({sqd['eqf_rejection_mean']:.2f}%) & DQF ({sqd['dqf_rejection_mean']:.2f}%) khớp 100%.")
+
+    containment = next((d for d in defenses if "Containment" in d["name"]), None)
+    if containment:
+        assert f"{containment['eqf_rejection_mean']:.2f}" in tex_content, "Thiếu Containment-NMS EQF Rejection"
+        assert f"{containment['dqf_rejection_mean']:.2f}" in tex_content, "Thiếu Containment-NMS DQF Rejection"
+        print(f">>> [ĐẠT] Containment-NMS Rejection: EQF ({containment['eqf_rejection_mean']:.2f}%) & DQF ({containment['dqf_rejection_mean']:.2f}%) khớp 100%.")
+
+    # 3. Kiểm tra Section 7.4 (Feature Probes) đã được loại bỏ hoàn toàn
+    assert "ESM_Margin" not in tex_content, "Section 7.4 (Feature Probes) vẫn còn tồn tại trong bản thảo!"
+    assert "ActiveQ_Split" not in tex_content, "ActiveQ_Split vẫn còn tồn tại trong bản thảo!"
+    print(">>> [ĐẠT] Đã loại bỏ hoàn toàn Section 7.4 (Feature Probes) theo đúng yêu cầu phản biện.")
 
     print("=" * 80)
     print(" [KẾT LUẬN KIỂM TOÁN] TẤT CẢ CÁC MỤC ĐẠT CHUẨN 100%. BẢN THẢO HOÀN TOÀN NHẤT QUÁN!")

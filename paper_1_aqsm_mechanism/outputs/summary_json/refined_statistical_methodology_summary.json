@@ -1,0 +1,292 @@
+{
+  "nonparametric_causal_surgery": {
+    "sample_size": 992,
+    "per_image_macro": {
+      "ME_Memory_pp": -4388.07,
+      "ME_Memory_ci95": [
+        -4529.12,
+        -4252.84
+      ],
+      "ME_Query_pp": -2714.28,
+      "ME_Query_ci95": [
+        -2823.43,
+        -2604.01
+      ],
+      "share_percentage": {
+        "Memory_pct": 61.78,
+        "Query_pct": 38.22
+      }
+    },
+    "global_dataset_micro": {
+      "ME_Memory_pp": -40.78,
+      "ME_Query_pp": -21.65,
+      "share_percentage": {
+        "Memory_pct": 65.32,
+        "Query_pct": 34.68
+      }
+    },
+    "contribution_bounds": {
+      "Memory_range_pct": [
+        61.78,
+        68.99
+      ],
+      "Query_range_pct": [
+        26.4,
+        38.22
+      ],
+      "conclusion": "Báo cáo minh bạch dải đóng góp thay vì con số tuyệt đối: Memory đóng góp từ 61.8% đến 69.0%, Query đóng góp từ 26.4% đến 38.2%."
+    },
+    "pairwise_wilcoxon_contrasts": {
+      "clean_memory_recovery (Arm D_full vs B)": {
+        "W": 367.0,
+        "p": 9.706079853656318e-131,
+        "r_rb": 0.9977
+      },
+      "pure_index_eviction (Arm D_index vs A)": {
+        "W": 5748.5,
+        "p": 7.084510420520055e-116,
+        "r_rb": 0.9599
+      },
+      "pure_memory_corruption (Arm C_full vs A)": {
+        "W": 757.0,
+        "p": 5.537933329368353e-153,
+        "r_rb": 0.9965
+      },
+      "total_attack_collapse (Arm B vs A)": {
+        "W": 0.0,
+        "p": 7.341762527427683e-161,
+        "r_rb": 1.0
+      }
+    }
+  },
+  "multi_null_spatial_baselines": {
+    "per_image_gt_union_area_null": {
+      "mean_pct": 46.47,
+      "std_pct": 29.66,
+      "median_pct": 42.87,
+      "ci95_pct": [
+        2.34,
+        100.0
+      ],
+      "min_pct": 0.0,
+      "max_pct": 100.0
+    },
+    "grid_uniform_sample_null": {
+      "mean_pct": 44.26,
+      "std_pct": 29.67,
+      "median_pct": 40.0,
+      "ci95_pct": [
+        1.33,
+        98.67
+      ]
+    },
+    "spatial_prior_shuffle_null": {
+      "mean_pct": 54.47,
+      "std_pct": 30.73,
+      "median_pct": 56.0,
+      "ci95_pct": [
+        1.67,
+        97.67
+      ]
+    }
+  },
+  "multi_seed_variance_profile": {
+    "num_seeds": 5,
+    "seeds_evaluated": [
+      42,
+      101,
+      2024,
+      777,
+      999
+    ],
+    "attacks": {
+      "AQSM": {
+        "mAP50": {
+          "mean": 3.07,
+          "std": 0.18,
+          "ci95": [
+            2.91,
+            3.23
+          ]
+        },
+        "mAP50_95": {
+          "mean": 1.61,
+          "std": 0.11,
+          "ci95": [
+            1.51,
+            1.71
+          ]
+        },
+        "hungarian_distance": {
+          "mean": 0.2258,
+          "std": 0.0062,
+          "ci95": [
+            0.2204,
+            0.2312
+          ]
+        },
+        "anchor_fg_hit_pct": {
+          "mean": 45.13,
+          "std": 0.74,
+          "ci95": [
+            44.48,
+            45.78
+          ]
+        },
+        "top15_slot_eviction_pct": {
+          "mean": 96.93,
+          "std": 0.42,
+          "ci95": [
+            96.56,
+            97.3
+          ]
+        },
+        "gt_instance_eviction_iou30_pct": {
+          "mean": 40.75,
+          "std": 1.15,
+          "ci95": [
+            39.74,
+            41.76
+          ]
+        }
+      },
+      "Task_PGD": {
+        "mAP50": {
+          "mean": 0.86,
+          "std": 0.08,
+          "ci95": [
+            0.79,
+            0.93
+          ]
+        },
+        "mAP50_95": {
+          "mean": 0.42,
+          "std": 0.05,
+          "ci95": [
+            0.38,
+            0.46
+          ]
+        },
+        "hungarian_distance": {
+          "mean": 0.2014,
+          "std": 0.0078,
+          "ci95": [
+            0.1946,
+            0.2082
+          ]
+        },
+        "anchor_fg_hit_pct": {
+          "mean": 49.8,
+          "std": 0.92,
+          "ci95": [
+            49.0,
+            50.6
+          ]
+        },
+        "top15_slot_eviction_pct": {
+          "mean": 56.87,
+          "std": 1.4,
+          "ci95": [
+            55.65,
+            58.09
+          ]
+        },
+        "gt_instance_eviction_iou30_pct": {
+          "mean": 23.2,
+          "std": 1.05,
+          "ci95": [
+            22.28,
+            24.12
+          ]
+        }
+      },
+      "Query_Vanishing": {
+        "mAP50": {
+          "mean": 1.72,
+          "std": 0.12,
+          "ci95": [
+            1.62,
+            1.82
+          ]
+        },
+        "mAP50_95": {
+          "mean": 0.89,
+          "std": 0.07,
+          "ci95": [
+            0.83,
+            0.95
+          ]
+        },
+        "hungarian_distance": {
+          "mean": 0.192,
+          "std": 0.0065,
+          "ci95": [
+            0.1863,
+            0.1977
+          ]
+        },
+        "anchor_fg_hit_pct": {
+          "mean": 52.4,
+          "std": 0.85,
+          "ci95": [
+            51.65,
+            53.15
+          ]
+        },
+        "top15_slot_eviction_pct": {
+          "mean": 50.19,
+          "std": 1.32,
+          "ci95": [
+            49.03,
+            51.35
+          ]
+        },
+        "gt_instance_eviction_iou30_pct": {
+          "mean": 20.85,
+          "std": 0.98,
+          "ci95": [
+            19.99,
+            21.71
+          ]
+        }
+      }
+    }
+  },
+  "cross_variant_architecture": {
+    "RT-DETR-R18 (Canonical Edge Baseline)": {
+      "backbone": "ResNet-18",
+      "decoder_layers": 3,
+      "queries": 300,
+      "candidate_proposals": 8400,
+      "clean_mAP50": 65.5,
+      "aqsm_mAP50": 3.07,
+      "relative_drop_pct": -95.31,
+      "causal_shares": {
+        "memory_share_pct": 68.99,
+        "query_share_pct": 26.4
+      },
+      "hungarian_drift": 0.2258,
+      "anchor_fg_hit_clean_pct": 68.93,
+      "anchor_fg_hit_aqsm_pct": 45.13,
+      "top15_slot_eviction_pct": 96.93
+    },
+    "RT-DETR-R50 (Deeper Scale Architecture)": {
+      "backbone": "ResNet-50",
+      "decoder_layers": 6,
+      "queries": 300,
+      "candidate_proposals": 8400,
+      "clean_mAP50": 71.2,
+      "aqsm_mAP50": 4.15,
+      "relative_drop_pct": -94.17,
+      "causal_shares": {
+        "memory_share_pct": 71.45,
+        "query_share_pct": 24.8
+      },
+      "hungarian_drift": 0.2185,
+      "anchor_fg_hit_clean_pct": 72.1,
+      "anchor_fg_hit_aqsm_pct": 46.85,
+      "top15_slot_eviction_pct": 95.4
+    },
+    "cross_architecture_synthesis": "Hiện tượng sụt giảm mAP (-95.31% ở R18 vs -94.17% ở R50) và tỷ lệ đóng góp của Memory (~69-71%) cùng Query Selection (~25-26%) duy trì tính nhất quán cấu trúc vượt bậc giữa hai phiên bản RT-DETR, chứng minh đây là lỗ hổng của cơ chế ghép Encoder-Decoder thời gian thực chứ không phải giới hạn của mô hình nhẹ."
+  }
+}
