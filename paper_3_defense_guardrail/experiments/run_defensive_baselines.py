@@ -102,7 +102,7 @@ def run_experiment():
 
     # 1. Nạp dữ liệu calibration và test
     N_cal, N_eval = 100, 25
-    cal_imgs, test_imgs = load_coco_images(n_cal=N_cal, n_test=N_eval, img_size=320, seed=42)
+    cal_imgs, test_imgs = load_coco_images(n_cal=N_cal, n_test=N_eval, img_size=640, seed=42)
     cal_imgs = cal_imgs.to(device)
     test_imgs = test_imgs.to(device)
     logger.info(f"Nạp dữ liệu: N_cal = {N_cal}, N_eval = {N_eval}")

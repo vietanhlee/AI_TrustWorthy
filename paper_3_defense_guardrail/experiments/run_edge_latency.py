@@ -72,7 +72,7 @@ def run_step8():
     wrapper.model.eval()
     extractor = RTDETRDeepFeatureExtractor(conf_threshold=0.35, top_k_queries=10, projection_dim=64)
 
-    dummy_tensor = torch.rand(1, 3, 320, 320, device=device)
+    dummy_tensor = torch.rand(1, 3, 640, 640, device=device)
 
     # 1. Khởi động (Warmup)
     logger.info("\n1. Khởi động CPU cache (Warmup 15 lượt)...")
@@ -85,7 +85,7 @@ def run_step8():
 
     # 2. Đo đạc chi tiết qua N_runs = 50 lần lặp
     N_runs = 50
-    logger.info(f"\n2. Bắt đầu đo đạc hồ sơ độ trễ ({N_runs} lần lặp độc lập trên ảnh 320x320)...")
+    logger.info(f"\n2. Bắt đầu đo đạc hồ sơ độ trễ ({N_runs} lần lặp độc lập trên ảnh 640x640)...")
     history_tracker = MetricHistoryTracker("step8_latency_runs", output_dir=RESULTS_DIR)
 
     lat_base = []
@@ -180,7 +180,7 @@ def run_step8():
             "device": str(device),
         },
         "num_runs": N_runs,
-        "input_resolution": "320x320",
+        "input_resolution": "640x640",
         "latency_metrics": {
             "rtdetr_base_ms": {"mean": round(mean_base, 2), "std": round(std_base, 2), "fps": round(fps_base, 2)},
             "tensor_extraction_ms": {"mean": round(mean_ext, 2), "std": round(std_ext, 2)},

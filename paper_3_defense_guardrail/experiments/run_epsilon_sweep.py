@@ -69,7 +69,7 @@ def run_epsilon_sweep(n_eval: int = 25):
     attacker = DETRAttackGenerator(wrapper)
 
     # Nạp ảnh kiểm thử
-    _, test_imgs = load_coco_images(n_cal=100, n_test=n_eval, img_size=320, seed=42)
+    _, test_imgs = load_coco_images(n_cal=100, n_test=n_eval, img_size=640, seed=42)
     eval_tensor = test_imgs.to(device)
 
     # 1. Đo clean baseline

@@ -107,7 +107,7 @@ def generate_single_cache(
     l2_norms: List[float] = []
 
     if attack == "patch48":
-        cal_imgs, _ = load_coco_images(n_cal=1200, n_test=600, img_size=320, seed=42)
+        cal_imgs, _ = load_coco_images(n_cal=1200, n_test=600, img_size=640, seed=42)
         patch_48 = attacker.optimize_adversarial_patch(
             cal_imgs[:60], patch_size=48, patch_loc="random", target_class_idx=1, num_epochs=4
         )

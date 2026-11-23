@@ -80,7 +80,7 @@ def run_step2():
     # Nạp 300 ảnh độc lập từ test set để làm controls và natural shifts
     N_eval = 300
     logger.info(f"Nạp dữ liệu COCO: Lấy N={N_eval} ảnh độc lập từ test set làm cohort đánh giá...")
-    _, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=320, seed=42)
+    _, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=640, seed=42)
     eval_imgs = test_imgs[:N_eval]
 
     controls: List[Tuple[str, str, torch.Tensor]] = [

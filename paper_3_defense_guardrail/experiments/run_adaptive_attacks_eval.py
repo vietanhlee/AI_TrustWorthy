@@ -79,7 +79,7 @@ def run_step6():
     extractor = RTDETRDeepFeatureExtractor(conf_threshold=0.35, top_k_queries=10, projection_dim=64)
     attacker = DETRAttackGenerator(wrapper, epsilon=16.0 / 255.0, alpha=2.0 / 255.0, num_steps=15)
 
-    _, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=320, seed=42)
+    _, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=640, seed=42)
     N_pgd = 300
     eval_imgs = test_imgs[:N_pgd]
     logger.info(f"Nạp dữ liệu COCO: Cohort N={N_pgd} ảnh kiểm thử độc lập.")

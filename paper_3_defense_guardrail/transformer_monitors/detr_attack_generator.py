@@ -5,7 +5,7 @@ Mục đích: Bộ sinh các đòn tấn công đối kháng chuyên biệt cho 
 Kiến trúc các đòn tấn công tinh gọn (Streamlined Attack Suite):
 1. Tier 1 (Encoder-to-Decoder Interface):
    - Adversarial Query Selection Manipulation (AQSM / Selection Starvation Attack)
-     Thao túng ranking của 2100 candidate predictions từ Encoder, ép object thật rơi khỏi Top-300,
+     Thao túng ranking của S candidate predictions từ Encoder (S = 8,400 ở native 640x640; 2,100 ở 320x320), ép object thật rơi khỏi Top-300,
      gây hiện tượng "Bỏ đói thông tin" (Information Starvation) ở Deformable Decoder.
 2. Tier 2 (Deformable Decoder Output Space):
    - Query Vanishing Attack: Ép toàn bộ object queries triệt tiêu độ tự tin về mức 0 (No Detection / AEB Failure).
@@ -110,7 +110,7 @@ class DETRAttackGenerator:
         """
         Adversarial Query Selection Manipulation (AQSM / Selection Starvation Attack):
         Tấn công có chủ đích vào mắt xích Encoder Query Selection (đặc thù độc nhất của RT-DETR).
-        Thao túng thứ hạng (ranking) của 2100 candidate predictions từ Hybrid Encoder:
+        Thao túng thứ hạng (ranking) của S candidate predictions từ Hybrid Encoder (S = 8,400 ở native 640x640; 2,100 ở 320x320):
         1. Dìm điểm các candidate thuộc về vật thể thật (foreground candidates) để chúng rơi khỏi Top-300.
         2. Kích hoạt và nâng điểm các candidate thuộc vùng nền (background candidates) thế chỗ vào Top-300.
         3. Gây ra hiện tượng "Bỏ đói thông tin" (Information Starvation) ở Deformable Decoder:
@@ -125,7 +125,7 @@ class DETRAttackGenerator:
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
             if hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None:
-                clean_enc_logits = clean_out.enc_outputs_class  # [B, S, C], S = 2100
+                clean_enc_logits = clean_out.enc_outputs_class  # [B, S, C], S = 8400 (640x640)
             else:
                 clean_enc_logits = clean_out.logits
 
@@ -158,7 +158,7 @@ class DETRAttackGenerator:
             max_fg_probs, _ = fg_probs.max(dim=-1)  # [B, k_fg]
             loss_suppress = (max_fg_probs ** 2).mean()
 
-            # 2. Ngưỡng điểm của ứng viên thứ 300 trong toàn bộ 2100 candidates
+            # 2. Ngưỡng điểm của ứng viên thứ 300 trong toàn bộ S candidates (S=8,400 ở 640x640)
             max_all_probs, _ = enc_probs.max(dim=-1)  # [B, S]
             val_at_300, _ = torch.kthvalue(max_all_probs, k=max_all_probs.shape[1] - 300 + 1, dim=-1)  # [B]
             

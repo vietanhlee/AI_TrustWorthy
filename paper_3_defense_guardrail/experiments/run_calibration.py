@@ -63,7 +63,7 @@ def run_step1():
 
     # 2. Phân chia tập dữ liệu nghiêm ngặt
     N_cal, N_test = 1200, 600
-    img_size = 320
+    img_size = 640
     seed = 42
     logger.info(f"2. Nạp dữ liệu COCO val2017: N_cal={N_cal}, N_test={N_test}, Size={img_size}x{img_size}, Seed={seed} (Zero Data Leakage)...")
     t0_data = time.time()

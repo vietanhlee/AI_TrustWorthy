@@ -5,7 +5,7 @@ Mục đích: Quản lý nạp và tiền xử lý tập dữ liệu hình ảnh
 phân vùng nghiêm ngặt không rò rỉ dữ liệu (Disjoint Zero-Leakage Partition Protocol).
 
 Hỗ trợ:
-1. Nạp và chuẩn hóa kích thước ảnh (320x320) sang Tensor [0.0, 1.0].
+1. Nạp và chuẩn hóa kích thước ảnh (640x640) sang Tensor [0.0, 1.0].
 2. Phân chia độc lập tập Hiệu chuẩn (N_cal = 1000) và tập Kiểm thử sạch (N_test = 500).
 3. Lớp Dataset PyTorch chuẩn phục vụ suy luận hàng loạt (Batch Inference).
 4. Các bộ biến đổi tạo nhóm đối chứng âm tự nhiên (Natural Environmental Corruptions).
@@ -61,7 +61,7 @@ def load_coco_images(
         coco_dir: Thư mục chứa ảnh .jpg của COCO val2017.
         n_cal: Số lượng ảnh hiệu chuẩn (mặc định 1000).
         n_test: Số lượng ảnh kiểm thử sạch (mặc định 500).
-        img_size: Kích thước cạnh vuông chuẩn hóa (mặc định 320).
+        img_size: Kích thước cạnh vuông chuẩn hóa (mặc định 640).
         seed: Random seed để cố định danh sách chọn mẫu.
         show_progress: Bật thanh tiến trình tqdm nếu cần theo dõi.
 

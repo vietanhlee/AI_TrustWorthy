@@ -164,7 +164,7 @@ def run_step3():
     extractor = RTDETRDeepFeatureExtractor(conf_threshold=0.35, top_k_queries=10, projection_dim=64)
     attacker = DETRAttackGenerator(wrapper, epsilon=16.0 / 255.0, alpha=2.0 / 255.0, num_steps=15)
 
-    cal_imgs, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=320, seed=42)
+    cal_imgs, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=640, seed=42)
     N_eval = 300
     eval_imgs = test_imgs[:N_eval]
     logger.info(f"Nạp dữ liệu COCO: N_cal={len(cal_imgs)}, N_test_eval={N_eval} (ghép cặp 1-1 với clean test).")
@@ -321,7 +321,7 @@ def run_step3():
                 p = (s_scores[m_name] >= cal_thresholds[m_name]).astype(int)
             s_tprs[m_name] = round(float(np.mean(p)), 5)
 
-        area_pct = round((s * s) / (320 * 320) * 100.0, 2)
+        area_pct = round((s * s) / (640 * 640) * 100.0, 2)
         sweep_results[f"size_{s}"] = {
             "patch_dimension": s,
             "area_percentage": area_pct,

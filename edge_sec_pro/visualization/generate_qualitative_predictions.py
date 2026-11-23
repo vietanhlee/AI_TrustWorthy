@@ -214,7 +214,7 @@ def main() -> None:
     tau_or = float(max_or_det.threshold)
     cs = ckpt["clean_stats"]
 
-    cal_imgs, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=320, seed=42)
+    cal_imgs, test_imgs = load_coco_images(n_cal=1200, n_test=600, img_size=640, seed=42)
     clean_tensor = test_imgs[DEFAULT_SAMPLE_IDX : DEFAULT_SAMPLE_IDX + 1]
 
     try:
@@ -309,7 +309,7 @@ def main() -> None:
     )
 
     fig.suptitle(
-        rf"Qualitative Detections & Guardrail States on RT-DETR-R18VD ($320\times 320$, COCO ID {img_id}, $\tau_{{\mathrm{{OR}}}}={tau_or:.3f}$)",
+        rf"Qualitative Detections & Guardrail States on RT-DETR-R18VD ($640\times 640$, COCO ID {img_id}, $\tau_{{\mathrm{{OR}}}}={tau_or:.3f}$)",
         fontsize=13.0, fontweight="bold", y=0.96, color="#1A202C",
     )
 

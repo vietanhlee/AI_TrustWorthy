@@ -135,7 +135,7 @@ def sync_all():
         print(f"    - Combined Total: {comb_ms:.2f} +- {comb_std:.2f} ms ({comb_fps:.2f} FPS)")
 
         new_t7_rows = (
-            f"RT-DETR Base Inference (\\texttt{{r18vd}}, $320 \\times 320$) & ${base_ms:.2f} \\pm {base_std:.2f}$ ms & Baseline (100.0\\%) \\\\\n"
+            f"RT-DETR Base Inference (\\texttt{{r18vd}}, $640 \\times 640$) & ${base_ms:.2f} \\pm {base_std:.2f}$ ms & Baseline (100.0\\%) \\\\\n"
             f"\\addlinespace[8pt]\n"
             f"Intermediate Tensor Extraction (Encoder Scores + Latent Tokens) & ${tensor_ms:.2f} \\pm {tensor_std:.2f}$ ms & {tensor_ratio:.2f}\\% \\\\\n"
             f"\\addlinespace[8pt]\n"

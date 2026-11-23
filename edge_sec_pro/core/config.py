@@ -36,8 +36,8 @@ CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
 # 2. CẤU HÌNH KIẾN TRÚC MÔ HÌNH RT-DETR (EDGE PROFILE)
 # -----------------------------------------------------------------------------
 MODEL_NAME: str = os.environ.get("EDGE_SEC_MODEL", "PekingU/rtdetr_r18vd")
-IMG_SIZE: int = int(os.environ.get("EDGE_SEC_IMG_SIZE", "320"))
-NUM_CANDIDATES: int = 2100   # 40x40 (S3) + 20x20 (S4) + 10x10 (S5)
+IMG_SIZE: int = int(os.environ.get("EDGE_SEC_IMG_SIZE", "640"))
+NUM_CANDIDATES: int = 8400   # 80x80 (S3) + 40x40 (S4) + 20x20 (S5)
 NUM_QUERIES: int = 300       # Số queries top-k được chọn đưa vào Deformable Decoder
 HIDDEN_DIM: int = 256        # Kích thước vector ẩn của Deformable Decoder
 PROJECTION_DIM: int = 64     # Chiều chiếu trực giao cho Layer Mahalanobis
