@@ -75,7 +75,7 @@ def draw_system_architecture(output_pdf: Path, output_png: Path):
                                    edgecolor="#e53e3e", facecolor="#fff5f5", linewidth=1)
     ax.add_patch(p_adv)
     ax.text(53, 59.5, "AQSM: Query Eviction", ha="center", color="#9b2c2c", fontweight="bold", **small_font)
-    ax.text(53, 55, "Margin Inversion ($\mathcal{L}_{\\mathrm{AQSM}}$)\n87.9% FG Evicted to Clutter",
+    ax.text(53, 55, r"Margin Inversion ($\mathcal{L}_{\mathrm{AQSM}}$)" + "\n96.9% Top-15 FG Evicted",
             ha="center", color="#c53030", **small_font)
 
     # Arrow 3 -> 4
@@ -87,8 +87,8 @@ def draw_system_architecture(output_pdf: Path, output_png: Path):
                                 edgecolor="#2b6cb0", facecolor="#ffffff", linewidth=1.2)
     ax.add_patch(b4)
     ax.text(75.25, 86, "Deformable Decoder", ha="center", **subtitle_font)
-    ax.text(75.25, 80, "3 Layers, 300 Queries", ha="center", color="#2b6cb0", **body_font)
-    ax.text(75.25, 74, "Cross-Attention:\n• Ref. Points: $B_{\\mathrm{init}}$\n• Sampling Offsets: $\\Delta p$\nSpatial Misrouting:\nFG Hit: $62.3\\% \\to 38.3\\%$\n(Entropy concentrated)",
+    ax.text(75.25, 80, "3/6 Layers, 300 Queries", ha="center", color="#2b6cb0", **body_font)
+    ax.text(75.25, 74, "Cross-Attention:\n• Ref. Points: $B_{\\mathrm{init}}$\n• Sampling Offsets: $\\Delta p$\nSpatial Misrouting:\nFG Hit: $63.5\\% \\to 43.2\\%$\n(Sharp weights, displaced)",
             ha="center", color="#4a5568", **small_font)
 
     # Arrow 4 -> 5
