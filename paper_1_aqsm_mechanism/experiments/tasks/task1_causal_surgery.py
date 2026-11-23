@@ -1,4 +1,3 @@
-from scipy import stats
 # -*- coding: utf-8 -*-
 """
 Module: paper_1_aqsm_mechanism.experiments.tasks.task1_causal_surgery
