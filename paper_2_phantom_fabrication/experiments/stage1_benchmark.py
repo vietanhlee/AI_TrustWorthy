@@ -33,7 +33,9 @@ except ImportError:
     HAS_YOLO = False
 
 logger = logging.getLogger("Stage1Benchmark")
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+EXPERIMENTS_DIR = Path(__file__).resolve().parent
+PAPER2_DIR = EXPERIMENTS_DIR.parent
+PROJECT_ROOT = PAPER2_DIR.parent
 
 
 def run_stage_1_benchmark(
