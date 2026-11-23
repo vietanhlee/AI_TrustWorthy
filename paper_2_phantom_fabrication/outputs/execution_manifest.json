@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-23T14:32:34.214151",
-  "total_elapsed_seconds": 35.73,
-  "git_commit": "3de2c6bc2766f964db74b6678fd53ca56370b464",
+  "timestamp": "2026-11-23T19:01:12.968108",
+  "total_elapsed_seconds": 33.52,
+  "git_commit": "c0306857c5c7e8724a75d4f29c766cb0c625cbfd",
   "git_branch": "master",
   "dataset": {
     "image_folder": "G:\\Edge_Sec\\paper_2_phantom_fabrication",
@@ -25,24 +25,24 @@
       "task_id": 5,
       "name": "Task 5: Generate Scientific Figures (Fig 1-4)",
       "return_code": 0,
-      "duration_seconds": 14.49,
+      "duration_seconds": 12.61,
       "status": "SUCCESS"
     },
     {
       "task_id": 6,
       "name": "Task 6: Post-Run Scientific Pipeline (Report, Sync, Paper, Verify)",
       "return_code": 0,
-      "duration_seconds": 21.03,
+      "duration_seconds": 20.79,
       "status": "SUCCESS"
     }
   ],
   "unified_telemetry": "G:\\Edge_Sec\\paper_2_phantom_fabrication\\outputs\\paper2_complete_telemetry.json",
   "checksums": {
-    "unified_telemetry_sha256": "e8f4783581bb0db331f0a2a7898ced9e73b12fd20d4eba7c5761db01ccd55b84",
-    "stage1_benchmark_sha256": "e142a501105da81e1bbf2e06c88dec5c095830871e78f19450e8d03af159ce2f",
-    "stage2_sensitivity_sha256": "f7a5c0e187a15701f6fa1ce4d747f622304901337199f5fd2d5ac34cae390b12",
-    "stage2_downstream_sha256": "95c0d7678bf60906d7dd989b08ac5ac4abd5934487f80403339576088363cabc",
-    "stage1_defense_sha256": "48c9c492ffa607e5c6803b19184d6c3bf9ecbd32b4036797c596e000863fd032"
+    "unified_telemetry_sha256": "a6e4fdaeb21e56c49d4bd48f080b9100720c0fae2ee76f77639192ac9fbeda55",
+    "stage1_benchmark_sha256": "141f3f77af539666286c9054d6ada4e891fe9728a4f04f94a0c88a1c636058b0",
+    "stage2_sensitivity_sha256": "377e41ca2d1463104ea9efecc8363ffff8a775650631a9f9ed7d983b06a8701b",
+    "stage2_downstream_sha256": "0980809b57fb7d451d8c0a21d400fd8f3cb31d97d473018490828c740b6a73ac",
+    "stage1_defense_sha256": "6e45cf97c45119a190de7634bbbc6057a2cf3bea6483ede6ad85e899fc73d826"
   },
   "provenance_statement": "100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics."
 }

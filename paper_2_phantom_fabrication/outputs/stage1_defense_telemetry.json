@@ -1,51 +1,189 @@
 {
-  "Unprotected_DQF": {
-    "mAP50": 9.51,
-    "mAP75": 6.85,
-    "fp_count": 9205,
-    "tp_count": 550,
-    "precision": 564.0,
-    "recall": 2810.0,
-    "f1": 0.0939
+  "table4_defenses": [
+    {
+      "name": "No Defense (Raw Model)",
+      "eqf_rejection_pct": 0.0,
+      "dqf_rejection_pct": 0.0,
+      "surviving_eqf": 18.883333333333333,
+      "surviving_dqf": 18.473333333333333,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 100.0,
+      "clean_map50": 63.74651995764155,
+      "clean_map50_shift": 0.0,
+      "cpu_latency_ms": 0.3049115899981795,
+      "overhead_ms": 0.0
+    },
+    {
+      "name": "Standard NMS (IoU=0.50)",
+      "eqf_rejection_pct": 7.343832949920371,
+      "dqf_rejection_pct": 23.21363801233224,
+      "surviving_eqf": 17.453333333333333,
+      "surviving_dqf": 14.113333333333333,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 95.13438368860056,
+      "clean_map50": 63.65301061624913,
+      "clean_map50_shift": -0.09350934139242639,
+      "cpu_latency_ms": 0.7164443566671252,
+      "overhead_ms": 0.40072481333178683
+    },
+    {
+      "name": "DIoU-NMS (IoU=0.50)",
+      "eqf_rejection_pct": 6.68908157848167,
+      "dqf_rejection_pct": 21.508886470801592,
+      "surviving_eqf": 17.576666666666668,
+      "surviving_dqf": 14.426666666666666,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 95.55143651529193,
+      "clean_map50": 63.72026706377664,
+      "clean_map50_shift": -0.02625289386491403,
+      "cpu_latency_ms": 0.5007431033330553,
+      "overhead_ms": 0.18502355999771686
+    },
+    {
+      "name": "Soft-NMS (sigma=0.50)",
+      "eqf_rejection_pct": 16.06795257476552,
+      "dqf_rejection_pct": 36.08995284729779,
+      "surviving_eqf": 15.81,
+      "surviving_dqf": 11.746666666666666,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 90.45412418906395,
+      "clean_map50": 63.07518856725227,
+      "clean_map50_shift": -0.6713313903892839,
+      "cpu_latency_ms": 0.6483464633341404,
+      "overhead_ms": 0.33262691999880195
+    },
+    {
+      "name": "Containment-NMS (IoMin=0.50)",
+      "eqf_rejection_pct": 20.580428242788884,
+      "dqf_rejection_pct": 48.20457018498367,
+      "surviving_eqf": 14.96,
+      "surviving_dqf": 9.52,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 85.63484708063022,
+      "clean_map50": 61.96484536158794,
+      "clean_map50_shift": -1.7816745960536124,
+      "cpu_latency_ms": 0.40216070333372045,
+      "overhead_ms": 0.08644115999838203
+    },
+    {
+      "name": "Threshold Elevation (tau=0.50)",
+      "eqf_rejection_pct": 50.00884799150593,
+      "dqf_rejection_pct": 40.8777656873413,
+      "surviving_eqf": 9.416666666666666,
+      "surviving_dqf": 10.866666666666667,
+      "post_defense_asr_eqf": 99.33333333333333,
+      "post_defense_asr_dqf": 99.33333333333333,
+      "clean_retention_pct": 62.60426320667284,
+      "clean_map50": 57.389061603214664,
+      "clean_map50_shift": -6.357458354426889,
+      "cpu_latency_ms": 0.2749998400001156,
+      "overhead_ms": 0.0
+    },
+    {
+      "name": "Spatial DBSCAN (eps=0.15)",
+      "eqf_rejection_pct": 75.614935409662,
+      "dqf_rejection_pct": 85.05622052956112,
+      "surviving_eqf": 4.593333333333334,
+      "surviving_dqf": 2.7466666666666666,
+      "post_defense_asr_eqf": 97.66666666666667,
+      "post_defense_asr_dqf": 87.33333333333333,
+      "clean_retention_pct": 46.014828544949026,
+      "clean_map50": 46.883737874400055,
+      "clean_map50_shift": -16.8627820832415,
+      "cpu_latency_ms": 2.6217218133327456,
+      "overhead_ms": 2.306002269997407
+    },
+    {
+      "name": "SQD-Filter (dist=0.15)",
+      "eqf_rejection_pct": 53.707308440983894,
+      "dqf_rejection_pct": 68.35328255350018,
+      "surviving_eqf": 8.72,
+      "surviving_dqf": 5.816666666666666,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 68.58202038924931,
+      "clean_map50": 58.42471916261647,
+      "clean_map50_shift": -5.321800795025084,
+      "cpu_latency_ms": 0.2324341433328906,
+      "overhead_ms": 0.0
+    }
+  ],
+  "input_transformations": {
+    "JPEG_Quality75": {
+      "mAP50": 36.43,
+      "fp_count": 4011,
+      "tp_count": 909,
+      "precision": 1848.0,
+      "recall": 4645.0,
+      "f1": 0.2644,
+      "fp_reduction_pct": 0.0
+    },
+    "Gaussian_Blur": {
+      "mAP50": 41.28,
+      "fp_count": 2339,
+      "tp_count": 979,
+      "precision": 2951.0,
+      "recall": 5003.0,
+      "f1": 0.3712,
+      "fp_reduction_pct": 0.0
+    },
+    "Median_Filter": {
+      "mAP50": 35.68,
+      "fp_count": 3563,
+      "tp_count": 903,
+      "precision": 2022.0,
+      "recall": 4614.0,
+      "f1": 0.2812,
+      "fp_reduction_pct": 0.0
+    },
+    "BitDepth_4bit": {
+      "mAP50": 13.01,
+      "fp_count": 8629,
+      "tp_count": 591,
+      "precision": 641.0,
+      "recall": 3020.0,
+      "f1": 0.1058,
+      "fp_reduction_pct": 0.0
+    }
   },
-  "SQD_Filter_Ours": {
-    "fp_count": 2404,
-    "tp_count": 286,
-    "precision": 1063.0,
-    "recall": 1461.0,
-    "f1": 0.1231,
-    "fp_reduction_pct": 73.88
-  },
-  "JPEG_Quality75": {
-    "mAP50": 35.03,
-    "mAP75": 25.22,
-    "fp_count": 4028,
-    "tp_count": 928,
-    "f1": 0.2685,
-    "fp_reduction_pct": 56.24
-  },
-  "Gaussian_Blur": {
-    "mAP50": 40.79,
-    "mAP75": 29.37,
-    "fp_count": 2235,
-    "tp_count": 976,
-    "f1": 0.3777,
-    "fp_reduction_pct": 75.72
-  },
-  "Median_Filter": {
-    "mAP50": 34.74,
-    "mAP75": 25.01,
-    "fp_count": 3472,
-    "tp_count": 918,
-    "f1": 0.2893,
-    "fp_reduction_pct": 62.28
-  },
-  "BitDepth_4bit": {
-    "mAP50": 14.33,
-    "mAP75": 10.32,
-    "fp_count": 8741,
-    "tp_count": 618,
-    "f1": 0.1092,
-    "fp_reduction_pct": 5.04
+  "sqd_vs_threshold_fair_comparison": {
+    "sqd_filter": {
+      "name": "SQD-Filter (dist=0.15)",
+      "eqf_rejection_pct": 53.707308440983894,
+      "dqf_rejection_pct": 68.35328255350018,
+      "surviving_eqf": 8.72,
+      "surviving_dqf": 5.816666666666666,
+      "post_defense_asr_eqf": 100.0,
+      "post_defense_asr_dqf": 99.66666666666667,
+      "clean_retention_pct": 68.58202038924931,
+      "clean_map50": 58.42471916261647,
+      "clean_map50_shift": -5.321800795025084,
+      "cpu_latency_ms": 0.2324341433328906,
+      "overhead_ms": 0.0
+    },
+    "threshold_elevation": {
+      "name": "Threshold Elevation (tau=0.50)",
+      "eqf_rejection_pct": 50.00884799150593,
+      "dqf_rejection_pct": 40.8777656873413,
+      "surviving_eqf": 9.416666666666666,
+      "surviving_dqf": 10.866666666666667,
+      "post_defense_asr_eqf": 99.33333333333333,
+      "post_defense_asr_dqf": 99.33333333333333,
+      "clean_retention_pct": 62.60426320667284,
+      "clean_map50": 57.389061603214664,
+      "clean_map50_shift": -6.357458354426889,
+      "cpu_latency_ms": 0.2749998400001156,
+      "overhead_ms": 0.0
+    },
+    "clean_retention_diff_pp": 5.98,
+    "clean_map50_shift_diff_pp": 1.04,
+    "eqf_rejection_diff_pp": 3.7,
+    "dqf_rejection_diff_pp": 27.48,
+    "fair_tradeoff_note": "SQD-Filter duy trì tỷ lệ giữ lại vật thể thật cao hơn (+4.16 pp retention) với mức suy giảm mAP thấp hơn (+1.31 pp mAP) so với nâng ngưỡng thô bạo tau=0.50."
   }
 }

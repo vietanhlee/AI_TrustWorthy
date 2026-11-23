@@ -46,7 +46,7 @@ try {
     Copy-Item "main_phantom.pdf" (Join-Path $submissionDir "2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf") -Force
     Copy-Item "main_phantom.pdf" (Join-Path $submissionDir "3_Paper_Phantom_Queries_Fabrication_Elsevier.pdf") -Force
     Clean-LatexArtifacts $p2Dir
-    $p2Pages = python -c "import fitz; doc=fitz.open('main_phantom.pdf'); print(len(doc))" 2>$null
+    $p2Pages = python -c "import pymupdf; doc=pymupdf.open('main_phantom.pdf'); print(len(doc))"
     Write-Host ">>> Done: Paper 2 (Phantom Queries - Verified $p2Pages Pages)" -ForegroundColor Green
 } finally {
     Pop-Location

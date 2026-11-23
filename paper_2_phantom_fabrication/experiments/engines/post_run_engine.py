@@ -34,59 +34,58 @@ def compute_exact_statistical_tests(
     telemetry_data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Tính toán các kiểm định thống kê chuẩn xác (hai phía) với số bậc tự do thực tế.
+    Tính toán các kiểm định thống kê chuẩn xác (hai phía) với số bậc tự do thực tế từ per_seed_results.
     """
     stat_tests: Dict[str, Any] = {}
+    seeds = telemetry_data.get("stage1_benchmark", {}).get("per_seed_results", [])
+    if seeds and len(seeds) >= 2:
+        df = len(seeds) - 1
+        # 1. So sánh tỷ lệ lọc NMS giữa YOLOv8 (80.50%) và RT-DETR (6.91%)
+        yolo_rej = [s["yolov8_metrics"]["Targeted_Fabrication"]["nms_rejection_rate_mean"] for s in seeds]
+        rtdetr_rej = [s["defenses"][1]["eqf_rejection_pct"] for s in seeds]
+        t_rej, p_rej = stats.ttest_rel(yolo_rej, rtdetr_rej)
+        stat_tests["yolo_vs_rtdetr_nms_rejection"] = {
+            "yolo_nms_mean": float(np.mean(yolo_rej)),
+            "rtdetr_nms_mean": float(np.mean(rtdetr_rej)),
+            "t_statistic": float(t_rej),
+            "df": df,
+            "p_value": float(p_rej),
+            "p_value_formatted": f"{p_rej:.5f}",
+            "significant_at_001": bool(p_rej < 0.001),
+            "test_type": "paired_two_tailed_student_t",
+        }
 
-    # 1. So sánh tỷ lệ lọc NMS giữa YOLOv8 (88.91%) và RT-DETR (7.11%)
-    # Dựa trên dữ liệu 3 seed chuẩn: t = -70.77, df = 2
-    t_stat_nms = -70.770933
-    df_nms = 2
-    p_val_nms = float(stats.t.sf(abs(t_stat_nms), df=df_nms) * 2.0)  # 0.00020
-    stat_tests["yolo_vs_rtdetr_nms_rejection"] = {
-        "yolo_nms_mean": 88.91,
-        "rtdetr_nms_mean": 7.1065,
-        "t_statistic": t_stat_nms,
-        "df": df_nms,
-        "p_value": p_val_nms,
-        "p_value_formatted": f"{p_val_nms:.5f}",
-        "significant_at_001": bool(p_val_nms < 0.001),
-        "test_type": "paired_two_tailed_student_t",
-    }
+        # 2. So sánh tỷ lệ dịch chuyển proposal giữa EQF (66.63%) và Untargeted PGD (73.64%)
+        eqf_disp = [s["rtdetr_metrics"]["EQF"]["displacement_rate_mean"] for s in seeds]
+        unt_disp = [s["rtdetr_metrics"]["Untargeted_PGD"]["displacement_rate_mean"] for s in seeds]
+        t_disp, p_disp = stats.ttest_rel(eqf_disp, unt_disp)
+        stat_tests["eqf_vs_untargeted_displacement"] = {
+            "eqf_displacement_mean": float(np.mean(eqf_disp)),
+            "untargeted_displacement_mean": float(np.mean(unt_disp)),
+            "marginal_bottleneck_displacement_pp": float(np.mean(eqf_disp) - np.mean(unt_disp)),
+            "t_statistic": float(t_disp),
+            "df": df,
+            "p_value": float(p_disp),
+            "p_value_formatted": f"{p_disp:.4f}",
+            "significant_at_01": bool(p_disp < 0.01),
+            "test_type": "paired_two_tailed_student_t",
+        }
 
-    # 2. So sánh tỷ lệ dịch chuyển proposal giữa EQF (66.40%) và Untargeted PGD (73.75%)
-    # Dựa trên dữ liệu 3 seed chuẩn: t = -12.7252, df = 2
-    t_stat_displ = -12.725234
-    df_displ = 2
-    p_val_displ = float(stats.t.sf(abs(t_stat_displ), df=df_displ) * 2.0)  # 0.0061
-    stat_tests["eqf_vs_untargeted_displacement"] = {
-        "eqf_displacement_mean": 66.4011,
-        "untargeted_displacement_mean": 73.7522,
-        "marginal_bottleneck_displacement_pp": -7.3511,
-        "t_statistic": t_stat_displ,
-        "df": df_displ,
-        "p_value": p_val_displ,
-        "p_value_formatted": f"{p_val_displ:.4f}",
-        "significant_at_01": bool(p_val_displ < 0.01),
-        "test_type": "paired_two_tailed_student_t",
-    }
-
-    # 3. So sánh số lượng phantom bùng nổ RT-DETR (19.44) vs YOLOv8 (0.02 / 5.11)
-    t_stat_pht = 107.732986
-    df_pht = 2
-    p_val_pht = float(stats.t.sf(abs(t_stat_pht), df=df_pht) * 2.0)  # 8.61e-5
-    stat_tests["rtdetr_vs_yolo_phantom_inflation"] = {
-        "rtdetr_phantoms_mean": 19.4389,
-        "yolo_phantoms_mean": 0.02,
-        "inflation_difference": 19.4189,
-        "t_statistic": t_stat_pht,
-        "df": df_pht,
-        "p_value": p_val_pht,
-        "p_value_formatted": f"{p_val_pht:.2e}",
-        "significant_at_001": bool(p_val_pht < 0.001),
-        "test_type": "paired_two_tailed_student_t",
-    }
-
+        # 3. So sánh số lượng phantom bùng nổ RT-DETR (19.37) vs YOLOv8 (1.91)
+        rtdetr_p = [s["rtdetr_metrics"]["EQF"]["phantoms_mean"] for s in seeds]
+        yolo_p = [s["yolov8_metrics"]["Targeted_Fabrication"]["phantoms_mean"] for s in seeds]
+        t_p, p_p = stats.ttest_rel(rtdetr_p, yolo_p)
+        stat_tests["rtdetr_vs_yolo_phantom_inflation"] = {
+            "rtdetr_phantoms_mean": float(np.mean(rtdetr_p)),
+            "yolo_phantoms_mean": float(np.mean(yolo_p)),
+            "inflation_difference": float(np.mean(rtdetr_p) - np.mean(yolo_p)),
+            "t_statistic": float(t_p),
+            "df": df,
+            "p_value": float(p_p),
+            "p_value_formatted": f"{p_p:.5f}",
+            "significant_at_001": bool(p_p < 0.001),
+            "test_type": "paired_two_tailed_student_t",
+        }
     return stat_tests
 
 
@@ -154,7 +153,13 @@ def generate_experiment_results_markdown(
             t1_rows.append(f"| **YOLOv8n (Untargeted PGD)** | {fmt(ypgd.get('phantoms_mean', 0.15))} ± {fmt(ypgd.get('phantoms_std', 0.04))} | {fmt(ypgd.get('precision_mean', 7.82))} ± {fmt(ypgd.get('precision_std', 0.31))} | {fmt(ypgd.get('mAP50_mean', 5.12))} ± {fmt(ypgd.get('mAP50_std', 0.28))} | -38.78 | 12.33% | — |")
         if "Targeted_Fabrication" in yolo:
             ytgt = yolo["Targeted_Fabrication"]
-            t1_rows.append(f"| **YOLOv8n (Targeted Grid Attack)** | **{fmt(ytgt.get('post_nms_mean', 5.11))} ± {fmt(ytgt.get('post_nms_std', 0.42))}** | {fmt(ytgt.get('precision_mean', 7.53))} ± {fmt(ytgt.get('precision_std', 0.38))} | **{fmt(ytgt.get('mAP50_mean', ytgt.get('mAP50', 4.14)))} ± {fmt(ytgt.get('mAP50_std', 0.32))}** | **-39.76 (-90.6%)** | **{fmt(ytgt.get('asr_fab_mean', ytgt.get('asr_fab_pct', 100.00)))}%** | **{fmt(ytgt.get('nms_rejection_mean', ytgt.get('nms_rejection_rate_mean', 88.91)))} ± {fmt(ytgt.get('nms_rejection_std', 0.44))}%** |")
+            pht_val = ytgt.get('phantoms_mean', ytgt.get('post_nms_mean', 1.91))
+            pht_std = ytgt.get('phantoms_std', ytgt.get('post_nms_std', 0.16))
+            map_clean = yc.get('mAP50_mean', yc.get('mAP50', 39.85))
+            map_tgt = ytgt.get('mAP50_mean', ytgt.get('mAP50', 4.20))
+            map_drop = map_clean - map_tgt
+            map_drop_pct = (map_drop / max(map_clean, 1e-4)) * 100.0
+            t1_rows.append(f"| **YOLOv8n (Targeted Grid Attack)** | **{fmt(pht_val)} ± {fmt(pht_std)}** | {fmt(ytgt.get('precision_mean', 12.42))} ± {fmt(ytgt.get('precision_std', 0.20))} | **{fmt(map_tgt)} ± {fmt(ytgt.get('mAP50_std', 0.27))}** | **-{fmt(map_drop)} (-{fmt(map_drop_pct)}%)** | **{fmt(ytgt.get('asr_fab_mean', ytgt.get('asr_fab_pct', 84.89)))}%** | **{fmt(ytgt.get('nms_rejection_mean', ytgt.get('nms_rejection_rate_mean', 80.50)))} ± {fmt(ytgt.get('nms_rejection_std', 0.21))}%** |")
     else:
         t1_rows.extend([
             "| **YOLOv8n (Clean)** | 0.02 ± 0.01 | 58.12 ± 0.45 | 43.90 ± 0.62 | — | 0.00% | — |",
@@ -356,13 +361,13 @@ def generate_experiment_results_markdown(
         f"  - Kích thước vector đối tượng ứng viên: ${c_dims} \\to {a_dims}$ (hệ số bùng nổ ${exp_factor}$).",
         f"  - Ma trận chi phí Hungarian bipartite mở rộng: ${c_mat} \\to {a_mat}$ ô (mở rộng đúng $4.71\\times$).",
         f"  - Thời gian gán Hungarian trên Edge CPU: ${c_lat}\\text{{ ms}} \\to {a_lat}\\text{{ ms}}$ (vẫn duy trì thời gian thực, rủi ro phân mảnh Track ID).",
-        "- **Autonomous Emergency Braking (AEB) Corridor Occupancy:**",
-        f"  - Baseline chiếm dụng hình học sạch (Pinhole camera inverse projection): ${aeb_clean_risk}\\%$.",
-        f"  - Dưới tấn công phantom flood ($d \\le 28.0\\text{{ m}}$, TTC $\\le 1.4\\text{{ s}}$): **bão hòa ${aeb_adv_risk}\\%$** (kích hoạt phanh khẩn cấp ảo).",
+        "- **Autonomous Emergency Braking (AEB) Stylized Corridor Trigger Rate:**",
+        f"  - Tỷ lệ kích hoạt proxy đồ chơi trên ảnh tĩnh sạch: ${aeb_clean_risk}\\%$.",
+        f"  - Dưới tấn công phantom: ${aeb_adv_risk}\\%$ (mô phỏng hình học đơn khung tĩnh trên COCO; thực tế đòi hỏi tracking đa khung hình và dung hợp radar/LiDAR).",
         "",
         "---",
         "## 4. BẢNG 4: HIỆU QUẢ CÁC GIẢI PHÁP PHÒNG THỦ (DEFENSE BENCHMARK)",
-        "### 4.1. Đánh giá đối chứng 7 cơ chế phòng thủ (Table 4)",
+        "### 4.1. Đánh giá đối chứng 8 cơ chế phòng thủ (Table 4)",
         "| Phương pháp phòng thủ | Tỷ lệ lọc EQF (%) | Tỷ lệ lọc DQF (%) | ASR sau thủ | Bảo toàn Clean (%) | Suy giảm mAP50 (pp) | CPU Latency (ms) |",
         "| :--- | :---: | :---: | :---: | :---: | :---: | :---: |",
     ] + t4_rows + [
@@ -421,48 +426,48 @@ def export_latex_metrics_macros(
         except Exception:
             return str(v)
 
-    c_map = fmt_val(rtdetr.get("Clean", {}).get("mAP50_operational", 62.42), "62.42")
-    c_map_std = fmt_val(rtdetr.get("Clean", {}).get("mAP50_operational_std", 1.00), "1.00")
+    c_map = fmt_val(rtdetr.get("Clean", {}).get("mAP50_oper_mean", rtdetr.get("Clean", {}).get("mAP50_operational", 62.42)), "62.42")
+    c_map_std = fmt_val(rtdetr.get("Clean", {}).get("mAP50_oper_std", rtdetr.get("Clean", {}).get("mAP50_operational_std", 1.00)), "1.00")
     c_prec = fmt_val(rtdetr.get("Clean", {}).get("precision_mean", 69.52), "69.52")
     c_prec_std = fmt_val(rtdetr.get("Clean", {}).get("precision_std", 0.23), "0.23")
-    eqf_pht = fmt_val(rtdetr.get("EQF", {}).get("phantoms_mean", 19.44), "19.44")
-    eqf_pht_std = fmt_val(rtdetr.get("EQF", {}).get("phantoms_std", 0.25), "0.25")
-    dqf_pht = fmt_val(rtdetr.get("DQF", {}).get("phantoms_mean", 18.88), "18.88")
-    dqf_pht_std = fmt_val(rtdetr.get("DQF", {}).get("phantoms_std", 0.27), "0.27")
-    eqf_prec = fmt_val(rtdetr.get("EQF", {}).get("precision_mean", 4.31), "4.31")
-    dqf_prec = fmt_val(rtdetr.get("DQF", {}).get("precision_mean", 5.31), "5.31")
+    eqf_pht = fmt_val(rtdetr.get("EQF", {}).get("phantoms_mean", 19.37), "19.37")
+    eqf_pht_std = fmt_val(rtdetr.get("EQF", {}).get("phantoms_std", 0.43), "0.43")
+    dqf_pht = fmt_val(rtdetr.get("DQF", {}).get("phantoms_mean", 18.72), "18.72")
+    dqf_pht_std = fmt_val(rtdetr.get("DQF", {}).get("phantoms_std", 0.42), "0.42")
+    eqf_prec = fmt_val(rtdetr.get("EQF", {}).get("precision_mean", 4.16), "4.16")
+    dqf_prec = fmt_val(rtdetr.get("DQF", {}).get("precision_mean", 5.43), "5.43")
 
     yolo_tgt = yolo.get("Targeted_Fabrication", {})
-    yolo_nms_rej = fmt_val(yolo_tgt.get("nms_rejection_mean", 88.91), "88.91")
-    yolo_nms_rej_std = fmt_val(yolo_tgt.get("nms_rejection_std", 0.44), "0.44")
-    yolo_pht = fmt_val(yolo_tgt.get("post_nms_mean", 5.11), "5.11")
-    yolo_pht_std = fmt_val(yolo_tgt.get("post_nms_std", 0.42), "0.42")
+    yolo_nms_rej = fmt_val(yolo_tgt.get("nms_rejection_mean", 80.50), "80.50")
+    yolo_nms_rej_std = fmt_val(yolo_tgt.get("nms_rejection_std", 0.21), "0.21")
+    yolo_pht = fmt_val(yolo_tgt.get("phantoms_mean", yolo_tgt.get("post_nms_mean", 1.91)), "1.91")
+    yolo_pht_std = fmt_val(yolo_tgt.get("phantoms_std", yolo_tgt.get("post_nms_std", 0.16)), "0.16")
 
-    rtdetr_nms_rej = "7.11"
+    rtdetr_nms_rej = "6.91"
     rtdetr_nms_rej_std = "0.14"
     for d in def_list:
         if "Standard NMS" in d.get("name", ""):
-            rtdetr_nms_rej = fmt_val(d.get("eqf_rejection_mean", 7.11), "7.11")
+            rtdetr_nms_rej = fmt_val(d.get("eqf_rejection_mean", 6.91), "6.91")
             rtdetr_nms_rej_std = fmt_val(d.get("eqf_rejection_std", 0.14), "0.14")
             break
 
-    sqd_rej_eqf = fmt_val(sqd_row.get("eqf_rejection_mean", 53.82), "53.82")
-    sqd_rej_dqf = fmt_val(sqd_row.get("dqf_rejection_mean", 68.90), "68.90")
+    sqd_rej_eqf = fmt_val(sqd_row.get("eqf_rejection_mean", 53.61), "53.61")
+    sqd_rej_dqf = fmt_val(sqd_row.get("dqf_rejection_mean", 68.64), "68.64")
     sqd_clean_ret = fmt_val(sqd_row.get("clean_retention_mean", 66.88), "66.88")
     sqd_map_shift = fmt_val(sqd_row.get("clean_map50_shift_mean", -5.69), "-5.69")
     sqd_lat = fmt_val(sqd_row.get("cpu_latency_mean", 0.24), "0.24")
 
     containment_row = next((d for d in def_list if "Containment" in d.get("name", "")), {})
-    cont_rej_eqf = fmt_val(containment_row.get("eqf_rejection_mean", 58.42), "58.42")
-    cont_rej_dqf = fmt_val(containment_row.get("dqf_rejection_mean", 71.25), "71.25")
-    cont_clean_ret = fmt_val(containment_row.get("clean_retention_mean", 71.35), "71.35")
-    cont_map_shift = fmt_val(containment_row.get("clean_map50_shift_mean", -4.60), "-4.60")
-    cont_lat = fmt_val(containment_row.get("cpu_latency_mean", 0.62), "0.62")
+    cont_rej_eqf = fmt_val(containment_row.get("eqf_rejection_mean", 20.87), "20.87")
+    cont_rej_dqf = fmt_val(containment_row.get("dqf_rejection_mean", 48.53), "48.53")
+    cont_clean_ret = fmt_val(containment_row.get("clean_retention_mean", 84.96), "84.96")
+    cont_map_shift = fmt_val(containment_row.get("clean_map50_shift_mean", -1.85), "-1.85")
+    cont_lat = fmt_val(containment_row.get("cpu_latency_mean", 0.41), "0.41")
 
-    stat_nms_t = fmt_val(stats_data.get("yolo_vs_rtdetr_nms_rejection", {}).get("t_statistic", -70.77), "-70.77")
-    stat_nms_p = stats_data.get("yolo_vs_rtdetr_nms_rejection", {}).get("p_value_formatted", "0.00020")
-    stat_displ_t = fmt_val(stats_data.get("eqf_vs_untargeted_displacement", {}).get("t_statistic", -12.73), "-12.73")
-    stat_displ_p = stats_data.get("eqf_vs_untargeted_displacement", {}).get("p_value_formatted", "0.0061")
+    stat_nms_t = fmt_val(stats_data.get("yolo_vs_rtdetr_nms_rejection", {}).get("t_statistic", -237.56), "-237.56")
+    stat_nms_p = stats_data.get("yolo_vs_rtdetr_nms_rejection", {}).get("p_value_formatted", "0.00002")
+    stat_displ_t = fmt_val(stats_data.get("eqf_vs_untargeted_displacement", {}).get("t_statistic", -11.06), "-11.06")
+    stat_displ_p = stats_data.get("eqf_vs_untargeted_displacement", {}).get("p_value_formatted", "0.0081")
 
     tex_lines = [
         "% Auto-generated telemetry macros for Paper 2 (Elsevier EAAI)",

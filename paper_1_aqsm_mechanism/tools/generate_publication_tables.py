@@ -326,7 +326,7 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Factorial causal mechanism isolation on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 65.50\%), and $\Delta$ vs.\ Arm A/B.}
+\caption{Factorial causal failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 65.50\%), and $\Delta$ vs.\ Arm A/B.}
 \label{tab:tab3_causal_surgery}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccc}
@@ -847,7 +847,7 @@ def generate_table9(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Matched-budget mechanistic comparison on COCO val2017 at native $640 \times 640$ resolution across $\epsilon \in \{4/255, 8/255, 16/255\}$ on $N = 1,000$ images. Demonstrates that Standard Task PGD degrades detection metrics across budgets, while AQSM isolates encoder query eviction and spatial misrouting.}
+\caption{Matched-budget mechanistic comparison on COCO val2017 at native $640 \times 640$ resolution across $\epsilon \in \{4/255, 8/255, 16/255\}$ on $N = 1,000$ images. Demonstrates that Standard Task PGD degrades detection metrics across budgets, while AQSM accentuates encoder query eviction and spatial misrouting as an essential secondary transmission channel alongside encoder memory corruption.}
 \label{tab:tab9_matched_budget}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llccc}
