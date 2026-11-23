@@ -326,7 +326,7 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Factorial causal mechanism isolation on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 65.50\%), and $\Delta$ vs.\ Arm A/B. Evaluation across scaled cohorts confirms consistent causal attribution effects.}
+\caption{Factorial causal mechanism isolation on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 65.50\%), and $\Delta$ vs.\ Arm A/B.}
 \label{tab:tab3_causal_surgery}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccc}
@@ -337,7 +337,7 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{clean}}]$) & """ + f"{clean_map:.2f}\\% (100.0\\%) [Ref.]" + r""" & """ + f"{clean_map:.2f}\\% (100.0\\%) [Ref.]" + r""" & """ + f"{clean_map:.2f}\\% (100.0\\%) [Ref.]" + r""" \\
 Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & """ + f"{b_aqsm:.2f}\\% ({b_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-b_aqsm:.2f} pp]" + r""" & """ + f"{b_van:.2f}\\% ({b_van/clean_map*100:.1f}\\%) [$-${clean_map-b_van:.2f} pp]" + r""" & """ + f"{b_pgd:.2f}\\% ({b_pgd/clean_map*100:.1f}\\%) [$-${clean_map-b_pgd:.2f} pp]" + r""" \\
 Arm $\text{C}_{\text{full}}$: Adv Mem + Clean Prior ($M_{\mathrm{adv}} + Q_{\mathrm{clean}}$) & """ + f"{cfull_aqsm:.2f}\\% ({cfull_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-cfull_aqsm:.2f} pp]" + r""" & """ + f"{cfull_van:.2f}\\% ({cfull_van/clean_map*100:.1f}\\%) [$-${clean_map-cfull_van:.2f} pp]" + r""" & """ + f"{cfull_pgd:.2f}\\% ({cfull_pgd/clean_map*100:.1f}\\%) [$-${clean_map-cfull_pgd:.2f} pp]" + r""" \\
-Arm $\text{C}_{\text{index}}$: Adv Mem + Clean Idx ($M_{\mathrm{adv}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{clean}}]$) & """ + f"{cidx_aqsm:.2f}\\% ({cidx_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-cidx_aqsm:.2f} pp]" + r""" & """ + f"{cidx_van:.2f}\\% ({cidx_van/clean_map*100:.1f}\\%) [$-${clean_map-cidx_van:.2f} pp]" + r""" & """ + f"{cidx_pgd:.2f}\\% ({cidx_pgd/clean_map*100:.1f}\\%) [$-${clean_map-cidx_pgd:.2f} pp]" + r""" \\
+Arm $\text{C}_{\text{index}}$: Adv Mem + Adv Feat at Clean Idx ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{clean}}]$) & """ + f"{cidx_aqsm:.2f}\\% ({cidx_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-cidx_aqsm:.2f} pp]" + r""" & """ + f"{cidx_van:.2f}\\% ({cidx_van/clean_map*100:.1f}\\%) [$-${clean_map-cidx_van:.2f} pp]" + r""" & """ + f"{cidx_pgd:.2f}\\% ({cidx_pgd/clean_map*100:.1f}\\%) [$-${clean_map-cidx_pgd:.2f} pp]" + r""" \\
 Arm $\text{D}_{\text{full}}$: Clean Mem + Adv Prior ($M_{\mathrm{clean}} + Q_{\mathrm{adv}}$) & """ + f"{dfull_aqsm:.2f}\\% ({dfull_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-dfull_aqsm:.2f} pp]" + r""" & """ + f"{dfull_van:.2f}\\% ({dfull_van/clean_map*100:.1f}\\%) [$-${clean_map-dfull_van:.2f} pp]" + r""" & """ + f"{dfull_pgd:.2f}\\% ({dfull_pgd/clean_map*100:.1f}\\%) [$-${clean_map-dfull_pgd:.2f} pp]" + r""" \\
 Arm $\text{D}_{\text{index}}$: Clean Mem + Adv Idx ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{adv}}]$) & """ + f"{didx_aqsm:.2f}\\% ({didx_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-didx_aqsm:.2f} pp]" + r""" & """ + f"{didx_van:.2f}\\% ({didx_van/clean_map*100:.1f}\\%) [$-${clean_map-didx_van:.2f} pp]" + r""" & """ + f"{didx_pgd:.2f}\\% ({didx_pgd/clean_map*100:.1f}\\%) [$-${clean_map-didx_pgd:.2f} pp]" + r""" \\
 \midrule
@@ -347,7 +347,7 @@ $\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_m_aqsm:.3f}" + r"
 Main Effect Query ($\text{ME}_Q$) & """ + f"${me_q_aqsm:.2f}$ pp [${ci_q_aqsm[0]:.2f}, {ci_q_aqsm[1]:.2f}$]" + r""" & """ + f"${me_q_van:.2f}$ pp [${ci_q_van[0]:.2f}, {ci_q_van[1]:.2f}$]" + r""" & """ + f"${me_q_pgd:.2f}$ pp [${ci_q_pgd[0]:.2f}, {ci_q_pgd[1]:.2f}$]" + r""" \\
 $\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_q_aqsm:.3f}" + r"""$ ($F=""" + f"{f_q_aqsm:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_q_van:.3f}" + r"""$ ($F=""" + f"{f_q_van:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_q_pgd:.3f}" + r"""$ ($F=""" + f"{f_q_pgd:.1f}" + r""", p < 0.001$) \\
 Interaction ($M \times Q$) & """ + f"$+{inter_aqsm:.2f}$ pp [$+{ci_inter_aqsm[0]:.2f}, +{ci_inter_aqsm[1]:.2f}$]" + r""" & """ + f"$+{inter_van:.2f}$ pp [$+{ci_inter_van[0]:.2f}, +{ci_inter_van[1]:.2f}$]" + r""" & """ + f"$+{inter_pgd:.2f}$ pp [$+{ci_inter_pgd[0]:.2f}, +{ci_inter_pgd[1]:.2f}$]" + r""" \\
-$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_inter_aqsm:.3f}" + r"""$ ($F=""" + f"{f_inter_aqsm:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_inter_van:.3f}" + r"""$ ($F=""" + f"{f_inter_van:.1f}" + r""", p = 0.0022$) & $\eta_p^2 = """ + f"{eta_inter_pgd:.3f}" + r"""$ ($F=""" + f"{f_inter_pgd:.1f}" + r""", p < 0.001$) \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_inter_aqsm:.3f}" + r"""$ ($F=""" + f"{f_inter_aqsm:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_inter_van:.3f}" + r"""$ ($F=""" + f"{f_inter_van:.1f}" + r""", p = 0.0053$) & $\eta_p^2 = """ + f"{eta_inter_pgd:.3f}" + r"""$ ($F=""" + f"{f_inter_pgd:.1f}" + r""", p < 0.001$) \\
 \bottomrule
 \end{tabular}%
 }
@@ -435,7 +435,7 @@ def generate_table4(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 \midrule
 \multirow{3}{*}{PGD Vanishing} & Memory ($M$) & """ + f"{ss_m_van:.1f}" + r""" & 1 & """ + f"{ss_m_van:.1f}" + r""" & """ + f"{f_m_van:.1f}" + r""" & """ + f"{eta_m_van:.3f}" + r""" ($p < 0.001$) \\
 & Query Prior ($Q$) & """ + f"{ss_q_van:.1f}" + r""" & 1 & """ + f"{ss_q_van:.1f}" + r""" & """ + f"{f_q_van:.1f}" + r""" & """ + f"{eta_q_van:.3f}" + r""" ($p < 0.001$) \\
-& Interaction ($M \times Q$) & """ + f"{ss_inter_van:.1f}" + r""" & 1 & """ + f"{ss_inter_van:.1f}" + r""" & """ + f"{f_inter_van:.1f}" + r""" & """ + f"{eta_inter_van:.3f}" + r""" ($p = 0.0022$) \\
+& Interaction ($M \times Q$) & """ + f"{ss_inter_van:.1f}" + r""" & 1 & """ + f"{ss_inter_van:.1f}" + r""" & """ + f"{f_inter_van:.1f}" + r""" & """ + f"{eta_inter_van:.3f}" + r""" ($p = 0.0053$) \\
 \midrule
 \multirow{3}{*}{Standard Task PGD} & Memory ($M$) & """ + f"{ss_m_pgd:.1f}" + r""" & 1 & """ + f"{ss_m_pgd:.1f}" + r""" & """ + f"{f_m_pgd:.1f}" + r""" & """ + f"{eta_m_pgd:.3f}" + r""" ($p < 0.001$) \\
 & Query Prior ($Q$) & """ + f"{ss_q_pgd:.1f}" + r""" & 1 & """ + f"{ss_q_pgd:.1f}" + r""" & """ + f"{f_q_pgd:.1f}" + r""" & """ + f"{eta_q_pgd:.3f}" + r""" ($p < 0.001$) \\
@@ -989,10 +989,10 @@ def generate_table11(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
         ["Stationary AQSM (eps = 16/255)", f"{aq_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{aq_auc:.4f}", f"{aq_score:.4f}", "3.07%"],
         ["Stationary Standard Task PGD (eps = 16/255)", f"{pgd_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{pgd_auc:.4f}", f"{pgd_score:.4f}", "0.86%"],
         ["Stationary Query Vanishing (eps = 16/255)", f"{van_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{van_auc:.4f}", f"{van_score:.4f}", "1.72%"],
-        ["Adaptive Evasion (lambda = 0.2)", f"{tpr_02:.2f}%", "---", "< 0.50*", f"Bypass: {bypass_02:.2f}%", "3.65%"],
-        ["Adaptive Evasion (lambda = 0.5)", f"{tpr_05:.2f}%", "---", "< 0.50*", f"Bypass: {bypass_05:.2f}%", "4.12%"],
-        ["Adaptive Evasion (lambda = 1.0)", f"{tpr_10:.2f}%", "---", "< 0.50*", f"Bypass: {bypass_10:.2f}%", "5.20%"],
-        ["Adaptive Evasion (lambda = 2.0)", f"{tpr_20:.2f}%", "---", "< 0.50*", f"Bypass: {bypass_20:.2f}%", "6.85%"],
+        ["Adaptive Evasion (lambda = 0.2)", f"{tpr_02:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_02:.2f}%", "3.65%"],
+        ["Adaptive Evasion (lambda = 0.5)", f"{tpr_05:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_05:.2f}%", "4.12%"],
+        ["Adaptive Evasion (lambda = 1.0)", f"{tpr_10:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_10:.2f}%", "5.20%"],
+        ["Adaptive Evasion (lambda = 2.0)", f"{tpr_20:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_20:.2f}%", "6.85%"],
     ]
 
     tex = r"""\begin{table}[!htbp]
@@ -1009,13 +1009,13 @@ Stationary AQSM ($\epsilon = 16/255$) & \textbf{""" + f"{aq_tpr:.2f}\\%" + r"""}
 Stationary Standard Task PGD ($\epsilon = 16/255$) & """ + f"{pgd_tpr:.2f}\\%" + r""" & """ + f"{clean_fpr:.2f}\\%" + r""" & """ + f"{pgd_auc:.4f}" + r""" & """ + f"{pgd_score:.4f}" + r""" & 0.86\% \\
 Stationary Query Vanishing ($\epsilon = 16/255$) & """ + f"{van_tpr:.2f}\\%" + r""" & """ + f"{clean_fpr:.2f}\\%" + r""" & """ + f"{van_auc:.4f}" + r""" & """ + f"{van_score:.4f}" + r""" & 1.72\% \\
 \midrule
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & """ + f"{tpr_02:.2f}\\%" + r""" & --- & $< 0.50$\textsuperscript{*} & """ + f"Bypass: {bypass_02:.2f}\\%" + r""" & 3.65\% \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{""" + f"{tpr_05:.2f}\\%" + r"""} & --- & $< 0.50$\textsuperscript{*} & \textbf{""" + f"Bypass: {bypass_05:.2f}\\%" + r"""} & \textbf{4.12\%} \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & """ + f"{tpr_10:.2f}\\%" + r""" & --- & $< 0.50$\textsuperscript{*} & """ + f"Bypass: {bypass_10:.2f}\\%" + r""" & 5.20\% \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & """ + f"{tpr_20:.2f}\\%" + r""" & --- & $< 0.50$\textsuperscript{*} & """ + f"Bypass: {bypass_20:.2f}\\%" + r""" & 6.85\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & """ + f"{tpr_02:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_02:.2f}\\%" + r""" & 3.65\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{""" + f"{tpr_05:.2f}\\%" + r"""} & --- & Degenerate\textsuperscript{*} & \textbf{""" + f"Bypass: {bypass_05:.2f}\\%" + r"""} & \textbf{4.12\%} \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & """ + f"{tpr_10:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_10:.2f}\\%" + r""" & 5.20\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & """ + f"{tpr_20:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_20:.2f}\\%" + r""" & 6.85\% \\
 \bottomrule
 \multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the full evaluation cohort ($N = 1,000$); adaptive evasion mAP is evaluated on the independent test split ($N_{\text{test}} = 700$).}} \\
-\multicolumn{6}{l}{\footnotesize{*Under adaptive evasion, detection TPR ($0.57\% - 1.57\%$) falls below clean FPR ($6.57\%$), yielding $\text{AUROC} < 0.50$.}} \\
+\multicolumn{6}{l}{\footnotesize{*At the fixed deployment threshold $\tau_{\mathrm{fused}}$, adaptive evasion suppresses detection TPR below clean FPR ($6.57\%$), achieving a bypass rate $\ge 98.43\%$ without establishing a valid monotonic ROC curve.}} \\
 \end{tabular}%
 }
 \end{table}"""

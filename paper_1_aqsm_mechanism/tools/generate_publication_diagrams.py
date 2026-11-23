@@ -209,7 +209,7 @@ def draw_fig2_taxonomy(output_pdf: Path, output_png: Path):
     ax.text(18.5, 76.0,
             "• Target: Anchor grid probabilities\n  or bounding-box IoU overlap.\n\n"
             "• Attack Method: Dense sponge attacks\n  (flooding candidate proposals),\n  adversarial patch on feature maps.\n\n"
-            "• Failure Mode: Quadratic NMS delay\n  surge (+232% on Jetson, 815 ms on Pi 5)\n  stalling real-time control loops.\n\n"
+            "• Failure Mode: Quadratic NMS delay\n  surge (+242% on Jetson, +232% on Pi 5)\n  stalling real-time control loops.\n\n"
             "• Interface: Heuristic post-processing.",
             ha="center", va="top", color="#475569", **small_font)
 
@@ -249,7 +249,7 @@ def draw_fig2_taxonomy(output_pdf: Path, output_png: Path):
     ax.text(81.5, 76.0,
             "• Target: Hybrid Encoder selection logits\n  at native 640×640 (S = 8,400 tokens).\n\n"
             "• Attack Method: Tripartite loss\n  (margin inversion + background elevation)\n  without requiring decoder backprop.\n\n"
-            "• Failure Mode: Spatial Target Misrouting\n  (FG Hit 62.3% → 38.3%, recall 29.1%)\n  with minimal clutter (<5 false boxes).\n\n"
+            "• Failure Mode: Spatial Target Misrouting\n  (Sampling Hit 63.5% → 43.2%, recall 29.1%)\n  with minimal clutter (<5 false boxes).\n\n"
             "• Interface: Dynamic query selection.",
             ha="center", va="top", color="#475569", **small_font)
 

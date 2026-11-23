@@ -12,13 +12,13 @@ Stationary AQSM ($\epsilon = 16/255$) & \textbf{37.14\%} & 6.57\% & \textbf{0.75
 Stationary Standard Task PGD ($\epsilon = 16/255$) & 8.57\% & 6.57\% & 0.4838 & 0.6548 & 0.86\% \\
 Stationary Query Vanishing ($\epsilon = 16/255$) & 9.57\% & 6.57\% & 0.5653 & 0.7285 & 1.72\% \\
 \midrule
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & 0.57\% & --- & $< 0.50$\textsuperscript{*} & Bypass: 99.43\% & 3.65\% \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{1.43\%} & --- & $< 0.50$\textsuperscript{*} & \textbf{Bypass: 98.57\%} & \textbf{4.12\%} \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & 1.00\% & --- & $< 0.50$\textsuperscript{*} & Bypass: 99.00\% & 5.20\% \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & 1.57\% & --- & $< 0.50$\textsuperscript{*} & Bypass: 98.43\% & 6.85\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & 0.57\% & --- & Degenerate\textsuperscript{*} & Bypass: 99.43\% & 3.65\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{1.43\%} & --- & Degenerate\textsuperscript{*} & \textbf{Bypass: 98.57\%} & \textbf{4.12\%} \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & 1.00\% & --- & Degenerate\textsuperscript{*} & Bypass: 99.00\% & 5.20\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & 1.57\% & --- & Degenerate\textsuperscript{*} & Bypass: 98.43\% & 6.85\% \\
 \bottomrule
 \multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the full evaluation cohort ($N = 1,000$); adaptive evasion mAP is evaluated on the independent test split ($N_{\text{test}} = 700$).}} \\
-\multicolumn{6}{l}{\footnotesize{*Under adaptive evasion, detection TPR ($0.57\% - 1.57\%$) falls below clean FPR ($6.57\%$), yielding $\text{AUROC} < 0.50$.}} \\
+\multicolumn{6}{l}{\footnotesize{*At the fixed deployment threshold $\tau_{\mathrm{fused}}$, adaptive evasion suppresses detection TPR below clean FPR ($6.57\%$), achieving a bypass rate $\ge 98.43\%$ without establishing a valid monotonic ROC curve.}} \\
 \end{tabular}%
 }
 \end{table}
