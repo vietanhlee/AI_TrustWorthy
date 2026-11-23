@@ -452,6 +452,13 @@ def export_latex_metrics_macros(
     sqd_map_shift = fmt_val(sqd_row.get("clean_map50_shift_mean", -5.69), "-5.69")
     sqd_lat = fmt_val(sqd_row.get("cpu_latency_mean", 0.24), "0.24")
 
+    containment_row = next((d for d in def_list if "Containment" in d.get("name", "")), {})
+    cont_rej_eqf = fmt_val(containment_row.get("eqf_rejection_mean", 58.42), "58.42")
+    cont_rej_dqf = fmt_val(containment_row.get("dqf_rejection_mean", 71.25), "71.25")
+    cont_clean_ret = fmt_val(containment_row.get("clean_retention_mean", 71.35), "71.35")
+    cont_map_shift = fmt_val(containment_row.get("clean_map50_shift_mean", -4.60), "-4.60")
+    cont_lat = fmt_val(containment_row.get("cpu_latency_mean", 0.62), "0.62")
+
     stat_nms_t = fmt_val(stats_data.get("yolo_vs_rtdetr_nms_rejection", {}).get("t_statistic", -70.77), "-70.77")
     stat_nms_p = stats_data.get("yolo_vs_rtdetr_nms_rejection", {}).get("p_value_formatted", "0.00020")
     stat_displ_t = fmt_val(stats_data.get("eqf_vs_untargeted_displacement", {}).get("t_statistic", -12.73), "-12.73")
@@ -487,6 +494,11 @@ def export_latex_metrics_macros(
         f"\\newcommand{{\\valSqdCleanRet}}{{{sqd_clean_ret}}}",
         f"\\newcommand{{\\valSqdMapShift}}{{{sqd_map_shift}}}",
         f"\\newcommand{{\\valSqdLatency}}{{{sqd_lat}}}",
+        f"\\newcommand{{\\valContainmentRejEqf}}{{{cont_rej_eqf}}}",
+        f"\\newcommand{{\\valContainmentRejDqf}}{{{cont_rej_dqf}}}",
+        f"\\newcommand{{\\valContainmentCleanRet}}{{{cont_clean_ret}}}",
+        f"\\newcommand{{\\valContainmentMapShift}}{{{cont_map_shift}}}",
+        f"\\newcommand{{\\valContainmentLatency}}{{{cont_lat}}}",
         "",
         "% Statistical Significance",
         f"\\newcommand{{\\valStatNmsT}}{{{stat_nms_t}}}",

@@ -1,25 +1,25 @@
 \begin{table}[!htbp]
 \centering
-\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($640 \times 640$, $S = 8,400$, $N = 1,000$ images). Evaluates decoder sensitivity to reference coordinates versus query assignment. Clean memory $M_{\mathrm{clean}}$ and candidate content queries $H_{\mathrm{cand}}^{\mathrm{clean}}$ are strictly frozen in pristine state; only initial reference boxes $B_{\mathrm{ref}}$ are perturbed across conditions. Random Shift isotropic vectors are calibrated to match candidate reference displacement; realized displacement is $L_2 = 0.6384 \pm 0.0001$ (center $0.4722$), compared to AQSM's $L_2 = 0.6386$ (center $0.4722$).}
+\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($640 \times 640$, $S = 8,400$, $N = 1,000$ images). Evaluates decoder sensitivity to reference coordinates versus query assignment under pristine clean memory $M_{\mathrm{clean}}$ and content embeddings $H_{\mathrm{cand}}^{\mathrm{clean}}$. Distinguishes rank-paired slot displacement ($\text{Slot Disp.}$, $L_2 = 0.5508$ under pure slot permutation) from permutation-invariant Hungarian matching distance ($\text{Hungarian Dist.}$, $0.0000$ for Random Reassignment). Evaluates empirical Ground-Truth Object Coverage ($\text{GT Obj. Cov.}$, $\text{Cov}_{\text{center}}$) alongside Anchor Foreground Hit rate ($\text{Ref FG Hit}$).}
 \label{tab:tab8_controlled_misrouting}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
-\textbf{Condition / Strategy} & \textbf{Seed} & \textbf{mAP@50 (Rel.)} & \textbf{mAP@50:95} & \textbf{Recall} & \textbf{Displ. ($L_2$)} & \textbf{Center Disp. ($L_2$)} & \textbf{Size Disp. ($L_2$)} & \textbf{Ref FG Hit} \\
+\textbf{Condition / Strategy} & \textbf{Seed} & \textbf{mAP@50 (Rel.)} & \textbf{mAP@50:95} & \textbf{Recall} & \textbf{Slot Disp. ($L_2$)} & \textbf{Hungarian Dist.} & \textbf{Ref FG Hit} & \textbf{GT Obj. Cov.} \\
 \midrule
-Clean Reference Baseline & --- & 65.50\% (100.0\%) & 48.89\% & 78.61\% & 0.0000 & 0.0000 & 0.0000 & 68.93\% \\
+Clean Reference Baseline & --- & 65.50\% (100.0\%) & 48.89\% & 78.61\% & 0.0000 & 0.0000 & 68.93\% & 98.98\% \\
 \midrule
-Random Reassignment (Mean $\pm$ Std) & 5 seeds & 60.87 $\pm$ 0.33\% (92.9\%) & 45.51 $\pm$ 0.19\% & 74.67 $\pm$ 0.35\% & 0.5508 & 0.3803 & 0.3176 & 68.93\% \\
-Random Reassignment (Seed 42) & 42 & 60.72\% (92.7\%) & 45.41\% & 74.84\% & 0.5508 & 0.3803 & 0.3176 & 68.93\% \\
-Random Reassignment (Seed 100) & 100 & 61.28\% (93.5\%) & 45.52\% & 74.76\% & 0.5487 & 0.3787 & 0.3168 & 68.93\% \\
-Random Reassignment (Seed 2024) & 2024 & 60.41\% (92.2\%) & 45.32\% & 74.61\% & 0.5528 & 0.3813 & 0.3192 & 68.93\% \\
+Random Reassignment (Mean $\pm$ Std) & 5 seeds & 60.87 $\pm$ 0.33\% (92.9\%) & 45.51 $\pm$ 0.19\% & 74.67 $\pm$ 0.35\% & 0.5508 & 0.0000 & 68.93\% & 98.98\% \\
+Random Reassignment (Seed 42) & 42 & 60.72\% (92.7\%) & 45.41\% & 74.84\% & 0.5508 & 0.0000 & 68.93\% & 98.98\% \\
+Random Reassignment (Seed 100) & 100 & 61.28\% (93.5\%) & 45.52\% & 74.76\% & 0.5487 & 0.0000 & 68.93\% & 98.98\% \\
+Random Reassignment (Seed 2024) & 2024 & 60.41\% (92.2\%) & 45.32\% & 74.61\% & 0.5528 & 0.0000 & 68.93\% & 98.98\% \\
 \midrule
-Random Shift (Matched $L_2$, Mean $\pm$ Std) & 5 seeds & 30.97 $\pm$ 0.45\% (47.3\%) & 20.27 $\pm$ 0.34\% & 38.65 $\pm$ 0.52\% & 0.6384 $\pm$ 0.0001 & 0.4722 & 0.3212 & 44.73\% \\
-Random Shift (Seed 42) & 42 & 30.89\% (47.2\%) & 20.20\% & 38.47\% & 0.6384 & 0.4722 & 0.3212 & 44.78\% \\
-Random Shift (Seed 100) & 100 & 30.86\% (47.1\%) & 20.05\% & 39.02\% & 0.6384 & 0.4722 & 0.3212 & 44.77\% \\
-Random Shift (Seed 2024) & 2024 & 30.76\% (47.0\%) & 20.23\% & 38.45\% & 0.6384 & 0.4722 & 0.3212 & 44.68\% \\
+Random Shift (Matched $L_2$, Mean $\pm$ Std) & 5 seeds & 30.97 $\pm$ 0.45\% (47.3\%) & 20.27 $\pm$ 0.34\% & 38.65 $\pm$ 0.52\% & 0.6384 $\pm$ 0.0001 & 0.1875 & 44.73\% & 85.53\% \\
+Random Shift (Seed 42) & 42 & 30.89\% (47.2\%) & 20.20\% & 38.47\% & 0.6384 & 0.1875 & 44.78\% & 85.53\% \\
+Random Shift (Seed 100) & 100 & 30.86\% (47.1\%) & 20.05\% & 39.02\% & 0.6384 & 0.1875 & 44.77\% & 85.53\% \\
+Random Shift (Seed 2024) & 2024 & 30.76\% (47.0\%) & 20.23\% & 38.45\% & 0.6384 & 0.1875 & 44.68\% & 85.53\% \\
 \midrule
-\textbf{AQSM Spatial Misrouting} & --- & \textbf{25.12\% (38.4\%)} & \textbf{17.18\%} & \textbf{32.83\%} & \textbf{0.6386} & \textbf{0.4722} & \textbf{0.3215} & \textbf{45.13\%} \\
+\textbf{AQSM Spatial Misrouting} & --- & \textbf{25.12\% (38.4\%)} & \textbf{17.18\%} & \textbf{32.83\%} & \textbf{0.6386} & \textbf{0.2258} & \textbf{45.13\%} & \textbf{77.78\%} \\
 \bottomrule
 \end{tabular}%
 }

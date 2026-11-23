@@ -118,7 +118,10 @@ def generate_batch_adversarial(
             loss = loss_push + 0.5 * loss_evict
 
         elif norm_type in ("dc_eqf", "dc", "dispersion_constrained_eqf"):
-            # Dispersion-Constrained EQF: Ràng buộc phân tán tâm hình học để né bộ lọc khoảng cách
+            # Dispersion-Constrained EQF / Adaptive Attack:
+            # Ràng buộc tối ưu hóa đa mục tiêu: vừa tối đa hóa điểm tin cậy lớp mục tiêu (loss_push)
+            # vừa áp dụng lực đẩy không gian (repulsion penalty) giữa các tâm hộp nhằm phân tán
+            # khoảng cách giữa các candidate > dist_thresh (0.15) để né tránh bộ lọc SQD-Filter.
             target_logits = out.logits[..., target_class_idx]
             masked_target = target_logits.masked_fill(~inactive_dec_mask, -1e4)
             k_sel = min(k_fake_dqf, masked_target.shape[1])
@@ -134,7 +137,9 @@ def generate_batch_adversarial(
             repulsion = torch.relu(0.15 - pairwise_dists) ** 2
             loss_disp = repulsion.mean() if len(repulsion) > 0 else torch.tensor(0.0, device=bx.device)
 
-            loss = loss_push + 2.0 * loss_disp
+            # Cân bằng trọng số chuẩn khoa học: không để lực đẩy làm triệt tiêu gradient phân loại
+            # đảm bảo ASR >= 99% trong khi tăng số lượng phantom sống sót qua SQD-Filter
+            loss = loss_push + 0.5 * loss_disp
 
         elif norm_type in ("dqf", "output_logit", "output_logit_attack"):
             target_logits = out.logits[..., target_class_idx]

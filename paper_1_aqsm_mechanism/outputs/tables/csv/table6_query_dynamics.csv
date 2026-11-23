@@ -1,4 +1,4 @@
-Condition,Top-300 Overlap,Spearman rho,Kendall tau,Evicted Top-15 FG,Center-in-GT,GT IoU >= 0.30 Cov.
+Condition,Top-300 Overlap,Spearman rho,Kendall tau,Evicted Top-15 FG,GT Coverage (Center),GT Coverage (IoU >= 0.30)
 Clean Baseline,100.0% [Ref.],1.000,1.000,0.0%,98.98%,98.46%
 Gaussian Noise (sigma = 16/255),82.40%,0.892,0.735,11.20%,94.50%,92.10%
 PGD Vanishing (T = 15),30.96%,0.426,0.297,50.19%,90.11%,79.13%

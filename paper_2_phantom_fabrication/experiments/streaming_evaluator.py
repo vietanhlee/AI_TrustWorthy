@@ -154,6 +154,7 @@ def run_streaming_condition_eval(
     clean_topk_list = []
     logits_saved_list = []
     boxes_saved_list = []
+    pyramid_phantom_counts = {"S3": 0, "S4": 0, "S5": 0, "total": 0}
 
     # Dành cho đánh giá YOLOv8
     yolo_preds = []
@@ -375,6 +376,37 @@ def run_streaming_condition_eval(
                 m_res = match_detections_against_gt(b_i, s_i, l_i, gt_b, gt_l, target_cls=target_class_idx)
                 matched_stats.append(m_res)
 
+                if enc_topk_b is not None:
+                    # Truy vết nguồn gốc pyramid level (S3, S4, S5) của các query phantom
+                    tgt_gt_boxes = [gt_b[k] for k in range(len(gt_l)) if gt_l[k] == target_class_idx]
+                    for q_idx in range(len(act_mask)):
+                        if not act_mask[q_idx]:
+                            continue
+                        if int(pred_cls_b[i, q_idx].item()) != target_class_idx:
+                            continue
+                        box_q = boxes_xyxy_b[i, q_idx].numpy()
+                        is_pht = True
+                        if len(tgt_gt_boxes) > 0:
+                            for gb in tgt_gt_boxes:
+                                xx1 = max(box_q[0], gb[0])
+                                yy1 = max(box_q[1], gb[1])
+                                xx2 = min(box_q[2], gb[2])
+                                yy2 = min(box_q[3], gb[3])
+                                inter = max(0.0, xx2 - xx1) * max(0.0, yy2 - yy1)
+                                union = (box_q[2] - box_q[0]) * (box_q[3] - box_q[1]) + (gb[2] - gb[0]) * (gb[3] - gb[1]) - inter
+                                if inter / max(union, 1e-12) >= 0.30:
+                                    is_pht = False
+                                    break
+                        if is_pht:
+                            orig_anchor_idx = int(enc_topk_b[i, q_idx].item())
+                            if orig_anchor_idx < 6400:
+                                pyramid_phantom_counts["S3"] += 1
+                            elif orig_anchor_idx < 8000:
+                                pyramid_phantom_counts["S4"] += 1
+                            else:
+                                pyramid_phantom_counts["S5"] += 1
+                            pyramid_phantom_counts["total"] += 1
+
                 if clean_topk_reference is not None and enc_topk_b is not None:
                     c_set = set(clean_topk_reference[global_idx].numpy())
                     a_set = set(enc_topk_b[i].numpy())
@@ -524,6 +556,15 @@ def run_streaming_condition_eval(
         "clean_topk": torch.cat(clean_topk_list, dim=0) if clean_topk_list else None,
         "logits": torch.cat(logits_saved_list, dim=0) if logits_saved_list else None,
         "pred_boxes": torch.cat(boxes_saved_list, dim=0) if boxes_saved_list else None,
+        "pyramid_phantom_distribution": {
+            "S3_count": pyramid_phantom_counts["S3"],
+            "S4_count": pyramid_phantom_counts["S4"],
+            "S5_count": pyramid_phantom_counts["S5"],
+            "total_phantoms": pyramid_phantom_counts["total"],
+            "S3_pct": round(pyramid_phantom_counts["S3"] / max(pyramid_phantom_counts["total"], 1) * 100.0, 2),
+            "S4_pct": round(pyramid_phantom_counts["S4"] / max(pyramid_phantom_counts["total"], 1) * 100.0, 2),
+            "S5_pct": round(pyramid_phantom_counts["S5"] / max(pyramid_phantom_counts["total"], 1) * 100.0, 2),
+        },
     }
 
     if (is_yolo or yolo_model is not None) and condition in ["Clean", "EQF", "EQF_Preserve", "Targeted_Fabrication"]:

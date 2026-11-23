@@ -1,6 +1,6 @@
 \begin{table}[!htbp]
 \centering
-\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$).}
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$). Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2258$).}
 \label{tab:tab7_attention_telemetry}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}

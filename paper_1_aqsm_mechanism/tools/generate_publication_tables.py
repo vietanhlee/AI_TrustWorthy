@@ -554,7 +554,7 @@ def generate_table6(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     pgd_tau = get_stat(get_val(pgd, ['kendall_tau_all_proposals']), 0.267)
     pgd_ev = get_stat(get_val(pgd, ['evicted_top15_fg_pct']), 56.87)
 
-    headers = ["Condition", "Top-300 Overlap", "Spearman rho", "Kendall tau", "Evicted Top-15 FG", "Center-in-GT", "GT IoU >= 0.30 Cov."]
+    headers = ["Condition", "Top-300 Overlap", "Spearman rho", "Kendall tau", "Evicted Top-15 FG", "GT Coverage (Center)", "GT Coverage (IoU >= 0.30)"]
     rows = [
         ["Clean Baseline", "100.0% [Ref.]", "1.000", "1.000", "0.0%", f"{clean_cg:.2f}%", f"{clean_iou30:.2f}%"],
         ["Gaussian Noise (sigma = 16/255)", "82.40%", "0.892", "0.735", "11.20%", "94.50%", "92.10%"],
@@ -565,12 +565,12 @@ def generate_table6(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{8,400-to-300 query selection overlap, global rank correlation, foreground eviction, and GT object coverage inside top-300 proposals on COCO val2017 ($640 \times 640$, $N = 1,000$ images).}
+\caption{8,400-to-300 query selection overlap, global rank correlation, foreground eviction, and Ground-Truth object coverage inside top-300 proposals on COCO val2017 ($640 \times 640$, $N = 1,000$ images). GT Coverage denotes the percentage of target objects covered by at least one selected query anchor, while anchor foreground hit rate drops to $45.13\%$ under AQSM.}
 \label{tab:tab6_query_dynamics}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Condition} & \textbf{Top-300 Overlap} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{Evicted Top-15 FG} & \textbf{Center-in-GT} & \textbf{GT $\text{IoU} \ge 0.30$ Cov.} \\
+\textbf{Condition} & \textbf{Top-300 Overlap} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{Evicted Top-15 FG} & \textbf{GT Coverage (Center)} & \textbf{GT Coverage ($\text{IoU} \ge 0.30$)} \\
 \midrule
 Clean Baseline & 100.0\% [Ref.] & 1.000 & 1.000 & 0.0\% & """ + f"{clean_cg:.2f}\\%" + r""" & """ + f"{clean_iou30:.2f}\\%" + r""" \\
 Gaussian Noise ($\sigma = 16/255$) & 82.40\% & 0.892 & 0.735 & 11.20\% & 94.50\% & 92.10\% \\
@@ -656,7 +656,7 @@ def generate_table7(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$).}
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0065$, from $0.8009 \to 0.7944, d = -0.17$; Layer 1: $0.8263 \to 0.8191$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.51\%$ to $43.21\%$ ($t = 28.47, p < 10^{-120}$). Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2258$).}
 \label{tab:tab7_attention_telemetry}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
@@ -698,6 +698,8 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     cl_map95 = float(get_val(cl, ["mAP@50:95"], 48.89))
     cl_rec = float(get_val(cl, ["recall_pct"], 78.61))
     cl_fghit = float(get_val(cl, ["fg_hit_pct"], 68.93))
+    cl_hung = float(get_val(cl, ["hungarian_dist"], 0.0000))
+    cl_cov = float(get_val(cl, ["gt_object_cov_pct"], 98.98))
 
     rr_m50 = float(get_val(rr, ["mAP@50_mean"], 60.87))
     rr_m50_std = float(get_val(rr, ["mAP@50_std"], 0.33))
@@ -706,6 +708,8 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     rr_rec = float(get_val(rr, ["recall_pct_mean"], 74.67))
     rr_l2 = float(get_val(rr, ["delta_l2"], 0.5508))
     rr_fghit = float(get_val(rr, ["fg_hit_pct_mean"], 68.93))
+    rr_hung = float(get_val(rr, ["hungarian_dist"], 0.0000))
+    rr_cov = float(get_val(rr, ["gt_object_cov_pct"], 98.98))
 
     rs_m50 = float(get_val(rs, ["mAP@50_mean"], 30.97))
     rs_m50_std = float(get_val(rs, ["mAP@50_std"], 0.45))
@@ -714,6 +718,8 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     rs_rec = float(get_val(rs, ["recall_pct_mean"], 38.65))
     rs_l2 = float(get_val(rs, ["delta_l2"], 0.6384))
     rs_fghit = float(get_val(rs, ["fg_hit_pct_mean"], 44.73))
+    rs_hung = float(get_val(rs, ["hungarian_dist"], 0.1875))
+    rs_cov = float(get_val(rs, ["gt_object_cov_pct"], 85.53))
 
     aq_m50 = float(get_val(aq, ["mAP@50"], 25.12))
     aq_m95 = float(get_val(aq, ["mAP@50:95"], 17.18))
@@ -722,6 +728,8 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     aq_cdisp = float(get_val(aq, ["delta_center_l2"], 0.4722))
     aq_sdisp = float(get_val(aq, ["delta_size_l2"], 0.3215))
     aq_fghit = float(get_val(aq, ["fg_hit_pct"], 45.13))
+    aq_hung = float(get_val(aq, ["hungarian_dist"], 0.2258))
+    aq_cov = float(get_val(aq, ["gt_object_cov_pct"], 77.78))
 
     # Per-seed dynamic data
     def _get_seed_row(cond_prefix: str, seed: int, default_m50: float, default_m95: float, default_rec: float, default_l2: float, default_c: float, default_s: float, default_hit: float):
@@ -743,36 +751,36 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     rs_s100 = _get_seed_row("Random_Shift", 100, 30.86, 20.05, 39.02, 0.6384, 0.4722, 0.3212, 44.77)
     rs_s2024 = _get_seed_row("Random_Shift", 2024, 30.76, 20.23, 38.45, 0.6384, 0.4722, 0.3212, 44.68)
 
-    headers = ["Condition / Strategy", "Seed", "mAP@50 (Rel.)", "mAP@50:95", "Recall", "Displ. (L2)", "Center Disp. (L2)", "Size Disp. (L2)", "Ref FG Hit"]
+    headers = ["Condition / Strategy", "Seed", "mAP@50 (Rel.)", "mAP@50:95", "Recall", "Slot Disp. (L2)", "Hungarian Dist.", "Ref FG Hit", "GT Obj. Cov."]
     rows = [
-        ["Clean Reference Baseline", "---", f"{cl_map50:.2f}% (100.0%)", f"{cl_map95:.2f}%", f"{cl_rec:.2f}%", "0.0000", "0.0000", "0.0000", f"{cl_fghit:.2f}%"],
-        ["Random Reassignment (Mean ± Std)", "5 seeds", f"{rr_m50:.2f} ± {rr_m50_std:.2f}% ({rr_m50/cl_map50*100:.1f}%)", f"{rr_m95:.2f} ± {rr_m95_std:.2f}%", f"{rr_rec:.2f} ± 0.35%", f"{rr_l2:.4f}", "0.3803", "0.3176", f"{rr_fghit:.2f}%"],
-        ["Random Shift (Matched L2, Mean ± Std)", "5 seeds", f"{rs_m50:.2f} ± {rs_m50_std:.2f}% ({rs_m50/cl_map50*100:.1f}%)", f"{rs_m95:.2f} ± {rs_m95_std:.2f}%", f"{rs_rec:.2f} ± 0.52%", f"{rs_l2:.4f} ± 0.0001", "0.4722", "0.3212", f"{rs_fghit:.2f}%"],
-        ["AQSM Spatial Misrouting", "---", f"{aq_m50:.2f}% ({aq_m50/cl_map50*100:.1f}%)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{aq_l2:.4f}", f"{aq_cdisp:.4f}", f"{aq_sdisp:.4f}", f"{aq_fghit:.2f}%"],
+        ["Clean Reference Baseline", "---", f"{cl_map50:.2f}% (100.0%)", f"{cl_map95:.2f}%", f"{cl_rec:.2f}%", "0.0000", f"{cl_hung:.4f}", f"{cl_fghit:.2f}%", f"{cl_cov:.2f}%"],
+        ["Random Reassignment (Mean ± Std)", "5 seeds", f"{rr_m50:.2f} ± {rr_m50_std:.2f}% ({rr_m50/cl_map50*100:.1f}%)", f"{rr_m95:.2f} ± {rr_m95_std:.2f}%", f"{rr_rec:.2f} ± 0.35%", f"{rr_l2:.4f}", f"{rr_hung:.4f}", f"{rr_fghit:.2f}%", f"{rr_cov:.2f}%"],
+        ["Random Shift (Matched L2, Mean ± Std)", "5 seeds", f"{rs_m50:.2f} ± {rs_m50_std:.2f}% ({rs_m50/cl_map50*100:.1f}%)", f"{rs_m95:.2f} ± {rs_m95_std:.2f}%", f"{rs_rec:.2f} ± 0.52%", f"{rs_l2:.4f} ± 0.0001", f"{rs_hung:.4f}", f"{rs_fghit:.2f}%", f"{rs_cov:.2f}%"],
+        ["AQSM Spatial Misrouting", "---", f"{aq_m50:.2f}% ({aq_m50/cl_map50*100:.1f}%)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{aq_l2:.4f}", f"{aq_hung:.4f}", f"{aq_fghit:.2f}%", f"{aq_cov:.2f}%"],
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($640 \times 640$, $S = 8,400$, $N = 1,000$ images). Evaluates decoder sensitivity to reference coordinates versus query assignment. Clean memory $M_{\mathrm{clean}}$ and candidate content queries $H_{\mathrm{cand}}^{\mathrm{clean}}$ are strictly frozen in pristine state; only initial reference boxes $B_{\mathrm{ref}}$ are perturbed across conditions. Random Shift isotropic vectors are calibrated to match candidate reference displacement; realized displacement is $L_2 = 0.6384 \pm 0.0001$ (center $0.4722$), compared to AQSM's $L_2 = 0.6386$ (center $0.4722$).}
+\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($640 \times 640$, $S = 8,400$, $N = 1,000$ images). Evaluates decoder sensitivity to reference coordinates versus query assignment under pristine clean memory $M_{\mathrm{clean}}$ and content embeddings $H_{\mathrm{cand}}^{\mathrm{clean}}$. Distinguishes rank-paired slot displacement ($\text{Slot Disp.}$, $L_2 = 0.5508$ under pure slot permutation) from permutation-invariant Hungarian matching distance ($\text{Hungarian Dist.}$, $0.0000$ for Random Reassignment). Evaluates empirical Ground-Truth Object Coverage ($\text{GT Obj. Cov.}$, $\text{Cov}_{\text{center}}$) alongside Anchor Foreground Hit rate ($\text{Ref FG Hit}$).}
 \label{tab:tab8_controlled_misrouting}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
-\textbf{Condition / Strategy} & \textbf{Seed} & \textbf{mAP@50 (Rel.)} & \textbf{mAP@50:95} & \textbf{Recall} & \textbf{Displ. ($L_2$)} & \textbf{Center Disp. ($L_2$)} & \textbf{Size Disp. ($L_2$)} & \textbf{Ref FG Hit} \\
+\textbf{Condition / Strategy} & \textbf{Seed} & \textbf{mAP@50 (Rel.)} & \textbf{mAP@50:95} & \textbf{Recall} & \textbf{Slot Disp. ($L_2$)} & \textbf{Hungarian Dist.} & \textbf{Ref FG Hit} & \textbf{GT Obj. Cov.} \\
 \midrule
-Clean Reference Baseline & --- & """ + f"{cl_map50:.2f}\\% (100.0\\%)" + r""" & """ + f"{cl_map95:.2f}\\%" + r""" & """ + f"{cl_rec:.2f}\\%" + r""" & 0.0000 & 0.0000 & 0.0000 & """ + f"{cl_fghit:.2f}\\%" + r""" \\
+Clean Reference Baseline & --- & """ + f"{cl_map50:.2f}\\% (100.0\\%)" + r""" & """ + f"{cl_map95:.2f}\\%" + r""" & """ + f"{cl_rec:.2f}\\%" + r""" & 0.0000 & """ + f"{cl_hung:.4f}" + r""" & """ + f"{cl_fghit:.2f}\\%" + r""" & """ + f"{cl_cov:.2f}\\%" + r""" \\
 \midrule
-Random Reassignment (Mean $\pm$ Std) & 5 seeds & """ + f"{rr_m50:.2f} $\\pm$ {rr_m50_std:.2f}\\% ({rr_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_m95:.2f} $\\pm$ {rr_m95_std:.2f}\\%" + r""" & """ + f"{rr_rec:.2f} $\\pm$ 0.35\\%" + r""" & """ + f"{rr_l2:.4f}" + r""" & 0.3803 & 0.3176 & """ + f"{rr_fghit:.2f}\\%" + r""" \\
-Random Reassignment (Seed 42) & 42 & """ + f"{rr_s42[0]:.2f}\\% ({rr_s42[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_s42[1]:.2f}\\%" + r""" & """ + f"{rr_s42[2]:.2f}\\%" + r""" & """ + f"{rr_s42[3]:.4f}" + r""" & """ + f"{rr_s42[4]:.4f}" + r""" & """ + f"{rr_s42[5]:.4f}" + r""" & """ + f"{rr_s42[6]:.2f}\\%" + r""" \\
-Random Reassignment (Seed 100) & 100 & """ + f"{rr_s100[0]:.2f}\\% ({rr_s100[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_s100[1]:.2f}\\%" + r""" & """ + f"{rr_s100[2]:.2f}\\%" + r""" & """ + f"{rr_s100[3]:.4f}" + r""" & """ + f"{rr_s100[4]:.4f}" + r""" & """ + f"{rr_s100[5]:.4f}" + r""" & """ + f"{rr_s100[6]:.2f}\\%" + r""" \\
-Random Reassignment (Seed 2024) & 2024 & """ + f"{rr_s2024[0]:.2f}\\% ({rr_s2024[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_s2024[1]:.2f}\\%" + r""" & """ + f"{rr_s2024[2]:.2f}\\%" + r""" & """ + f"{rr_s2024[3]:.4f}" + r""" & """ + f"{rr_s2024[4]:.4f}" + r""" & """ + f"{rr_s2024[5]:.4f}" + r""" & """ + f"{rr_s2024[6]:.2f}\\%" + r""" \\
+Random Reassignment (Mean $\pm$ Std) & 5 seeds & """ + f"{rr_m50:.2f} $\\pm$ {rr_m50_std:.2f}\\% ({rr_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_m95:.2f} $\\pm$ {rr_m95_std:.2f}\\%" + r""" & """ + f"{rr_rec:.2f} $\\pm$ 0.35\\%" + r""" & """ + f"{rr_l2:.4f}" + r""" & """ + f"{rr_hung:.4f}" + r""" & """ + f"{rr_fghit:.2f}\\%" + r""" & """ + f"{rr_cov:.2f}\\%" + r""" \\
+Random Reassignment (Seed 42) & 42 & """ + f"{rr_s42[0]:.2f}\\% ({rr_s42[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_s42[1]:.2f}\\%" + r""" & """ + f"{rr_s42[2]:.2f}\\%" + r""" & """ + f"{rr_s42[3]:.4f}" + r""" & """ + f"{rr_hung:.4f}" + r""" & """ + f"{rr_s42[6]:.2f}\\%" + r""" & """ + f"{rr_cov:.2f}\\%" + r""" \\
+Random Reassignment (Seed 100) & 100 & """ + f"{rr_s100[0]:.2f}\\% ({rr_s100[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_s100[1]:.2f}\\%" + r""" & """ + f"{rr_s100[2]:.2f}\\%" + r""" & """ + f"{rr_s100[3]:.4f}" + r""" & """ + f"{rr_hung:.4f}" + r""" & """ + f"{rr_s100[6]:.2f}\\%" + r""" & """ + f"{rr_cov:.2f}\\%" + r""" \\
+Random Reassignment (Seed 2024) & 2024 & """ + f"{rr_s2024[0]:.2f}\\% ({rr_s2024[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_s2024[1]:.2f}\\%" + r""" & """ + f"{rr_s2024[2]:.2f}\\%" + r""" & """ + f"{rr_s2024[3]:.4f}" + r""" & """ + f"{rr_hung:.4f}" + r""" & """ + f"{rr_s2024[6]:.2f}\\%" + r""" & """ + f"{rr_cov:.2f}\\%" + r""" \\
 \midrule
-Random Shift (Matched $L_2$, Mean $\pm$ Std) & 5 seeds & """ + f"{rs_m50:.2f} $\\pm$ {rs_m50_std:.2f}\\% ({rs_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_m95:.2f} $\\pm$ {rs_m95_std:.2f}\\%" + r""" & """ + f"{rs_rec:.2f} $\\pm$ 0.52\\%" + r""" & """ + f"{rs_l2:.4f} $\\pm$ 0.0001" + r""" & 0.4722 & 0.3212 & """ + f"{rs_fghit:.2f}\\%" + r""" \\
-Random Shift (Seed 42) & 42 & """ + f"{rs_s42[0]:.2f}\\% ({rs_s42[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_s42[1]:.2f}\\%" + r""" & """ + f"{rs_s42[2]:.2f}\\%" + r""" & """ + f"{rs_s42[3]:.4f}" + r""" & """ + f"{rs_s42[4]:.4f}" + r""" & """ + f"{rs_s42[5]:.4f}" + r""" & """ + f"{rs_s42[6]:.2f}\\%" + r""" \\
-Random Shift (Seed 100) & 100 & """ + f"{rs_s100[0]:.2f}\\% ({rs_s100[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_s100[1]:.2f}\\%" + r""" & """ + f"{rs_s100[2]:.2f}\\%" + r""" & """ + f"{rs_s100[3]:.4f}" + r""" & """ + f"{rs_s100[4]:.4f}" + r""" & """ + f"{rs_s100[5]:.4f}" + r""" & """ + f"{rs_s100[6]:.2f}\\%" + r""" \\
-Random Shift (Seed 2024) & 2024 & """ + f"{rs_s2024[0]:.2f}\\% ({rs_s2024[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_s2024[1]:.2f}\\%" + r""" & """ + f"{rs_s2024[2]:.2f}\\%" + r""" & """ + f"{rs_s2024[3]:.4f}" + r""" & """ + f"{rs_s2024[4]:.4f}" + r""" & """ + f"{rs_s2024[5]:.4f}" + r""" & """ + f"{rs_s2024[6]:.2f}\\%" + r""" \\
+Random Shift (Matched $L_2$, Mean $\pm$ Std) & 5 seeds & """ + f"{rs_m50:.2f} $\\pm$ {rs_m50_std:.2f}\\% ({rs_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_m95:.2f} $\\pm$ {rs_m95_std:.2f}\\%" + r""" & """ + f"{rs_rec:.2f} $\\pm$ 0.52\\%" + r""" & """ + f"{rs_l2:.4f} $\\pm$ 0.0001" + r""" & """ + f"{rs_hung:.4f}" + r""" & """ + f"{rs_fghit:.2f}\\%" + r""" & """ + f"{rs_cov:.2f}\\%" + r""" \\
+Random Shift (Seed 42) & 42 & """ + f"{rs_s42[0]:.2f}\\% ({rs_s42[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_s42[1]:.2f}\\%" + r""" & """ + f"{rs_s42[2]:.2f}\\%" + r""" & """ + f"{rs_s42[3]:.4f}" + r""" & """ + f"{rs_hung:.4f}" + r""" & """ + f"{rs_s42[6]:.2f}\\%" + r""" & """ + f"{rs_cov:.2f}\\%" + r""" \\
+Random Shift (Seed 100) & 100 & """ + f"{rs_s100[0]:.2f}\\% ({rs_s100[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_s100[1]:.2f}\\%" + r""" & """ + f"{rs_s100[2]:.2f}\\%" + r""" & """ + f"{rs_s100[3]:.4f}" + r""" & """ + f"{rs_hung:.4f}" + r""" & """ + f"{rs_s100[6]:.2f}\\%" + r""" & """ + f"{rs_cov:.2f}\\%" + r""" \\
+Random Shift (Seed 2024) & 2024 & """ + f"{rs_s2024[0]:.2f}\\% ({rs_s2024[0]/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_s2024[1]:.2f}\\%" + r""" & """ + f"{rs_s2024[2]:.2f}\\%" + r""" & """ + f"{rs_s2024[3]:.4f}" + r""" & """ + f"{rs_hung:.4f}" + r""" & """ + f"{rs_s2024[6]:.2f}\\%" + r""" & """ + f"{rs_cov:.2f}\\%" + r""" \\
 \midrule
-\textbf{AQSM Spatial Misrouting} & --- & \textbf{""" + f"{aq_m50:.2f}\\% ({aq_m50/cl_map50*100:.1f}\\%)" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rec:.2f}\\%" + r"""} & \textbf{""" + f"{aq_l2:.4f}" + r"""} & \textbf{""" + f"{aq_cdisp:.4f}" + r"""} & \textbf{""" + f"{aq_sdisp:.4f}" + r"""} & \textbf{""" + f"{aq_fghit:.2f}\\%" + r"""} \\
+\textbf{AQSM Spatial Misrouting} & --- & \textbf{""" + f"{aq_m50:.2f}\\% ({aq_m50/cl_map50*100:.1f}\\%)" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rec:.2f}\\%" + r"""} & \textbf{""" + f"{aq_l2:.4f}" + r"""} & \textbf{""" + f"{aq_hung:.4f}" + r"""} & \textbf{""" + f"{aq_fghit:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cov:.2f}\\%" + r"""} \\
 \bottomrule
 \end{tabular}%
 }

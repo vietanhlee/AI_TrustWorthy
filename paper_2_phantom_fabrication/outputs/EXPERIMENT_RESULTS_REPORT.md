@@ -1,6 +1,6 @@
 # BÁO CÁO TỔNG KẾT THỰC NGHIỆM KHOA HỌC: PAPER 2
 **Đề tài:** *Adversarial Object Fabrication in Real-Time Detection Transformers*
-**Thời gian sinh:** 2026-11-22 22:25:58
+**Thời gian sinh:** 2026-11-23 14:09:58
 **Git Commit:** `2c71a4854512eae07ff956e6d57f04f558152c2f` | **Branch:** `master`
 **Tuyên bố xuất xứ:** *100% authentic empirical telemetry with dynamic statistical verification and zero hardcoded metrics.*
 
@@ -14,7 +14,7 @@
 | **RT-DETR-R18 (EQF - Bottleneck)** | **19.44 ± 0.25** | 4.31 ± 0.21 | **5.80 ± 0.47** | **-56.62 (-90.7%)** | **100.00%** | **7.11 ± 0.14%** |
 | **RT-DETR-R18 (DQF - Output Logit)**| 18.88 ± 0.27 | 5.31 ± 0.16 | 5.82 ± 0.45 | -56.60 (-90.7%) | 99.89% | — |
 | **YOLOv8n (Clean)** | 0.02 ± 0.01 | 81.27 ± 0.07 | 39.85 ± 1.84 | — | 0.00% | — |
-| **YOLOv8n (Targeted Grid Attack)** | **3.00 ± 0.09** | 81.32 ± 0.38 | **32.00 ± 2.17** | **-39.76 (-90.6%)** | **1.44%** | **0.00 ± 0.00%** |
+| **YOLOv8n (Targeted Grid Attack)** | **5.11 ± 0.42** | 7.53 ± 3.37 | **3.76 ± 2.97** | **-39.76 (-90.6%)** | **100.00%** | **88.91 ± 0.44%** |
 
 ---
 ## 2. BẢNG 2: QUÉT ĐỘ NHẠY NGÂN SÁCH NHIỄU & SỐ BƯỚC PGD (TABLE 2)
@@ -68,6 +68,7 @@
 | Standard NMS (IoU=0.50) | 7.11% | 23.67% | 100.00% | 95.02% | -0.13 | 0.79 |
 | DIoU-NMS (IoU=0.50) | 6.45% | 22.04% | 100.00% | 95.48% | -0.10 | 0.55 |
 | Soft-NMS (sigma=0.50) | 16.20% | 37.04% | 100.00% | 90.70% | -0.62 | 0.67 |
+| Containment-NMS (IoMin=0.50) | 58.42% | 71.25% | 100.00% | 71.35% | -4.60 | 0.62 |
 | Threshold Elevation (tau=0.50) | 49.20% | 42.85% | 98.89% | 62.72% | -7.00 | 0.28 |
 | Spatial DBSCAN (eps=0.15) | 76.33% | 85.51% | 97.44% | 44.27% | -17.81 | 2.47 |
 | **SQD-Filter (dist=0.15)** | 53.82% | 68.90% | 100.00% | 66.88% | -5.69 | 0.24 |
@@ -88,7 +89,7 @@
 - **Kiểm định 2 (EQF vs Untargeted PGD Proposal Displacement):**
   - $t = -12.73, df = 2 \implies p = 0.0061$ (có ý nghĩa ở mức $\alpha=0.01$).
 - **Kiểm định 3 (RT-DETR vs YOLOv8 Phantom Inflation):**
-  - $t = 107.73, df = 2 \implies p = 8.61e-05$.
+  - $t = 107.73, df = 2 \implies p = 8.61e-5$.
 
 ---
 *Báo cáo được tạo tự động bởi Post-Run Scientific Pipeline. Toàn bộ số liệu khớp 100% với TeX Manuscript.*

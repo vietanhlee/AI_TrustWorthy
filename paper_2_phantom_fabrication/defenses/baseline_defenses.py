@@ -153,6 +153,60 @@ def diou_nms_single_image(
     return keep
 
 
+def containment_nms_single_image(
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    iomin_thresh: float = 0.50,
+) -> List[int]:
+    """
+    Containment-NMS (Intersection-over-Min-Area NMS / IoMin-NMS):
+    IoMin(A, B) = Area(A ∩ B) / min(Area(A), Area(B))
+    
+    Đặc tính hình học: Khi hai bounding box đồng tâm nhưng khác tỉ lệ/kích thước
+    (ví dụ: box tỷ lệ nhỏ lọt trong box tỷ lệ lớn), IoU rất thấp (< 0.25)
+    nhưng IoMin xấp xỉ 1.0 (Area(A ∩ B) == Area(A_nhỏ)).
+    Do đó, Containment-NMS loại bỏ triệt để các cụm candidate đồng tâm đa tỷ lệ.
+    
+    boxes: [N, 4] dạng xyxy (chuẩn hóa hoặc pixel)
+    scores: [N]
+    iomin_thresh: ngưỡng triệt tiêu IoMin (mặc định 0.50)
+    """
+    if len(boxes) == 0:
+        return []
+    
+    order = np.argsort(-scores)
+    keep = []
+
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    areas = np.maximum(0.0, x2 - x1) * np.maximum(0.0, y2 - y1)
+
+    while len(order) > 0:
+        i = order[0]
+        keep.append(i)
+        if len(order) == 1:
+            break
+
+        rest = order[1:]
+        xx1 = np.maximum(x1[i], x1[rest])
+        yy1 = np.maximum(y1[i], y1[rest])
+        xx2 = np.minimum(x2[i], x2[rest])
+        yy2 = np.minimum(y2[i], y2[rest])
+
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
+        inter = w * h
+        min_area = np.minimum(areas[i], areas[rest])
+        iomin = inter / np.maximum(min_area, 1e-12)
+
+        inds = np.where(iomin <= iomin_thresh)[0]
+        order = rest[inds]
+
+    return keep
+
+
 def soft_nms_single_image(
     boxes: np.ndarray,
     scores: np.ndarray,
@@ -294,6 +348,26 @@ def apply_defense_to_predictions(
                 })
             else:
                 res.append({"boxes": np.zeros((0, 4)), "scores": np.zeros((0,)), "labels": np.zeros((0,), dtype=int)})
+    elif defense_type in ("containment", "containment_nms", "iomin", "iomin_nms"):
+        raw = postprocess_rtdetr_predictions(logits_in, boxes_in, score_thresh=score_th)
+        iomin_th = kw.get("iomin_thresh", 0.50)
+        res = []
+        for r in raw:
+            if len(r["boxes"]) <= 1:
+                res.append(r)
+                continue
+            keep = []
+            for cls_id in np.unique(r["labels"]):
+                c_mask = (r["labels"] == cls_id)
+                idx = np.where(c_mask)[0]
+                k_c = containment_nms_single_image(r["boxes"][idx], r["scores"][idx], iomin_thresh=iomin_th)
+                keep.extend(idx[k_c].tolist())
+            keep = sorted(keep)
+            res.append({
+                "boxes": r["boxes"][keep],
+                "scores": r["scores"][keep],
+                "labels": r["labels"][keep],
+            })
     elif defense_type == "dbscan":
         raw = postprocess_rtdetr_predictions(logits_in, boxes_in, score_thresh=score_th)
         eps_val = kw.get("eps", 0.15)
@@ -353,6 +427,7 @@ def evaluate_defenses_suite(
         {"name": "Standard NMS (IoU=0.50)", "type": "nms", "kwargs": {"iou_thresh": 0.50}},
         {"name": "DIoU-NMS (IoU=0.50)", "type": "diou", "kwargs": {"iou_thresh": 0.50}},
         {"name": "Soft-NMS (sigma=0.50)", "type": "soft_nms", "kwargs": {"sigma": 0.50}},
+        {"name": "Containment-NMS (IoMin=0.50)", "type": "containment", "kwargs": {"iomin_thresh": 0.50}},
         {"name": "Threshold Elevation (tau=0.50)", "type": "thresh", "kwargs": {"thresh": 0.50}},
         {"name": "Spatial DBSCAN (eps=0.15)", "type": "dbscan", "kwargs": {"eps": 0.15}},
         {"name": "SQD-Filter (dist=0.15)", "type": "sqd", "kwargs": {"dist_thresh": 0.15}},

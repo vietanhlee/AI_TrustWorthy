@@ -36,6 +36,7 @@ from paper_2_phantom_fabrication.core.metrics import (
 )
 from paper_2_phantom_fabrication.defenses.baseline_defenses import (
     JPEGCompressionDefense,
+    containment_nms_single_image,
     diou_nms_single_image,
     soft_nms_single_image,
 )
@@ -130,6 +131,27 @@ class TestPaper2MetricsAndDefenses(unittest.TestCase):
         # Ở score_thresh chuẩn 0.35, điểm số của hộp thứ 2 (~0.19) bị rơi xuống dưới ngưỡng nên bị loại
         b_soft_oper, _, _ = soft_nms_single_image(boxes, scores, sigma=0.50, score_thresh=0.35)
         self.assertEqual(len(b_soft_oper), 1, "Ở threshold 0.35, hộp thứ 2 bị loại do điểm suy giảm")
+
+    def test_containment_nms(self):
+        """
+        Kiểm tra cơ chế Containment-NMS (Intersection-over-Min-Area):
+        Hộp nhỏ đồng tâm nằm lọt trong hộp lớn:
+        IoU < 0.25 (IoU-NMS thất bại) nhưng IoMin = 1.0 (Containment-NMS thành công).
+        """
+        # Box 0: Hộp lớn [0.2, 0.2, 0.8, 0.8], area = 0.36, score = 0.90
+        # Box 1: Hộp nhỏ lọt trong [0.4, 0.4, 0.6, 0.6], area = 0.04, score = 0.80
+        # Box 2: Hộp riêng biệt [0.0, 0.0, 0.1, 0.1], area = 0.01, score = 0.85
+        boxes = np.array([
+            [0.20, 0.20, 0.80, 0.80],
+            [0.40, 0.40, 0.60, 0.60],
+            [0.00, 0.00, 0.10, 0.10],
+        ], dtype=np.float64)
+        scores = np.array([0.90, 0.80, 0.85], dtype=np.float64)
+
+        # IoU giữa Box 0 và Box 1 là 0.04 / 0.36 = 0.111 < 0.50 -> Standard NMS không gộp
+        # IoMin giữa Box 0 và Box 1 là 0.04 / min(0.36, 0.04) = 1.0 >= 0.50 -> Containment-NMS gộp
+        keep = containment_nms_single_image(boxes, scores, iomin_thresh=0.50)
+        self.assertEqual(keep, [0, 2], "Containment-NMS phải gộp Box 1 vào Box 0 và giữ lại Box 0 cùng Box 2")
 
     def test_sqd_filter_spatial_geometry_paradox(self):
         """
