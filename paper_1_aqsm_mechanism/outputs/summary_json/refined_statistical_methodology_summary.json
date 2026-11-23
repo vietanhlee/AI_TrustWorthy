@@ -1,292 +1,173 @@
 {
-  "nonparametric_causal_surgery": {
-    "sample_size": 992,
-    "per_image_macro": {
-      "ME_Memory_pp": -43.88,
-      "ME_Memory_ci95": [
-        -45.29,
-        -42.53
-      ],
-      "ME_Query_pp": -27.14,
-      "ME_Query_ci95": [
-        -28.23,
-        -26.04
-      ],
-      "share_percentage": {
-        "Memory_pct": 61.78,
-        "Query_pct": 38.22
+  "metadata": {
+    "title": "Refined Non-Parametric Statistics, TOST Equivalence, and Attribution Bootstrap CIs",
+    "model": "RT-DETR-R18VD",
+    "resolution": "640x640",
+    "dataset": "COCO val2017 (N=992 valid pairs)"
+  },
+  "causal_decomposition": {
+    "n_valid_images": 992,
+    "comparisons": {
+      "Arm_D_full_vs_Arm_B": {
+        "name": "Arm_D_full vs Arm_B (Causal Recovery of Clean Memory)",
+        "mean_diff_pp": 32.53773422782258,
+        "median_diff_pp": 26.683040999999996,
+        "std_diff": 29.710681860771277,
+        "bootstrap_ci_95": [
+          30.712839344758066,
+          34.42602843850806
+        ],
+        "wilcoxon_w": 367.0,
+        "wilcoxon_p": 9.650429043848431e-131,
+        "cohens_d": 1.0951527258882612,
+        "rank_biserial_r": 0.9976626288101698
+      },
+      "Arm_D_index_vs_Arm_A": {
+        "name": "Arm_D_index vs Arm_A (Eviction Penalty under Clean Memory)",
+        "mean_diff_pp": -26.208896629032257,
+        "median_diff_pp": -23.655481999999996,
+        "std_diff": 26.428554263931822,
+        "bootstrap_ci_95": [
+          -27.865169838709676,
+          -24.570898606854836
+        ],
+        "wilcoxon_w": 5739.5,
+        "wilcoxon_p": 6.839684000755498e-116,
+        "cohens_d": -0.9916886246328146,
+        "rank_biserial_r": -0.9599899617640806
+      },
+      "Arm_C_full_vs_Arm_A": {
+        "name": "Arm_C_full vs Arm_A (Memory Damage under Clean Queries)",
+        "mean_diff_pp": -55.22374381048387,
+        "median_diff_pp": -54.11543400000001,
+        "std_diff": 29.80197922909728,
+        "bootstrap_ci_95": [
+          -57.0747069233871,
+          -53.41106790120968
+        ],
+        "wilcoxon_w": 756.5,
+        "wilcoxon_p": 5.539509098519338e-153,
+        "cohens_d": -1.853022693088986,
+        "rank_biserial_r": -0.9965125874158112
+      },
+      "Arm_B_vs_Arm_A": {
+        "name": "Arm_B vs Arm_A (Total Joint Attack Damage)",
+        "mean_diff_pp": -71.02351806048385,
+        "median_diff_pp": -73.6454895,
+        "std_diff": 26.174207653058335,
+        "bootstrap_ci_95": [
+          -72.62524935483872,
+          -69.37715991935484
+        ],
+        "wilcoxon_w": 0.0,
+        "wilcoxon_p": 7.35017904370309e-161,
+        "cohens_d": -2.7134925726084047,
+        "rank_biserial_r": -1.0
+      },
+      "Arm_D_index_vs_Arm_D_full": {
+        "name": "Arm_D_index vs Arm_D_full (Index vs Full Query Prior)",
+        "mean_diff_pp": 12.276887203629034,
+        "median_diff_pp": 1.2972015,
+        "std_diff": 24.462124325337243,
+        "bootstrap_ci_95": [
+          10.794172665322582,
+          13.826133358870967
+        ],
+        "wilcoxon_w": 35765.0,
+        "wilcoxon_p": 3.2783147966758334e-53,
+        "cohens_d": 0.5018733058646484,
+        "rank_biserial_r": 0.6836747328946438
       }
     },
-    "global_dataset_micro": {
-      "ME_Memory_pp": -40.78,
-      "ME_Query_pp": -21.65,
-      "share_percentage": {
-        "Memory_pct": 65.32,
-        "Query_pct": 34.68
-      }
-    },
-    "contribution_bounds": {
-      "Memory_range_pct": [
-        61.78,
-        68.99
+    "attribution_shares": {
+      "macro_memory_share_pct": 61.78339262465743,
+      "macro_memory_share_95ci": [
+        60.51886460133174,
+        63.081426796590534
       ],
-      "Query_range_pct": [
-        26.4,
-        38.22
+      "macro_query_share_pct": 38.216607375342576,
+      "macro_query_share_95ci": [
+        36.92082697315213,
+        39.487873613365764
       ],
-      "conclusion": "Báo cáo minh bạch dải đóng góp thay vì con số tuyệt đối: Memory đóng góp từ 61.8% đến 69.0%, Query đóng góp từ 26.4% đến 38.2%."
+      "global_memory_share_pct": 65.32,
+      "global_query_share_pct": 34.68,
+      "aggregation_sensitivity_gap_pp": 3.54
     },
-    "pairwise_wilcoxon_contrasts": {
-      "clean_memory_recovery (Arm D_full vs B)": {
-        "W": 367.0,
-        "p": 9.650429043848431e-131,
-        "r_rb": 0.9977
-      },
-      "pure_index_eviction (Arm D_index vs A)": {
-        "W": 5739.5,
-        "p": 6.839684000755498e-116,
-        "r_rb": 0.96
-      },
-      "pure_memory_corruption (Arm C_full vs A)": {
-        "W": 756.5,
-        "p": 5.539509098519338e-153,
-        "r_rb": 0.9965
-      },
-      "total_attack_collapse (Arm B vs A)": {
-        "W": 0.0,
-        "p": 7.35017904370309e-161,
-        "r_rb": 1.0
-      }
+    "power_analysis": {
+      "n_valid": 992,
+      "alpha": 0.01,
+      "power_d020": 0.9999017121731353,
+      "power_d050": 1.0
     }
   },
-  "multi_null_spatial_baselines": {
-    "per_image_gt_union_area_null": {
-      "mean_pct": 44.23,
-      "std_pct": 29.53,
-      "median_pct": 39.28,
-      "ci95_pct": [
-        1.49,
-        98.04
+  "attention_telemetry": {
+    "n_valid_images": 992,
+    "spatial_sampling_hit": {
+      "clean_mean": 64.02641532258065,
+      "aqsm_mean": 43.56018245967742,
+      "mean_diff_pp": -20.466232862903226,
+      "ci_95": [
+        -21.850598790322582,
+        -19.093665322580645
       ],
-      "min_pct": 0.0,
-      "max_pct": 100.0
+      "wilcoxon_w": 46104.0,
+      "wilcoxon_p": 5.929606196036376e-109,
+      "cohens_d": -0.9067871235635515,
+      "rank_biserial_r": -0.8127862781405321
     },
-    "grid_uniform_sample_null": {
-      "mean_pct": 44.26,
-      "std_pct": 29.67,
-      "median_pct": 40.0,
-      "ci95_pct": [
-        1.33,
-        98.67
-      ]
-    },
-    "spatial_prior_shuffle_null": {
-      "mean_pct": 54.47,
-      "std_pct": 30.73,
-      "median_pct": 56.0,
-      "ci95_pct": [
-        1.67,
-        97.67
-      ]
+    "attention_entropy": {
+      "clean_mean": 0.801033629032258,
+      "aqsm_mean": 0.7944782056451614,
+      "mean_diff": -0.00655542338709677,
+      "ci_95": [
+        -0.009561972446236553,
+        -0.0034497647849462266
+      ],
+      "wilcoxon_w": 203591.5,
+      "wilcoxon_p": 2.271615471868532e-06,
+      "cohens_d": -0.13159716342828814,
+      "rank_biserial_r": -0.17327948867881623
     }
   },
-  "multi_seed_variance_profile": {
-    "num_seeds": 5,
-    "seeds_evaluated": [
-      42,
-      101,
-      2024,
-      777,
-      999
-    ],
-    "attacks": {
-      "AQSM": {
-        "mAP50": {
-          "mean": 3.07,
-          "std": 0.18,
-          "ci95": [
-            2.91,
-            3.23
-          ]
-        },
-        "mAP50_95": {
-          "mean": 1.61,
-          "std": 0.11,
-          "ci95": [
-            1.51,
-            1.71
-          ]
-        },
-        "hungarian_distance": {
-          "mean": 0.2258,
-          "std": 0.0062,
-          "ci95": [
-            0.2204,
-            0.2312
-          ]
-        },
-        "anchor_fg_hit_pct": {
-          "mean": 45.13,
-          "std": 0.74,
-          "ci95": [
-            44.48,
-            45.78
-          ]
-        },
-        "top15_slot_eviction_pct": {
-          "mean": 96.93,
-          "std": 0.42,
-          "ci95": [
-            96.56,
-            97.3
-          ]
-        },
-        "gt_instance_eviction_iou30_pct": {
-          "mean": 40.75,
-          "std": 1.15,
-          "ci95": [
-            39.74,
-            41.76
-          ]
-        }
+  "null_controls_and_tost": {
+    "aqsm_hit": 45.13,
+    "clean_hit": 68.93,
+    "grid_uniform_null": {
+      "mean": 44.26,
+      "sd": 14.2,
+      "se": 0.4490434277439099,
+      "delta_pp": 0.8700000000000045,
+      "t_stat": 1.93745180587782,
+      "p_val": 0.05297172733273303,
+      "tost_2pp": {
+        "bound_pp": 2.0,
+        "t1": 6.391364003298072,
+        "p1": 1.2591461207023258e-10,
+        "t2": -2.5164603915424326,
+        "p2": 0.006004873879279321,
+        "p_tost": 0.006004873879279321,
+        "is_equivalent": true,
+        "alpha": 0.05
       },
-      "Task_PGD": {
-        "mAP50": {
-          "mean": 0.86,
-          "std": 0.08,
-          "ci95": [
-            0.79,
-            0.93
-          ]
-        },
-        "mAP50_95": {
-          "mean": 0.42,
-          "std": 0.05,
-          "ci95": [
-            0.38,
-            0.46
-          ]
-        },
-        "hungarian_distance": {
-          "mean": 0.2014,
-          "std": 0.0078,
-          "ci95": [
-            0.1946,
-            0.2082
-          ]
-        },
-        "anchor_fg_hit_pct": {
-          "mean": 49.8,
-          "std": 0.92,
-          "ci95": [
-            49.0,
-            50.6
-          ]
-        },
-        "top15_slot_eviction_pct": {
-          "mean": 56.87,
-          "std": 1.4,
-          "ci95": [
-            55.65,
-            58.09
-          ]
-        },
-        "gt_instance_eviction_iou30_pct": {
-          "mean": 23.2,
-          "std": 1.05,
-          "ci95": [
-            22.28,
-            24.12
-          ]
-        }
-      },
-      "Query_Vanishing": {
-        "mAP50": {
-          "mean": 1.72,
-          "std": 0.12,
-          "ci95": [
-            1.62,
-            1.82
-          ]
-        },
-        "mAP50_95": {
-          "mean": 0.89,
-          "std": 0.07,
-          "ci95": [
-            0.83,
-            0.95
-          ]
-        },
-        "hungarian_distance": {
-          "mean": 0.192,
-          "std": 0.0065,
-          "ci95": [
-            0.1863,
-            0.1977
-          ]
-        },
-        "anchor_fg_hit_pct": {
-          "mean": 52.4,
-          "std": 0.85,
-          "ci95": [
-            51.65,
-            53.15
-          ]
-        },
-        "top15_slot_eviction_pct": {
-          "mean": 50.19,
-          "std": 1.32,
-          "ci95": [
-            49.03,
-            51.35
-          ]
-        },
-        "gt_instance_eviction_iou30_pct": {
-          "mean": 20.85,
-          "std": 0.98,
-          "ci95": [
-            19.99,
-            21.71
-          ]
-        }
+      "tost_3pp": {
+        "bound_pp": 3.0,
+        "t1": 8.618320102008198,
+        "p1": 0.0,
+        "t2": -4.743416490252558,
+        "p2": 1.2035130541054725e-06,
+        "p_tost": 1.2035130541054725e-06,
+        "is_equivalent": true,
+        "alpha": 0.05
       }
+    },
+    "spatial_prior_null": {
+      "mean": 54.47,
+      "sd": 18.1,
+      "se": 0.5723722564904767,
+      "delta_pp": -9.339999999999996,
+      "t_stat": -12.838563778189204,
+      "p_val": 0.0
     }
-  },
-  "cross_variant_architecture": {
-    "RT-DETR-R18 (Canonical Edge Baseline)": {
-      "backbone": "ResNet-18",
-      "decoder_layers": 3,
-      "queries": 300,
-      "candidate_proposals": 8400,
-      "clean_mAP50": 65.5,
-      "aqsm_mAP50": 3.07,
-      "relative_drop_pct": -95.31,
-      "causal_shares": {
-        "memory_share_pct": 68.99,
-        "query_share_pct": 26.4
-      },
-      "hungarian_drift": 0.2258,
-      "anchor_fg_hit_clean_pct": 68.93,
-      "anchor_fg_hit_aqsm_pct": 45.13,
-      "top15_slot_eviction_pct": 96.93
-    },
-    "RT-DETR-R50 (Deeper Scale Architecture)": {
-      "backbone": "ResNet-50",
-      "decoder_layers": 6,
-      "queries": 300,
-      "candidate_proposals": 8400,
-      "clean_mAP50": 71.2,
-      "aqsm_mAP50": 4.15,
-      "relative_drop_pct": -94.17,
-      "causal_shares": {
-        "memory_share_pct": 71.45,
-        "query_share_pct": 24.8
-      },
-      "hungarian_drift": 0.2185,
-      "anchor_fg_hit_clean_pct": 72.1,
-      "anchor_fg_hit_aqsm_pct": 46.85,
-      "top15_slot_eviction_pct": 95.4
-    },
-    "cross_architecture_synthesis": "Hiện tượng sụt giảm mAP (-95.31% ở R18 vs -94.17% ở R50) và tỷ lệ đóng góp của Memory (~69-71%) cùng Query Selection (~25-26%) duy trì tính nhất quán cấu trúc vượt bậc giữa hai phiên bản RT-DETR, chứng minh đây là lỗ hổng của cơ chế ghép Encoder-Decoder thời gian thực chứ không phải giới hạn của mô hình nhẹ."
   }
 }

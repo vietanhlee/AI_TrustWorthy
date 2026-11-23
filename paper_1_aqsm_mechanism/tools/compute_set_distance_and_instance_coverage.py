@@ -80,7 +80,7 @@ def run_set_distance_and_coverage_evaluation(
     f_npz = np.load(str(p_npz))
     cached_deltas = f_npz["delta"][:max_samples] if "delta" in f_npz else f_npz["delta_f16"][:max_samples]
 
-    conditions = ["Clean_Baseline", "Random_Reassignment", "Random_Shift", "AQSM_Spatial_Misrouting"]
+    conditions = ["Clean_Baseline", "Random_Reassignment", "Random_Shift", "Decoupled_Random_Shift", "AQSM_Spatial_Misrouting"]
     stats: Dict[str, Dict[str, List[float]]] = {
         c: {
             "slot_center_disp": [],
@@ -126,6 +126,7 @@ def run_set_distance_and_coverage_evaluation(
             "Clean_Baseline": c_ref,
             "Random_Reassignment": re_ref,
             "Random_Shift": sh_ref,
+            "Decoupled_Random_Shift": sh_ref[perm],
             "AQSM_Spatial_Misrouting": a_ref,
         }
 

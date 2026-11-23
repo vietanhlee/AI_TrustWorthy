@@ -22,7 +22,8 @@ def main():
             "description": "SQA Comprehensive Controls and Adaptive Evasion Boundary",
             "model": "RT-DETR-R18VD",
             "resolution": "640x640",
-            "evaluation_cohort_n": 1000,
+            "defense_evaluation_cohort_n": 300,
+            "global_benchmark_cohort_n": 1000,
             "standard_dynamic_queries": 300,
             "augmented_queries": 30,
             "total_queries": 330
