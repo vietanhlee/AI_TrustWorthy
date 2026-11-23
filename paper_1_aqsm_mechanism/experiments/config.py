@@ -56,17 +56,47 @@ AUDIT_STREAMS_DIR: Path = OUTPUTS_DIR / "audit_streams"
 AUDIT_STREAMS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def resolve_model_name(name: Optional[str] = None) -> str:
+    """Chuẩn hóa tên model checkpoint hoặc alias ('r18', 'r50', ...)."""
+    if not name:
+        return os.environ.get("EDGE_SEC_MODEL", "PekingU/rtdetr_r18vd")
+    clean = str(name).strip()
+    alias_map = {
+        "r18": "PekingU/rtdetr_r18vd",
+        "rtdetr_r18": "PekingU/rtdetr_r18vd",
+        "rtdetr_r18vd": "PekingU/rtdetr_r18vd",
+        "r50": "PekingU/rtdetr_r50vd",
+        "rtdetr_r50": "PekingU/rtdetr_r50vd",
+        "rtdetr_r50vd": "PekingU/rtdetr_r50vd",
+    }
+    return alias_map.get(clean.lower(), clean)
+
+
+def get_model_tag(name: Optional[str] = None) -> str:
+    """Trả về tag ngắn gọn của model để phân biệt file cache/output (ví dụ: rtdetr_r18vd, rtdetr_r50vd)."""
+    m = resolve_model_name(name)
+    return m.split("/")[-1].lower()
+
+
 def update_experiment_paths(
     folder_image: Optional[Union[str, Path]] = None,
     annotations: Optional[Union[str, Path]] = None,
     output_dir: Optional[Union[str, Path]] = None,
     cache_dir: Optional[Union[str, Path]] = None,
     fig_dir: Optional[Union[str, Path]] = None,
+    model: Optional[str] = None,
 ) -> None:
     """
     Cập nhật động các đường dẫn toàn cục phục vụ thực nghiệm linh hoạt.
     """
-    global COCO_VAL_DIR, COCO_ANN_FILE, OUTPUTS_DIR, LOGS_DIR, RAW_CSV_DIR, SUMMARY_JSON_DIR, AUDIT_STREAMS_DIR, ADV_CACHE_DIR, FIG_DIR
+    global COCO_VAL_DIR, COCO_ANN_FILE, OUTPUTS_DIR, LOGS_DIR, RAW_CSV_DIR, SUMMARY_JSON_DIR, AUDIT_STREAMS_DIR, ADV_CACHE_DIR, FIG_DIR, MODEL_NAME, NUM_DECODER_LAYERS
+
+    if model is not None:
+        MODEL_NAME = resolve_model_name(model)
+        if "r50" in MODEL_NAME.lower():
+            NUM_DECODER_LAYERS = 6
+        else:
+            NUM_DECODER_LAYERS = 3
 
     if folder_image is not None:
         COCO_VAL_DIR = Path(folder_image).resolve()
@@ -168,7 +198,7 @@ SWEEP_EPSILONS: List[float] = [4.0 / 255.0, 8.0 / 255.0, 16.0 / 255.0]
 # -----------------------------------------------------------------------------
 # 4. THAM SỐ ĐO ĐẠC THỰC NGHIỆM VÀ PHÂN TÍCH NHÂN QUẢ (CAUSAL & TELEMETRY PROTOCOL)
 # -----------------------------------------------------------------------------
-COHORT_SIZE: int = 300       # Giá trị mặc định danh định nếu không truyền
+COHORT_SIZE: int = 1000      # Giá trị mặc định danh định chuẩn cho cohort đánh giá
 RANDOM_SEED: int = 42        # Seed cố định bảo đảm khả năng tái lập 100%
 N_BOOTSTRAP: int = 1000      # Số lần lấy mẫu Bootstrap tính khoảng tin cậy 95% CI
 

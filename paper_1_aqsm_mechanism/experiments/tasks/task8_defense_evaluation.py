@@ -46,7 +46,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_model_tag,
     get_summary_json_dir,
+    resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
@@ -380,11 +382,13 @@ def main():
     parser.add_argument("--n_adaptive", type=int, default=1000, help="Số lượng ảnh kiểm thử tấn công thích ứng (mặc định 1000 để chạy toàn bộ tập test)")
     args = parser.parse_args()
 
+    chosen_model = resolve_model_name(getattr(args, "model", None))
     update_experiment_paths(
         folder_image=args.folder_image,
         annotations=args.annotations,
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
+        model=chosen_model,
     )
     configure_cpu_threads(args.threads)
     hw_info = detect_hardware_environment(preferred_device=args.device)
@@ -392,7 +396,7 @@ def main():
     batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
 
     audit_logger = ExperimentAuditLogger(task_name="task8_defense_evaluation")
-    wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
+    wrapper = RTDETRModelWrapper(pretrained_model_name=chosen_model, device=device)
     wrapper.eval()
 
     dataset = FlexibleCOCODataset(

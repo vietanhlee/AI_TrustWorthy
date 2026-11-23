@@ -51,8 +51,10 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_model_tag,
     get_raw_csv_dir,
     get_summary_json_dir,
+    resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
@@ -330,11 +332,13 @@ def main():
     parser.add_argument("--attacks", type=str, default="aqsm,vanishing,taskpgd", help="Danh sách đòn tấn công")
     args = parser.parse_args()
 
+    chosen_model = resolve_model_name(getattr(args, "model", None))
     update_experiment_paths(
         folder_image=args.folder_image,
         annotations=args.annotations,
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
+        model=chosen_model,
     )
 
     configure_cpu_threads(args.threads)
@@ -345,7 +349,7 @@ def main():
     audit_logger = ExperimentAuditLogger(task_name="task2_encoder_query_dynamics")
 
     # Nạp mô hình RT-DETR
-    wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
+    wrapper = RTDETRModelWrapper(pretrained_model_name=chosen_model, device=device)
     wrapper.eval()
     model = wrapper.model
 

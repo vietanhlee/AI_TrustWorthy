@@ -41,8 +41,10 @@ from paper_1_aqsm_mechanism.experiments.config import (
     COCO_VAL_DIR,
     FIG_DIR,
     LOGS_DIR,
+    MODEL_NAME,
     OUTPUTS_DIR,
     detect_hardware_environment,
+    resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json
@@ -135,12 +137,14 @@ def _build_task_registry(
             t0_args.append("--force_recompute")
         if args.max_samples is not None:
             t0_args.extend(["--max_samples", str(args.max_samples)])
+        if getattr(args, "model", None) is not None:
+            t0_args.extend(["--model", str(args.model)])
         return t0_args
 
     # Task 6 args
     def build_task6_args() -> List[str]:
         n_runs_val = str(min(300, args.max_samples)) if args.max_samples is not None else "300"
-        return [
+        t6_args = [
             "--folder_image", str(args.folder_image),
             "--annotations", str(args.annotations),
             "--output_dir", str(args.output_dir),
@@ -148,6 +152,9 @@ def _build_task_registry(
             "--device", str(args.device),
             "--n_runs", n_runs_val,
         ]
+        if getattr(args, "model", None) is not None:
+            t6_args.extend(["--model", str(args.model)])
+        return t6_args
 
     # Task 7 args
     def build_task7_args() -> List[str]:
@@ -243,10 +250,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Master Experiment Orchestrator: Chạy toàn bộ thực nghiệm Paper 1 (AQSM Mechanism)"
     )
-    # 1. Tham số dữ liệu đầu vào
+    # 1. Tham số dữ liệu đầu vào & Mô hình
     parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục chứa ảnh COCO val2017 (5000 ảnh)")
     parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
-    parser.add_argument("--max_samples", type=int, default=5000, help="Giới hạn số lượng ảnh chạy thực nghiệm (mặc định 5000 ảnh)")
+    parser.add_argument("--model", type=str, default=str(MODEL_NAME), help="Kiến trúc hoặc checkpoint RT-DETR ('r18', 'r50', 'PekingU/rtdetr_r18vd', 'PekingU/rtdetr_r50vd')")
+    parser.add_argument("--max_samples", type=int, default=1000, help="Giới hạn số lượng ảnh chạy thực nghiệm (mặc định 1000 ảnh, 5000 cho full COCO)")
     parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples (số lượng ảnh)")
 
     # 2. Tham số lưu trữ đầu ra
@@ -270,12 +278,14 @@ def main():
     if args.num_images is not None:
         args.max_samples = args.num_images
 
+    chosen_model = resolve_model_name(args.model)
     update_experiment_paths(
         folder_image=args.folder_image,
         annotations=args.annotations,
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
         fig_dir=args.fig_dir,
+        model=chosen_model,
     )
 
     t_global_start = time.time()
@@ -289,6 +299,7 @@ def main():
     print("=" * 85)
     print(" 🚀 HỆ THỐNG ĐIỀU PHỐI THỰC NGHIỆM TOÀN DIỆN (RT-DETR MECHANISM BREAKDOWN)")
     print("=" * 85)
+    print(f" Kiến trúc Model      : {chosen_model}")
     print(f" Thư mục ảnh đầu vào  : {folder_p} (Tìm thấy {img_count} ảnh | Chạy: {effective_count} ảnh)")
     print(f" File Annotations COCO: {Path(args.annotations).resolve()}")
     if args.max_samples is not None:
@@ -312,6 +323,7 @@ def main():
         "--cache_dir", str(args.cache_dir),
         "--threads", str(args.threads),
         "--device", str(args.device),
+        "--model", str(chosen_model),
     ]
     if args.batch_size is not None:
         common_args.extend(["--batch_size", str(args.batch_size)])

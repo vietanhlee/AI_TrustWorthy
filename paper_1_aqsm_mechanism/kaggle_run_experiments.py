@@ -28,8 +28,9 @@ def main():
     parser = argparse.ArgumentParser(description="Kaggle/Colab GPU Master Experiment Runner")
     parser.add_argument("--folder_image", type=str, default=None, help="Đường dẫn thư mục ảnh COCO val2017")
     parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file instances_val2017.json")
+    parser.add_argument("--model", type=str, default="r18", help="Kiến trúc hoặc checkpoint RT-DETR ('r18', 'r50', 'PekingU/rtdetr_r18vd', 'PekingU/rtdetr_r50vd')")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
-    parser.add_argument("--max_samples", type=int, default=300, help="Số lượng ảnh thực nghiệm (mặc định 300 ảnh theo chuẩn Paper 1)")
+    parser.add_argument("--max_samples", type=int, default=1000, help="Số lượng ảnh thực nghiệm (mặc định 1000 ảnh chuẩn)")
     parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples")
     parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7,9", help="Danh sách tasks cần chạy")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
@@ -74,19 +75,20 @@ def main():
         max_safe_samples = int((safe_disk_capacity_gb * (1024 ** 3)) / (num_attacks * bytes_per_sample))
 
         if needed_disk_gb > safe_disk_capacity_gb:
-            effective_max_samples = min(max_safe_samples, 300)
+            effective_max_samples = max(max_safe_samples, 50)
             print("=" * 80)
             print(f"⚠️  [CẢNH BÁO DUNG LƯỢNG Ổ CỨNG KAGGLE]")
             print(f" Yêu cầu tiền sinh cache cho {args.max_samples} ảnh -> Cần tối thiểu {needed_disk_gb:.2f} GB đĩa cho {num_attacks} attacks,")
             print(f" nhưng ổ cứng khả dụng chỉ còn {free_gb:.2f} GB!")
             print(f" Để ngăn ngừa lỗi cạn đĩa ([Errno 28] No space left on device), hệ thống tự động bảo vệ:")
-            print(f" --> Tự động điều chỉnh: max_samples = {effective_max_samples} ảnh")
-            print(f" (Mẹo: Thêm cờ --skip_cache_gen để chạy On-The-Fly số ảnh tùy thích với 0 GB đĩa)")
+            print(f" --> Điều chỉnh an toàn cho cache trên đĩa: max_samples = {effective_max_samples} ảnh")
+            print(f" (Mẹo: Thêm cờ --skip_cache_gen để chạy On-The-Fly số ảnh đầy đủ {args.max_samples} với 0 GB đĩa)")
             print("=" * 80)
         else:
             effective_max_samples = args.max_samples
 
     print(f">>> Cấu hình Max Samples thực thi: {effective_max_samples} ảnh")
+    print(f">>> Mô hình chỉ định            : {args.model}")
 
     paper_dir = WORKSPACE_DIR / "paper_1_aqsm_mechanism"
     output_dir = paper_dir / "outputs"
@@ -102,6 +104,7 @@ def main():
         "--batch_size", str(args.batch_size),
         "--output_dir", str(output_dir),
         "--fig_dir", str(fig_dir),
+        "--model", str(args.model),
     ]
 
     if effective_max_samples is not None:

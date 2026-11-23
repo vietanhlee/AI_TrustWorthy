@@ -14,7 +14,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     COCO_ANN_FILE,
     COCO_VAL_DIR,
     FIG_DIR,
+    MODEL_NAME,
     OUTPUTS_DIR,
+    resolve_model_name,
 )
 
 
@@ -79,10 +81,16 @@ def create_base_parser(
         help="Thiết bị thực thi (auto = tự nhận diện GPU nếu có)",
     )
     parser.add_argument(
+        "--model",
+        type=str,
+        default=str(MODEL_NAME),
+        help="Kiến trúc hoặc checkpoint RT-DETR ('r18', 'r50', 'PekingU/rtdetr_r18vd', 'PekingU/rtdetr_r50vd')",
+    )
+    parser.add_argument(
         "--max_samples",
         type=int,
-        default=5000,
-        help="Số lượng mẫu ảnh tối đa cần đánh giá (mặc định: 5000 ảnh)",
+        default=1000,
+        help="Số lượng mẫu ảnh tối đa cần đánh giá (mặc định: 1000 ảnh, 5000 cho full COCO)",
     )
 
     return parser

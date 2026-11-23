@@ -46,6 +46,8 @@ from paper_1_aqsm_mechanism.experiments.config import (
     detect_hardware_environment,
     get_adv_cache_dir,
     get_device,
+    get_model_tag,
+    resolve_model_name,
     update_experiment_paths,
 )
 
@@ -76,18 +78,25 @@ def generate_single_attack_cache(
     eps = float(eps_int) / 255.0
     alpha = (2.0 / 255.0) if eps_int >= 8 else (1.0 / 255.0)
 
-    out_file = save_dir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
-    alias_file = save_dir / f"adv_cache_{attack_name.lower()}_eps{eps_int}.npz"
+    model_tag = get_model_tag(getattr(wrapper, "pretrained_model_name", None))
+    out_file = save_dir / f"adv_cache_{model_tag}_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
+    alias_file = save_dir / f"adv_cache_{model_tag}_{attack_name.lower()}_eps{eps_int}.npz"
+    legacy_file = save_dir / f"adv_cache_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
 
-    # Kiểm tra nếu cache đã tồn tại và hợp lệ
-    if skip_existing and out_file.exists():
-        try:
-            with np.load(out_file, mmap_mode="r") as cached_data:
-                if len(cached_data["image_ids"]) == n_total and list(cached_data["image_ids"]) == image_ids:
-                    print(f"[CACHE GEN] Đã tìm thấy cache hoàn chỉnh tại: {out_file.name}. Bỏ qua bước sinh.")
-                    return out_file
-        except Exception:
-            print(f"[CACHE GEN] Cache hiện tại bị lỗi đọc, tiến hành sinh lại: {out_file.name}")
+    # Kiểm tra nếu cache đã tồn tại và hợp lệ (hỗ trợ cả tagged lẫn legacy nếu là R18)
+    check_targets = [out_file]
+    if "r18" in model_tag:
+        check_targets.append(legacy_file)
+
+    for chk in check_targets:
+        if skip_existing and chk.exists():
+            try:
+                with np.load(chk, mmap_mode="r") as cached_data:
+                    if len(cached_data["image_ids"]) == n_total and list(cached_data["image_ids"]) == image_ids:
+                        print(f"[CACHE GEN] Đã tìm thấy cache hoàn chỉnh tại: {chk.name}. Bỏ qua bước sinh.")
+                        return chk
+            except Exception:
+                print(f"[CACHE GEN] Cache {chk.name} bị lỗi đọc, tiến hành kiểm tra lại...")
 
     print(f"\n[CACHE GEN] ==================================================================")
     print(f"[CACHE GEN] Đang sinh: {attack_name.upper()} | eps={eps_int}/255 ({eps:.4f}) | N={n_total}")
@@ -203,6 +212,15 @@ def generate_single_attack_cache(
             pass
     out_temp_file.rename(out_file)
 
+    # Tạo bản sao tương thích alias và legacy cho R18
+    try:
+        if not alias_file.exists():
+            shutil.copyfile(out_file, alias_file)
+        if "r18" in model_tag and not legacy_file.exists():
+            shutil.copyfile(out_file, legacy_file)
+    except Exception:
+        pass
+
     print(f"[CACHE GEN] Hoàn tất sinh {attack_name.upper()} (eps={eps_int}) trong {elapsed:.1f}s | File size: {out_file.stat().st_size / 1e6:.1f} MB")
     return out_file
 
@@ -212,6 +230,7 @@ def main():
     parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
     parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
     parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục lưu cache đối kháng")
+    parser.add_argument("--model", type=str, default=str(MODEL_NAME), help="Kiến trúc hoặc checkpoint RT-DETR ('r18', 'r50', ...)")
     parser.add_argument("--steps", type=int, default=15, help="Số bước lặp PGD (mặc định 15)")
     parser.add_argument("--batch_size", type=int, default=None, help="Batch size (tự động điều chỉnh nếu None)")
     parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU tính toán")
@@ -220,13 +239,15 @@ def main():
     parser.add_argument("--epsilons", type=str, default="16", help="Danh sách epsilon /255 (ví dụ: '16' hoặc '4,8,16')")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache kể cả khi đã có")
-    parser.add_argument("--max_samples", type=int, default=5000, help="Số lượng ảnh tối đa cần sinh cache (mặc định: 5000 ảnh)")
+    parser.add_argument("--max_samples", type=int, default=1000, help="Số lượng ảnh tối đa cần sinh cache (mặc định: 1000 ảnh)")
     args = parser.parse_args()
 
+    chosen_model = resolve_model_name(args.model)
     update_experiment_paths(
         folder_image=args.folder_image,
         annotations=args.annotations,
         cache_dir=args.cache_dir,
+        model=chosen_model,
     )
 
     configure_cpu_threads(args.threads)
@@ -238,6 +259,7 @@ def main():
 
     print("=" * 80)
     print(" KHỞI TẠO TIẾN TRÌNH SINH CACHE ĐỐI KHÁNG NATIVE 640x640 (S = 8,400)")
+    print(f" Model        : {chosen_model}")
     print(f" Thư mục ảnh : {args.folder_image}")
     print(f" Annotations  : {args.annotations}")
     print(f" Thư mục cache: {args.cache_dir}")
@@ -246,7 +268,7 @@ def main():
     print("=" * 80)
 
     # Nạp mô hình RT-DETR
-    wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=device)
+    wrapper = RTDETRModelWrapper(pretrained_model_name=chosen_model, device=device)
     wrapper.eval()
 
     # Nạp toàn bộ tập ảnh bằng FlexibleCOCODataset
