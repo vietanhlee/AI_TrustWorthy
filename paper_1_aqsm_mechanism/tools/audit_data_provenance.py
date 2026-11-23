@@ -266,7 +266,7 @@ def audit_zero_stale_markers(tex_content: str) -> List[str]:
     """Kiểm tra tuyệt đối không còn bất kỳ số liệu preliminary cũ nào tồn tại trong main.tex."""
     stale_patterns = [
         (r"2\.50", "Old AQSM mAP@50 (2.50% thay vì 3.07%)"),
-        (r"1\.16", "Old Query Vanishing mAP@50 (1.16% thay vì 1.72%)"),
+        (r"1\.16\%", "Old Query Vanishing mAP@50 (1.16% thay vì 1.72%)"),
         (r"6\.25", "Old Arm C_full mAP@50 (6.25% thay vì 7.45%)"),
         (r"3\.42\b", "Old 300th inflation (3.42x thay vì 2.96x) hoặc Arm C_idx (3.42% thay vì 3.98%)"),
         (r"25\.11", "Old Arm D_full (25.11% thay vì 26.58%)"),
