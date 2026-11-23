@@ -142,7 +142,7 @@ def draw_system_architecture(output_pdf: Path, output_png: Path):
     ax.text(68.5, 29, "Calibrated Max-OR Gate", ha="center", color="#9c4221", **subtitle_font)
     ax.text(68.5, 23.5, "$S_{\\mathrm{fused}} = \\max(S_D, S_M)$",
             ha="center", color="#dd6b20", fontsize=9.5, fontweight="bold")
-    ax.text(68.5, 17, "Union Bound:\n$\\mathbb{P}(E_D \\cup E_M) \\leq 5\\% + 5\\% = 10\\%$\nEmpirical Clean FPR: $10.0\\%$\nZero Run-time Latency Overhead",
+    ax.text(68.5, 17, "Union Bound:\n$\\mathbb{P}(E_D \\cup E_M) \\leq 5\\% + 5\\% = 10\\%$\nEmpirical Clean FPR: $6.57\\%$\nZero Run-time Latency Overhead",
             ha="center", color="#4a5568", **small_font)
     ax.text(68.5, 10.5, "Fused Threshold: $\\tau = 0.975$", ha="center", color="#9c4221", **small_font)
 

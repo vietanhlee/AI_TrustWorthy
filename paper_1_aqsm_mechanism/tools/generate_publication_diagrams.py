@@ -141,7 +141,7 @@ def draw_fig1_pipeline(output_pdf: Path, output_png: Path):
     ax.text(68.5, 31.0, "Calibrated Max-OR Gate", ha="center", va="center", color="#9c4221", **subtitle_font)
     ax.text(68.5, 26.0, "$S_{\\mathrm{fused}} = \\max(S_D, S_M)$",
             ha="center", va="center", color="#c05621", fontsize=9.5, fontweight="bold")
-    ax.text(68.5, 21.0, "Union Bound:\n$P(E_D \\cup E_M) \\leq 5\\% + 5\\% = 10\\%$\nEmpirical Clean FPR: $10.0\\%$\nZero Run-time Latency Overhead",
+    ax.text(68.5, 21.0, "Union Bound:\n$P(E_D \\cup E_M) \\leq 5\\% + 5\\% = 10\\%$\nEmpirical Clean FPR: $6.57\\%$\nZero Run-time Latency Overhead",
             ha="center", va="top", color="#7b341e", **small_font)
     ax.text(68.5, 10.0, "Fused Cutoff: $\\tau = 0.975$", ha="center", va="center", color="#9c4221", **small_font)
 
@@ -249,7 +249,7 @@ def draw_fig2_taxonomy(output_pdf: Path, output_png: Path):
     ax.text(81.5, 76.0,
             "• Target: Hybrid Encoder selection logits\n  at native 640×640 (S = 8,400 tokens).\n\n"
             "• Attack Method: Tripartite loss\n  (margin inversion + background elevation)\n  without requiring decoder backprop.\n\n"
-            "• Failure Mode: Spatial Target Misrouting\n  (Sampling Hit 63.5% → 43.2%, recall 29.1%)\n  with minimal clutter (<5 false boxes).\n\n"
+            "• Failure Mode: Spatial Target Misrouting\n  (Sampling Hit 63.5% → 43.2%, recall 29.05%)\n  with minimal clutter (<5 false boxes).\n\n"
             "• Interface: Dynamic query selection.",
             ha="center", va="top", color="#475569", **small_font)
 

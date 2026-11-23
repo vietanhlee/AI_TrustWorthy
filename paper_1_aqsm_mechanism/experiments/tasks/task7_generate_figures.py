@@ -516,10 +516,10 @@ def plot_defense_evaluation_figure(json_path: Path, output_pdf: Path, output_png
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.8))
 
-    # Bar chart TPR @ 10% empirical FPR
+    # Bar chart TPR at empirical FPR = 6.57%
     x = np.arange(len(labels))
     bars = ax1.bar(x, tpr_vals, width=0.45, color=["#d62728", "#1f77b4", "#ff7f0e"], edgecolor="black", alpha=0.85)
-    ax1.set_ylabel("Detection Rate (TPR @ 10% FPR %)", fontweight="bold")
+    ax1.set_ylabel("Detection TPR (%) [Clean FPR = 6.57%]", fontweight="bold")
     ax1.set_title("(a) ESM Detection Performance (Table 11)", fontweight="bold", fontsize=10)
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=9)
