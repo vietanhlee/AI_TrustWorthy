@@ -52,22 +52,25 @@
 
 \title{Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks: An Empirical Diagnostic Study}
 
-\author[inst1]{Viet-Anh Le\corref{cor1}}
-\ead{anh.lv210034@sis.hust.edu.vn}
-
-\author[inst1]{Trong-Khanh Nguyen}
-\ead{khanh.nt@sis.hust.edu.vn}
-
-\author[inst2]{Thuy-Quynh Thi Dao}
-\ead{quynh.dtt@hust.edu.vn}
-
-\cortext[cor1]{Corresponding author}
-\affiliation[inst1]{organization={School of Information and Communication Technology, Hanoi University of Science and Technology},
-            city={Hanoi},
-            country={Vietnam}}
-\affiliation[inst2]{organization={Department of Computer Engineering, Hanoi University of Science and Technology},
-            city={Hanoi},
-            country={Vietnam}}
+% Author and affiliation details omitted for peer review
+% Camera-ready author order:
+%   1. Viet-Anh Le (anh.lv210034@sis.hust.edu.vn) - HUST SOICT (Corresponding Author)
+%   2. Thuy-Quynh Thi Dao (quynh.dtt@hust.edu.vn) - HUST CE
+%   3. Trong-Khanh Nguyen (khanh.nt@sis.hust.edu.vn) - HUST SOICT
+%
+% \author[inst1]{Viet-Anh Le\corref{cor1}}
+% \ead{anh.lv210034@sis.hust.edu.vn}
+% \author[inst2]{Thuy-Quynh Thi Dao}
+% \ead{quynh.dtt@hust.edu.vn}
+% \author[inst1]{Trong-Khanh Nguyen}
+% \ead{khanh.nt@sis.hust.edu.vn}
+% \cortext[cor1]{Corresponding author}
+% \affiliation[inst1]{organization={School of Information and Communication Technology, Hanoi University of Science and Technology},
+%             city={Hanoi},
+%             country={Vietnam}}
+% \affiliation[inst2]{organization={Department of Computer Engineering, Hanoi University of Science and Technology},
+%             city={Hanoi},
+%             country={Vietnam}}
 
 \begin{abstract}
 Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection, where multi-scale encoder features dynamically route candidate proposals into the decoder. However, because proposal selection sits atop the multi-scale feature pyramid, gradient-based perturbations targeting encoder outputs inevitably disrupt both encoder memory representations and query routing. In this work, we deploy Adversarial Query Selection Manipulation (AQSM) not as a competing attack, but as a diagnostic probe within a $2 \times 2$ factorial interventional tensor-swap design on Microsoft COCO val2017 ($N = 1,000$, $N_{\mathrm{valid}} = 992$) to isolate and quantify the failure pathways of real-time detection transformers. 
@@ -955,7 +958,7 @@ The authors declare that they have no known competing financial interests or per
 The complete benchmark configurations, evaluation protocols, per-image experimental logs, and data provenance manifests (\nolinkurl{outputs/data_provenance_manifest.json}) connecting every numerical table directly to its underlying execution JSON artifacts are open-sourced in the project repository at \url{https://github.com/vietanhlee/AI_TrustWorthy} (commit \texttt{28caab6}). Automated provenance verification is provided via \nolinkurl{tools/audit_data_provenance.py} alongside our unit test suite (\nolinkurl{tests/test_statistical_methodology.py}) to ensure scientific auditability and reproducibility.
 
 \section*{CRediT Authorship Contribution Statement}
-\textbf{Viet-Anh Le:} Conceptualization, Methodology, Software, Formal analysis, Writing -- Original Draft, Visualization. \textbf{Trong-Khanh Nguyen:} Methodology, Validation, Writing -- Review \& Editing, Supervision. \textbf{Thuy-Quynh Thi Dao:} Conceptualization, Supervision, Project administration, Funding acquisition.
+\textbf{Viet-Anh Le:} Conceptualization, Methodology, Software, Formal analysis, Writing -- Original Draft, Visualization. \textbf{Thuy-Quynh Thi Dao:} Conceptualization, Supervision, Project administration, Funding acquisition. \textbf{Trong-Khanh Nguyen:} Methodology, Validation, Writing -- Review \& Editing, Supervision.
 
 {\footnotesize
 \setlength{\bibsep}{0.5pt}
