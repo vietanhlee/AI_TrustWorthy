@@ -1,612 +1,927 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome 6 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Google Fonts: Inter, Outfit, Fira Code -->
+    <title>Adversarial Object Fabrication in Real-Time Detection Transformers: Multi-Scale Query Geometry and Spatial Mitigation Limits</title>
+
+    <!-- Meta SEO Tags -->
+    <meta name="description"
+        content="Official project page for Adversarial Object Fabrication in Real-Time Detection Transformers (RT-DETR): Multi-Scale Query Geometry and Spatial Mitigation Limits (Elsevier EAAI).">
+    <meta name="author" content="Viet-Anh Le, Dung Hoang Viet, Khanh Nguyen-Trong">
+    <meta property="og:title" content="Adversarial Object Fabrication in Real-Time Detection Transformers">
+    <meta property="og:description"
+        content="Investigating spatial candidate geometry and mitigation limits in NMS-free Detection Transformers under adversarial fabrication attacks.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="fig/fig1_concept_paradox.png">
+
+    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- MathJax for LaTeX formulas -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- MathJax for KaTeX/LaTeX Equations -->
     <script>
-    MathJax = {
-      tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
-      }
-    };
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <style>
+        :root {
+            --bg-body: #ffffff;
+            --bg-alt: #f8fafc;
+            --bg-card: #ffffff;
+            --text-title: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-accent: #cbd5e1;
+            --primary-blue: #1e40af;
+            --primary-hover: #1d4ed8;
+            --accent-cyan: #0284c7;
+            --accent-green: #059669;
+            --accent-amber: #d97706;
+            --accent-red: #dc2626;
+            --font-title: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+            --font-serif: 'Lora', Georgia, serif;
+            --font-code: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
+            background-color: var(--bg-body);
+            color: var(--text-body);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            line-height: 1.7;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
         }
-        h1, h2, h3, h4, .font-heading {
-            font-family: 'Outfit', sans-serif;
+
+        a {
+            color: var(--primary-blue);
+            text-decoration: none;
+            transition: color 0.2s ease;
         }
-        code, pre, .font-mono {
-            font-family: 'Fira Code', monospace;
+
+        a:hover {
+            color: var(--accent-cyan);
+            text-decoration: underline;
         }
-        .gradient-text {
-            background: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #4f46e5 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 24px;
         }
-        .card-hover {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+        /* HEADER & HERO */
+        header.hero {
+            padding: 60px 0 36px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-light);
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
         }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08);
+
+        .venue-badge {
+            display: inline-block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--primary-blue);
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 5px 16px;
+            border-radius: 20px;
+            margin-bottom: 22px;
+        }
+
+        h1.paper-title {
+            font-family: var(--font-title);
+            font-size: clamp(1.85rem, 3.4vw, 2.55rem);
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            margin-bottom: 22px;
+            max-width: 980px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .authors-row {
+            font-size: 1.12rem;
+            font-weight: 500;
+            color: var(--text-title);
+            margin-bottom: 10px;
+        }
+
+        .authors-row a {
+            color: var(--text-title);
+            font-weight: 600;
+        }
+
+        .authors-row a:hover {
+            color: var(--primary-blue);
+        }
+
+        .affil-row {
+            font-size: 0.94rem;
+            color: var(--text-muted);
+            margin-bottom: 26px;
+            line-height: 1.5;
+        }
+
+        /* BUTTONS */
+        .btn-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .btn-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 20px;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            background: #0f172a;
+            color: #ffffff;
+            border: 1px solid #0f172a;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .btn-item:hover {
+            background: #1e293b;
+            color: #ffffff;
+            text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-item.btn-outline {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .btn-item.btn-outline:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        /* SECTIONS */
+        section {
+            padding: 44px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        section:last-of-type {
+            border-bottom: none;
+        }
+
+        h2.section-heading {
+            font-family: var(--font-title);
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 18px;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2.section-heading i {
+            color: var(--primary-blue);
+            font-size: 1.35rem;
+        }
+
+        p.text-body {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            color: #334155;
+            line-height: 1.8;
+            margin-bottom: 16px;
+            text-align: justify;
+        }
+
+        /* TEASER & GALLERIES */
+        .teaser-box {
+            background: var(--bg-alt);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 22px;
+            margin: 24px 0;
+            text-align: center;
+        }
+
+        .teaser-img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            background: #ffffff;
+            cursor: zoom-in;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .teaser-img:hover {
+            transform: scale(1.006);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .teaser-caption {
+            font-size: 0.90rem;
+            color: var(--text-muted);
+            margin-top: 14px;
+            text-align: left;
+            line-height: 1.55;
+        }
+
+        /* HIGHLIGHT CARDS */
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin: 24px 0;
+        }
+
+        .card-item {
+            background: var(--bg-alt);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 22px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .card-item:hover {
+            border-color: var(--primary-blue);
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .card-item h3 {
+            font-family: var(--font-title);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-item h3 i {
+            color: var(--primary-blue);
+        }
+
+        .card-item p {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+        }
+
+        /* TABLES */
+        .table-box {
+            margin: 24px 0;
+            overflow-x: auto;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+        }
+
+        table.academic-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            text-align: left;
+            background: #ffffff;
+        }
+
+        table.academic-table th {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 11px 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        table.academic-table td {
+            padding: 9px 13px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-body);
+            white-space: nowrap;
+        }
+
+        table.academic-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        table.academic-table tr.row-ours {
+            background: #eff6ff;
+            font-weight: 600;
+        }
+
+        table.academic-table tr.row-ours td {
+            color: var(--primary-blue);
+        }
+
+        .tag-ours {
+            background: var(--primary-blue);
+            color: #ffffff;
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        .tag-yolo {
+            background: #475569;
+            color: #ffffff;
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        /* LIGHTBOX IMAGE MODAL */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .lightbox-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .lightbox-img {
+            max-width: 92%;
+            max-height: 82vh;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            background: #ffffff;
+            object-fit: contain;
+        }
+
+        .lightbox-caption {
+            color: #f8fafc;
+            margin-top: 14px;
+            font-size: 0.92rem;
+            max-width: 900px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 28px;
+            color: #ffffff;
+            font-size: 2.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .lightbox-close:hover {
+            color: var(--accent-cyan);
+        }
+
+        /* BIBTEX BLOCK */
+        .bibtex-box {
+            position: relative;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px 24px;
+            border-radius: 10px;
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .btn-copy {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: #334155;
+            color: #ffffff;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-copy:hover {
+            background: var(--primary-blue);
+        }
+
+        /* FOOTER */
+        footer {
+            padding: 36px 0;
+            background: #0f172a;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            text-align: center;
+            line-height: 1.6;
+            border-top: 1px solid #1e293b;
+        }
+
+        footer strong {
+            color: #f8fafc;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
-    <!-- Navigation Header -->
-    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="#" class="flex items-center gap-2 font-heading font-bold text-lg sm:text-xl text-slate-900 tracking-tight">
-                <span class="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center text-sm shadow-md shadow-sky-500/20">
-                    <i class="fa-solid fa-brain"></i>
-                </span>
-                <span>Edge<span class="text-sky-600">Sec</span> Research</span>
-            </a>
-            <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-                <a href="#abstract" class="hover:text-sky-600 transition-colors">Abstract</a>
-                <a href="#architecture" class="hover:text-sky-600 transition-colors">Architecture</a>
-                <a href="#decomposition" class="hover:text-sky-600 transition-colors">2×2 Decomposition</a>
-                <a href="#telemetry" class="hover:text-sky-600 transition-colors">Telemetry</a>
-                <a href="#hardware" class="hover:text-sky-600 transition-colors">Edge Benchmark</a>
-                <a href="#provenance" class="hover:text-sky-600 transition-colors">Provenance</a>
-            </nav>
-            <div class="flex items-center gap-3">
-                <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm">
-                    <i class="fa-brands fa-github text-sm"></i>
-                    <span>GitHub</span>
+<body>
+
+    <!-- HERO HEADER -->
+    <header class="hero">
+        <div class="container">
+            <div class="venue-badge">
+                <i class="fa-solid fa-graduation-cap"></i> Engineering Applications of Artificial Intelligence (Elsevier EAAI)
+            </div>
+            <h1 class="paper-title">
+                Adversarial Object Fabrication in Real-Time Detection Transformers: Multi-Scale Query Geometry and Spatial Mitigation Limits
+            </h1>
+            <div class="authors-row">
+                <a href="https://github.com/vietanhlee" target="_blank">Viet-Anh Le</a><sup>1,*</sup>,
+                <span>Dung Hoang Viet</span><sup>1</sup>,
+                <span>Khanh Nguyen-Trong</span><sup>1</sup>
+            </div>
+            <div class="affil-row">
+                <sup>1</sup> Intelligent Systems & Cyber-Physical Security Laboratory, Posts and Telecommunications Institute of Technology (PTIT), Hanoi, Vietnam<br>
+                <sup>*</sup> Corresponding Author
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="btn-links">
+                <a href="SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf" class="btn-item" target="_blank">
+                    <i class="fa-solid fa-file-pdf"></i> Read Paper (24 Pages)
+                </a>
+                <a href="https://github.com/vietanhlee/AI_TrustWorthy" class="btn-item" target="_blank">
+                    <i class="fa-brands fa-github"></i> Code & Benchmark Suite
+                </a>
+                <a href="paper_2_phantom_fabrication/outputs/paper2_complete_telemetry.json" class="btn-item btn-outline" target="_blank">
+                    <i class="fa-solid fa-database"></i> Telemetry JSON ($N=900$)
+                </a>
+                <a href="https://cocodataset.org" class="btn-item btn-outline" target="_blank">
+                    <i class="fa-solid fa-images"></i> COCO val2017
+                </a>
+                <a href="#bibtex" class="btn-item btn-outline">
+                    <i class="fa-solid fa-quote-left"></i> BibTeX
                 </a>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="flex-grow">
+    <div class="container">
 
-        <!-- Hero Section -->
-        <section class="pt-14 pb-16 px-4 sm:px-6 lg:px-8 text-center max-w-5xl mx-auto">
-            <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/60 mb-6">
-                <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
-                <span>Under Review at Engineering Applications of Artificial Intelligence (Elsevier EAAI)</span>
+        <!-- SECTION 1: TEASER HIGHLIGHT -->
+        <section>
+            <div class="teaser-box">
+                <img src="fig/fig1_concept_paradox.png" alt="NMS-Free Spatial Candidate Geometry Paradox" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 1: Conceptual comparison of spatial candidate geometry between NMS-based convolutional detectors and NMS-free transformers.</strong> 
+                    (Top) In conventional YOLOv8 + NMS pipelines, localized adversarial perturbations excite adjacent anchor cells; heuristic IoU-NMS naturally collapses redundant candidates ($80.50 \pm 0.21\%$ proposal reduction, leaving $1.91 \pm 0.16$ phantoms, though residual phantoms still achieve $84.89\%$ ASR). 
+                    (Bottom) Real-Time Detection Transformers (RT-DETR) eliminate NMS for deterministic inference latency ($34.81 \pm 0.55\text{ ms}$ on edge CPU), but multi-scale queries sharing spatial centers across pyramid levels ($S_3, S_4, S_5$) possess low cross-scale bounding-box IoU ($\le 0.25$), allowing $19.37 \pm 0.43$ fabricated phantom queries to flood downstream decision loops unfiltered.
+                </p>
             </div>
+        </section>
 
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6 max-w-4xl mx-auto">
-                Decomposing Failure Modes of <span class="gradient-text">Real-Time DETR</span> under Encoder Adversarial Attacks
-            </h1>
-            <p class="text-lg sm:text-xl text-slate-600 font-normal max-w-3xl mx-auto mb-8 leading-relaxed">
-                An Empirical Diagnostic Study with Counterfactual 2×2 Tensor-Swap Interventions, Geometric Telemetry, and Physical Edge Profiling on COCO val2017.
+        <!-- SECTION 2: ABSTRACT -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-align-left"></i> Abstract</h2>
+            <p class="text-body">
+                Eliminating heuristic Non-Maximum Suppression (NMS) in favor of direct set prediction allows Real-Time Detection Transformers (RT-DETR) to achieve deterministic execution latency and prevent quadratic proposal-sponge bottlenecks on edge hardware. However, direct set prediction alters spatial candidate structures under adversarial manipulation. Both dense convolutional models (YOLOv8 + NMS) and set-prediction transformers (RT-DETR) remain acutely vulnerable to targeted white-box gradient optimization, both suffering a $\sim 90\%$ collapse in operational $\mathrm{mAP}_{50}$. The fundamental divergence lies in post-processing spatial candidate geometry: on dense convolutional grids, localized perturbations excite adjacent cells yielding overlapping bounding boxes that standard IoU-NMS naturally deduplicates by $80.50 \pm 0.21\%$ ($34.76 \pm 0.64$ pre-NMS proposals to $6.78 \pm 0.16$ post-NMS detections, leaving $1.91 \pm 0.16$ residual phantoms, $\mathrm{ASR} = 84.89\%$). In contrast, RT-DETR excites multi-scale queries across feature pyramid levels ($S_3: 2.5\%, S_4: 27.6\%, S_5: 69.9\%$) that share spatial centers but possess divergent bounding box dimensions. Because concentric boxes with $2\times$ or $4\times$ scale factors exhibit low bounding-box IoU ($\le 0.25$), standard IoU-NMS rejects merely $6.91 \pm 0.14\%$ of RT-DETR phantoms ($19.37 \to 18.04$).
+            </p>
+            <p class="text-body">
+                We investigate this behavior through Encoder Query Fabrication (EQF), targeting the pre-decoder query selection bottleneck ($K=300$), evaluated alongside an Output-Logit Decoder baseline (DQF). Evaluated at native $640\times 640$ resolution on official COCO <code>val2017</code> across three independent random initialization seeds (42, 123, 456), EQF and DQF inject $19.37 \pm 0.43$ and $18.72 \pm 0.42$ phantom boxes per frame, collapsing detector precision to $4.16\%$ (EQF) and $5.43\%$ (DQF). Proposal displacement analysis reveals that the severe $-90.7\%$ drop in operational $\mathrm{mAP}_{50}$ ($62.42 \pm 1.00\% \to 5.07 \pm 0.25\%$) is driven primarily by broad semantic feature distortion across the backbone and CCFM feature maps (accounting for $73.64 \pm 0.11\%$ eviction under Untargeted PGD vs. $66.63 \pm 0.80\%$ under EQF, $df=2, t = -11.06, p = 0.0081$) rather than 19 targeted bicycle phantoms merely crowding out 300 decoder query slots. Benchmarking spatial post-processing reveals that Containment-NMS (IoMin) and a class-wise center-distance filter (SQD-Filter) suppress $20.87\%$ and $53.61\%$ of EQF phantoms (and $48.53\%$ and $68.64\%$ of DQF phantoms) by addressing concentric geometry. However, post-defense binary attack success remains $\sim 100\%$ while inducing an operational clean detection trade-off ($-5.69\text{ pp}$ $\mathrm{mAP}_{50}$, $66.88\%$ retention). These empirical boundaries demonstrate that post-hoc spatial deduplication functions solely as a volume-mitigation heuristic rather than an intrinsic defense.
+            </p>
+        </section>
+
+        <!-- SECTION 3: KEY CONTRIBUTIONS & DISCOVERIES -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-lightbulb"></i> Key Empirical Discoveries</h2>
+            <div class="highlights-grid">
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-bullseye"></i> Concentric Query Geometry</h3>
+                    <p>
+                        Fabricated phantoms cluster across pyramid levels: <strong>$69.89\%$ on $S_5$</strong>, <strong>$27.61\%$ on $S_4$</strong>, and <strong>$2.50\%$ on $S_3$</strong>. Sharing common centers but with $2\times$ or $4\times$ scale factors, their pairwise bounding box $\mathrm{IoU} \le 0.25$, rendering standard IoU-NMS structurally blind ($6.91\%$ suppression).
+                    </p>
+                </div>
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-ghost"></i> High-Volume Phantom Flooding</h3>
+                    <p>
+                        Targeted fabrication vectors (EQF and DQF) inject an average of <strong>$19.37 \pm 0.43$</strong> and <strong>$18.72 \pm 0.42$</strong> phantoms per image at native $640\times 640$, collapsing detector precision from $69.52\%$ clean to $4.16\%$ (EQF) and $5.43\%$ (DQF) under $100\%$ deterministic edge CPU latency ($34.81\text{ ms}$).
+                    </p>
+                </div>
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-shuffle"></i> Displacement Deconstruction</h3>
+                    <p>
+                        Paired hypothesis testing ($df=2, t = -11.06, p = 0.0081$) isolates that multi-class $\mathrm{mAP}_{50}$ collapse is dominated by global backbone representation destruction ($73.64\%$ eviction under Untargeted PGD vs. $66.63\%$ under EQF), refuting the speculation that 19 bicycle queries simply starve 300 decoder query slots.
+                    </p>
+                </div>
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-shield-halved"></i> Spatial Mitigation Limits</h3>
+                    <p>
+                        Containment-NMS ($\mathrm{IoMin}$) eliminates $20.87\%$ (EQF) and $48.53\%$ (DQF) phantoms with $84.96\%$ clean retention. SQD-Filter eliminates $53.61\%$ (EQF) and $68.64\%$ (DQF) phantoms in $0.24\text{ ms}$ CPU. Both act as volume mitigators, retaining $\sim 100\%$ post-defense ASR due to surviving top-1 cluster queries.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: BENCHMARK RESULTS TABLES -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-chart-column"></i> Multi-Seed Empirical Benchmarks ($N=900$)</h2>
+            <p class="text-body">
+                Official COCO <code>val2017</code> object detection and fabrication performance evaluated across three independent random seeds (42, 123, 456) evaluating 300 images per seed at native $640\times 640$ resolution.
             </p>
 
-            <!-- Authors & Affiliations -->
-            <div class="flex flex-wrap justify-center items-center gap-y-2 gap-x-6 text-sm font-medium text-slate-700 mb-4">
-                <div class="flex items-center gap-1.5">
-                    <span class="font-semibold text-slate-900">Viet-Anh Le</span>
-                    <span class="text-xs text-sky-600 bg-sky-100 px-1.5 py-0.5 rounded">1,*</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span>Thuy-Quynh Thi Dao</span>
-                    <span class="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">2</span>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span>Trong-Khanh Nguyen</span>
-                    <span class="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">1</span>
-                </div>
+            <div class="table-box">
+                <table class="academic-table">
+                    <thead>
+                        <tr>
+                            <th>Model & Condition</th>
+                            <th>Operational $\mathrm{mAP}_{50}$ [Rel. Drop]</th>
+                            <th>$\mathrm{ASR}_{\mathrm{fab}}$ (%)</th>
+                            <th>Active Boxes ($\ge 0.35$)</th>
+                            <th>Surviving Phantoms</th>
+                            <th>Detector Precision</th>
+                            <th>FG Displacement Rate</th>
+                            <th>Edge CPU Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>RT-DETR-R18 Clean Baseline</strong> <span class="tag-ours">NMS-Free</span></td>
+                            <td><strong>62.42 &plusmn; 1.00%</strong></td>
+                            <td>---</td>
+                            <td>7.51 &plusmn; 0.23</td>
+                            <td>0.01 &plusmn; 0.01</td>
+                            <td>69.52 &plusmn; 0.23%</td>
+                            <td>0.00 &plusmn; 0.00%</td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr>
+                            <td>RT-DETR + Gaussian Noise ($\sigma=16/255$)</td>
+                            <td>58.58 &plusmn; 0.90% [-6.1%]</td>
+                            <td>0.89 &plusmn; 0.42%</td>
+                            <td>7.11 &plusmn; 0.20</td>
+                            <td>0.01 &plusmn; 0.01</td>
+                            <td>68.70 &plusmn; 0.04%</td>
+                            <td>24.81 &plusmn; 0.15%</td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr>
+                            <td>RT-DETR + Untargeted PGD ($T=8$)</td>
+                            <td>6.88 &plusmn; 1.22% [-89.0%]</td>
+                            <td>20.67 &plusmn; 0.82%</td>
+                            <td>109.65 &plusmn; 0.61</td>
+                            <td>1.23 &plusmn; 0.21</td>
+                            <td>2.09 &plusmn; 0.08%</td>
+                            <td><strong>73.64 &plusmn; 0.11%</strong></td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>RT-DETR + EQF Targeted (Ours)</strong></td>
+                            <td><strong>5.07 &plusmn; 0.25% [-90.7%]</strong></td>
+                            <td><strong>99.78 &plusmn; 0.16%</strong></td>
+                            <td>27.56 &plusmn; 0.40</td>
+                            <td><strong>19.37 &plusmn; 0.43</strong></td>
+                            <td><strong>4.16 &plusmn; 0.19%</strong></td>
+                            <td><strong>66.63 &plusmn; 0.80%</strong></td>
+                            <td><strong>34.81 &plusmn; 0.55 ms</strong></td>
+                        </tr>
+                        <tr>
+                            <td>RT-DETR + Output-Logit Baseline (DQF)</td>
+                            <td>10.48 &plusmn; 1.32% [-83.2%]</td>
+                            <td>99.67 &plusmn; 0.00%</td>
+                            <td>31.96 &plusmn; 0.55</td>
+                            <td>18.72 &plusmn; 0.42</td>
+                            <td>5.43 &plusmn; 0.25%</td>
+                            <td>62.66 &plusmn; 0.60%</td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr>
+                            <td><strong>YOLOv8s Clean Baseline</strong> <span class="tag-yolo">+ NMS</span></td>
+                            <td>39.85 &plusmn; 1.84%</td>
+                            <td>---</td>
+                            <td>3.66 &plusmn; 0.08</td>
+                            <td>0.00 &plusmn; 0.00</td>
+                            <td>81.27 &plusmn; 0.07%</td>
+                            <td>---</td>
+                            <td>14.80 &plusmn; 0.12 ms</td>
+                        </tr>
+                        <tr>
+                            <td>YOLOv8s + Targeted Fab ($T=8$)</td>
+                            <td>4.20 &plusmn; 0.27% [-89.5%]</td>
+                            <td>84.89 &plusmn; 0.00%</td>
+                            <td>34.76 (Pre) &rarr; 6.78 (Post)</td>
+                            <td>1.91 &plusmn; 0.16</td>
+                            <td>12.42 &plusmn; 0.20%</td>
+                            <td>---</td>
+                            <td><strong>33.13 &plusmn; 2.93 ms (+123.9%)</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            <div class="text-xs text-slate-500 max-w-2xl mx-auto mb-8 space-y-1">
-                <p><sup>1</sup> School of Information and Communication Technology, Hanoi University of Science and Technology (HUST)</p>
-                <p><sup>2</sup> Department of Computer Engineering, Hanoi University of Science and Technology (HUST)</p>
-                <p class="text-slate-400">* Corresponding author: <code class="text-slate-600">anh.lv210034@sis.hust.edu.vn</code></p>
-            </div>
+            <!-- TABLE 4 DEFENSES -->
+            <h3 style="font-family: var(--font-title); font-size: 1.25rem; font-weight: 700; color: var(--text-title); margin: 32px 0 14px;">
+                Post-Processing Defense Paradigms Benchmark on RT-DETR
+            </h3>
 
-            <!-- Action Badges / Links -->
-            <div class="flex flex-wrap justify-center gap-3 max-w-2xl mx-auto">
-                <a href="https://github.com/vietanhlee/AI_TrustWorthy/raw/master/SUBMISSION_PDFS/1_Paper_AQSM_Mechanism_Elsevier_EAAI.pdf" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-sky-600 text-white hover:bg-sky-700 transition shadow-sm shadow-sky-600/20">
-                    <i class="fa-solid fa-file-pdf text-base"></i>
-                    <span>Read Paper (PDF)</span>
-                </a>
-                <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm">
-                    <i class="fa-brands fa-github text-base"></i>
-                    <span>Source Code</span>
-                </a>
-                <a href="https://github.com/vietanhlee/AI_TrustWorthy/blob/master/paper_1_aqsm_mechanism/outputs/data_provenance_manifest.json" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm">
-                    <i class="fa-solid fa-database text-base"></i>
-                    <span>Data Manifest</span>
-                </a>
-                <a href="#bibtex" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm">
-                    <i class="fa-solid fa-quote-right text-base"></i>
-                    <span>Cite BibTeX</span>
-                </a>
-            </div>
-        </section>
-
-        <!-- KPI Summary Cards -->
-        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-14">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between text-xs font-semibold text-rose-600 uppercase tracking-wider mb-2">
-                        <span>Primary Driver</span>
-                        <i class="fa-solid fa-layer-group text-base"></i>
-                    </div>
-                    <div class="text-2xl font-extrabold text-slate-900 font-heading mb-1">61.78%</div>
-                    <div class="text-xs text-slate-500 font-medium leading-relaxed">
-                        <strong>Encoder Representation Damage</strong> (Shapley share; 68.99% ANOVA SS, $\eta_p^2 = 0.795$).
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">
-                        <span>Secondary Channel</span>
-                        <i class="fa-solid fa-route text-base"></i>
-                    </div>
-                    <div class="text-2xl font-extrabold text-slate-900 font-heading mb-1">38.22%</div>
-                    <div class="text-xs text-slate-500 font-medium leading-relaxed">
-                        <strong>Query Prior Eviction</strong> (Shapley share; pure index shift drops clean memory by -26.21 pp).
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-2">
-                        <span>Multiplicative Law</span>
-                        <i class="fa-solid fa-calculator text-base"></i>
-                    </div>
-                    <div class="text-2xl font-extrabold text-slate-900 font-heading mb-1">+0.0155 ≈ 0</div>
-                    <div class="text-xs text-slate-500 font-medium leading-relaxed">
-                        $\text{Ret}_M \times \text{Ret}_Q \approx \text{Ret}_B$. Linear interaction is floor saturation artifact.
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between text-xs font-semibold text-sky-600 uppercase tracking-wider mb-2">
-                        <span>Edge Latency</span>
-                        <i class="fa-solid fa-microchip text-base"></i>
-                    </div>
-                    <div class="text-2xl font-extrabold text-slate-900 font-heading mb-1">O(1) Strict</div>
-                    <div class="text-xs text-slate-500 font-medium leading-relaxed">
-                        14.2 ms on Jetson Orin Nano, 418.5 ms on Pi 5. Immune to NMS sponge stalls (+232% in YOLO).
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Methodological Scoping Alert -->
-        <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
-            <div class="rounded-2xl p-5 bg-sky-50/70 border border-sky-200/80 flex items-start gap-4 text-sm text-sky-950">
-                <div class="text-sky-600 text-xl flex-shrink-0 mt-0.5">
-                    <i class="fa-solid fa-circle-info"></i>
-                </div>
-                <div class="space-y-1.5">
-                    <p class="font-bold text-sky-900">Methodological Scoping & Attribution Boundaries:</p>
-                    <p class="text-xs text-sky-800 leading-relaxed">
-                        The 61.78% / 38.22% ratio represents an <strong>empirical allocation under our specific 2×2 interventional tensor-swap protocol</strong> rather than a universal natural causal constant. Because grafted hybrid arms (Arm C & Arm D) place intermediate representations in out-of-distribution (OOD) states, part of the degradation reflects cross-module representation mismatch. Furthermore, paired statistical tests are evaluated on an internal per-image diagnostic metric ($AP_i$, unweighted macro-average over present classes), which is distinct from standard corpus-pooled COCO mAP. Both metrics independently confirm that encoder memory damage is the primary driver while query eviction is an essential secondary channel.
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Teaser Figure & Architecture -->
-        <section id="architecture" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="mb-6 text-center max-w-2xl mx-auto">
-                    <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">System Architecture & Threat Mechanism</span>
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3">The Encoder-Decoder Query Selection Bottleneck</h2>
-                    <p class="text-sm text-slate-600">
-                        RT-DETR evaluates $S = 8,400$ candidate anchors across multi-scale feature maps ($S_3, S_4, S_5$) and dynamically selects the top $N_q = 300$ highest-confidence proposals to initialize decoder content queries and reference coordinates.
-                    </p>
-                </div>
-
-                <div class="rounded-2xl overflow-hidden border border-slate-200 mb-6 bg-slate-50">
-                    <img src="assets/images/fig1_system_architecture.png" alt="RT-DETR Architecture and AQSM Attack Pipeline" class="w-full h-auto object-cover">
-                </div>
-
-                <div class="bg-slate-50 rounded-xl p-4 text-xs text-slate-600 leading-relaxed border border-slate-100">
-                    <strong>Figure 1 Walkthrough:</strong> (1) Input image ($640 \times 640$); (2) Hybrid Encoder extracting multi-scale feature maps; (3) Dynamic Query Selection where genuine foreground proposals (green path) are evicted under Adversarial Query Selection Manipulation (AQSM) by corrupting encoder logits (red path); (4) Deformable Decoder where spatial reference coordinates undergo Spatial Target Misrouting into background clutter; (5) Output Heads generating predictions without heuristic NMS post-processing.
-                </div>
-            </div>
-        </section>
-
-        <!-- 2x2 Factorial Intervention Table -->
-        <section id="decomposition" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Interventional Failure Decomposition</span>
-                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3">2×2 Factorial Activation Patching on COCO val2017</h2>
-                <p class="text-sm text-slate-600">
-                    By surgically swapping memory ($M$) and query ($Q$) representations across clean and adversarial optimization passes, we quantify their isolated and joint contributions to detector failure.
-                </p>
-            </div>
-
-            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden mb-8">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-slate-600">
-                        <thead class="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            <tr>
-                                <th class="py-4 px-6">Treatment Condition / Arm</th>
-                                <th class="py-4 px-4 text-center">Encoder Memory ($M$)</th>
-                                <th class="py-4 px-4 text-center">Query Prior ($Q$)</th>
-                                <th class="py-4 px-4 text-right">COCO mAP@50</th>
-                                <th class="py-4 px-4 text-right">mAP@50:95</th>
-                                <th class="py-4 px-6 text-right">Relative Retention</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 font-medium">
-                            <tr class="hover:bg-slate-50/60 transition">
-                                <td class="py-4 px-6 font-semibold text-slate-900 flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                                    Arm A: Clean Baseline
-                                </td>
-                                <td class="py-4 px-4 text-center text-xs text-slate-500 font-mono">Clean</td>
-                                <td class="py-4 px-4 text-center text-xs text-slate-500 font-mono">Clean (300)</td>
-                                <td class="py-4 px-4 text-right font-bold text-slate-900 font-mono">65.50%</td>
-                                <td class="py-4 px-4 text-right font-mono">48.89%</td>
-                                <td class="py-4 px-6 text-right text-emerald-600 font-bold font-mono">100.0%</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50/60 transition bg-rose-50/30">
-                                <td class="py-4 px-6 font-semibold text-rose-950 flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                                    Arm B: Joint AQSM Attack
-                                </td>
-                                <td class="py-4 px-4 text-center text-xs text-rose-700 font-mono font-semibold">Adversarial</td>
-                                <td class="py-4 px-4 text-center text-xs text-rose-700 font-mono font-semibold">Adversarial (300)</td>
-                                <td class="py-4 px-4 text-right font-bold text-rose-600 font-mono">3.07%</td>
-                                <td class="py-4 px-4 text-right font-mono text-rose-600">1.61%</td>
-                                <td class="py-4 px-6 text-right text-rose-600 font-bold font-mono">4.69%</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50/60 transition">
-                                <td class="py-4 px-6 font-semibold text-slate-900 flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                                    Arm C: Adv Memory + Clean Query
-                                </td>
-                                <td class="py-4 px-4 text-center text-xs text-rose-700 font-mono font-semibold">Adversarial</td>
-                                <td class="py-4 px-4 text-center text-xs text-emerald-700 font-mono font-semibold">Clean (300)</td>
-                                <td class="py-4 px-4 text-right font-bold text-slate-900 font-mono">7.45%</td>
-                                <td class="py-4 px-4 text-right font-mono">4.09%</td>
-                                <td class="py-4 px-6 text-right text-slate-600 font-bold font-mono">11.37%</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50/60 transition">
-                                <td class="py-4 px-6 font-semibold text-slate-900 flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
-                                    Arm D: Clean Memory + Adv Query
-                                </td>
-                                <td class="py-4 px-4 text-center text-xs text-emerald-700 font-mono font-semibold">Clean</td>
-                                <td class="py-4 px-4 text-center text-xs text-rose-700 font-mono font-semibold">Adversarial (300)</td>
-                                <td class="py-4 px-4 text-right font-bold text-slate-900 font-mono">26.58%</td>
-                                <td class="py-4 px-4 text-right font-mono">18.42%</td>
-                                <td class="py-4 px-6 text-right text-slate-600 font-bold font-mono">40.58%</td>
-                            </tr>
-                            <tr class="hover:bg-slate-50/60 transition bg-slate-50/50">
-                                <td class="py-4 px-6 font-semibold text-slate-900 flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-                                    Arm D_index: Clean Memory + Adv Index
-                                </td>
-                                <td class="py-4 px-4 text-center text-xs text-emerald-700 font-mono font-semibold">Clean</td>
-                                <td class="py-4 px-4 text-center text-xs text-purple-700 font-mono font-semibold">Clean Feat + Adv Index</td>
-                                <td class="py-4 px-4 text-right font-bold text-indigo-700 font-mono">35.44%</td>
-                                <td class="py-4 px-4 text-right font-mono text-indigo-700">24.81%</td>
-                                <td class="py-4 px-6 text-right text-indigo-700 font-bold font-mono">54.11%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Multiplicative Decomposition Callout -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-                    <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2 font-heading">
-                        <i class="fa-solid fa-chart-pie text-sky-600"></i>
-                        Linear ANOVA vs Shapley Attribution
-                    </h3>
-                    <p class="text-xs text-slate-600 leading-relaxed mb-4">
-                        Evaluated across $N_{\mathrm{valid}} = 992$ images on per-image Average Precision ($AP_i$). Sequential attribution reveals order sensitivity ($77.75\%$ memory-first vs.\ $45.81\%$ query-first), whose symmetric 2-player Shapley attribution yields:
-                    </p>
-                    <div class="space-y-2 text-xs font-mono">
-                        <div class="flex justify-between items-center p-2 rounded bg-slate-50">
-                            <span class="font-medium text-slate-700">Encoder Memory Share ($\phi_M$):</span>
-                            <span class="font-bold text-rose-600">61.78% [95% BCa CI: 60.52%, 63.08%]</span>
-                        </div>
-                        <div class="flex justify-between items-center p-2 rounded bg-slate-50">
-                            <span class="font-medium text-slate-700">Query Prior Eviction ($\phi_Q$):</span>
-                            <span class="font-bold text-amber-600">38.22% [95% BCa CI: 36.92%, 39.49%]</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-                    <h3 class="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2 font-heading">
-                        <i class="fa-solid fa-square-root-variable text-emerald-600"></i>
-                        Multiplicative Log-Retention Law
-                    </h3>
-                    <p class="text-xs text-slate-600 leading-relaxed mb-4">
-                        Evaluating single-factor retentions relative to clean baseline ($Y_{00} = 65.50\%$):
-                        $$\text{Ret}_M = 11.37\%, \quad \text{Ret}_Q = 40.58\%, \quad \text{Ret}_B = 4.69\%$$
-                        The product matches combined retention with under 0.1% absolute error:
-                    </p>
-                    <div class="p-3 rounded-xl bg-emerald-50 text-emerald-900 text-xs font-mono text-center font-bold border border-emerald-200/60">
-                        $$\text{Ret}_M \times \text{Ret}_Q = 0.1137 \times 0.4058 = 0.0462 \approx 0.0469 = \text{Ret}_B$$
-                        $$\text{Log Interaction} = +0.0155 \approx 0 \implies \text{Floor Saturation}$$
-                    </div>
-                </div>
+            <div class="table-box">
+                <table class="academic-table">
+                    <thead>
+                        <tr>
+                            <th>Defense Paradigm</th>
+                            <th>EQF Rejection (%)</th>
+                            <th>DQF Rejection (%)</th>
+                            <th>Surviving Phantoms [EQF / DQF]</th>
+                            <th>Clean Retention (%)</th>
+                            <th>Clean $\mathrm{mAP}_{50}$ Shift</th>
+                            <th>Post-Defense ASR</th>
+                            <th>CPU Latency [Overhead]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>No Defense (Raw Model)</strong></td>
+                            <td>0.00 &plusmn; 0.00%</td>
+                            <td>0.00 &plusmn; 0.00%</td>
+                            <td>19.37 &plusmn; 0.43 / 18.72 &plusmn; 0.42</td>
+                            <td>100.00%</td>
+                            <td>62.42% [0.00 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.28 ms [Baseline]</td>
+                        </tr>
+                        <tr>
+                            <td>Standard NMS ($\mathrm{IoU}=0.50$)</td>
+                            <td>6.91 &plusmn; 0.32%</td>
+                            <td>23.46 &plusmn; 0.50%</td>
+                            <td>18.04 &plusmn; 0.46 / 14.33 &plusmn; 0.23</td>
+                            <td>95.02%</td>
+                            <td>62.30% [-0.13 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.75 ms [+0.47 ms]</td>
+                        </tr>
+                        <tr>
+                            <td>Distance-IoU NMS ($\theta=0.50$)</td>
+                            <td>6.31 &plusmn; 0.29%</td>
+                            <td>21.80 &plusmn; 0.50%</td>
+                            <td>18.15 &plusmn; 0.46 / 14.64 &plusmn; 0.23</td>
+                            <td>95.48%</td>
+                            <td>62.33% [-0.10 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.53 ms [+0.25 ms]</td>
+                        </tr>
+                        <tr>
+                            <td>Soft-NMS (Gaussian, $\sigma=0.50$)</td>
+                            <td>15.69 &plusmn; 0.32%</td>
+                            <td>36.47 &plusmn; 0.64%</td>
+                            <td>16.34 &plusmn; 0.42 / 11.89 &plusmn; 0.15</td>
+                            <td>90.70%</td>
+                            <td>61.80% [-0.62 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.66 ms [+0.38 ms]</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>Containment-NMS ($\mathrm{IoMin}=0.50$)</strong></td>
+                            <td><strong>20.87 &plusmn; 0.24%</strong></td>
+                            <td><strong>48.53 &plusmn; 0.77%</strong></td>
+                            <td><strong>15.33 &plusmn; 0.32 / 9.63 &plusmn; 0.09</strong></td>
+                            <td><strong>84.96%</strong></td>
+                            <td><strong>60.57% [-1.85 pp]</strong></td>
+                            <td>99.78% / 99.67%</td>
+                            <td><strong>0.41 ms [+0.13 ms]</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Threshold Elevation ($\tau=0.50$)</td>
+                            <td>49.01 &plusmn; 0.75%</td>
+                            <td>41.98 &plusmn; 0.79%</td>
+                            <td>9.88 &plusmn; 0.36 / 10.86 &plusmn; 0.19</td>
+                            <td>62.72%</td>
+                            <td>55.42% [-7.00 pp]</td>
+                            <td>98.44% / 99.11%</td>
+                            <td>0.29 ms [+0.01 ms]</td>
+                        </tr>
+                        <tr>
+                            <td>Spatial DBSCAN ($\epsilon=0.15$)</td>
+                            <td>76.53 &plusmn; 0.92%</td>
+                            <td>85.60 &plusmn; 0.39%</td>
+                            <td>4.54 &plusmn; 0.09 / 2.69 &plusmn; 0.06</td>
+                            <td>44.27%</td>
+                            <td>44.62% [-17.81 pp]</td>
+                            <td>96.44% / 86.89%</td>
+                            <td>2.30 ms [+2.02 ms]</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>SQD-Filter (Ours, $d=0.15$)</strong></td>
+                            <td><strong>53.61 &plusmn; 0.51%</strong></td>
+                            <td><strong>68.64 &plusmn; 0.35%</strong></td>
+                            <td><strong>8.99 &plusmn; 0.19 / 5.87 &plusmn; 0.06</strong></td>
+                            <td><strong>66.88%</strong></td>
+                            <td><strong>56.73% [-5.69 pp]</strong></td>
+                            <td>99.78% / 99.67%</td>
+                            <td><strong>0.24 ms [&le; 0.01 ms]</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 
-        <!-- Geometric Telemetry Section -->
-        <section id="telemetry" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Geometric Diagnostics</span>
-                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3">Why Proposals Fail: Misrouting, Not Attention Scattering</h2>
-                <p class="text-sm text-slate-600">
-                    Fine-grained telemetry resolves prevailing misconceptions: attention weights remain sharp, but reference coordinates are geometrically misdirected into background clutter.
-                </p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                <div class="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
-                    <img src="assets/images/fig5_multiscale_cosine_and_overlap.png" alt="Multi-scale feature degradation and query overlap" class="w-full h-auto">
-                </div>
-                <div class="space-y-4 text-sm text-slate-600">
-                    <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                        <h4 class="font-bold text-slate-900 text-sm mb-1 font-heading flex items-center gap-2">
-                            <i class="fa-solid fa-check text-emerald-500"></i>
-                            Attention Weights Do Not Disperse
-                        </h4>
-                        <p class="text-xs text-slate-500 leading-relaxed">
-                            Normalized deformable attention entropy remains stable ($0.8009 \to 0.7944, d = -0.13$). Sampling weights remain localized around reference points rather than scattering.
-                        </p>
-                    </div>
-
-                    <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                        <h4 class="font-bold text-slate-900 text-sm mb-1 font-heading flex items-center gap-2">
-                            <i class="fa-solid fa-crosshairs text-rose-500"></i>
-                            Spatial Target Misrouting
-                        </h4>
-                        <p class="text-xs text-slate-500 leading-relaxed">
-                            Initial reference coordinates undergo geometric translation ($\Delta_{\mathrm{Hungarian}} = 0.2258$), clustering tightly into non-object boundaries ($\text{ANND} = 0.0161$), pulling anchor foreground hit rate down from $68.93\%$ to $45.13\%$.
-                        </p>
-                    </div>
-
-                    <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                        <h4 class="font-bold text-slate-900 text-sm mb-1 font-heading flex items-center gap-2">
-                            <i class="fa-solid fa-scale-balanced text-indigo-500"></i>
-                            TOST Equivalence to Uniform Sampling
-                        </h4>
-                        <p class="text-xs text-slate-500 leading-relaxed">
-                            A formal Two One-Sided Tests (TOST) procedure confirms equivalence of post-attack anchor hits ($45.13\%$) to uniform grid chance ($44.26\%$, $p_{\mathrm{TOST}} = 0.0373 < 0.05$ under $\pm 2.0$ pp bound) while firmly rejecting camera center priors ($p < 10^{-20}$).
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Qualitative Detections Showcase -->
-        <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="mb-6 text-center max-w-2xl mx-auto">
-                    <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Visual Evidence</span>
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3">Qualitative Detection Comparisons</h2>
-                    <p class="text-sm text-slate-600">
-                        Contrasting Clean Nominal Detections, Task PGD Proposal Flooding, and AQSM Stealthy Spatial Misrouting across COCO val2017 scenes.
-                    </p>
-                </div>
-                <div class="rounded-2xl overflow-hidden border border-slate-200 mb-4 bg-slate-50">
-                    <img src="assets/images/fig11_qualitative_detections.png" alt="Qualitative Detection Comparison" class="w-full h-auto">
-                </div>
-                <p class="text-xs text-slate-500 text-center">
-                    AQSM silently evicts genuine foreground bounding boxes into background clutter while maintaining a sparse footprint ($7.15 \pm 4.30$ boxes, $+2.63$ over clean $4.52$), avoiding the conspicuous box flooding of Task PGD ($29.40 \pm 8.70$ boxes, $+550\%$).
-                </p>
-            </div>
-        </section>
-
-        <!-- Edge Hardware Latency Benchmarking -->
-        <section id="hardware" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Physical Hardware Validation</span>
-                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3">Deterministic O(1) Edge Execution</h2>
-                <p class="text-sm text-slate-600">
-                    Benchmarked across 300 synchronized iterations on Raspberry Pi 5 (ARM Cortex-A76) and NVIDIA Jetson Orin Nano (Ampere GPU).
-                </p>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
-                                <i class="fa-solid fa-microchip"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-900 font-heading">NVIDIA Jetson Orin Nano</h4>
-                                <span class="text-xs text-slate-500">TensorRT 8.6.2 FP16 (20W MAXN)</span>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">70.4 FPS</span>
-                    </div>
-                    <div class="space-y-3 font-mono text-xs">
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Clean Inference:</span>
-                            <span class="font-bold text-slate-800">14.20 ± 0.35 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Adversarial Inference:</span>
-                            <span class="font-bold text-slate-800">14.22 ± 0.34 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 text-emerald-600 font-bold">
-                            <span>Latency Overhead:</span>
-                            <span>+0.14% (Strictly Constant)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg">
-                                <i class="fa-brands fa-raspberry-pi"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-900 font-heading">Raspberry Pi 5 (CPU Edge)</h4>
-                                <span class="text-xs text-slate-500">ONNX Runtime 1.16.3 FP32 (4 Threads)</span>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">2.39 FPS</span>
-                    </div>
-                    <div class="space-y-3 font-mono text-xs">
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Clean Inference:</span>
-                            <span class="font-bold text-slate-800">418.20 ± 12.40 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Adversarial Inference:</span>
-                            <span class="font-bold text-slate-800">418.50 ± 12.10 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 text-sky-600 font-bold">
-                            <span>Latency Overhead:</span>
-                            <span>+0.07% (Strictly Constant)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed">
-                <strong>Architectural Contrast with YOLOv8-S:</strong> Convolutional detectors relying on pairwise NMS suffer catastrophic Sponge Stalls under proposal flooding (+242.6% on Jetson, $11.5 \to 39.4$ ms; +232.4% on Pi 5, $245.3 \to 815.4$ ms). RT-DETR decodes a constant $N_q = 300$ budget without data-dependent branching, guaranteeing deterministic real-time deadlines.
-            </div>
-        </section>
-
-        <!-- Architectural Hardening via SQA -->
-        <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                    <div>
-                        <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Architectural Defense Exploration</span>
-                        <h2 class="text-2xl font-extrabold text-slate-900 mt-1 mb-3 font-heading">Static Query Augmentation (SQA)</h2>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-4">
-                            Drawing inspiration from DINO, SQA augments the nominal dynamic top-300 queries with $N_{\mathrm{static}} = 30$ deterministic canvas grid anchors ($N_q = 330$), bypassing encoder classification ranking entirely.
-                        </p>
-                        <ul class="space-y-2 text-xs text-slate-600 mb-6">
-                            <li class="flex items-start gap-2">
-                                <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                                <span><strong>Stationary AQSM Recovery:</strong> Lifts mAP@50 from $3.41\%$ to $18.42\%$ ($+15.01$ pp recovery) by sampling outside localized gradient hotspots.</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                                <span><strong>Zero Retraining & Minimal Overhead:</strong> Operates zero-shot with only $+0.38$ ms latency overhead ($+2.68\%$) on Jetson Orin Nano.</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
-                                <span><strong>Adaptive Evasion Boundary:</strong> Suppressed to $4.35\%$ under joint white-box optimization, confirming that query diversification cannot substitute for representation hardening.</span>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
-                        <img src="assets/images/fig8_defense_evaluation.png" alt="Defense evaluation and SQA trade-offs" class="w-full h-auto">
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Scientific Reproducibility & Data Provenance -->
-        <section id="provenance" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl">
-                <div class="max-w-3xl">
-                    <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">100% Auditability & Provenance</span>
-                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white mt-1 mb-4 font-heading">Automated Data Provenance & Verification Suite</h2>
-                    <p class="text-sm text-slate-300 leading-relaxed mb-6">
-                        Every numerical figure, ANOVA F-statistic, BCa bootstrap interval, and TOST p-value reported in the manuscript is cryptographically linked to its underlying execution JSON artifact via our automated provenance manifest.
-                    </p>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono mb-6">
-                        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
-                            <div class="text-slate-400 mb-1">Audit Verification</div>
-                            <div class="text-emerald-400 font-bold">audit_data_provenance.py</div>
-                        </div>
-                        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
-                            <div class="text-slate-400 mb-1">Unit Test Suite</div>
-                            <div class="text-sky-400 font-bold">12/12 Tests PASSED</div>
-                        </div>
-                        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
-                            <div class="text-slate-400 mb-1">Evaluation Cohort</div>
-                            <div class="text-amber-400 font-bold">N = 1,000 (COCO val2017)</div>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap gap-3">
-                        <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 transition">
-                            <i class="fa-brands fa-github text-sm"></i>
-                            <span>Inspect Provenance Manifest</span>
-                        </a>
-                        <a href="https://github.com/vietanhlee/AI_TrustWorthy/tree/master/paper_1_aqsm_mechanism/tests" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
-                            <i class="fa-solid fa-vial-circle-check text-sm"></i>
-                            <span>View Pytest Suite</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- BibTeX Citation -->
-        <section id="bibtex" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-24">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-lg font-bold text-slate-900 font-heading flex items-center gap-2">
-                    <i class="fa-solid fa-quote-left text-sky-600"></i>
-                    BibTeX Citation
-                </h3>
-                <button onclick="copyBibTeX()" class="text-xs font-semibold text-sky-600 hover:text-sky-700 flex items-center gap-1.5 px-3 py-1 rounded-lg border border-sky-200 hover:bg-sky-50 transition">
-                    <i class="fa-regular fa-copy"></i>
-                    <span id="copyBtnText">Copy BibTeX</span>
-                </button>
-            </div>
-            <div class="rounded-2xl bg-slate-900 p-5 text-xs text-slate-300 overflow-x-auto shadow-inner border border-slate-800">
-                <pre id="bibtexBlock" class="font-mono leading-relaxed"><code>@article{le2026decomposing,
-  title     = {Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks: An Empirical Diagnostic Study},
-  author    = {Le, Viet-Anh and Dao, Thuy-Quynh Thi and Nguyen, Trong-Khanh},
-  journal   = {Engineering Applications of Artificial Intelligence (Elsevier EAAI)},
-  year      = {2026},
-  publisher = {Elsevier},
-  url       = {https://vietanhlee.github.io/AI_TrustWorthy/}
-}</code></pre>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="border-t border-slate-200 bg-white py-10 px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500">
-        <div class="max-w-4xl mx-auto space-y-2">
-            <p class="font-medium text-slate-700">
-                EdgeSec Research Group &bull; Hanoi University of Science and Technology (HUST)
+        <!-- SECTION 5: FIGURE GALLERY & EMPIRICAL ANALYSIS -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-images"></i> Publication Figure Gallery & Empirical Analysis</h2>
+            <p class="text-body">
+                Click on any figure to view the high-resolution vector visualization.
             </p>
+
+            <div class="teaser-box">
+                <img src="fig/fig1_nms_free_paradox.png" alt="Figure 1: Latency Determinism vs. Spatial Proposal Filtering" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 2: Empirical verification of latency determinism and spatial proposal filtering at native $640\times 640$ resolution across 3 independent random seeds.</strong>
+                    (a) On edge CPU, YOLOv8 suffers a $+123.9\%$ latency surge ($14.80\text{ ms} \to 33.13\text{ ms}$) under targeted perturbation due to proposal bloat, whereas RT-DETR exhibits strict empirical latency invariance ($34.81 \pm 0.55\text{ ms}$, static tensor graph).
+                    (b) While heuristic NMS suppresses dense proposal clusters in convolutional models ($80.50\%$ reduction), RT-DETR allows $19.37 \pm 0.43$ (EQF) and $18.72 \pm 0.42$ (DQF) phantoms to pass unfiltered into downstream systems.
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig2_displacement_tradeoff.png" alt="Figure 2: Foreground Proposal Displacement Tradeoff" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 3: Empirical verification of the Foreground Proposal Displacement Hypothesis.</strong>
+                    (a) Scatter plot of pairwise center distance vs. pairwise IoU between phantom boxes, illustrating the bivariate distribution of spatially dispersed pairs ($D_{\mathrm{center}} \ge 0.15$) and multi-scale co-located clusters ($D_{\mathrm{center}} < 0.15$) with bounded cross-scale IoU.
+                    (b) Empirical Cumulative Distribution Function (ECDF) of displacement severity under Untargeted PGD ($73.64 \pm 0.11\%$) and targeted EQF ($66.63 \pm 0.80\%$). Global backbone corruption accounts for the majority of eviction, while targeted EQF shows $7.01\text{ pp}$ lower eviction ($t = -11.06, p = 0.0081, df=2$) due to gradient concentration on target queries.
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig3_downstream_cyberphysical_impact.png" alt="Figure 3: Downstream MOT and AEB Simulation" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 4: Downstream cyber-physical simulations on multi-object tracking and autonomous emergency braking.</strong>
+                    (a) ByteTrack Multi-Object Tracking: phantom floods expand candidate association vectors from $7.37 \to 32.52$, expanding Hungarian matching matrices from $7\times 7=49$ to $7\times 33=231$ elements ($4.71\times$ elements), with association latency increasing from $0.0037\text{ ms} \to 0.0052\text{ ms}$ (maintaining real-time responsiveness, but inducing Track ID fragmentation).
+                    (b) Autonomous Emergency Braking (AEB Pinhole Corridor): stylized single-frame camera trigger risk rises from $2.33\% \to 99.67\%$, underscoring the critical need for temporal multi-frame tracking and multimodal radar/LiDAR sensor fusion.
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig4_sqd_filter_defense.png" alt="Figure 4: SQD-Filter Post-Processing Mitigation" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 5: Post-processing defense trade-offs on official COCO val2017.</strong>
+                    (a) Detection box composition before and after mitigation: SQD-Filter ($d=0.15$) reduces fabricated phantoms from $19.37$ to $8.99$ (EQF) and $18.72$ to $5.87$ (DQF) while preserving $66.88\%$ of clean nominal detections.
+                    (b) Rejection rate vs. CPU latency: standard NMS fails against multi-scale queries ($6.91\%$ EQF rejection), while SQD-Filter achieves $53.61\%$ (EQF) and $68.64\%$ (DQF) rejection in $0.24\text{ ms}$ CPU latency ($<0.01\text{ ms}$ overhead), avoiding the severe latency and over-suppression bottleneck of density DBSCAN ($2.30\text{ ms}$ latency, $44.27\%$ retention).
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig_qualitative_detections.png" alt="Figure 5: Roadway Qualitative Detection Visualizations" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 6: Empirical qualitative detection visualizations across benchmark and defended conditions on a representative roadway scene at native $640\times 640$ resolution.</strong>
+                    (a) Clean baseline: nominal vehicle and pedestrian detections. (b) Negative control: Gaussian Noise ($\sigma = 16/255$), verifying genuine objects remain robustly detected. (c) Baseline: Untargeted PGD ($\epsilon = 16/255, T=8$), exhibiting unstructured semantic corruption. (d) Standard Bottleneck Threat: Encoder Query Fabrication (EQF), illustrating co-located multi-scale query clusters. (e) Advanced Boundary Targeting: Rank-Aware Bottleneck EQF (RAB-EQF), optimizing background queries past the 300-th selection boundary $\tau_{\mathrm{boundary}}$. (f) Mitigation Heuristic: Spatial Query Dispersion Filter (SQD-Filter, $d_{\mathrm{thresh}} = 0.15$), cleanly deduplicating concentric multi-scale phantoms to a single candidate while preserving genuine vehicular detections.
+                </p>
+            </div>
+        </section>
+
+        <!-- SECTION 6: BIBTEX CITATION -->
+        <section id="bibtex">
+            <h2 class="section-heading"><i class="fa-solid fa-quote-left"></i> BibTeX Citation</h2>
+            <p class="text-body">
+                If you find this research or code useful in your work, please cite our paper:
+            </p>
+            <div class="bibtex-box">
+                <button class="btn-copy" onclick="copyBibtex()"><i class="fa-regular fa-copy"></i> Copy</button>
+                <pre id="bibtex-code">@article{le2026adversarial,
+  title={Adversarial Object Fabrication in Real-Time Detection Transformers: Multi-Scale Query Geometry and Spatial Mitigation Limits},
+  author={Le, Viet-Anh and Hoang Viet, Dung and Nguyen-Trong, Khanh},
+  journal={Engineering Applications of Artificial Intelligence},
+  year={2026},
+  publisher={Elsevier},
+  note={Under Review / Preprint. Project page: https://vietanhlee.github.io/AI_TrustWorthy/}
+}</pre>
+            </div>
+        </section>
+
+        <!-- SECTION 7: REPRODUCIBILITY & OPEN SCIENCE -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-code-branch"></i> Open Science & Reproducibility</h2>
+            <p class="text-body">
+                All empirical suites, multi-seed evaluation protocols ($N=900$), figure generation scripts, and complete JSON telemetry records are released openly under the MIT License to facilitate verification and further research in trustworthy computer vision:
+            </p>
+            <ul style="margin-left: 24px; color: var(--text-body); line-height: 1.8; margin-bottom: 20px;">
+                <li><strong>Source Repository:</strong> <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank">github.com/vietanhlee/AI_TrustWorthy</a></li>
+                <li><strong>Interactive Project Page:</strong> <a href="https://vietanhlee.github.io/AI_TrustWorthy/">vietanhlee.github.io/AI_TrustWorthy</a></li>
+                <li><strong>Telemetry Record:</strong> <code>paper_2_phantom_fabrication/outputs/paper2_complete_telemetry.json</code> (100% authentic Kaggle 2x T4 GPU run, commit <code>c030685</code>).</li>
+                <li><strong>One-Click Reproduction Script:</strong> <code>bash run_all.sh --batch_size 16 --num_images 300</code> or <code>python run_paper2_clean_rebenchmark.py --sync_only</code>.</li>
+            </ul>
+        </section>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
             <p>
-                Project website hosted on GitHub Pages: <a href="https://vietanhlee.github.io/AI_TrustWorthy/" class="text-sky-600 hover:underline">vietanhlee.github.io/AI_TrustWorthy</a>. Source code released under MIT License.
+                <strong>Intelligent Systems & Cyber-Physical Security Laboratory</strong><br>
+                Posts and Telecommunications Institute of Technology (PTIT), Hanoi, Vietnam.<br>
+                Released under MIT License. Open Science & Reproducible Research.
             </p>
         </div>
     </footer>
 
+    <!-- LIGHTBOX IMAGE MODAL -->
+    <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img id="lightbox-img" class="lightbox-img" src="" alt="Zoomed View">
+        <div id="lightbox-caption" class="lightbox-caption"></div>
+    </div>
+
     <script>
-    function copyBibTeX() {
-        const text = document.getElementById('bibtexBlock').innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            const btnText = document.getElementById('copyBtnText');
-            btnText.innerText = 'Copied!';
-            setTimeout(() => {
-                btnText.innerText = 'Copy BibTeX';
-            }, 2500);
+        // Lightbox Zoom Logic
+        document.querySelectorAll('.teaser-img').forEach(img => {
+            img.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const modal = document.getElementById('lightbox');
+                const modalImg = document.getElementById('lightbox-img');
+                const modalCaption = document.getElementById('lightbox-caption');
+
+                modalImg.src = this.src;
+                const captionElem = this.nextElementSibling;
+                modalCaption.innerHTML = captionElem ? captionElem.innerHTML : '';
+
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
         });
-    }
+
+        function closeLightbox() {
+            const modal = document.getElementById('lightbox');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+
+        function copyBibtex() {
+            const code = document.getElementById('bibtex-code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+                }, 2000);
+            });
+        }
     </script>
 </body>
+
 </html>

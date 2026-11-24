@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adversarial Object Fabrication in Real-Time Detection Transformers: Multi-Scale Query Geometry and Spatial Mitigation Limits</title>
+
+    <!-- Meta SEO Tags -->
+    <meta name="description"
+        content="Official project page for Adversarial Object Fabrication in Real-Time Detection Transformers (RT-DETR): Multi-Scale Query Geometry and Spatial Mitigation Limits (Elsevier EAAI).">
+    <meta name="author" content="Viet-Anh Le, Dung Hoang Viet, Khanh Nguyen-Trong">
+    <meta property="og:title" content="Adversarial Object Fabrication in Real-Time Detection Transformers">
+    <meta property="og:description"
+        content="Investigating spatial candidate geometry and mitigation limits in NMS-free Detection Transformers under adversarial fabrication attacks.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="fig/fig1_concept_paradox.png">
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- MathJax for KaTeX/LaTeX Equations -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --bg-body: #ffffff;
+            --bg-alt: #f8fafc;
+            --bg-card: #ffffff;
+            --text-title: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --border-accent: #cbd5e1;
+            --primary-blue: #1e40af;
+            --primary-hover: #1d4ed8;
+            --accent-cyan: #0284c7;
+            --accent-green: #059669;
+            --accent-amber: #d97706;
+            --accent-red: #dc2626;
+            --font-title: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+            --font-serif: 'Lora', Georgia, serif;
+            --font-code: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-body);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            line-height: 1.7;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: var(--primary-blue);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            color: var(--accent-cyan);
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* HEADER & HERO */
+        header.hero {
+            padding: 60px 0 36px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-light);
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        }
+
+        .venue-badge {
+            display: inline-block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--primary-blue);
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 5px 16px;
+            border-radius: 20px;
+            margin-bottom: 22px;
+        }
+
+        h1.paper-title {
+            font-family: var(--font-title);
+            font-size: clamp(1.85rem, 3.4vw, 2.55rem);
+            font-weight: 800;
+            color: var(--text-title);
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+            margin-bottom: 22px;
+            max-width: 980px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .authors-row {
+            font-size: 1.12rem;
+            font-weight: 500;
+            color: var(--text-title);
+            margin-bottom: 10px;
+        }
+
+        .authors-row a {
+            color: var(--text-title);
+            font-weight: 600;
+        }
+
+        .authors-row a:hover {
+            color: var(--primary-blue);
+        }
+
+        .affil-row {
+            font-size: 0.94rem;
+            color: var(--text-muted);
+            margin-bottom: 26px;
+            line-height: 1.5;
+        }
+
+        /* BUTTONS */
+        .btn-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .btn-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 20px;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            background: #0f172a;
+            color: #ffffff;
+            border: 1px solid #0f172a;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .btn-item:hover {
+            background: #1e293b;
+            color: #ffffff;
+            text-decoration: none;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-item.btn-outline {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .btn-item.btn-outline:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        /* SECTIONS */
+        section {
+            padding: 44px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        section:last-of-type {
+            border-bottom: none;
+        }
+
+        h2.section-heading {
+            font-family: var(--font-title);
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 18px;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2.section-heading i {
+            color: var(--primary-blue);
+            font-size: 1.35rem;
+        }
+
+        p.text-body {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            color: #334155;
+            line-height: 1.8;
+            margin-bottom: 16px;
+            text-align: justify;
+        }
+
+        /* TEASER & GALLERIES */
+        .teaser-box {
+            background: var(--bg-alt);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 22px;
+            margin: 24px 0;
+            text-align: center;
+        }
+
+        .teaser-img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            background: #ffffff;
+            cursor: zoom-in;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .teaser-img:hover {
+            transform: scale(1.006);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .teaser-caption {
+            font-size: 0.90rem;
+            color: var(--text-muted);
+            margin-top: 14px;
+            text-align: left;
+            line-height: 1.55;
+        }
+
+        /* HIGHLIGHT CARDS */
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin: 24px 0;
+        }
+
+        .card-item {
+            background: var(--bg-alt);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 22px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .card-item:hover {
+            border-color: var(--primary-blue);
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .card-item h3 {
+            font-family: var(--font-title);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-title);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-item h3 i {
+            color: var(--primary-blue);
+        }
+
+        .card-item p {
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+        }
+
+        /* TABLES */
+        .table-box {
+            margin: 24px 0;
+            overflow-x: auto;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+        }
+
+        table.academic-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            text-align: left;
+            background: #ffffff;
+        }
+
+        table.academic-table th {
+            background: #0f172a;
+            color: #ffffff;
+            padding: 11px 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        table.academic-table td {
+            padding: 9px 13px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text-body);
+            white-space: nowrap;
+        }
+
+        table.academic-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        table.academic-table tr.row-ours {
+            background: #eff6ff;
+            font-weight: 600;
+        }
+
+        table.academic-table tr.row-ours td {
+            color: var(--primary-blue);
+        }
+
+        .tag-ours {
+            background: var(--primary-blue);
+            color: #ffffff;
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        .tag-yolo {
+            background: #475569;
+            color: #ffffff;
+            font-size: 0.70rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        /* LIGHTBOX IMAGE MODAL */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .lightbox-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .lightbox-img {
+            max-width: 92%;
+            max-height: 82vh;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            background: #ffffff;
+            object-fit: contain;
+        }
+
+        .lightbox-caption {
+            color: #f8fafc;
+            margin-top: 14px;
+            font-size: 0.92rem;
+            max-width: 900px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 28px;
+            color: #ffffff;
+            font-size: 2.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .lightbox-close:hover {
+            color: var(--accent-cyan);
+        }
+
+        /* BIBTEX BLOCK */
+        .bibtex-box {
+            position: relative;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px 24px;
+            border-radius: 10px;
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .btn-copy {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: #334155;
+            color: #ffffff;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-copy:hover {
+            background: var(--primary-blue);
+        }
+
+        /* FOOTER */
+        footer {
+            padding: 36px 0;
+            background: #0f172a;
+            color: #94a3b8;
+            font-size: 0.88rem;
+            text-align: center;
+            line-height: 1.6;
+            border-top: 1px solid #1e293b;
+        }
+
+        footer strong {
+            color: #f8fafc;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HERO HEADER -->
+    <header class="hero">
+        <div class="container">
+            <div class="venue-badge">
+                <i class="fa-solid fa-graduation-cap"></i> Engineering Applications of Artificial Intelligence (Elsevier EAAI)
+            </div>
+            <h1 class="paper-title">
+                Adversarial Object Fabrication in Real-Time Detection Transformers: Multi-Scale Query Geometry and Spatial Mitigation Limits
+            </h1>
+            <div class="authors-row">
+                <a href="https://github.com/vietanhlee" target="_blank">Viet-Anh Le</a><sup>1,*</sup>,
+                <span>Dung Hoang Viet</span><sup>1</sup>,
+                <span>Khanh Nguyen-Trong</span><sup>1</sup>
+            </div>
+            <div class="affil-row">
+                <sup>1</sup> Intelligent Systems & Cyber-Physical Security Laboratory, Posts and Telecommunications Institute of Technology (PTIT), Hanoi, Vietnam<br>
+                <sup>*</sup> Corresponding Author
+            </div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="btn-links">
+                <a href="SUBMISSION_PDFS/2_Paper_Phantom_Fabrication_Elsevier_EAAI.pdf" class="btn-item" target="_blank">
+                    <i class="fa-solid fa-file-pdf"></i> Read Paper (24 Pages)
+                </a>
+                <a href="https://github.com/vietanhlee/AI_TrustWorthy" class="btn-item" target="_blank">
+                    <i class="fa-brands fa-github"></i> Code & Benchmark Suite
+                </a>
+                <a href="paper_2_phantom_fabrication/outputs/paper2_complete_telemetry.json" class="btn-item btn-outline" target="_blank">
+                    <i class="fa-solid fa-database"></i> Telemetry JSON ($N=900$)
+                </a>
+                <a href="https://cocodataset.org" class="btn-item btn-outline" target="_blank">
+                    <i class="fa-solid fa-images"></i> COCO val2017
+                </a>
+                <a href="#bibtex" class="btn-item btn-outline">
+                    <i class="fa-solid fa-quote-left"></i> BibTeX
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- SECTION 1: TEASER HIGHLIGHT -->
+        <section>
+            <div class="teaser-box">
+                <img src="fig/fig1_concept_paradox.png" alt="NMS-Free Spatial Candidate Geometry Paradox" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 1: Conceptual comparison of spatial candidate geometry between NMS-based convolutional detectors and NMS-free transformers.</strong> 
+                    (Top) In conventional YOLOv8 + NMS pipelines, localized adversarial perturbations excite adjacent anchor cells; heuristic IoU-NMS naturally collapses redundant candidates ($80.50 \pm 0.21\%$ proposal reduction, leaving $1.91 \pm 0.16$ phantoms, though residual phantoms still achieve $84.89\%$ ASR). 
+                    (Bottom) Real-Time Detection Transformers (RT-DETR) eliminate NMS for deterministic inference latency ($34.81 \pm 0.55\text{ ms}$ on edge CPU), but multi-scale queries sharing spatial centers across pyramid levels ($S_3, S_4, S_5$) possess low cross-scale bounding-box IoU ($\le 0.25$), allowing $19.37 \pm 0.43$ fabricated phantom queries to flood downstream decision loops unfiltered.
+                </p>
+            </div>
+        </section>
+
+        <!-- SECTION 2: ABSTRACT -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-align-left"></i> Abstract</h2>
+            <p class="text-body">
+                Eliminating heuristic Non-Maximum Suppression (NMS) in favor of direct set prediction allows Real-Time Detection Transformers (RT-DETR) to achieve deterministic execution latency and prevent quadratic proposal-sponge bottlenecks on edge hardware. However, direct set prediction alters spatial candidate structures under adversarial manipulation. Both dense convolutional models (YOLOv8 + NMS) and set-prediction transformers (RT-DETR) remain acutely vulnerable to targeted white-box gradient optimization, both suffering a $\sim 90\%$ collapse in operational $\mathrm{mAP}_{50}$. The fundamental divergence lies in post-processing spatial candidate geometry: on dense convolutional grids, localized perturbations excite adjacent cells yielding overlapping bounding boxes that standard IoU-NMS naturally deduplicates by $80.50 \pm 0.21\%$ ($34.76 \pm 0.64$ pre-NMS proposals to $6.78 \pm 0.16$ post-NMS detections, leaving $1.91 \pm 0.16$ residual phantoms, $\mathrm{ASR} = 84.89\%$). In contrast, RT-DETR excites multi-scale queries across feature pyramid levels ($S_3: 2.5\%, S_4: 27.6\%, S_5: 69.9\%$) that share spatial centers but possess divergent bounding box dimensions. Because concentric boxes with $2\times$ or $4\times$ scale factors exhibit low bounding-box IoU ($\le 0.25$), standard IoU-NMS rejects merely $6.91 \pm 0.14\%$ of RT-DETR phantoms ($19.37 \to 18.04$).
+            </p>
+            <p class="text-body">
+                We investigate this behavior through Encoder Query Fabrication (EQF), targeting the pre-decoder query selection bottleneck ($K=300$), evaluated alongside an Output-Logit Decoder baseline (DQF). Evaluated at native $640\times 640$ resolution on official COCO <code>val2017</code> across three independent random initialization seeds (42, 123, 456), EQF and DQF inject $19.37 \pm 0.43$ and $18.72 \pm 0.42$ phantom boxes per frame, collapsing detector precision to $4.16\%$ (EQF) and $5.43\%$ (DQF). Proposal displacement analysis reveals that the severe $-90.7\%$ drop in operational $\mathrm{mAP}_{50}$ ($62.42 \pm 1.00\% \to 5.07 \pm 0.25\%$) is driven primarily by broad semantic feature distortion across the backbone and CCFM feature maps (accounting for $73.64 \pm 0.11\%$ eviction under Untargeted PGD vs. $66.63 \pm 0.80\%$ under EQF, $df=2, t = -11.06, p = 0.0081$) rather than 19 targeted bicycle phantoms merely crowding out 300 decoder query slots. Benchmarking spatial post-processing reveals that Containment-NMS (IoMin) and a class-wise center-distance filter (SQD-Filter) suppress $20.87\%$ and $53.61\%$ of EQF phantoms (and $48.53\%$ and $68.64\%$ of DQF phantoms) by addressing concentric geometry. However, post-defense binary attack success remains $\sim 100\%$ while inducing an operational clean detection trade-off ($-5.69\text{ pp}$ $\mathrm{mAP}_{50}$, $66.88\%$ retention). These empirical boundaries demonstrate that post-hoc spatial deduplication functions solely as a volume-mitigation heuristic rather than an intrinsic defense.
+            </p>
+        </section>
+
+        <!-- SECTION 3: KEY CONTRIBUTIONS & DISCOVERIES -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-lightbulb"></i> Key Empirical Discoveries</h2>
+            <div class="highlights-grid">
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-bullseye"></i> Concentric Query Geometry</h3>
+                    <p>
+                        Fabricated phantoms cluster across pyramid levels: <strong>$69.89\%$ on $S_5$</strong>, <strong>$27.61\%$ on $S_4$</strong>, and <strong>$2.50\%$ on $S_3$</strong>. Sharing common centers but with $2\times$ or $4\times$ scale factors, their pairwise bounding box $\mathrm{IoU} \le 0.25$, rendering standard IoU-NMS structurally blind ($6.91\%$ suppression).
+                    </p>
+                </div>
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-ghost"></i> High-Volume Phantom Flooding</h3>
+                    <p>
+                        Targeted fabrication vectors (EQF and DQF) inject an average of <strong>$19.37 \pm 0.43$</strong> and <strong>$18.72 \pm 0.42$</strong> phantoms per image at native $640\times 640$, collapsing detector precision from $69.52\%$ clean to $4.16\%$ (EQF) and $5.43\%$ (DQF) under $100\%$ deterministic edge CPU latency ($34.81\text{ ms}$).
+                    </p>
+                </div>
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-shuffle"></i> Displacement Deconstruction</h3>
+                    <p>
+                        Paired hypothesis testing ($df=2, t = -11.06, p = 0.0081$) isolates that multi-class $\mathrm{mAP}_{50}$ collapse is dominated by global backbone representation destruction ($73.64\%$ eviction under Untargeted PGD vs. $66.63\%$ under EQF), refuting the speculation that 19 bicycle queries simply starve 300 decoder query slots.
+                    </p>
+                </div>
+                <div class="card-item">
+                    <h3><i class="fa-solid fa-shield-halved"></i> Spatial Mitigation Limits</h3>
+                    <p>
+                        Containment-NMS ($\mathrm{IoMin}$) eliminates $20.87\%$ (EQF) and $48.53\%$ (DQF) phantoms with $84.96\%$ clean retention. SQD-Filter eliminates $53.61\%$ (EQF) and $68.64\%$ (DQF) phantoms in $0.24\text{ ms}$ CPU. Both act as volume mitigators, retaining $\sim 100\%$ post-defense ASR due to surviving top-1 cluster queries.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: BENCHMARK RESULTS TABLES -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-chart-column"></i> Multi-Seed Empirical Benchmarks ($N=900$)</h2>
+            <p class="text-body">
+                Official COCO <code>val2017</code> object detection and fabrication performance evaluated across three independent random seeds (42, 123, 456) evaluating 300 images per seed at native $640\times 640$ resolution.
+            </p>
+
+            <div class="table-box">
+                <table class="academic-table">
+                    <thead>
+                        <tr>
+                            <th>Model & Condition</th>
+                            <th>Operational $\mathrm{mAP}_{50}$ [Rel. Drop]</th>
+                            <th>$\mathrm{ASR}_{\mathrm{fab}}$ (%)</th>
+                            <th>Active Boxes ($\ge 0.35$)</th>
+                            <th>Surviving Phantoms</th>
+                            <th>Detector Precision</th>
+                            <th>FG Displacement Rate</th>
+                            <th>Edge CPU Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>RT-DETR-R18 Clean Baseline</strong> <span class="tag-ours">NMS-Free</span></td>
+                            <td><strong>62.42 &plusmn; 1.00%</strong></td>
+                            <td>---</td>
+                            <td>7.51 &plusmn; 0.23</td>
+                            <td>0.01 &plusmn; 0.01</td>
+                            <td>69.52 &plusmn; 0.23%</td>
+                            <td>0.00 &plusmn; 0.00%</td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr>
+                            <td>RT-DETR + Gaussian Noise ($\sigma=16/255$)</td>
+                            <td>58.58 &plusmn; 0.90% [-6.1%]</td>
+                            <td>0.89 &plusmn; 0.42%</td>
+                            <td>7.11 &plusmn; 0.20</td>
+                            <td>0.01 &plusmn; 0.01</td>
+                            <td>68.70 &plusmn; 0.04%</td>
+                            <td>24.81 &plusmn; 0.15%</td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr>
+                            <td>RT-DETR + Untargeted PGD ($T=8$)</td>
+                            <td>6.88 &plusmn; 1.22% [-89.0%]</td>
+                            <td>20.67 &plusmn; 0.82%</td>
+                            <td>109.65 &plusmn; 0.61</td>
+                            <td>1.23 &plusmn; 0.21</td>
+                            <td>2.09 &plusmn; 0.08%</td>
+                            <td><strong>73.64 &plusmn; 0.11%</strong></td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>RT-DETR + EQF Targeted (Ours)</strong></td>
+                            <td><strong>5.07 &plusmn; 0.25% [-90.7%]</strong></td>
+                            <td><strong>99.78 &plusmn; 0.16%</strong></td>
+                            <td>27.56 &plusmn; 0.40</td>
+                            <td><strong>19.37 &plusmn; 0.43</strong></td>
+                            <td><strong>4.16 &plusmn; 0.19%</strong></td>
+                            <td><strong>66.63 &plusmn; 0.80%</strong></td>
+                            <td><strong>34.81 &plusmn; 0.55 ms</strong></td>
+                        </tr>
+                        <tr>
+                            <td>RT-DETR + Output-Logit Baseline (DQF)</td>
+                            <td>10.48 &plusmn; 1.32% [-83.2%]</td>
+                            <td>99.67 &plusmn; 0.00%</td>
+                            <td>31.96 &plusmn; 0.55</td>
+                            <td>18.72 &plusmn; 0.42</td>
+                            <td>5.43 &plusmn; 0.25%</td>
+                            <td>62.66 &plusmn; 0.60%</td>
+                            <td>34.81 &plusmn; 0.55 ms</td>
+                        </tr>
+                        <tr>
+                            <td><strong>YOLOv8s Clean Baseline</strong> <span class="tag-yolo">+ NMS</span></td>
+                            <td>39.85 &plusmn; 1.84%</td>
+                            <td>---</td>
+                            <td>3.66 &plusmn; 0.08</td>
+                            <td>0.00 &plusmn; 0.00</td>
+                            <td>81.27 &plusmn; 0.07%</td>
+                            <td>---</td>
+                            <td>14.80 &plusmn; 0.12 ms</td>
+                        </tr>
+                        <tr>
+                            <td>YOLOv8s + Targeted Fab ($T=8$)</td>
+                            <td>4.20 &plusmn; 0.27% [-89.5%]</td>
+                            <td>84.89 &plusmn; 0.00%</td>
+                            <td>34.76 (Pre) &rarr; 6.78 (Post)</td>
+                            <td>1.91 &plusmn; 0.16</td>
+                            <td>12.42 &plusmn; 0.20%</td>
+                            <td>---</td>
+                            <td><strong>33.13 &plusmn; 2.93 ms (+123.9%)</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TABLE 4 DEFENSES -->
+            <h3 style="font-family: var(--font-title); font-size: 1.25rem; font-weight: 700; color: var(--text-title); margin: 32px 0 14px;">
+                Post-Processing Defense Paradigms Benchmark on RT-DETR
+            </h3>
+
+            <div class="table-box">
+                <table class="academic-table">
+                    <thead>
+                        <tr>
+                            <th>Defense Paradigm</th>
+                            <th>EQF Rejection (%)</th>
+                            <th>DQF Rejection (%)</th>
+                            <th>Surviving Phantoms [EQF / DQF]</th>
+                            <th>Clean Retention (%)</th>
+                            <th>Clean $\mathrm{mAP}_{50}$ Shift</th>
+                            <th>Post-Defense ASR</th>
+                            <th>CPU Latency [Overhead]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>No Defense (Raw Model)</strong></td>
+                            <td>0.00 &plusmn; 0.00%</td>
+                            <td>0.00 &plusmn; 0.00%</td>
+                            <td>19.37 &plusmn; 0.43 / 18.72 &plusmn; 0.42</td>
+                            <td>100.00%</td>
+                            <td>62.42% [0.00 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.28 ms [Baseline]</td>
+                        </tr>
+                        <tr>
+                            <td>Standard NMS ($\mathrm{IoU}=0.50$)</td>
+                            <td>6.91 &plusmn; 0.32%</td>
+                            <td>23.46 &plusmn; 0.50%</td>
+                            <td>18.04 &plusmn; 0.46 / 14.33 &plusmn; 0.23</td>
+                            <td>95.02%</td>
+                            <td>62.30% [-0.13 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.75 ms [+0.47 ms]</td>
+                        </tr>
+                        <tr>
+                            <td>Distance-IoU NMS ($\theta=0.50$)</td>
+                            <td>6.31 &plusmn; 0.29%</td>
+                            <td>21.80 &plusmn; 0.50%</td>
+                            <td>18.15 &plusmn; 0.46 / 14.64 &plusmn; 0.23</td>
+                            <td>95.48%</td>
+                            <td>62.33% [-0.10 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.53 ms [+0.25 ms]</td>
+                        </tr>
+                        <tr>
+                            <td>Soft-NMS (Gaussian, $\sigma=0.50$)</td>
+                            <td>15.69 &plusmn; 0.32%</td>
+                            <td>36.47 &plusmn; 0.64%</td>
+                            <td>16.34 &plusmn; 0.42 / 11.89 &plusmn; 0.15</td>
+                            <td>90.70%</td>
+                            <td>61.80% [-0.62 pp]</td>
+                            <td>99.78% / 99.67%</td>
+                            <td>0.66 ms [+0.38 ms]</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>Containment-NMS ($\mathrm{IoMin}=0.50$)</strong></td>
+                            <td><strong>20.87 &plusmn; 0.24%</strong></td>
+                            <td><strong>48.53 &plusmn; 0.77%</strong></td>
+                            <td><strong>15.33 &plusmn; 0.32 / 9.63 &plusmn; 0.09</strong></td>
+                            <td><strong>84.96%</strong></td>
+                            <td><strong>60.57% [-1.85 pp]</strong></td>
+                            <td>99.78% / 99.67%</td>
+                            <td><strong>0.41 ms [+0.13 ms]</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Threshold Elevation ($\tau=0.50$)</td>
+                            <td>49.01 &plusmn; 0.75%</td>
+                            <td>41.98 &plusmn; 0.79%</td>
+                            <td>9.88 &plusmn; 0.36 / 10.86 &plusmn; 0.19</td>
+                            <td>62.72%</td>
+                            <td>55.42% [-7.00 pp]</td>
+                            <td>98.44% / 99.11%</td>
+                            <td>0.29 ms [+0.01 ms]</td>
+                        </tr>
+                        <tr>
+                            <td>Spatial DBSCAN ($\epsilon=0.15$)</td>
+                            <td>76.53 &plusmn; 0.92%</td>
+                            <td>85.60 &plusmn; 0.39%</td>
+                            <td>4.54 &plusmn; 0.09 / 2.69 &plusmn; 0.06</td>
+                            <td>44.27%</td>
+                            <td>44.62% [-17.81 pp]</td>
+                            <td>96.44% / 86.89%</td>
+                            <td>2.30 ms [+2.02 ms]</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>SQD-Filter (Ours, $d=0.15$)</strong></td>
+                            <td><strong>53.61 &plusmn; 0.51%</strong></td>
+                            <td><strong>68.64 &plusmn; 0.35%</strong></td>
+                            <td><strong>8.99 &plusmn; 0.19 / 5.87 &plusmn; 0.06</strong></td>
+                            <td><strong>66.88%</strong></td>
+                            <td><strong>56.73% [-5.69 pp]</strong></td>
+                            <td>99.78% / 99.67%</td>
+                            <td><strong>0.24 ms [&le; 0.01 ms]</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SECTION 5: FIGURE GALLERY & EMPIRICAL ANALYSIS -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-images"></i> Publication Figure Gallery & Empirical Analysis</h2>
+            <p class="text-body">
+                Click on any figure to view the high-resolution vector visualization.
+            </p>
+
+            <div class="teaser-box">
+                <img src="fig/fig1_nms_free_paradox.png" alt="Figure 1: Latency Determinism vs. Spatial Proposal Filtering" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 2: Empirical verification of latency determinism and spatial proposal filtering at native $640\times 640$ resolution across 3 independent random seeds.</strong>
+                    (a) On edge CPU, YOLOv8 suffers a $+123.9\%$ latency surge ($14.80\text{ ms} \to 33.13\text{ ms}$) under targeted perturbation due to proposal bloat, whereas RT-DETR exhibits strict empirical latency invariance ($34.81 \pm 0.55\text{ ms}$, static tensor graph).
+                    (b) While heuristic NMS suppresses dense proposal clusters in convolutional models ($80.50\%$ reduction), RT-DETR allows $19.37 \pm 0.43$ (EQF) and $18.72 \pm 0.42$ (DQF) phantoms to pass unfiltered into downstream systems.
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig2_displacement_tradeoff.png" alt="Figure 2: Foreground Proposal Displacement Tradeoff" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 3: Empirical verification of the Foreground Proposal Displacement Hypothesis.</strong>
+                    (a) Scatter plot of pairwise center distance vs. pairwise IoU between phantom boxes, illustrating the bivariate distribution of spatially dispersed pairs ($D_{\mathrm{center}} \ge 0.15$) and multi-scale co-located clusters ($D_{\mathrm{center}} < 0.15$) with bounded cross-scale IoU.
+                    (b) Empirical Cumulative Distribution Function (ECDF) of displacement severity under Untargeted PGD ($73.64 \pm 0.11\%$) and targeted EQF ($66.63 \pm 0.80\%$). Global backbone corruption accounts for the majority of eviction, while targeted EQF shows $7.01\text{ pp}$ lower eviction ($t = -11.06, p = 0.0081, df=2$) due to gradient concentration on target queries.
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig3_downstream_cyberphysical_impact.png" alt="Figure 3: Downstream MOT and AEB Simulation" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 4: Downstream cyber-physical simulations on multi-object tracking and autonomous emergency braking.</strong>
+                    (a) ByteTrack Multi-Object Tracking: phantom floods expand candidate association vectors from $7.37 \to 32.52$, expanding Hungarian matching matrices from $7\times 7=49$ to $7\times 33=231$ elements ($4.71\times$ elements), with association latency increasing from $0.0037\text{ ms} \to 0.0052\text{ ms}$ (maintaining real-time responsiveness, but inducing Track ID fragmentation).
+                    (b) Autonomous Emergency Braking (AEB Pinhole Corridor): stylized single-frame camera trigger risk rises from $2.33\% \to 99.67\%$, underscoring the critical need for temporal multi-frame tracking and multimodal radar/LiDAR sensor fusion.
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig4_sqd_filter_defense.png" alt="Figure 4: SQD-Filter Post-Processing Mitigation" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 5: Post-processing defense trade-offs on official COCO val2017.</strong>
+                    (a) Detection box composition before and after mitigation: SQD-Filter ($d=0.15$) reduces fabricated phantoms from $19.37$ to $8.99$ (EQF) and $18.72$ to $5.87$ (DQF) while preserving $66.88\%$ of clean nominal detections.
+                    (b) Rejection rate vs. CPU latency: standard NMS fails against multi-scale queries ($6.91\%$ EQF rejection), while SQD-Filter achieves $53.61\%$ (EQF) and $68.64\%$ (DQF) rejection in $0.24\text{ ms}$ CPU latency ($<0.01\text{ ms}$ overhead), avoiding the severe latency and over-suppression bottleneck of density DBSCAN ($2.30\text{ ms}$ latency, $44.27\%$ retention).
+                </p>
+            </div>
+
+            <div class="teaser-box">
+                <img src="fig/fig_qualitative_detections.png" alt="Figure 5: Roadway Qualitative Detection Visualizations" class="teaser-img">
+                <p class="teaser-caption">
+                    <strong>Figure 6: Empirical qualitative detection visualizations across benchmark and defended conditions on a representative roadway scene at native $640\times 640$ resolution.</strong>
+                    (a) Clean baseline: nominal vehicle and pedestrian detections. (b) Negative control: Gaussian Noise ($\sigma = 16/255$), verifying genuine objects remain robustly detected. (c) Baseline: Untargeted PGD ($\epsilon = 16/255, T=8$), exhibiting unstructured semantic corruption. (d) Standard Bottleneck Threat: Encoder Query Fabrication (EQF), illustrating co-located multi-scale query clusters. (e) Advanced Boundary Targeting: Rank-Aware Bottleneck EQF (RAB-EQF), optimizing background queries past the 300-th selection boundary $\tau_{\mathrm{boundary}}$. (f) Mitigation Heuristic: Spatial Query Dispersion Filter (SQD-Filter, $d_{\mathrm{thresh}} = 0.15$), cleanly deduplicating concentric multi-scale phantoms to a single candidate while preserving genuine vehicular detections.
+                </p>
+            </div>
+        </section>
+
+        <!-- SECTION 6: BIBTEX CITATION -->
+        <section id="bibtex">
+            <h2 class="section-heading"><i class="fa-solid fa-quote-left"></i> BibTeX Citation</h2>
+            <p class="text-body">
+                If you find this research or code useful in your work, please cite our paper:
+            </p>
+            <div class="bibtex-box">
+                <button class="btn-copy" onclick="copyBibtex()"><i class="fa-regular fa-copy"></i> Copy</button>
+                <pre id="bibtex-code">@article{le2026adversarial,
+  title={Adversarial Object Fabrication in Real-Time Detection Transformers: Multi-Scale Query Geometry and Spatial Mitigation Limits},
+  author={Le, Viet-Anh and Hoang Viet, Dung and Nguyen-Trong, Khanh},
+  journal={Engineering Applications of Artificial Intelligence},
+  year={2026},
+  publisher={Elsevier},
+  note={Under Review / Preprint. Project page: https://vietanhlee.github.io/AI_TrustWorthy/}
+}</pre>
+            </div>
+        </section>
+
+        <!-- SECTION 7: REPRODUCIBILITY & OPEN SCIENCE -->
+        <section>
+            <h2 class="section-heading"><i class="fa-solid fa-code-branch"></i> Open Science & Reproducibility</h2>
+            <p class="text-body">
+                All empirical suites, multi-seed evaluation protocols ($N=900$), figure generation scripts, and complete JSON telemetry records are released openly under the MIT License to facilitate verification and further research in trustworthy computer vision:
+            </p>
+            <ul style="margin-left: 24px; color: var(--text-body); line-height: 1.8; margin-bottom: 20px;">
+                <li><strong>Source Repository:</strong> <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank">github.com/vietanhlee/AI_TrustWorthy</a></li>
+                <li><strong>Interactive Project Page:</strong> <a href="https://vietanhlee.github.io/AI_TrustWorthy/">vietanhlee.github.io/AI_TrustWorthy</a></li>
+                <li><strong>Telemetry Record:</strong> <code>paper_2_phantom_fabrication/outputs/paper2_complete_telemetry.json</code> (100% authentic Kaggle 2x T4 GPU run, commit <code>c030685</code>).</li>
+                <li><strong>One-Click Reproduction Script:</strong> <code>bash run_all.sh --batch_size 16 --num_images 300</code> or <code>python run_paper2_clean_rebenchmark.py --sync_only</code>.</li>
+            </ul>
+        </section>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <p>
+                <strong>Intelligent Systems & Cyber-Physical Security Laboratory</strong><br>
+                Posts and Telecommunications Institute of Technology (PTIT), Hanoi, Vietnam.<br>
+                Released under MIT License. Open Science & Reproducible Research.
+            </p>
+        </div>
+    </footer>
+
+    <!-- LIGHTBOX IMAGE MODAL -->
+    <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img id="lightbox-img" class="lightbox-img" src="" alt="Zoomed View">
+        <div id="lightbox-caption" class="lightbox-caption"></div>
+    </div>
+
+    <script>
+        // Lightbox Zoom Logic
+        document.querySelectorAll('.teaser-img').forEach(img => {
+            img.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const modal = document.getElementById('lightbox');
+                const modalImg = document.getElementById('lightbox-img');
+                const modalCaption = document.getElementById('lightbox-caption');
+
+                modalImg.src = this.src;
+                const captionElem = this.nextElementSibling;
+                modalCaption.innerHTML = captionElem ? captionElem.innerHTML : '';
+
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        function closeLightbox() {
+            const modal = document.getElementById('lightbox');
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeLightbox();
+            }
+        });
+
+        function copyBibtex() {
+            const code = document.getElementById('bibtex-code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+
+</html>

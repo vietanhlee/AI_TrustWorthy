@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-11-23T19:01:12.968108",
-  "total_elapsed_seconds": 33.52,
-  "git_commit": "c0306857c5c7e8724a75d4f29c766cb0c625cbfd",
+  "timestamp": "2026-11-24T11:18:54.952039",
+  "total_elapsed_seconds": 63.38,
+  "git_commit": "5f18f00eae8026203f23de4323e6dcb44b9cf83c",
   "git_branch": "master",
   "dataset": {
     "image_folder": "G:\\Edge_Sec\\paper_2_phantom_fabrication",
@@ -25,20 +25,20 @@
       "task_id": 5,
       "name": "Task 5: Generate Scientific Figures (Fig 1-4)",
       "return_code": 0,
-      "duration_seconds": 12.61,
+      "duration_seconds": 27.3,
       "status": "SUCCESS"
     },
     {
       "task_id": 6,
       "name": "Task 6: Post-Run Scientific Pipeline (Report, Sync, Paper, Verify)",
       "return_code": 0,
-      "duration_seconds": 20.79,
+      "duration_seconds": 35.88,
       "status": "SUCCESS"
     }
   ],
   "unified_telemetry": "G:\\Edge_Sec\\paper_2_phantom_fabrication\\outputs\\paper2_complete_telemetry.json",
   "checksums": {
-    "unified_telemetry_sha256": "a6e4fdaeb21e56c49d4bd48f080b9100720c0fae2ee76f77639192ac9fbeda55",
+    "unified_telemetry_sha256": "e5142d7e79b39a79ba1860856f06d798633d4b6c898d40cfc3fcc90ce4279535",
     "stage1_benchmark_sha256": "141f3f77af539666286c9054d6ada4e891fe9728a4f04f94a0c88a1c636058b0",
     "stage2_sensitivity_sha256": "377e41ca2d1463104ea9efecc8363ffff8a775650631a9f9ed7d983b06a8701b",
     "stage2_downstream_sha256": "0980809b57fb7d451d8c0a21d400fd8f3cb31d97d473018490828c740b6a73ac",
