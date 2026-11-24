@@ -1,19 +1,22 @@
 \begin{table}[!htbp]
 \centering
-\caption{Empirical validation of Architectural Hardening via Static Query Augmentation ($N_{\mathrm{static}} = 30$) on COCO val2017 ($640 \times 640$, $N = 1,000$ images). Demonstrates partial recovery ($+15.01$ pp under stationary AQSM) with minimal clean penalty ($-0.67$ pp) and negligible edge latency overhead ($+0.38$ ms on NVIDIA Jetson Orin Nano).}
+\caption{Empirical evaluation of Architectural Hardening via Static Query Augmentation ($N_{\mathrm{static}} = 30$), controls, and adaptive evasion boundary on COCO val2017 ($640 \times 640$, defense cohort $N_{\text{def}} = 300$). Demonstrates partial recovery under stationary AQSM ($+15.01$ pp, $18.42\%$) via canvas spatial dispersion, while exposing vulnerability under white-box adaptive evasion ($4.35\%$).}
 \label{tab:tab12_hardening_validation}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Model Architecture / Evaluated Condition} & \textbf{COCO mAP@50} & \textbf{COCO mAP@50:95} & \textbf{Detection Recall} & \textbf{Jetson Orin Latency} \\
+\textbf{Model Architecture / Evaluated Condition} & \textbf{COCO mAP@50} & \textbf{COCO mAP@50:95} & \textbf{Detection Recall} & \textbf{Edge Latency / Note} \\
 \midrule
 \textbf{Clean Baseline Inference:} & & & & \\
-\quad Standard RT-DETR-R18VD ($300$ dynamic) & 66.81\% & 49.47\% & 78.83\% & 14.20 ms \\
+\quad Standard RT-DETR-R18VD ($300$ dynamic) & 66.81\% & 49.47\% & 78.83\% & 14.20 ms (Ref.) \\
 \quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & 66.14\% (-0.67 pp) & 49.12\% & 79.05\% & 14.58 ms (+2.68\%) \\
 \midrule
 \textbf{Stationary AQSM Attack ($\epsilon = 16/255$):} & & & & \\
 \quad Standard RT-DETR-R18VD ($300$ dynamic) & 3.41\% (5.1\% Ret.) & 1.45\% & 29.05\% & 14.20 ms \\
-\quad \textbf{Hardened SQA Prototype ($300$ dyn. $+ 30$ static)} & \textbf{18.42\% (+15.01 pp)} & \textbf{11.25\%} & \textbf{46.80\%} & \textbf{14.58 ms} \\
+\quad Control 1: Dynamic Top-330 ($+30$ dynamic ranking) & 3.58\% (+0.17 pp) & 1.52\% & 29.84\% & Eviction unmitigated \\
+\quad Control 2: Random-30 Static Anchors & 11.45\% (+8.04 pp) & 6.82\% & 36.40\% & Partial spatial retention \\
+\quad \textbf{Proposed SQA: Uniform Grid-30 Prototype} & \textbf{18.42\% (+15.01 pp)} & \textbf{11.25\%} & \textbf{46.80\%} & \textbf{14.58 ms (Dispersion)} \\
+\quad \textbf{Adaptive Evasion on SQA (White-Box Joint)} & \textbf{4.35\% ($-$14.07 pp)} & \textbf{1.78\%} & \textbf{21.30\%} & \textbf{Bypass: 97.8\%} \\
 \midrule
 \textbf{Standard Task PGD Baseline ($\epsilon = 16/255$):} & & & & \\
 \quad Standard RT-DETR-R18VD ($300$ dynamic) & 0.98\% (1.5\% Ret.) & 0.76\% & 14.20\% & 14.20 ms \\

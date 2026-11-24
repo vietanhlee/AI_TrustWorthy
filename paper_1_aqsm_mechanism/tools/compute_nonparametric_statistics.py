@@ -243,10 +243,33 @@ def analyze_causal_per_image() -> Dict[str, Any]:
     print(f"      Macro Query Attribution Share:  {nom_share_q:.2f}% (95% BCa CI: [{ci_q_low:.2f}%, {ci_q_high:.2f}%])")
 
     # Global pooled (official paper headline)
-    # Global benchmark numbers: Y00=65.49, Y11=3.07, Y10=7.45, Y01=26.58
+    # Global benchmark numbers: Y00=65.50085, Y11=3.07067, Y10=7.45032, Y01=26.58189
+    clean_map = 65.50085
+    b_map = 3.07067
+    c_map = 7.45032
+    d_map = 26.58189
+
+    ret_b = b_map / clean_map
+    ret_c = c_map / clean_map
+    ret_d = d_map / clean_map
+    prod_cd = ret_c * ret_d
+    ln_b = float(np.log(ret_b))
+    ln_c = float(np.log(ret_c))
+    ln_d = float(np.log(ret_d))
+    log_sum = ln_c + ln_d
+    log_inter = ln_b - log_sum
+    share_m_log = float((ln_c / log_sum) * 100.0)
+    share_q_log = float((ln_d / log_sum) * 100.0)
+
     print(f"\n    So sánh với Global Pooled mAP Attribution:")
     print(f"    Global ME_M = -40.78 pp (65.32% share) vs Global ME_Q = -21.65 pp (34.68% share)")
     print(f"    Độ nhạy phân rã theo mức độ tổng hợp (Aggregation Sensitivity Gap): ~3.5 pp")
+    print(f"    Multiplicative / Log-Scale Decomposition (Table 3 Global Pooled):")
+    print(f"      Retention: Ret_B = {ret_b:.4f}, Ret_M = {ret_c:.4f}, Ret_Q = {ret_d:.4f}")
+    print(f"      Multiplicative Check: Ret_M * Ret_Q = {prod_cd:.4f} vs Ret_B = {ret_b:.4f} (Diff = {abs(ret_b - prod_cd):.4f})")
+    print(f"      Log-Scale Effects: ln(Ret_M) = {ln_c:.4f}, ln(Ret_Q) = {ln_d:.4f}, Sum = {log_sum:.4f}")
+    print(f"      Log-Scale Interaction = {log_inter:.4f} (Virtually 0)")
+    print(f"      Log-Scale Shares: Memory = {share_m_log:.2f}%, Query = {share_q_log:.2f}%")
 
     results_out["attribution_shares"] = {
         "macro_memory_share_pct": float(nom_share_m),
@@ -270,6 +293,23 @@ def analyze_causal_per_image() -> Dict[str, Any]:
         "global_memory_share_pct": 65.32,
         "global_query_share_pct": 34.68,
         "aggregation_sensitivity_gap_pp": 3.54,
+        "log_scale_multiplicative_decomposition": {
+            "retention_b": float(ret_b),
+            "retention_m": float(ret_c),
+            "retention_q": float(ret_d),
+            "multiplicative_product_ret_m_x_ret_q": float(prod_cd),
+            "multiplicative_product_error": float(abs(ret_b - prod_cd)),
+            "ln_ret_b": ln_b,
+            "ln_ret_m": ln_c,
+            "ln_ret_q": ln_d,
+            "log_scale_interaction": log_inter,
+            "log_memory_share_pct": share_m_log,
+            "log_query_share_pct": share_q_log,
+            "taskpgd_log_memory_share_pct": 87.52,
+            "taskpgd_log_query_share_pct": 12.48,
+            "taskpgd_linear_memory_share_pct": 82.47,
+            "taskpgd_linear_query_share_pct": 17.53,
+        },
     }
 
     # Statistical Power Analysis

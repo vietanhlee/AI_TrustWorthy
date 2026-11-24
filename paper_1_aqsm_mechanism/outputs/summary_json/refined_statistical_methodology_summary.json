@@ -106,7 +106,24 @@
       },
       "global_memory_share_pct": 65.32,
       "global_query_share_pct": 34.68,
-      "aggregation_sensitivity_gap_pp": 3.54
+      "aggregation_sensitivity_gap_pp": 3.54,
+      "log_scale_multiplicative_decomposition": {
+        "retention_b": 0.046879849650806056,
+        "retention_m": 0.11374386744599498,
+        "retention_q": 0.40582511524659604,
+        "multiplicative_product_ret_m_x_ret_q": 0.04616011811486445,
+        "multiplicative_product_error": 0.0007197315359416048,
+        "ln_ret_b": -3.060167340825902,
+        "ln_ret_m": -2.1738061351670934,
+        "ln_ret_q": -0.9018329628042522,
+        "log_scale_interaction": 0.015471757145443465,
+        "log_memory_share_pct": 70.67819291934836,
+        "log_query_share_pct": 29.32180708065164,
+        "taskpgd_log_memory_share_pct": 87.52,
+        "taskpgd_log_query_share_pct": 12.48,
+        "taskpgd_linear_memory_share_pct": 82.47,
+        "taskpgd_linear_query_share_pct": 17.53
+      }
     },
     "power_analysis": {
       "n_valid": 992,

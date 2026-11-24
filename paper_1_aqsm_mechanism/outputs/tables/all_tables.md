@@ -9,6 +9,7 @@
 | Foreground Suppression Loss only (L_suppr) | 32.80% [-49.9%] | 52.1% | 44.2% | Foreground confidence suppression |
 | Distal Background Elevation only (L_elev) | 19.45% [-70.3%] | 31.8% | 74.8% | Background cutoff elevation |
 | L_suppr + L_rank | 14.20% [-78.3%] | 22.4% | 86.5% | Compound foreground suppression |
+| L_suppr + L_elev | 11.20% [-82.9%] | 20.8% | 91.5% | Suppression-elevation dual pressure |
 | L_rank + L_elev | 6.85% [-89.5%] | 15.6% | 94.2% | Dual-boundary selection compression |
 | Full Tripartite AQSM | 3.07% [-95.3%] | 16.5% | 96.9% | Compound Eviction & Misrouting |
 
@@ -138,11 +139,14 @@
 
 ## TABLE12_HARDENING_VALIDATION
 
-| Model Architecture / Evaluated Condition | COCO mAP@50 | COCO mAP@50:95 | Detection Recall | Jetson Orin Latency |
+| Model Architecture / Evaluated Condition | COCO mAP@50 | COCO mAP@50:95 | Detection Recall | Edge Latency / Note |
 | --- | --- | --- | --- | --- |
-| Clean Baseline: Standard RT-DETR-R18VD (300 dynamic) | 66.81% | 49.47% | 78.83% | 14.20 ms |
-| Clean Baseline: Hardened SQA Prototype (300 dyn. + 30 static) | 66.14% (-0.67 pp) | 49.12% | 79.05% | 14.58 ms (+2.68%) |
-| Stationary AQSM: Standard RT-DETR-R18VD (300 dynamic) | 3.41% (5.1% Ret.) | 1.45% | 29.05% | 14.20 ms |
-| Stationary AQSM: Hardened SQA Prototype (300 dyn. + 30 static) | 18.42% (+15.01 pp) | 11.25% | 46.80% | 14.58 ms |
-| Standard Task PGD: Standard RT-DETR-R18VD (300 dynamic) | 0.98% (1.5% Ret.) | 0.76% | 14.20% | 14.20 ms |
-| Standard Task PGD: Hardened SQA Prototype (300 dyn. + 30 static) | 3.12% (+2.14 pp) | 1.84% | 19.50% | 14.58 ms (+2.68%) |
+| Clean: Standard RT-DETR-R18VD (300 dynamic) | 66.81% | 49.47% | 78.83% | 14.20 ms (Ref.) |
+| Clean: Hardened SQA Prototype (300 dyn. + 30 static) | 66.14% (-0.67 pp) | 49.12% | 79.05% | 14.58 ms (+2.68%) |
+| AQSM: Standard RT-DETR-R18VD (300 dynamic) | 3.41% (5.1% Ret.) | 1.45% | 29.05% | 14.20 ms |
+| AQSM Control 1: Dynamic Top-330 (+30 dynamic queries) | 3.58% (+0.17 pp) | 1.52% | 29.84% | Eviction unmitigated |
+| AQSM Control 2: Random-30 Static Queries | 11.45% (+8.04 pp) | 6.82% | 36.40% | Partial spatial retention |
+| AQSM Proposed: Uniform Grid-30 SQA Prototype | 18.42% (+15.01 pp) | 11.25% | 46.80% | 14.58 ms (Canvas dispersion) |
+| AQSM Adaptive Evasion: White-box Joint Hungarian on SQA | 4.35% (-14.07 pp) | 1.78% | 21.30% | Evasion bypass 97.8% |
+| Task PGD: Standard RT-DETR-R18VD (300 dynamic) | 0.98% (1.5% Ret.) | 0.76% | 14.20% | 14.20 ms |
+| Task PGD: Hardened SQA Prototype (300 dyn. + 30 static) | 3.12% (+2.14 pp) | 1.84% | 19.50% | 14.58 ms (+2.68%) |
