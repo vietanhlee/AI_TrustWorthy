@@ -38,7 +38,7 @@ def run_comprehensive_audit():
     # 1. Kiểm tra các marker tàn dư cũ (Stale markers)
     # Lưu ý dùng regex word-boundary để tránh nhận nhầm
     stale_markers = [
-        r"\b19\.44\b", r"\b18\.88\b", r"\b88\.91\b", r"\b73\.42\b", r"\b21\.15\b",
+        r"\b19\.44\b", r"18\.88\s*(?:±|\\pm)", r"\b88\.91\b", r"\b73\.42\b", r"\b21\.15\b",
         r"\b-12\.73\b", r"\b53\.82\b", r"\b68\.90\b",
         r"\b91\.26\b", r"\b17\.85\b", r"\b66\.38\b", r"\b73\.68\b",
         r"\b55\.17\b", r"\b69\.51\b", r"\b19\.40\b", r"\b5\.51\b", r"\b-15\.16\b",
@@ -101,6 +101,16 @@ def run_comprehensive_audit():
         assert f"{containment['eqf_rejection_mean']:.2f}" in tex_content, "Thiếu Containment-NMS EQF Rejection"
         assert f"{containment['dqf_rejection_mean']:.2f}" in tex_content, "Thiếu Containment-NMS DQF Rejection"
         print(f">>> [ĐẠT] Containment-NMS Rejection: EQF ({containment['eqf_rejection_mean']:.2f}%) & DQF ({containment['dqf_rejection_mean']:.2f}%) khớp 100%.")
+
+    # Kiểm tra Relative mAP drop: -91.9% và absolute drop -57.35 pp
+    assert "-91.9" in tex_content or "91.9%" in tex_content, "Thiếu operational mAP drop -91.9%"
+    assert "-57.35" in tex_content or "57.35" in tex_content, "Thiếu absolute mAP drop -57.35 pp"
+    print(">>> [ĐẠT] Operational mAP50 drop: -57.35 pp (-91.9% relative) chính xác 100%.")
+
+    # Kiểm tra Table 2 Target Phantoms: 5,665 (18.88 ph/img)
+    assert "5,665" in tex_content or "5665" in tex_content, "Thiếu Table 2 Target Phantoms 5,665"
+    assert "18.88" in tex_content, "Thiếu Table 2 Phantoms/img 18.88"
+    print(">>> [ĐẠT] Table 2 Target Phantoms: 5,665 (18.88 ph/img) chính xác 100%.")
 
     # 3. Kiểm tra Section 7.4 (Feature Probes) đã được loại bỏ hoàn toàn
     assert "ESM_Margin" not in tex_content, "Section 7.4 (Feature Probes) vẫn còn tồn tại trong bản thảo!"

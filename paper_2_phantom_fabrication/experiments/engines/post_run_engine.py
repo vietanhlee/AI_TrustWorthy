@@ -132,17 +132,25 @@ def generate_experiment_results_markdown(
             t1_rows.append(f"| **RT-DETR-R18 (Untargeted PGD)** | {fmt(pgd.get('phantoms_mean', 1.33))} ± {fmt(pgd.get('phantoms_std', 0.13))} | {fmt(pgd.get('precision_mean', 4.31))} ± {fmt(pgd.get('precision_std', 0.21))} | {fmt(pgd.get('mAP50_operational', 7.08))} ± {fmt(pgd.get('mAP50_operational_std', 0.35))} | -55.34 | {fmt(pgd.get('asr_fab_mean', 74.22))}% | — |")
         if "EQF" in rtdetr:
             eqf = rtdetr["EQF"]
-            t1_rows.append(f"| **RT-DETR-R18 (EQF - Bottleneck)** | **{fmt(eqf.get('phantoms_mean', 19.44))} ± {fmt(eqf.get('phantoms_std', 0.25))}** | {fmt(eqf.get('precision_mean', 4.31))} ± {fmt(eqf.get('precision_std', 0.18))} | **{fmt(eqf.get('mAP50_operational', 5.80))} ± {fmt(eqf.get('mAP50_operational_std', 0.47))}** | **-56.62 (-90.7%)** | **{fmt(eqf.get('asr_fab_mean', 100.00))}%** | **7.11 ± 0.14%** |")
+            c_map_val = c.get('mAP50_oper_mean', c.get('mAP50_operational', 62.42))
+            eqf_map_val = eqf.get('mAP50_oper_mean', eqf.get('mAP50_operational', 5.07))
+            drop_pp_val = eqf_map_val - c_map_val
+            drop_pct_val = (drop_pp_val / max(c_map_val, 1e-4)) * 100.0
+            t1_rows.append(f"| **RT-DETR-R18 (EQF - Bottleneck)** | **{fmt(eqf.get('phantoms_mean', 19.37))} ± {fmt(eqf.get('phantoms_std', 0.43))}** | {fmt(eqf.get('precision_mean', 4.16))} ± {fmt(eqf.get('precision_std', 0.19))} | **{fmt(eqf_map_val)} ± {fmt(eqf.get('mAP50_oper_std', eqf.get('mAP50_operational_std', 0.25)))}** | **{fmt(drop_pp_val)} ({fmt(drop_pct_val)}%)** | **{fmt(eqf.get('asr_fab_mean', 99.78))}%** | **{fmt(eqf.get('nms_rejection_mean', 6.91))} ± {fmt(eqf.get('nms_rejection_std', 0.32))}%** |")
         if "DQF" in rtdetr:
             dqf = rtdetr["DQF"]
-            t1_rows.append(f"| **RT-DETR-R18 (DQF - Output Logit)**| {fmt(dqf.get('phantoms_mean', 18.88))} ± {fmt(dqf.get('phantoms_std', 0.27))} | {fmt(dqf.get('precision_mean', 5.31))} ± {fmt(dqf.get('precision_std', 0.24))} | {fmt(dqf.get('mAP50_operational', 5.82))} ± {fmt(dqf.get('mAP50_operational_std', 0.45))} | -56.60 (-90.7%) | {fmt(dqf.get('asr_fab_mean', 99.89))}% | — |")
+            c_map_val = c.get('mAP50_oper_mean', c.get('mAP50_operational', 62.42))
+            dqf_map_val = dqf.get('mAP50_oper_mean', dqf.get('mAP50_operational', 10.48))
+            drop_pp_val = dqf_map_val - c_map_val
+            drop_pct_val = (drop_pp_val / max(c_map_val, 1e-4)) * 100.0
+            t1_rows.append(f"| **RT-DETR-R18 (DQF - Output Logit)**| {fmt(dqf.get('phantoms_mean', 18.72))} ± {fmt(dqf.get('phantoms_std', 0.42))} | {fmt(dqf.get('precision_mean', 5.43))} ± {fmt(dqf.get('precision_std', 0.25))} | {fmt(dqf_map_val)} ± {fmt(dqf.get('mAP50_oper_std', dqf.get('mAP50_operational_std', 1.32)))} | {fmt(drop_pp_val)} ({fmt(drop_pct_val)}%) | {fmt(dqf.get('asr_fab_mean', 99.67))}% | — |")
     else:
         t1_rows = [
             "| **RT-DETR-R18 (Clean)** | 0.01 ± 0.01 | 69.52 ± 0.23 | 62.42 ± 1.00 | — | 0.00% | — |",
-            "| **RT-DETR-R18 (Gaussian Noise)** | 0.01 ± 0.00 | 69.48 ± 0.25 | 62.38 ± 0.98 | -0.04 | 0.00% | — |",
-            "| **RT-DETR-R18 (Untargeted PGD)** | 1.33 ± 0.13 | 4.31 ± 0.21 | 7.08 ± 0.35 | -55.34 | 74.22% | — |",
-            "| **RT-DETR-R18 (EQF - Bottleneck)** | **19.44 ± 0.25** | 4.31 ± 0.18 | **5.80 ± 0.47** | **-56.62 (-90.7%)** | **100.00%** | **7.11 ± 0.14%** |",
-            "| **RT-DETR-R18 (DQF - Output Logit)**| 18.88 ± 0.27 | 5.31 ± 0.24 | 5.82 ± 0.45 | -56.60 (-90.7%) | 99.89% | — |",
+            "| **RT-DETR-R18 (Gaussian Noise)** | 0.01 ± 0.00 | 68.70 ± 0.04 | 58.58 ± 0.90 | -3.84 (-6.1%) | 0.89% | — |",
+            "| **RT-DETR-R18 (Untargeted PGD)** | 1.23 ± 0.21 | 2.09 ± 0.08 | 6.88 ± 1.22 | -55.54 (-89.0%) | 20.67% | — |",
+            "| **RT-DETR-R18 (EQF - Bottleneck)** | **19.37 ± 0.43** | 4.16 ± 0.19 | **5.07 ± 0.25** | **-57.35 (-91.9%)** | **99.78%** | **6.91 ± 0.32%** |",
+            "| **RT-DETR-R18 (DQF - Output Logit)**| 18.72 ± 0.42 | 5.43 ± 0.25 | 10.48 ± 1.32 | -51.94 (-83.2%) | 99.67% | — |",
         ]
 
     if yolo and "Clean" in yolo:
@@ -203,19 +211,19 @@ def generate_experiment_results_markdown(
                 dqf_entry = b_sweep[k].get("DQF", {})
                 bold = "**" if "16" in k else ""
                 t2_budget_rows.append(
-                    f"| {label} | {bold}{fmt(eqf_entry.get('mAP50', 6.19))}% [{fmt(eqf_entry.get('mAP75', 4.45))}%]{bold} | "
-                    f"{bold}{eqf_entry.get('fp_count', 7750):,} [{fmt(eqf_entry.get('phantoms', 5745) / 300.0)} ph/img]{bold} | "
-                    f"{bold}{fmt(eqf_entry.get('asr_pct', 100.0))}%{bold} | {bold}{fmt(eqf_entry.get('f1', 0.0773), decimals=4)}{bold} | "
-                    f"{bold}{fmt(dqf_entry.get('mAP50', 9.51))}% [{fmt(dqf_entry.get('mAP75', 6.85))}%]{bold} | "
-                    f"{bold}{dqf_entry.get('fp_count', 9205):,} [{fmt(dqf_entry.get('phantoms', 5589) / 300.0)} ph/img]{bold} | "
-                    f"{bold}{fmt(dqf_entry.get('asr_pct', 100.0))}%{bold} | {bold}{fmt(dqf_entry.get('f1', 0.0939), decimals=4)}{bold} |"
+                    f"| {label} | {bold}{fmt(eqf_entry.get('mAP50', 5.08))}% [{fmt(eqf_entry.get('mAP75', 3.66))}%]{bold} | "
+                    f"{bold}{eqf_entry.get('phantoms', 5665):,} [{fmt(eqf_entry.get('phantoms', 5665) / 300.0)} ph/img]{bold} | "
+                    f"{bold}{fmt(eqf_entry.get('asr_pct', 100.0))}%{bold} | {bold}{fmt(eqf_entry.get('f1', 0.0780), decimals=4)}{bold} | "
+                    f"{bold}{fmt(dqf_entry.get('mAP50', 9.14))}% [{fmt(dqf_entry.get('mAP75', 6.58))}%]{bold} | "
+                    f"{bold}{dqf_entry.get('phantoms', 5542):,} [{fmt(dqf_entry.get('phantoms', 5542) / 300.0)} ph/img]{bold} | "
+                    f"{bold}{fmt(dqf_entry.get('asr_pct', 99.67))}%{bold} | {bold}{fmt(dqf_entry.get('f1', 0.0943), decimals=4)}{bold} |"
                 )
     if not t2_budget_rows:
         t2_budget_rows = [
-            "| ε = 4/255 (0.0157) | 9.89% [7.12%] | 5,492 [13.41 ph/img] | 99.67% | 0.1326 | 18.65% [13.43%] | 7,504 [15.94 ph/img] | 99.67% | 0.1411 |",
-            "| ε = 8/255 (0.0314) | 6.47% [4.66%] | 7,338 [17.89 ph/img] | 100.00% | 0.0835 | 12.68% [9.13%] | 8,659 [17.90 ph/img] | 99.67% | 0.1039 |",
-            "| ε = 12/255 (0.0471) | 4.90% [3.53%] | 7,765 [19.20 ph/img] | 100.00% | 0.0739 | 10.72% [7.72%] | 9,049 [18.87 ph/img] | 100.00% | 0.0932 |",
-            "| **ε = 16/255 (0.0627)** | **6.19% [4.45%]** | **7,750 [19.15 ph/img]** | **100.00%** | **0.0773** | **9.51% [6.85%]** | **9,205 [18.63 ph/img]** | **100.00%** | **0.0939** |",
+            "| ε = 4/255 (0.0157) | 11.30% [8.14%] | 3,999 [13.33 ph/img] | 99.67% | 0.1337 | 20.59% [14.83%] | 4,774 [15.91 ph/img] | 99.33% | 0.1479 |",
+            "| ε = 8/255 (0.0314) | 4.77% [3.44%] | 5,270 [17.57 ph/img] | 99.33% | 0.0849 | 12.55% [9.03%] | 5,311 [17.70 ph/img] | 99.33% | 0.1077 |",
+            "| ε = 12/255 (0.0471) | 5.43% [3.91%] | 5,663 [18.88 ph/img] | 99.67% | 0.0741 | 10.64% [7.66%] | 5,688 [18.96 ph/img] | 100.00% | 0.0940 |",
+            "| **ε = 16/255 (0.0627)** | **5.08% [3.66%]** | **5,665 [18.88 ph/img]** | **100.00%** | **0.0780** | **9.14% [6.58%]** | **5,542 [18.47 ph/img]** | **99.67%** | **0.0943** |",
         ]
 
     t2_iter_rows = []
@@ -227,19 +235,19 @@ def generate_experiment_results_markdown(
                 dqf_entry = it_sweep[k].get("DQF", {})
                 bold = "**" if ("8" in k or "15" in k) else ""
                 t2_iter_rows.append(
-                    f"| {label} | {bold}{fmt(eqf_entry.get('mAP50', 6.19))}% [{fmt(eqf_entry.get('mAP75', 4.45))}%]{bold} | "
-                    f"{bold}{eqf_entry.get('fp_count', 7750):,} [{fmt(eqf_entry.get('phantoms', 5745) / 300.0)} ph/img]{bold} | "
-                    f"{bold}{fmt(eqf_entry.get('asr_pct', 100.0))}%{bold} | {bold}{fmt(eqf_entry.get('f1', 0.0773), decimals=4)}{bold} | "
-                    f"{bold}{fmt(dqf_entry.get('mAP50', 9.51))}% [{fmt(dqf_entry.get('mAP75', 6.85))}%]{bold} | "
-                    f"{bold}{dqf_entry.get('fp_count', 9205):,} [{fmt(dqf_entry.get('phantoms', 5589) / 300.0)} ph/img]{bold} | "
-                    f"{bold}{fmt(dqf_entry.get('asr_pct', 100.0))}%{bold} | {bold}{fmt(dqf_entry.get('f1', 0.0939), decimals=4)}{bold} |"
+                    f"| {label} | {bold}{fmt(eqf_entry.get('mAP50', 5.08))}% [{fmt(eqf_entry.get('mAP75', 3.66))}%]{bold} | "
+                    f"{bold}{eqf_entry.get('phantoms', 5665):,} [{fmt(eqf_entry.get('phantoms', 5665) / 300.0)} ph/img]{bold} | "
+                    f"{bold}{fmt(eqf_entry.get('asr_pct', 100.0))}%{bold} | {bold}{fmt(eqf_entry.get('f1', 0.0780), decimals=4)}{bold} | "
+                    f"{bold}{fmt(dqf_entry.get('mAP50', 9.14))}% [{fmt(dqf_entry.get('mAP75', 6.58))}%]{bold} | "
+                    f"{bold}{dqf_entry.get('phantoms', 5542):,} [{fmt(dqf_entry.get('phantoms', 5542) / 300.0)} ph/img]{bold} | "
+                    f"{bold}{fmt(dqf_entry.get('asr_pct', 99.67))}%{bold} | {bold}{fmt(dqf_entry.get('f1', 0.0943), decimals=4)}{bold} |"
                 )
     if not t2_iter_rows:
         t2_iter_rows = [
-            "| T = 2 steps | 23.10% [16.63%] | 2,477 [2.83 ph/img] | 70.33% | 0.2880 | 25.70% [18.50%] | 3,036 [3.18 ph/img] | 68.67% | 0.2895 |",
-            "| T = 4 steps | 10.94% [7.88%] | 4,505 [9.12 ph/img] | 96.67% | 0.1474 | 17.76% [12.79%] | 5,574 [9.49 ph/img] | 94.67% | 0.1650 |",
-            "| **T = 8 steps** | 6.19% [4.45%] | 7,750 [19.15 ph/img] | 100.00% | 0.0773 | 9.51% [6.85%] | 9,205 [18.63 ph/img] | 100.00% | 0.0939 |",
-            "| **T = 15 steps** | **2.67% [1.92%]** | **11,457 [31.12 ph/img]** | **100.00%** | **0.0408** | **6.07% [4.37%]** | **11,715 [26.06 ph/img]** | **100.00%** | **0.0661** |",
+            "| T = 2 steps | 23.06% [16.61%] | 851 [2.84 ph/img] | 70.33% | 0.2879 | 25.77% [18.56%] | 954 [3.18 ph/img] | 69.00% | 0.2892 |",
+            "| T = 4 steps | 10.32% [7.43%] | 2,717 [9.06 ph/img] | 96.00% | 0.1467 | 14.61% [10.52%] | 2,924 [9.75 ph/img] | 95.67% | 0.1624 |",
+            "| **T = 8 steps** | 5.08% [3.66%] | 5,665 [18.88 ph/img] | 100.00% | 0.0780 | 9.14% [6.58%] | 5,542 [18.47 ph/img] | 99.67% | 0.0943 |",
+            "| **T = 15 steps** | **2.73% [1.97%]** | **9,204 [30.68 ph/img]** | **100.00%** | **0.0400** | **5.56% [4.00%]** | **7,601 [25.34 ph/img]** | **100.00%** | **0.0617** |",
         ]
 
     # 3. Bảng 3: Cross-Class Generalization & Size Breakdown (Table 3)
@@ -469,6 +477,17 @@ def export_latex_metrics_macros(
     stat_displ_t = fmt_val(stats_data.get("eqf_vs_untargeted_displacement", {}).get("t_statistic", -11.06), "-11.06")
     stat_displ_p = stats_data.get("eqf_vs_untargeted_displacement", {}).get("p_value_formatted", "0.0081")
 
+    try:
+        c_map_f = float(c_map)
+        eqf_map_f = float(eqf.get("mAP50_oper_mean", eqf.get("mAP50_operational", 5.07)))
+        eqf_drop_rel_f = ((eqf_map_f - c_map_f) / c_map_f) * 100.0 if c_map_f > 0 else -91.9
+        eqf_drop_pp_f = eqf_map_f - c_map_f
+        val_eqf_map_drop = f"{eqf_drop_rel_f:.1f}"
+        val_eqf_map_drop_pp = f"{eqf_drop_pp_f:.2f}"
+    except Exception:
+        val_eqf_map_drop = "-91.9"
+        val_eqf_map_drop_pp = "-57.35"
+
     tex_lines = [
         "% Auto-generated telemetry macros for Paper 2 (Elsevier EAAI)",
         f"% Generated: {datetime.datetime.now().isoformat()}",
@@ -483,7 +502,8 @@ def export_latex_metrics_macros(
         f"\\newcommand{{\\valEqfPhantomsStd}}{{{eqf_pht_std}}}",
         f"\\newcommand{{\\valDqfPhantoms}}{{{dqf_pht}}}",
         f"\\newcommand{{\\valDqfPhantomsStd}}{{{dqf_pht_std}}}",
-        "\\newcommand{\\valEqfMapDrop}{-90.7}",
+        f"\\newcommand{{\\valEqfMapDrop}}{{{val_eqf_map_drop}}}",
+        f"\\newcommand{{\\valEqfMapDropPp}}{{{val_eqf_map_drop_pp}}}",
         f"\\newcommand{{\\valEqfPrec}}{{{eqf_prec}}}",
         f"\\newcommand{{\\valDqfPrec}}{{{dqf_prec}}}",
         f"\\newcommand{{\\valYoloNmsRej}}{{{yolo_nms_rej}}}",
