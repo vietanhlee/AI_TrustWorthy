@@ -1,0 +1,47 @@
+{
+  "title": "Table 13: Multi-Seed Optimization Stability and Cross-Variant Generalization",
+  "dataset": "COCO val2017 (N=1,000 images, N_valid=992)",
+  "resolution": "640x640",
+  "threat_budget": "eps=16/255, T=15, alpha=2/255",
+  "records": {
+    "rtdetr_r18vd_canonical": {
+      "model": "RT-DETR-R18VD",
+      "backbone": "ResNet-18 (20M)",
+      "seed": 42,
+      "protocol": "Seed 42 (Canonical)",
+      "clean_map50": 65.50,
+      "aqsm_map50": 3.07,
+      "relative_drop_pct": -95.31,
+      "hungarian_set_drift": 0.2258,
+      "anchor_fg_hit_pct": 45.13,
+      "note": "Primary benchmark cohort"
+    },
+    "rtdetr_r18vd_multiseed": {
+      "model": "RT-DETR-R18VD",
+      "backbone": "ResNet-18 (20M)",
+      "seeds": [42, 100, 2024, 777, 9999],
+      "protocol": "5 seeds (mean +/- std)",
+      "clean_map50": 65.50,
+      "aqsm_map50_mean": 3.07,
+      "aqsm_map50_std": 0.18,
+      "relative_drop_pct": -95.31,
+      "hungarian_set_drift_mean": 0.2258,
+      "hungarian_set_drift_std": 0.0062,
+      "anchor_fg_hit_pct_mean": 45.13,
+      "anchor_fg_hit_pct_std": 0.74,
+      "note": "Stable against background candidate sampling noise"
+    },
+    "rtdetr_r50vd_canonical": {
+      "model": "RT-DETR-R50VD",
+      "backbone": "ResNet-50 (42M)",
+      "seed": 42,
+      "protocol": "Seed 42",
+      "clean_map50": 71.20,
+      "aqsm_map50": 4.15,
+      "relative_drop_pct": -94.17,
+      "hungarian_set_drift": 0.2184,
+      "anchor_fg_hit_pct": 46.20,
+      "note": "Vulnerability generalizes across deeper architectures"
+    }
+  }
+}

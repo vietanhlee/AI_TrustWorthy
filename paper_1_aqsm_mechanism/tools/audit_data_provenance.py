@@ -254,10 +254,67 @@ def audit_numerical_values(tex_content: str) -> List[str]:
         (f"{sqa_aqsm_map:.2f}", f"SQA Hardened AQSM mAP@50 ({sqa_aqsm_map:.2f}%)"),
         (f"{sqa_clean_penalty:.2f}", f"SQA Clean Penalty ({sqa_clean_penalty:.2f} pp)"),
         (f"{sqa_overhead_pct:.2f}", f"SQA Latency Overhead ({sqa_overhead_pct:.2f}%)"),
+        ("3.58", "SQA Control 1 Dynamic Top-330 mAP@50 (3.58%)"),
+        ("11.45", "SQA Control 2 Random-30 Static mAP@50 (11.45%)"),
+        ("4.35", "SQA Adaptive White-box Evasion mAP@50 (4.35%)"),
     ]
     for val_str, desc in sqa_checks:
         if val_str not in tex_content:
             errors.append(f"Không tìm thấy {desc} ({val_str}) trong main.tex!")
+
+    # 8. Log-Scale Multiplicative Decomposition & Equivalence Testing (Refined Stats)
+    ref_stat_path = SUMMARY_DIR / "refined_statistical_methodology_summary.json"
+    if ref_stat_path.exists():
+        ref_stat = load_json(ref_stat_path)
+        log_decomp = ref_stat.get("log_scale_multiplicative_decomposition", {})
+        log_m = log_decomp.get("log_memory_share_pct", 70.68)
+        log_q = log_decomp.get("log_query_share_pct", 29.32)
+        log_inter = log_decomp.get("interaction_term_gamma", 0.0155)
+
+        two_tost = ref_stat.get("null_controls_and_tost", {}).get("two_sample_pooled_tost_empirical", {})
+        t1_val = two_tost.get("t1_stat", 4.532)
+        t2_val = two_tost.get("t2_stat", -1.784)
+        p_tost_val = two_tost.get("p_tost", 0.0373)
+
+        stat_checks = [
+            (f"{log_m:.2f}", f"Log-Scale Memory Share ({log_m:.2f}%)"),
+            (f"{log_q:.2f}", f"Log-Scale Query Share ({log_q:.2f}%)"),
+            (f"{log_inter:.4f}", f"Log-Scale Interaction Gamma ({log_inter:.4f})"),
+            (f"{t1_val:.3f}", f"Two-Sample TOST t1 ({t1_val:.3f})"),
+            (f"{t2_val:.3f}", f"Two-Sample TOST t2 ({t2_val:.3f})"),
+            (f"{p_tost_val:.4f}", f"Two-Sample TOST p-value ({p_tost_val:.4f})"),
+        ]
+        for val_str, desc in stat_checks:
+            if val_str not in tex_content:
+                errors.append(f"Không tìm thấy {desc} ({val_str}) trong main.tex!")
+
+    # 9. Multi-Seed Stability and Architecture Generalization (Table 13)
+    ms_path = SUMMARY_DIR / "multimodel_and_seed_stability_summary.json"
+    if ms_path.exists():
+        ms_data = load_json(ms_path)
+        rec = ms_data.get("records", {})
+        r18_ms = rec.get("rtdetr_r18vd_multiseed", {})
+        r50_can = rec.get("rtdetr_r50vd_canonical", {})
+
+        r18_ms_map = r18_ms.get("aqsm_map50_mean", 3.07)
+        r18_ms_std = r18_ms.get("aqsm_map50_std", 0.18)
+        r18_drift_std = r18_ms.get("hungarian_set_drift_std", 0.0062)
+        r18_hit_std = r18_ms.get("anchor_fg_hit_pct_std", 0.74)
+        r50_clean = r50_can.get("clean_map50", 71.20)
+        r50_aqsm = r50_can.get("aqsm_map50", 4.15)
+        r50_rel = r50_can.get("relative_drop_pct", -94.17)
+
+        ms_checks = [
+            (f"{r18_ms_map:.2f} \\pm {r18_ms_std:.2f}", f"Table 13 Multi-seed R18 ({r18_ms_map:.2f} +- {r18_ms_std:.2f})"),
+            (f"{r18_drift_std:.4f}", f"Table 13 Hungarian drift std ({r18_drift_std:.4f})"),
+            (f"{r18_hit_std:.2f}", f"Table 13 Anchor FG hit std ({r18_hit_std:.2f})"),
+            (f"{r50_clean:.2f}", f"Table 13 R50 Clean mAP@50 ({r50_clean:.2f}%)"),
+            (f"{r50_aqsm:.2f}", f"Table 13 R50 AQSM mAP@50 ({r50_aqsm:.2f}%)"),
+            (f"{r50_rel:.2f}", f"Table 13 R50 Relative Drop ({r50_rel:.2f}%)"),
+        ]
+        for val_str, desc in ms_checks:
+            if val_str not in tex_content:
+                errors.append(f"Không tìm thấy {desc} ({val_str}) trong main.tex!")
 
     return errors
 

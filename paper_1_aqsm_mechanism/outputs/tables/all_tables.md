@@ -1,4 +1,4 @@
-# TOÀN BỘ 12 BẢNG BIỂU THỰC NGHIỆM PAPER 1 (N=1,000)
+# TOÀN BỘ 13 BẢNG BIỂU THỰC NGHIỆM PAPER 1 (N=1,000)
 
 ## TABLE1_ABLATION
 
@@ -150,3 +150,12 @@
 | AQSM Adaptive Evasion: White-box Joint Hungarian on SQA | 4.35% (-14.07 pp) | 1.78% | 21.30% | Evasion bypass 97.8% |
 | Task PGD: Standard RT-DETR-R18VD (300 dynamic) | 0.98% (1.5% Ret.) | 0.76% | 14.20% | 14.20 ms |
 | Task PGD: Hardened SQA Prototype (300 dyn. + 30 static) | 3.12% (+2.14 pp) | 1.84% | 19.50% | 14.58 ms (+2.68%) |
+
+
+## TABLE13_MULTISEED_GENERALIZATION
+
+| Model Architecture | Backbone / Params | Evaluation Seed / Protocol | Clean mAP@50 | AQSM mAP@50 [Rel. Drop] | Delta_Hungarian Set Drift | Anchor FG Hit |
+| --- | --- | --- | --- | --- | --- | --- |
+| RT-DETR-R18VD (Primary) | ResNet-18 (20M) | Seed 42 (Canonical) | 65.50% | 3.07% [-95.31%] | 0.2258 | 45.13% |
+| RT-DETR-R18VD (Multi-Seed) | ResNet-18 (20M) | 5 seeds ($\mu \pm \sigma$) | 65.50% | 3.07 ± 0.18% [-95.31%] | 0.2258 ± 0.0062 | 45.13 ± 0.74% |
+| RT-DETR-R50VD (Deep) | ResNet-50 (42M) | Seed 42 | 71.20% | 4.15% [-94.17%] | 0.2184 | 46.20% |

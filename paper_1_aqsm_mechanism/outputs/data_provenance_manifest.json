@@ -242,6 +242,26 @@
         "Edge_Latency_Jetson_Orin_Default_ms": 14.2,
         "Edge_Latency_Jetson_Orin_Hardened_ms": 14.58
       }
+    },
+    "tab:tab13_multiseed_generalization": {
+      "table_number": 13,
+      "caption": "Multi-seed optimization stability and cross-variant architectural generalization across RT-DETR model depths",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 1000,
+      "source_artifacts": [
+        "outputs/summary_json/multimodel_and_seed_stability_summary.json"
+      ],
+      "metrics": {
+        "RTDETR_R18_Clean_mAP50": 65.50,
+        "RTDETR_R18_Canonical_AQSM_mAP50": 3.07,
+        "RTDETR_R18_MultiSeed_Mean_AQSM_mAP50": 3.07,
+        "RTDETR_R18_MultiSeed_Std_AQSM_mAP50": 0.18,
+        "RTDETR_R18_Hungarian_Drift": 0.2258,
+        "RTDETR_R18_Anchor_FG_Hit_pct": 45.13,
+        "RTDETR_R50_Clean_mAP50": 71.20,
+        "RTDETR_R50_AQSM_mAP50": 4.15,
+        "RTDETR_R50_Relative_Drop_pct": -94.17
+      }
     }
   },
   "figures": {
