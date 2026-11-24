@@ -90,7 +90,7 @@ Thay toàn bộ môi trường `table*` tại dòng 247-277 bằng đoạn mã s
 \caption{Multi-seed official COCO \texttt{val2017} object detection and fabrication performance at native $640\times 640$ resolution ($N=900$ evaluations across 300 images and seeds 42, 123, 456) comparing RT-DETR (\texttt{r18vd}, 8,400 candidate anchors) against YOLOv8-Small (+ NMS) across nominal conditions and adversarial fabrication threat vectors. Precision measures $\mathrm{TP}/(\mathrm{TP}+\mathrm{FP})$ at activation threshold $\tau_{\mathrm{act}}=0.35$. In the clean baseline, standard COCO benchmark evaluation (evaluating all detections down to $\tau=0.001$) yields $\mathbf{68.01 \pm 1.40\%}$ $\mathrm{mAP}_{50}$, whereas evaluating at runtime operational threshold $\tau_{\mathrm{act}}=0.35$ yields nominal $\mathbf{62.42 \pm 1.00\%}$ $\mathrm{mAP}_{50}$. Reported values indicate Mean $\pm$ Standard Deviation across seeds.}
 \label{tab:fabrication_benchmarks}
 \renewcommand{\arraystretch}{1.35}
-\resizebox{\linewidth}{!}{%
+\resizebox{\linewidth}{!}{
 \begin{tabular}{l l l l l l l l}
 \toprule
 \makecell[l]{\textbf{Model \&}\\\textbf{Condition}} & \makecell[l]{\textbf{Operational $\mathrm{mAP}_{50}$}\\\textbf{[Rel. Drop]}} & \makecell[l]{\textbf{$\mathrm{ASR}_{\mathrm{fab}}$ (\%)}\\\textbf{[Mean $\pm$ SD]}} & \makecell[l]{\textbf{Active Boxes}\\\textbf{($\ge 0.35$)}} & \makecell[l]{\textbf{Surviving Phantoms}\\\textbf{[Mean $\pm$ SD]}} & \makecell[l]{\textbf{Detector}\\\textbf{Precision}} & \makecell[l]{\textbf{FG Displacement}\\\textbf{Rate (\%)}} & \makecell[l]{\textbf{GPU Latency}\\\textbf{[CPU Latency]}} \\

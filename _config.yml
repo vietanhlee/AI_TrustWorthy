@@ -1,0 +1,12 @@
+# GitHub Pages configuration
+theme: null
+exclude:
+  - paper_1_aqsm_mechanism
+  - paper_2_phantom_fabrication
+  - paper_3_defense_guardrail
+  - edge_sec_pro
+  - tools_archive
+  - scratch
+  - .venv
+  - coco5k
+  - SUBMISSION_PDFS

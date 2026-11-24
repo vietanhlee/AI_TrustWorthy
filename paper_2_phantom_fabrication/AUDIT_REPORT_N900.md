@@ -240,7 +240,7 @@ Dữ liệu đối chiếu trực tiếp từ `sensitivity_sweeps` trong telemet
 \caption{Ablation analysis of adversarial candidate fabrication across perturbation budgets $\epsilon$ and PGD iteration steps $T$ on official COCO \texttt{val2017} ($N=900$ multi-seed evaluations across 300 images). Evaluates detection precision metrics, false positive counts (FP), true positive counts (TP), and resultant detection $\mathrm{mAP}_{50}$ and $\mathrm{mAP}_{75}$.}
 \label{tab:ablation_benchmarks}
 \renewcommand{\arraystretch}{1.30}
-\resizebox{\linewidth}{!}{%
+\resizebox{\linewidth}{!}{
 \begin{tabular}{l l l l l l l l l}
 \toprule
 \makecell[l]{\textbf{Perturb.}\\\textbf{Constraint}} & \multicolumn{4}{c}{\textbf{Encoder Query Fabrication (EQF)}} & \multicolumn{4}{c}{\textbf{Decoder Query Fabrication (DQF)}} \\
