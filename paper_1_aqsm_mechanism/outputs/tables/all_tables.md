@@ -113,13 +113,13 @@
 
 ## TABLE10_LATENCY_SPONGE
 
-| Model Architecture | Operational Condition | Jetson Orin Nano (ms / FPS) | Raspberry Pi 5 (ms / FPS) | Active Detections (tau >= 0.35) | Sponge Attack Vulnerability |
+| Model Architecture | Operational Condition | Jetson Orin Nano (ms / FPS) | Raspberry Pi 5 (ms / FPS) | Active Detections (tau >= 0.35) | Latency Resilience under Attack |
 | --- | --- | --- | --- | --- | --- |
-| RT-DETR-R18VD | Clean Baseline | 14.20 ± 0.35 (70.4) | 418.20 ± 12.40 (2.39) | 4.52 ± 3.10 | Immune (NMS-free set prediction) |
-| RT-DETR-R18VD | Query Vanishing (eps = 16) | 14.21 ± 0.36 (70.4) | 418.80 ± 11.80 (2.39) | 0.18 ± 0.52 | Immune (Delta t = 0.01 ms) |
-| RT-DETR-R18VD | AQSM Attack (eps = 16) | 14.22 ± 0.38 (70.3) | 418.50 ± 12.10 (2.39) | 7.15 ± 4.30 | Immune (Delta t = 0.02 ms) |
-| RT-DETR-R18VD | Standard Task PGD (eps = 16) | 14.25 ± 0.40 (70.2) | 419.50 ± 12.80 (2.38) | 29.40 ± 8.70 | Immune (Delta t = 0.05 ms) |
-| YOLOv8-S (Baseline) | Clean Baseline | 11.50 ± 0.28 (87.0) | 245.30 ± 8.50 (4.08) | 4.65 ± 2.90 | Vulnerable (NMS quadratic clustering) |
+| RT-DETR-R18VD | Clean Baseline | 14.20 ± 0.35 (70.4) | 418.20 ± 12.40 (2.39) | 4.52 ± 3.10 | Stable (NMS-free set prediction) |
+| RT-DETR-R18VD | Query Vanishing (eps = 16) | 14.21 ± 0.36 (70.4) | 418.80 ± 11.80 (2.39) | 0.18 ± 0.52 | Stable (Delta t = 0.01 ms) |
+| RT-DETR-R18VD | AQSM Attack (eps = 16) | 14.22 ± 0.38 (70.3) | 418.50 ± 12.10 (2.39) | 7.15 ± 4.30 | Stable (Delta t = 0.02 ms) |
+| RT-DETR-R18VD | Standard Task PGD (eps = 16) | 14.25 ± 0.40 (70.2) | 419.50 ± 12.80 (2.38) | 29.40 ± 8.70 | Stable (Delta t = 0.05 ms) |
+| YOLOv8-S (Baseline) | Clean Baseline | 11.50 ± 0.28 (87.0) | 245.30 ± 8.50 (4.08) | 4.65 ± 2.90 | Baseline (NMS quadratic clustering) |
 | YOLOv8-S (Baseline) | Dense Sponge Attack (eps = 16) | 39.40 ± 2.45 (25.4) | 815.40 ± 34.20 (1.23) | 286.40 ± 36.10 | Vulnerable (+232% to +242% latency surge) |
 
 

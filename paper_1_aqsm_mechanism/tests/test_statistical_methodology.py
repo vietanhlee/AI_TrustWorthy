@@ -357,6 +357,45 @@ class TestStatisticalMethodology(unittest.TestCase):
         self.assertLess(r50_can["relative_drop_pct"], -90.0)
         self.assertAlmostEqual(r50_can["aqsm_map50"], 4.15, places=2)
 
+    def test_12_data_provenance_manifest_generator_integrity(self):
+        """
+        Kiểm tra tính toàn vẹn và khả năng tự động sinh của công cụ generate_data_provenance_manifest.py:
+        - Sinh động 100% manifest từ summary_json mà không cần chỉnh sửa hậu nghiệm thủ công.
+        - Khởi tạo đầy đủ 13 Bảng biểu (Table 1 đến Table 13) và 7 Hình biểu (Figure 3 đến Figure 10).
+        - Toàn bộ source artifacts được khai báo đều phải tồn tại thực tế trên ổ đĩa.
+        """
+        from paper_1_aqsm_mechanism.tools.generate_data_provenance_manifest import generate_provenance_manifest
+
+        summary_dir = (
+            WORKSPACE_DIR
+            / "paper_1_aqsm_mechanism"
+            / "outputs"
+            / "summary_json"
+        )
+        if not summary_dir.exists():
+            self.skipTest(f"Thư mục {summary_dir} không tồn tại.")
+
+        manifest = generate_provenance_manifest(summary_dir)
+        self.assertIsInstance(manifest, dict)
+        self.assertEqual(len(manifest["tables"]), 13)
+        self.assertEqual(len(manifest["figures"]), 7)
+
+        # Kiểm tra Table 13 được sinh tự động chuẩn xác
+        self.assertIn("tab:tab13_multiseed_generalization", manifest["tables"])
+        t13 = manifest["tables"]["tab:tab13_multiseed_generalization"]
+        self.assertEqual(t13["table_number"], 13)
+        self.assertEqual(t13["n_evaluated_images"], 1000)
+        self.assertAlmostEqual(t13["metrics"]["RTDETR_R18_Clean_mAP50"], 65.50, places=1)
+        self.assertAlmostEqual(t13["metrics"]["RTDETR_R18_Canonical_AQSM_mAP50"], 3.07, places=2)
+        self.assertAlmostEqual(t13["metrics"]["RTDETR_R50_AQSM_mAP50"], 4.15, places=2)
+
+        # Kiểm tra mọi artifact khai báo đều tồn tại thực tế
+        base_paper_dir = WORKSPACE_DIR / "paper_1_aqsm_mechanism"
+        for tid, tinfo in manifest["tables"].items():
+            for art in tinfo.get("source_artifacts", []):
+                art_file = base_paper_dir / art
+                self.assertTrue(art_file.exists(), f"[{tid}] Artifact {art} không tồn tại trên đĩa!")
+
 
 if __name__ == "__main__":
     unittest.main()

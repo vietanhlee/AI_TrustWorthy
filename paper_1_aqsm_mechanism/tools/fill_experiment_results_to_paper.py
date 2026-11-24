@@ -44,6 +44,7 @@ TABLE_LABELS = [
     (10, "tab:tab10_latency_sponge", "table10_latency_sponge.tex"),
     (11, "tab:tab11_defense_results", "table11_defense_results.tex"),
     (12, "tab:tab12_hardening_validation", "table12_hardening_validation.tex"),
+    (13, "tab:tab13_multiseed_generalization", "table13_multiseed_generalization.tex"),
 ]
 
 KNOWN_PAPER1_JSON_FILES = {
@@ -57,11 +58,16 @@ KNOWN_PAPER1_JSON_FILES = {
     "edge_latency_results.json",
     "encoder_memory_analysis.json",
     "encoder_query_dynamics.json",
+    "hardening_evaluation_results.json",
     "latency_profile.json",
     "matched_budget_results.json",
     "matched_budget_sweep.json",
     "mechanism_telemetry_results.json",
+    "multimodel_and_seed_stability_summary.json",
     "query_selection_dynamics.json",
+    "refined_statistical_methodology_summary.json",
+    "set_distance_and_instance_coverage.json",
+    "sqa_controls_and_adaptive_summary.json",
     "tautology_control_results.json",
 }
 
@@ -239,11 +245,20 @@ def main():
     print(ret.stdout)
 
     # 3. Thay thế các khối bảng trong main.tex
-    print("\n>>> Bước 2/3: Cập nhật trực tiếp 12 khối bảng biểu vào main.tex...")
+    print("\n>>> Bước 2/4: Cập nhật trực tiếp 13 khối bảng biểu vào main.tex...")
     update_manuscript_tables(main_tex_path, tables_dir)
 
-    # 4. Kiểm định toàn vẹn dữ liệu
-    print("\n>>> Bước 3/3: Kiểm tra Data Provenance và đối soát tính toàn vẹn 100%...")
+    # 4. Tự động kết xuất lại data_provenance_manifest.json từ dữ liệu thực nghiệm thật
+    print("\n>>> Bước 3/4: Tự động kết xuất lại Data Provenance Manifest từ dữ liệu thực nghiệm...")
+    manifest_script = PAPER_DIR / "tools" / "generate_data_provenance_manifest.py"
+    ret_manifest = subprocess.run([sys.executable, str(manifest_script), "--summary_dir", str(target_summary_dir)], capture_output=True, text=True)
+    if ret_manifest.returncode != 0:
+        print(f"[CẢNH BÁO] Không thể sinh tự động manifest:\n{ret_manifest.stderr}")
+    else:
+        print(ret_manifest.stdout)
+
+    # 5. Kiểm định toàn vẹn dữ liệu
+    print("\n>>> Bước 4/4: Kiểm tra Data Provenance và đối soát tính toàn vẹn 100%...")
     audit_script = PAPER_DIR / "tools" / "audit_data_provenance.py"
     ret_audit = subprocess.run([sys.executable, str(audit_script)], capture_output=True, text=True)
     print(ret_audit.stdout)

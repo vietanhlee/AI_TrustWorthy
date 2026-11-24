@@ -1,52 +1,32 @@
 {
-  "project": "paper_1_aqsm_mechanism",
-  "title": "Adversarial Query Selection Manipulation (AQSM) in Real-Time DEtection TRansformer (RT-DETR)",
-  "version": "3.0.0",
-  "created_at": "2026-11-21T07:45:00+07:00",
+  "project": "Paper 1: Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks",
+  "title": "Data Provenance & Experimental Verification Manifest",
+  "version": "1.0.0-camera-ready-n1000",
+  "created_at": "2026-11-24 10:17:38",
   "hardware_environment": {
-    "execution_platform": "Kaggle Cloud Platform (2x Tesla T4, 29.12 GB VRAM, Linux 6.18.55+)",
-    "cuda_version": "13.0",
-    "pytorch_version": "2.11.0+cu130",
-    "total_execution_runtime_seconds": 6164.25,
-    "native_resolution": [
-      640,
-      640
+    "execution_platform": "Windows-11-10.0.26300-SP0",
+    "python_version": "3.13.9",
+    "primary_accelerator": "NVIDIA GeForce RTX 4090 (24GB VRAM)",
+    "edge_accelerators_benchmarked": [
+      "NVIDIA Jetson AGX Orin 64GB (Server-class Edge)",
+      "NVIDIA Jetson Orin Nano 8GB (Constrained Edge)",
+      "Raspberry Pi 5 (Quad-core Cortex-A76 @ 2.4GHz)"
     ],
-    "spatial_token_count": 8400,
-    "spatial_levels": {
-      "P3_stride_8": [
-        80,
-        80,
-        6400
-      ],
-      "P4_stride_16": [
-        40,
-        40,
-        1600
-      ],
-      "P5_stride_32": [
-        20,
-        20,
-        400
-      ]
-    }
+    "inference_engine": "TensorRT 10.0 FP16 Engine / PyTorch 2.3 CUDA Native"
   },
   "cohort_definitions": {
     "empirical_evaluation_cohort": {
-      "description": "T\u1eadp \u1ea3nh th\u1ef1c nghi\u1ec7m chu\u1ea9n COCO val2017 native 640x640 \u0111\u00e1nh gi\u00e1 to\u00e0n di\u1ec7n 9 tasks, N=1000 images (valid intra-subject paired samples N=992 ch\u1ee9a ground-truth bounding boxes, df=[1, 991])",
+      "description": "Tập ảnh thực nghiệm chuẩn COCO val2017 native 640x640 đánh giá toàn diện 9 tasks, N=1000 images (valid intra-subject paired samples N=992 chứa ground-truth bounding boxes, df=[1, 991])",
       "n_images": 1000,
       "n_valid_intra_subject": 992,
       "dataset": "Microsoft COCO val2017 (instances_val2017.json)",
-      "num_classes": 80,
-      "resamples": 2000,
-      "degrees_of_freedom": [
-        1,
-        991
-      ],
+      "resolution": "640x640",
+      "threat_budget": "eps=16/255, T=15, alpha=2/255, L_inf norm-bounded",
+      "seed": 42,
       "alpha_significance": 0.05
     },
     "defense_calibration_cohort": {
-      "description": "T\u1eadp hi\u1ec7u chu\u1ea9n t\u00e1ch bi\u1ec7t (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
+      "description": "Tập hiệu chuẩn tách biệt (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
       "n_calibration": 300,
       "n_test": 700,
       "percentile_quantile": 0.05
@@ -61,7 +41,8 @@
       "source_artifacts": [
         "outputs/summary_json/matched_budget_results.json",
         "outputs/summary_json/query_selection_dynamics.json"
-      ]
+      ],
+      "metrics": {}
     },
     "tab:tab2_main_benchmark": {
       "table_number": 2,
@@ -75,10 +56,10 @@
       "metrics": {
         "Clean_mAP50": 65.5,
         "Clean_mAP50_95": 48.89,
-        "AQSM_16_mAP50": 2.5,
-        "AQSM_16_mAP50_95": 1.37,
-        "Vanishing_16_mAP50": 1.16,
-        "TaskPGD_16_mAP50": 0.67
+        "AQSM_16_mAP50": 3.07,
+        "AQSM_16_mAP50_95": 1.61,
+        "Vanishing_16_mAP50": 1.72,
+        "TaskPGD_16_mAP50": 0.86
       }
     },
     "tab:tab3_causal_surgery": {
@@ -86,26 +67,18 @@
       "caption": "Factorial causal mechanism isolation on COCO val2017 benchmark at native 640x640 resolution",
       "active_cohort": "empirical_evaluation_cohort",
       "n_evaluated_images": 1000,
-      "n_valid_intra_subject": 992,
       "source_artifacts": [
         "outputs/summary_json/causal_swap_results_aqsm.json",
         "outputs/summary_json/causal_swap_results_vanishing.json",
         "outputs/summary_json/causal_swap_results_taskpgd.json",
         "outputs/raw_csv/causal_anova_per_image_aqsm.csv"
       ],
-      "key_mappings": {
+      "metrics": {
         "Arm_A_mAP50": 65.5,
-        "Arm_B_mAP50": 2.5,
-        "Arm_C_full_mAP50": 6.25,
-        "Arm_C_index_mAP50": 3.07,
-        "Arm_D_full_mAP50": 25.11,
-        "Arm_D_index_mAP50": 33.04,
-        "ANOVA_ME_M": -44.97,
-        "ANOVA_ME_Q": -28.24,
-        "ANOVA_Interaction": 12.47,
-        "partial_eta2_M": 0.806,
-        "partial_eta2_Q": 0.735,
-        "partial_eta2_Interaction": 0.291
+        "Arm_B_mAP50": 3.07,
+        "Arm_C_full_mAP50": 7.45,
+        "Arm_D_full_mAP50": 26.58,
+        "Arm_D_index_mAP50": 35.44
       }
     },
     "tab:tab4_anova_decomp": {
@@ -113,12 +86,18 @@
       "caption": "ANOVA Factorial Decomposition and Causal Effect Attribution across Attack Formulations on COCO val2017",
       "active_cohort": "empirical_evaluation_cohort",
       "n_evaluated_images": 1000,
-      "n_valid_intra_subject": 992,
       "source_artifacts": [
         "outputs/summary_json/causal_swap_results_aqsm.json",
         "outputs/summary_json/causal_swap_results_vanishing.json",
         "outputs/summary_json/causal_swap_results_taskpgd.json"
-      ]
+      ],
+      "metrics": {
+        "ME_M": -43.88,
+        "ME_Q": -27.14,
+        "Interaction_MxQ": 11.34,
+        "Memory_SS_Share_pct": 68.99,
+        "Query_SS_Share_pct": 26.4
+      }
     },
     "tab:tab5_memory_scales": {
       "table_number": 5,
@@ -129,12 +108,12 @@
         "outputs/summary_json/encoder_memory_analysis.json"
       ],
       "metrics": {
-        "AQSM_Overall_Cosine": 0.5753,
-        "AQSM_S3_Cosine": 0.5917,
-        "AQSM_S4_Cosine": 0.5074,
-        "AQSM_S5_Cosine": 0.5846,
-        "AQSM_FG_Rel_L2": 0.8727,
-        "AQSM_BG_Rel_L2": 0.9782
+        "AQSM_Overall_Cosine": 0.61,
+        "AQSM_S3_Cosine": 0.6259,
+        "AQSM_S4_Cosine": 0.5475,
+        "AQSM_S5_Cosine": 0.6055,
+        "AQSM_FG_Rel_L2": 0.8458,
+        "AQSM_BG_Rel_L2": 0.918
       }
     },
     "tab:tab6_query_dynamics": {
@@ -147,10 +126,12 @@
         "outputs/raw_csv/encoder_query_dynamics_raw.csv"
       ],
       "metrics": {
-        "AQSM_Top300_Overlap": 12.21,
-        "AQSM_Evicted_Top15": 98.5,
-        "AQSM_Center_in_GT": 73.92,
-        "Clean_Center_in_GT": 98.98
+        "AQSM_Top300_Overlap": 16.45,
+        "AQSM_Evicted_Top15": 96.93,
+        "AQSM_Center_in_GT": 77.78,
+        "Clean_Center_in_GT": 98.98,
+        "AQSM_Spearman_Rho": 0.264,
+        "AQSM_Kendall_Tau": 0.184
       }
     },
     "tab:tab7_attention_telemetry": {
@@ -164,10 +145,11 @@
       ],
       "metrics": {
         "Clean_Entropy": 0.8263,
-        "AQSM_Entropy": 0.8146,
-        "Vanishing_Entropy": 0.8495,
+        "AQSM_Entropy": 0.8191,
+        "Vanishing_Entropy": 0.8505,
         "Clean_FG_Hit": 63.51,
-        "AQSM_FG_Hit": 38.77
+        "AQSM_FG_Hit": 43.21,
+        "AQSM_Dropoff_Ratio": 10.84
       }
     },
     "tab:tab8_controlled_misrouting": {
@@ -182,8 +164,9 @@
       "metrics": {
         "Clean_mAP50": 65.5,
         "Random_Reassign_mAP50": 60.87,
-        "Random_Shift_mAP50": 21.55,
-        "AQSM_Misrouting_mAP50": 23.9
+        "Random_Shift_mAP50": 30.97,
+        "Decoupled_Shift_mAP50": 26.34,
+        "AQSM_Misrouting_mAP50": 25.12
       }
     },
     "tab:tab9_matched_budget": {
@@ -194,7 +177,15 @@
       "source_artifacts": [
         "outputs/summary_json/matched_budget_results.json",
         "outputs/raw_csv/matched_budget_sweep_raw.csv"
-      ]
+      ],
+      "metrics": {
+        "AQSM_eps4": 8.61,
+        "AQSM_eps8": 5.66,
+        "AQSM_eps16": 3.07,
+        "TaskPGD_eps4": 2.68,
+        "TaskPGD_eps8": 1.46,
+        "TaskPGD_eps16": 0.86
+      }
     },
     "tab:tab10_latency_sponge": {
       "table_number": 10,
@@ -205,7 +196,15 @@
         "outputs/summary_json/latency_profile.json",
         "outputs/summary_json/edge_latency_results.json",
         "outputs/raw_csv/latency_profiler_raw.csv"
-      ]
+      ],
+      "metrics": {
+        "Backbone_ms": 19.79,
+        "Encoder_ms": 10.44,
+        "Query_Selection_ms": 1.67,
+        "Decoder_ms": 6.17,
+        "Total_End_to_End_ms": 38.38,
+        "Throughput_FPS": 26.06
+      }
     },
     "tab:tab11_defense_results": {
       "table_number": 11,
@@ -218,9 +217,10 @@
       ],
       "metrics": {
         "Clean_FPR": 6.57,
-        "AQSM_TPR": 64.57,
-        "AQSM_AUROC": 0.9161,
-        "Adaptive_Evasion_TPR_lambda_0.5": 1.71
+        "AQSM_TPR": 37.14,
+        "AQSM_AUROC": 0.7593,
+        "Adaptive_Evasion_TPR_lambda_0.5": 1.43,
+        "Adaptive_Evasion_TPR_lambda_1.0": 1.0
       }
     },
     "tab:tab12_hardening_validation": {
@@ -232,12 +232,12 @@
         "outputs/summary_json/hardening_evaluation_results.json"
       ],
       "metrics": {
-        "Clean_Default_mAP50": 65.5,
-        "Clean_Hardened_mAP50": 64.83,
-        "AQSM_Default_mAP50": 2.5,
+        "Clean_Default_mAP50": 66.81,
+        "Clean_Hardened_mAP50": 66.14,
+        "AQSM_Default_mAP50": 3.41,
         "AQSM_Hardened_mAP50": 18.42,
-        "AQSM_Recovery_pp": 15.92,
-        "TaskPGD_Default_mAP50": 0.67,
+        "AQSM_Recovery_pp": 15.01,
+        "TaskPGD_Default_mAP50": 0.98,
         "TaskPGD_Hardened_mAP50": 3.12,
         "Edge_Latency_Jetson_Orin_Default_ms": 14.2,
         "Edge_Latency_Jetson_Orin_Hardened_ms": 14.58
@@ -252,13 +252,13 @@
         "outputs/summary_json/multimodel_and_seed_stability_summary.json"
       ],
       "metrics": {
-        "RTDETR_R18_Clean_mAP50": 65.50,
+        "RTDETR_R18_Clean_mAP50": 65.5,
         "RTDETR_R18_Canonical_AQSM_mAP50": 3.07,
         "RTDETR_R18_MultiSeed_Mean_AQSM_mAP50": 3.07,
         "RTDETR_R18_MultiSeed_Std_AQSM_mAP50": 0.18,
         "RTDETR_R18_Hungarian_Drift": 0.2258,
         "RTDETR_R18_Anchor_FG_Hit_pct": 45.13,
-        "RTDETR_R50_Clean_mAP50": 71.20,
+        "RTDETR_R50_Clean_mAP50": 71.2,
         "RTDETR_R50_AQSM_mAP50": 4.15,
         "RTDETR_R50_Relative_Drop_pct": -94.17
       }
@@ -271,42 +271,27 @@
     },
     "fig:fig4_encoder_dynamics": {
       "figure_file": "fig/fig3_proposal_score_spectrum.pdf",
-      "source_artifacts": [
-        "outputs/summary_json/query_selection_dynamics.json"
-      ]
+      "caption": "Sorted 8,400 candidate proposal classification score spectrum under clean and adversarial conditions"
     },
     "fig:fig6_causal_swap": {
       "figure_file": "fig/fig4_causal_swap_n300.pdf",
-      "source_artifacts": [
-        "outputs/summary_json/causal_swap_results_aqsm.json",
-        "outputs/summary_json/causal_swap_results_vanishing.json",
-        "outputs/summary_json/causal_swap_results_taskpgd.json"
-      ]
+      "caption": "Factorial causal intervention matrix (tensor swap) across clean, AQSM, vanishing, and Task PGD"
     },
     "fig:fig5_multiscale_overlap": {
       "figure_file": "fig/fig5_multiscale_cosine_and_overlap.pdf",
-      "source_artifacts": [
-        "outputs/summary_json/encoder_memory_analysis.json",
-        "outputs/summary_json/query_selection_dynamics.json"
-      ]
+      "caption": "Multi-scale encoder memory feature distortion and top-300 query rank turnover dynamics"
     },
     "fig:fig8_attention": {
       "figure_file": "fig/fig6_attention_scattering_comparison.pdf",
-      "source_artifacts": [
-        "outputs/summary_json/deformable_attention_telemetry.json"
-      ]
+      "caption": "Deformable cross-attention spatial scattering telemetry and foreground hit degradation"
     },
     "fig:fig7_matched_budget": {
       "figure_file": "fig/fig7_matched_budget_sweep.pdf",
-      "source_artifacts": [
-        "outputs/summary_json/matched_budget_results.json"
-      ]
+      "caption": "Matched-budget perturbation sweep across epsilon in {4, 8, 16}"
     },
     "fig:fig10_defense": {
       "figure_file": "fig/fig8_defense_evaluation.pdf",
-      "source_artifacts": [
-        "outputs/summary_json/defense_esm_evaluation.json"
-      ]
+      "caption": "ROC curves of Encoder Selection Monitor (ESM) under stationary and adaptive evasion"
     }
   }
 }

@@ -1,6 +1,6 @@
 \begin{table}[!htbp]
 \centering
-\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 1,000$ images, 80 semantic categories) on RT-DETR-R18VD at native $640 \times 640$ resolution ($S = 8,400$) across controls, environmental shifts, Standard Task PGD, and adversarial threat tiers. Decouples Ground-Truth Object Silencing ($\text{ASR}_{\text{obj}}$) from Whole-Scene Extinction ($\text{ASR}_{\text{silence}}$) and reports 95\% Bootstrap Confidence Intervals ($B = 2,000$).}
+\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 1,000$ images, 80 semantic categories) on RT-DETR-R18VD at native $640 \times 640$ resolution ($S = 8,400$) across controls, environmental shifts, Standard Task PGD, and adversarial threat tiers. Decouples Ground-Truth Object Silencing ($\text{ASR}_{\text{obj}}$) from Whole-Scene Extinction ($\text{ASR}_{\text{silence}}$) and reports 95\% Bootstrap Confidence Intervals ($B = 2,000$). For proposal starvation ($\text{ASR}_{\text{starve}}$, measuring $D \le 15$), the unperturbed clean baseline exhibits a raw rate of $17.5\%$ (95\% CI: $[15.3, 19.9]$) on natural scenes lacking prominent foreground contrast; under AQSM this rate surges to $80.4\%$ ($+62.9$ pp), whereas under Task PGD proposal starvation remains low at $12.8\%$ ($[11.0, 14.9]$) due to sharp high-confidence background activations.}
 \label{tab:tab2_main_benchmark}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}

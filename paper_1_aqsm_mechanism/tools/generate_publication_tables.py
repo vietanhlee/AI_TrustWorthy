@@ -213,7 +213,7 @@ def generate_table2(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 1,000$ images, 80 semantic categories) on RT-DETR-R18VD at native $640 \times 640$ resolution ($S = 8,400$) across controls, environmental shifts, Standard Task PGD, and adversarial threat tiers. Decouples Ground-Truth Object Silencing ($\text{ASR}_{\text{obj}}$) from Whole-Scene Extinction ($\text{ASR}_{\text{silence}}$) and reports 95\% Bootstrap Confidence Intervals ($B = 2,000$).}
+\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 1,000$ images, 80 semantic categories) on RT-DETR-R18VD at native $640 \times 640$ resolution ($S = 8,400$) across controls, environmental shifts, Standard Task PGD, and adversarial threat tiers. Decouples Ground-Truth Object Silencing ($\text{ASR}_{\text{obj}}$) from Whole-Scene Extinction ($\text{ASR}_{\text{silence}}$) and reports 95\% Bootstrap Confidence Intervals ($B = 2,000$). For proposal starvation ($\text{ASR}_{\text{starve}}$, measuring $D \le 15$), the unperturbed clean baseline exhibits a raw rate of $17.5\%$ (95\% CI: $[15.3, 19.9]$) on natural scenes lacking prominent foreground contrast; under AQSM this rate surges to $80.4\%$ ($+62.9$ pp), whereas under Task PGD proposal starvation remains low at $12.8\%$ ($[11.0, 14.9]$) due to sharp high-confidence background activations.}
 \label{tab:tab2_main_benchmark}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
@@ -329,7 +329,7 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Factorial causal failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 65.50\%), and $\Delta$ vs.\ Arm A/B.}
+\caption{Factorial interventional failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 65.50\%), and $\Delta$ vs.\ Arm A/B.}
 \label{tab:tab3_causal_surgery}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccc}
@@ -904,31 +904,31 @@ def generate_table10(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     dec = float(get_val(stg, ["Deformable_Decoder", "mean_ms"], 6.17))
     tot = float(get_val(stg, ["End_to_End_Total", "mean_ms"], 38.38))
 
-    headers = ["Model Architecture", "Operational Condition", "Jetson Orin Nano (ms / FPS)", "Raspberry Pi 5 (ms / FPS)", "Active Detections (tau >= 0.35)", "Sponge Attack Vulnerability"]
+    headers = ["Model Architecture", "Operational Condition", "Jetson Orin Nano (ms / FPS)", "Raspberry Pi 5 (ms / FPS)", "Active Detections (tau >= 0.35)", "Latency Resilience under Attack"]
     rows = [
-        ["RT-DETR-R18VD", "Clean Baseline", "14.20 ± 0.35 (70.4)", "418.20 ± 12.40 (2.39)", "4.52 ± 3.10", "Immune (NMS-free set prediction)"],
-        ["RT-DETR-R18VD", "Query Vanishing (eps = 16)", "14.21 ± 0.36 (70.4)", "418.80 ± 11.80 (2.39)", "0.18 ± 0.52", "Immune (Delta t = 0.01 ms)"],
-        ["RT-DETR-R18VD", "AQSM Attack (eps = 16)", "14.22 ± 0.38 (70.3)", "418.50 ± 12.10 (2.39)", "7.15 ± 4.30", "Immune (Delta t = 0.02 ms)"],
-        ["RT-DETR-R18VD", "Standard Task PGD (eps = 16)", "14.25 ± 0.40 (70.2)", "419.50 ± 12.80 (2.38)", "29.40 ± 8.70", "Immune (Delta t = 0.05 ms)"],
-        ["YOLOv8-S (Baseline)", "Clean Baseline", "11.50 ± 0.28 (87.0)", "245.30 ± 8.50 (4.08)", "4.65 ± 2.90", "Vulnerable (NMS quadratic clustering)"],
+        ["RT-DETR-R18VD", "Clean Baseline", "14.20 ± 0.35 (70.4)", "418.20 ± 12.40 (2.39)", "4.52 ± 3.10", "Stable (NMS-free set prediction)"],
+        ["RT-DETR-R18VD", "Query Vanishing (eps = 16)", "14.21 ± 0.36 (70.4)", "418.80 ± 11.80 (2.39)", "0.18 ± 0.52", "Stable (Delta t = 0.01 ms)"],
+        ["RT-DETR-R18VD", "AQSM Attack (eps = 16)", "14.22 ± 0.38 (70.3)", "418.50 ± 12.10 (2.39)", "7.15 ± 4.30", "Stable (Delta t = 0.02 ms)"],
+        ["RT-DETR-R18VD", "Standard Task PGD (eps = 16)", "14.25 ± 0.40 (70.2)", "419.50 ± 12.80 (2.38)", "29.40 ± 8.70", "Stable (Delta t = 0.05 ms)"],
+        ["YOLOv8-S (Baseline)", "Clean Baseline", "11.50 ± 0.28 (87.0)", "245.30 ± 8.50 (4.08)", "4.65 ± 2.90", "Baseline (NMS quadratic clustering)"],
         ["YOLOv8-S (Baseline)", "Dense Sponge Attack (eps = 16)", "39.40 ± 2.45 (25.4)", "815.40 ± 34.20 (1.23)", "286.40 ± 36.10", "Vulnerable (+232% to +242% latency surge)"],
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Inference latency, active query counts, and computational sponge evaluation on physical edge hardware platforms: NVIDIA Jetson Orin Nano (Ampere GPU, 20W TDP) and Raspberry Pi 5 (Quad-core ARM Cortex-A76 @ 2.4 GHz, 4 threads, FP32 mode) at native $640 \times 640$ resolution. Confirms structural immunity of RT-DETR to NMS-based computational sponge attacks compared against anchor-based YOLOv8-S.}
+\caption{Inference latency, active query counts, and computational sponge evaluation on physical edge hardware platforms: NVIDIA Jetson Orin Nano (Ampere GPU, 20W TDP) and Raspberry Pi 5 (Quad-core ARM Cortex-A76 @ 2.4 GHz, 4 threads, FP32 mode) at native $640 \times 640$ resolution. Confirms empirical runtime stability of RT-DETR against proposal-explosion sponge attacks compared against anchor-free YOLOv8-S under the evaluated benchmark configurations.}
 \label{tab:tab10_latency_sponge}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
-\textbf{Model Architecture} & \textbf{Operational Condition} & \textbf{Jetson Orin Nano (ms / FPS)} & \textbf{Raspberry Pi 5 (ms / FPS)} & \textbf{Active Detections ($\tau \ge 0.35$)} & \textbf{Sponge Attack Vulnerability} \\
+\textbf{Model Architecture} & \textbf{Operational Condition} & \textbf{Jetson Orin Nano (ms / FPS)} & \textbf{Raspberry Pi 5 (ms / FPS)} & \textbf{Active Detections ($\tau \ge 0.35$)} & \textbf{Latency Resilience under Attack} \\
 \midrule
-RT-DETR-R18VD & Clean Baseline & 14.20 $\pm$ 0.35 (70.4) & 418.20 $\pm$ 12.40 (2.39) & 4.52 $\pm$ 3.10 & Immune (NMS-free set prediction) \\
-RT-DETR-R18VD & Query Vanishing ($\epsilon = 16$) & 14.21 $\pm$ 0.36 (70.4) & 418.80 $\pm$ 11.80 (2.39) & 0.18 $\pm$ 0.52 & Immune ($\Delta t_{\mathrm{GPU}} = 0.01$ ms) \\
-RT-DETR-R18VD & AQSM Attack ($\epsilon = 16$) & 14.22 $\pm$ 0.38 (70.3) & 418.50 $\pm$ 12.10 (2.39) & 7.15 $\pm$ 4.30 & Immune ($\Delta t_{\mathrm{GPU}} = 0.02$ ms) \\
-RT-DETR-R18VD & Standard Task PGD ($\epsilon = 16$) & 14.25 $\pm$ 0.40 (70.2) & 419.50 $\pm$ 12.80 (2.38) & 29.40 $\pm$ 8.70 & Immune ($\Delta t_{\mathrm{GPU}} = 0.05$ ms) \\
+RT-DETR-R18VD & Clean Baseline & 14.20 $\pm$ 0.35 (70.4) & 418.20 $\pm$ 12.40 (2.39) & 4.52 $\pm$ 3.10 & Stable (NMS-free set prediction) \\
+RT-DETR-R18VD & Query Vanishing ($\epsilon = 16$) & 14.21 $\pm$ 0.36 (70.4) & 418.80 $\pm$ 11.80 (2.39) & 0.18 $\pm$ 0.52 & Stable ($\Delta t_{\mathrm{GPU}} = 0.01$ ms) \\
+RT-DETR-R18VD & AQSM Attack ($\epsilon = 16$) & 14.22 $\pm$ 0.38 (70.3) & 418.50 $\pm$ 12.10 (2.39) & 7.15 $\pm$ 4.30 & Stable ($\Delta t_{\mathrm{GPU}} = 0.02$ ms) \\
+RT-DETR-R18VD & Standard Task PGD ($\epsilon = 16$) & 14.25 $\pm$ 0.40 (70.2) & 419.50 $\pm$ 12.80 (2.38) & 29.40 $\pm$ 8.70 & Stable ($\Delta t_{\mathrm{GPU}} = 0.05$ ms) \\
 \midrule
-YOLOv8-S (Baseline) & Clean Baseline & 11.50 $\pm$ 0.28 (87.0) & 245.30 $\pm$ 8.50 (4.08) & 4.65 $\pm$ 2.90 & Vulnerable (NMS quadratic clustering) \\
+YOLOv8-S (Baseline) & Clean Baseline & 11.50 $\pm$ 0.28 (87.0) & 245.30 $\pm$ 8.50 (4.08) & 4.65 $\pm$ 2.90 & Baseline (NMS quadratic clustering) \\
 YOLOv8-S (Baseline) & Dense Sponge Attack ($\epsilon = 16$) & 39.40 $\pm$ 2.45 (25.4) & 815.40 $\pm$ 34.20 (1.23) & 286.40 $\pm$ 36.10 & Vulnerable ($+232\%$ to $+242\%$ latency surge) \\
 \bottomrule
 \end{tabular}%
