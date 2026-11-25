@@ -56,6 +56,30 @@
         /* Multi-language display control */
         html[lang="en"] .lang-vi { display: none !important; }
         html[lang="vi"] .lang-en { display: none !important; }
+        .metric-help-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            height: 1rem;
+            margin-left: 0.35rem;
+            border-radius: 9999px;
+            background-color: #e0f2fe;
+            color: #0369a1;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            vertical-align: middle;
+            border: 1px solid #bae6fd;
+        }
+        .metric-help-btn:hover {
+            background-color: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            transform: scale(1.12);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
@@ -108,19 +132,10 @@
 
         <!-- Hero Section -->
         <section class="pt-14 pb-16 px-4 sm:px-6 lg:px-8 text-center max-w-5xl mx-auto">
-            <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200/60 mb-6">
-                <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
-                <span class="lang-en">Under Review at Engineering Applications of Artificial Intelligence (Elsevier EAAI)</span>
-                <span class="lang-vi">Đang phản biện tại Engineering Applications of Artificial Intelligence (Elsevier EAAI)</span>
-            </div>
 
-            <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6 max-w-4xl mx-auto">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-8 max-w-4xl mx-auto font-heading">
                 Decomposing Failure Modes of <span class="gradient-text">Real-Time DETR</span> under Encoder Adversarial Attacks
             </h1>
-            <p class="text-lg sm:text-xl text-slate-600 font-normal max-w-3xl mx-auto mb-8 leading-relaxed">
-                <span class="lang-en">An Empirical Diagnostic Study with Counterfactual 2×2 Tensor-Swap Interventions, Geometric Telemetry, and Cross-Variant Verification on COCO val2017.</span>
-                <span class="lang-vi">Nghiên cứu Chẩn đoán Thực nghiệm với Can thiệp Hoán đổi Tensor 2×2, Telemetry Hình học và Đánh giá Đa biến thể trên COCO val2017.</span>
-            </p>
 
             <!-- Authors & Affiliations -->
             <div class="flex flex-wrap justify-center items-center gap-y-2 gap-x-6 text-sm font-medium text-slate-700 mb-3">
@@ -359,19 +374,25 @@
                                     <span class="lang-en">Treatment Condition / Arm</span>
                                     <span class="lang-vi">Điều kiện Can thiệp / Nhánh</span>
                                 </th>
-                                <th class="py-4 px-4 text-center">Encoder Memory ($M$)</th>
-                                <th class="py-4 px-4 text-center">Query Prior ($Q$)</th>
+                                <th class="py-4 px-4 text-center">
+                                    <span>Encoder Memory ($M$)</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'memory', event)" onmouseenter="showMetricPopover(this, 'memory')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                </th>
+                                <th class="py-4 px-4 text-center">
+                                    <span>Query Prior ($Q$)</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'query', event)" onmouseenter="showMetricPopover(this, 'query')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                </th>
                                 <th class="py-4 px-4 text-right">
                                     <span>COCO mAP@50</span>
-                                    <span class="text-sky-500 font-normal ml-0.5 cursor-help" title="Mean Average Precision at IoU >= 0.50">&#9432;</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'map50', event)" onmouseenter="showMetricPopover(this, 'map50')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
                                 </th>
                                 <th class="py-4 px-4 text-right">
                                     <span>mAP@50:95</span>
-                                    <span class="text-sky-500 font-normal ml-0.5 cursor-help" title="COCO primary metric: average AP across 10 IoU thresholds (0.50 to 0.95)">&#9432;</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'map5095', event)" onmouseenter="showMetricPopover(this, 'map5095')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
                                 </th>
                                 <th class="py-4 px-6 text-right">
                                     <span>Relative Retention</span>
-                                    <span class="text-sky-500 font-normal ml-0.5 cursor-help" title="Percentage of detection accuracy preserved relative to Arm A">&#9432;</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'retention', event)" onmouseenter="showMetricPopover(this, 'retention')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
                                 </th>
                             </tr>
                         </thead>
@@ -444,60 +465,6 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-
-                <!-- Concise Metric Explanations (Bilingual) -->
-                <div class="p-4 bg-slate-50/90 border-t border-slate-200/80 text-xs text-slate-600">
-                    <div class="font-bold text-slate-800 text-[11px] uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
-                        <i class="fa-solid fa-circle-info text-sky-600"></i>
-                        <span class="lang-en">Evaluation Metrics Definitions & Calculation:</span>
-                        <span class="lang-vi">Chú thích Thước đo Đánh giá (Evaluation Metrics):</span>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] leading-relaxed">
-                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
-                            <div class="font-bold text-slate-900 font-mono text-xs text-sky-700 mb-1 flex items-center justify-between">
-                                <span>COCO mAP@50</span>
-                                <span class="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-mono">IoU &ge; 0.50</span>
-                            </div>
-                            <div class="lang-en space-y-1">
-                                <p class="text-slate-700"><strong>Calculation:</strong> Class-wise Average Precision at $	ext{IoU} \ge 0.50$, averaged over 80 COCO categories.</p>
-                                <p class="text-slate-500"><strong>Interpretation:</strong> Measures detection accuracy under standard geometric overlap tolerance.</p>
-                            </div>
-                            <div class="lang-vi space-y-1">
-                                <p class="text-slate-700"><strong>Cách tính:</strong> Tính AP cho từng lớp tại ngưỡng trùng khớp $	ext{IoU} \ge 0.50$, sau đó lấy trung bình trên 80 lớp COCO.</p>
-                                <p class="text-slate-500"><strong>Ý nghĩa:</strong> Đo lường khả năng nhận diện đúng vật thể ở mức dung sai hình học cơ bản (bounding box khớp &ge; 50%).</p>
-                            </div>
-                        </div>
-                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
-                            <div class="font-bold text-slate-900 font-mono text-xs text-indigo-700 mb-1 flex items-center justify-between">
-                                <span>mAP@50:95</span>
-                                <span class="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono">10 IoU steps</span>
-                            </div>
-                            <div class="lang-en space-y-1">
-                                <p class="text-slate-700"><strong>Calculation:</strong> Mean AP across 10 IoU thresholds from $0.50$ to $0.95$ with step $0.05$.</p>
-                                <p class="text-slate-500"><strong>Interpretation:</strong> Primary COCO benchmark metric; jointly penalizes classification errors and loose localization.</p>
-                            </div>
-                            <div class="lang-vi space-y-1">
-                                <p class="text-slate-700"><strong>Cách tính:</strong> Trung bình cộng của 10 mức AP tại các ngưỡng IoU từ $0.50$ đến $0.95$ (bước $0.05$).</p>
-                                <p class="text-slate-500"><strong>Ý nghĩa:</strong> Thước đo chính và khắt khe nhất của chuẩn COCO, đánh giá đồng thời cả độ nhận dạng lẫn độ khít của tọa độ hộp.</p>
-                            </div>
-                        </div>
-                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
-                            <div class="font-bold text-slate-900 font-mono text-xs text-emerald-700 mb-1 flex items-center justify-between">
-                                <span>Relative Retention</span>
-                                <span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-mono lang-en">Preserved %</span>
-                                <span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-mono lang-vi">Tỷ lệ bảo toàn</span>
-                            </div>
-                            <div class="lang-en space-y-1">
-                                <p class="text-slate-700"><strong>Calculation:</strong> $	ext{Retention} = (	ext{mAP}_{	ext{arm}} / 	ext{mAP}_{	ext{clean}}) 	imes 100\%$.</p>
-                                <p class="text-slate-500"><strong>Interpretation:</strong> Percentage of baseline detection capability preserved under perturbation or intervention.</p>
-                            </div>
-                            <div class="lang-vi space-y-1">
-                                <p class="text-slate-700"><strong>Cách tính:</strong> $	ext{Retention} = (	ext{mAP}_{	ext{arm}} / 	ext{mAP}_{	ext{clean}}) 	imes 100\%$.</p>
-                                <p class="text-slate-500"><strong>Ý nghĩa:</strong> Đo lường tỷ lệ phần trăm năng lực phát hiện còn sống sót sau can thiệp/tấn công so với mốc sạch danh định ban đầu (Arm A).</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>
@@ -630,10 +597,22 @@
                                 <th class="py-3.5 px-5">Model Architecture</th>
                                 <th class="py-3.5 px-4">Backbone / Params</th>
                                 <th class="py-3.5 px-4">Evaluation Seed / Protocol</th>
-                                <th class="py-3.5 px-4 text-right">Clean mAP@50</th>
-                                <th class="py-3.5 px-4 text-right">AQSM mAP@50</th>
-                                <th class="py-3.5 px-4 text-right">Hungarian Drift</th>
-                                <th class="py-3.5 px-5 text-right">Anchor FG Hit</th>
+                                <th class="py-3.5 px-4 text-right">
+                                    <span>Clean mAP@50</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'map50', event)" onmouseenter="showMetricPopover(this, 'map50')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                </th>
+                                <th class="py-3.5 px-4 text-right">
+                                    <span>AQSM mAP@50</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'map50', event)" onmouseenter="showMetricPopover(this, 'map50')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                </th>
+                                <th class="py-3.5 px-4 text-right">
+                                    <span>Hungarian Drift</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'hungarian_drift', event)" onmouseenter="showMetricPopover(this, 'hungarian_drift')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                </th>
+                                <th class="py-3.5 px-5 text-right">
+                                    <span>Anchor FG Hit</span>
+                                    <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'anchor_hit', event)" onmouseenter="showMetricPopover(this, 'anchor_hit')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium">
@@ -763,6 +742,30 @@
         </div>
     </footer>
 
+    <!-- Interactive Metric Tooltip / Popover -->
+    <div id="metricPopover" class="fixed z-50 hidden max-w-xs sm:max-w-sm bg-slate-900/95 text-white p-3.5 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md text-xs leading-relaxed pointer-events-auto transition-all duration-150">
+        <div class="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-700/60 font-semibold text-sky-400 font-mono text-[11px]">
+            <span id="popTitle" class="flex items-center gap-1.5"></span>
+            <button type="button" onclick="closePopover()" class="text-slate-400 hover:text-white ml-2 text-base leading-none p-1 transition" title="Close">&times;</button>
+        </div>
+        <div class="space-y-2 text-[11px]">
+            <div>
+                <span class="font-bold text-slate-300 block mb-0.5">
+                    <span class="lang-en">Calculation:</span>
+                    <span class="lang-vi">Cách tính:</span>
+                </span>
+                <p id="popCalc" class="text-slate-300 leading-normal"></p>
+            </div>
+            <div>
+                <span class="font-bold text-slate-300 block mb-0.5">
+                    <span class="lang-en">Interpretation:</span>
+                    <span class="lang-vi">Ý nghĩa:</span>
+                </span>
+                <p id="popMean" class="text-slate-400 leading-normal"></p>
+            </div>
+        </div>
+    </div>
+
     <!-- Image Lightbox Modal -->
     <div id="imageModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4 sm:p-6 transition-all duration-200" role="dialog" aria-modal="true" aria-label="Expanded Image View">
         <button onclick="closeModal()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-white/80 hover:text-white bg-slate-800/80 hover:bg-slate-700 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-lg sm:text-xl transition shadow-lg z-10 border border-slate-700/60" title="Close (Esc)">
@@ -776,6 +779,136 @@
 
     <!-- Scripts -->
     <script>
+    const metricDefs = {
+        'memory': {
+            title_en: 'Encoder Memory (M)',
+            title_vi: 'Encoder Memory (Bộ nhớ M)',
+            calc_en: 'Multi-scale feature pyramid tensor output from hybrid encoder feeding decoder cross-attention.',
+            calc_vi: 'Tensor kim tự tháp đặc trưng đa tỷ lệ từ hybrid encoder cung cấp trực tiếp cho cross-attention của decoder.',
+            mean_en: 'Clean: nominal feature representations. Adversarial: corrupted spatial feature vectors.',
+            mean_vi: 'Clean: vector đặc trưng ảnh sạch nguyên bản. Adversarial: biểu diễn không gian bị nhiễu đối kháng làm sai lệch.'
+        },
+        'query': {
+            title_en: 'Query Prior (Q)',
+            title_vi: 'Query Prior (Vị trí Tiên nghiệm Q)',
+            calc_en: 'Top-300 candidate positions and reference points selected by dynamic query selection head.',
+            calc_vi: 'Top-300 vị trí và tọa độ anchor ứng viên được lựa chọn bởi tầng dynamic query selection.',
+            mean_en: 'Clean: high-confidence object centers. Adversarial: anchors misrouted into background noise clusters.',
+            mean_vi: 'Clean: anchor bao phủ đúng tâm vật thể. Adversarial: anchor bị định tuyến trệch hướng vào cụm nền rác.'
+        },
+        'map50': {
+            title_en: 'COCO mAP@50 (IoU ≥ 0.50)',
+            title_vi: 'COCO mAP@50 (Ngưỡng IoU ≥ 0.50)',
+            calc_en: 'Class-wise Average Precision at IoU ≥ 0.50, averaged over all 80 COCO categories.',
+            calc_vi: 'Tính Average Precision cho từng lớp tại ngưỡng IoU ≥ 0.50, sau đó lấy trung bình trên 80 lớp COCO.',
+            mean_en: 'Measures object detection accuracy under standard geometric overlap tolerance (≥50% bounding box intersection).',
+            mean_vi: 'Đo lường độ chính xác phát hiện vật thể ở mức dung sai hình học cơ bản (vùng giao bounding box đạt từ 50% trở lên).'
+        },
+        'map5095': {
+            title_en: 'mAP@50:95 (Primary COCO Metric)',
+            title_vi: 'mAP@50:95 (Thước đo COCO chuẩn cốt lõi)',
+            calc_en: 'Mean Average Precision across 10 IoU thresholds from 0.50 to 0.95 with step 0.05.',
+            calc_vi: 'Trung bình cộng của 10 mức AP tại các ngưỡng IoU từ 0.50 đến 0.95 (bước nhảy 0.05).',
+            mean_en: 'Comprehensive benchmark metric; simultaneously penalizes classification errors and loose localization.',
+            mean_vi: 'Thước đo toàn diện và khắt khe nhất của chuẩn COCO; đánh giá đồng thời độ chính xác phân loại và độ khít của tọa độ hộp.'
+        },
+        'retention': {
+            title_en: 'Relative Retention (%)',
+            title_vi: 'Relative Retention (Tỷ lệ duy trì %)',
+            calc_en: 'Retention = (mAP_arm / mAP_clean_Arm_A) × 100%.',
+            calc_vi: 'Tỷ lệ duy trì = (mAP_nhánh / mAP_gốc_Arm_A) × 100%.',
+            mean_en: 'Percentage of nominal baseline capability preserved under counterfactual interventional manipulation.',
+            mean_vi: 'Tỷ lệ phần trăm năng lực phát hiện còn bảo toàn sau can thiệp phản thực tế so với mốc sạch ban đầu (Arm A).'
+        },
+        'hungarian_drift': {
+            title_en: 'Hungarian Matching Drift',
+            title_vi: 'Độ trôi Ghép cặp Hungarian',
+            calc_en: 'Permutation distance ||π_clean - π_adv||_1 measuring query-to-ground-truth assignment disruption.',
+            calc_vi: 'Khoảng cách hoán vị ||π_clean - π_adv||_1 đo lường sự đảo lộn gán nhãn giữa query và ground-truth.',
+            mean_en: 'Quantifies instability in bipartite matching; higher values indicate severe assignment shuffling.',
+            mean_vi: 'Đo lường mức độ bất ổn định trong gán nhãn hai phía; giá trị càng cao thể hiện sự đảo lộn gán nhãn càng trầm trọng.'
+        },
+        'anchor_hit': {
+            title_en: 'Anchor FG Hit Rate (%)',
+            title_vi: 'Tỷ lệ Anchor trúng Foreground (%)',
+            calc_en: 'Percentage of selected top-300 proposal centers located inside any ground-truth object bounding box.',
+            calc_vi: 'Tỷ lệ phần trăm tâm của 300 anchor đề xuất nằm bên trong bounding box của vật thể thật.',
+            mean_en: 'Clean detector hits 45.13% foreground objects; AQSM collapses hit rate, scattering anchors into background.',
+            mean_vi: 'Mô hình sạch đạt 45.13% anchor trúng vật thể; AQSM làm sụp đổ tỷ lệ này, phân tán anchor vào nền rác.'
+        }
+    };
+
+    let popoverTimer = null;
+    let activePopoverBtn = null;
+    let currentPopoverKey = null;
+
+    function showMetricPopover(btn, key) {
+        clearTimeout(popoverTimer);
+        activePopoverBtn = btn;
+        currentPopoverKey = key;
+        const def = metricDefs[key];
+        if (!def) return;
+        const isVi = document.documentElement.lang === 'vi';
+        document.getElementById('popTitle').innerText = isVi ? def.title_vi : def.title_en;
+        document.getElementById('popCalc').innerText = isVi ? def.calc_vi : def.calc_en;
+        document.getElementById('popMean').innerText = isVi ? def.mean_vi : def.mean_en;
+        
+        const pop = document.getElementById('metricPopover');
+        pop.classList.remove('hidden');
+        
+        const rect = btn.getBoundingClientRect();
+        const popWidth = Math.min(320, window.innerWidth - 24);
+        let left = rect.left + rect.width / 2 - popWidth / 2;
+        if (left < 12) left = 12;
+        if (left + popWidth > window.innerWidth - 12) left = window.innerWidth - popWidth - 12;
+        
+        let top = rect.bottom + 8;
+        if (top + 180 > window.innerHeight && rect.top > 190) {
+            top = rect.top - 180;
+        }
+        
+        pop.style.width = popWidth + 'px';
+        pop.style.left = left + 'px';
+        pop.style.top = top + 'px';
+    }
+
+    function scheduleClosePopover() {
+        popoverTimer = setTimeout(() => {
+            closePopover();
+        }, 250);
+    }
+
+    function closePopover() {
+        clearTimeout(popoverTimer);
+        const pop = document.getElementById('metricPopover');
+        if (pop) pop.classList.add('hidden');
+        activePopoverBtn = null;
+        currentPopoverKey = null;
+    }
+
+    function toggleMetricPopover(btn, key, event) {
+        if (event) event.stopPropagation();
+        const pop = document.getElementById('metricPopover');
+        if (activePopoverBtn === btn && !pop.classList.contains('hidden')) {
+            closePopover();
+        } else {
+            showMetricPopover(btn, key);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const pop = document.getElementById('metricPopover');
+        if (pop) {
+            pop.addEventListener('mouseenter', () => clearTimeout(popoverTimer));
+            pop.addEventListener('mouseleave', scheduleClosePopover);
+        }
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#metricPopover') && !e.target.closest('.metric-help-btn')) {
+                closePopover();
+            }
+        });
+    });
+
     function copyBibTeX() {
         const text = document.getElementById('bibtexBlock').innerText;
         navigator.clipboard.writeText(text).then(() => {
@@ -829,6 +962,9 @@
         } else {
             btnEn.className = 'px-2.5 py-1 rounded-full transition-all bg-white text-slate-900 shadow-xs';
             btnVi.className = 'px-2.5 py-1 rounded-full transition-all text-slate-500 hover:text-slate-900';
+        }
+        if (activePopoverBtn && currentPopoverKey) {
+            showMetricPopover(activePopoverBtn, currentPopoverKey);
         }
         if (window.MathJax && MathJax.typesetPromise) {
             MathJax.typesetPromise();
