@@ -5,6 +5,7 @@
   "num_dynamic_queries": 300,
   "num_static_anchors": 30,
   "static_query_strategy": "uniform_canvas_grid_anchors",
+  "provenance_source": "loaded_from_provenance_json (sqa_controls_and_adaptive_summary.json)",
   "results": {
     "clean_baseline": {
       "default_dynamic_only": {

@@ -103,44 +103,44 @@
 <body class="min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
     <!-- Header / Navigation -->
-    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <a href="#" class="flex items-center gap-2 font-heading font-bold text-lg sm:text-xl text-slate-900 tracking-tight">
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <a href="#" class="flex items-center gap-2.5 font-heading font-bold text-lg text-slate-900 tracking-tight shrink-0">
                 <span class="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center text-sm shadow-md shadow-sky-500/20">
                     <i class="fa-solid fa-shield-halved"></i>
                 </span>
                 <span>AI <span class="text-sky-600">TrustWorthy</span></span>
             </a>
-            <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-                <a href="#abstract" class="hover:text-sky-600 transition-colors">
-                    <span class="lang-en">Abstract</span><span class="lang-vi">Tóm tắt</span>
-                </a>
+
+            <!-- Streamlined, Spacious Nav Links (5 Essential Anchor Milestones) -->
+            <nav class="hidden lg:flex items-center gap-7 text-xs sm:text-sm font-semibold text-slate-600">
                 <a href="#architecture" class="hover:text-sky-600 transition-colors">
                     <span class="lang-en">Architecture</span><span class="lang-vi">Kiến trúc</span>
                 </a>
                 <a href="#decomposition" class="hover:text-sky-600 transition-colors">
-                    <span class="lang-en">2×2 Decomposition</span><span class="lang-vi">Phân rã 2×2</span>
+                    <span class="lang-en">2×2 Benchmark</span><span class="lang-vi">Can thiệp 2×2</span>
                 </a>
                 <a href="#telemetry" class="hover:text-sky-600 transition-colors">
                     <span class="lang-en">Telemetry</span><span class="lang-vi">Telemetry</span>
                 </a>
-                <a href="#generalization" class="hover:text-sky-600 transition-colors">
-                    <span class="lang-en">Generalization</span><span class="lang-vi">Mở rộng</span>
-                </a>
                 <a href="#defense" class="hover:text-sky-600 transition-colors">
-                    <span class="lang-en">Defense & SQA</span><span class="lang-vi">Phòng thủ & SQA</span>
+                    <span class="lang-en">Defense & SQA</span><span class="lang-vi">Phòng thủ SQA</span>
                 </a>
                 <a href="#bibtex" class="hover:text-sky-600 transition-colors">
                     <span class="lang-en">Citation</span><span class="lang-vi">Trích dẫn</span>
                 </a>
             </nav>
-            <div class="flex items-center gap-3">
+
+            <!-- Actions: Language Switcher & GitHub -->
+            <div class="flex items-center gap-3 shrink-0">
                 <!-- Language Switcher Toggle -->
-                <div class="flex items-center rounded-full bg-slate-100 p-0.5 border border-slate-200 text-xs font-semibold">
+                <div class="flex items-center rounded-full bg-slate-100 p-0.5 border border-slate-200 text-xs font-semibold shadow-xs">
                     <button id="btn-lang-en" onclick="setLanguage('en')" class="px-2.5 py-1 rounded-full transition-all bg-white text-slate-900 shadow-xs" title="English">EN</button>
                     <button id="btn-lang-vi" onclick="setLanguage('vi')" class="px-2.5 py-1 rounded-full transition-all text-slate-500 hover:text-slate-900" title="Tiếng Việt">VI</button>
                 </div>
-                <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm">
+                <div class="h-4 w-px bg-slate-200 hidden sm:block"></div>
+                <a href="https://github.com/vietanhlee/AI_TrustWorthy" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 transition shadow-sm">
                     <i class="fa-brands fa-github text-sm"></i>
                     <span>GitHub</span>
                 </a>
@@ -225,10 +225,10 @@
 
                 <div class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
                     <p class="lang-en">
-                        Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection. However, because proposal routing sits directly atop the multi-scale encoder pyramid, adversarial attacks inevitably disrupt both encoder feature memories and candidate selection. We deploy Adversarial Query Selection Manipulation (AQSM) as a diagnostic probe within a $2 \times 2$ factorial interventional tensor-swap design to isolate and quantify these failure pathways.
+                        Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection. However, because proposal routing sits directly atop the multi-scale encoder pyramid, adversarial attacks inevitably disrupt both encoder feature memories and candidate selection. We deploy Adversarial Query Selection Manipulation (AQSM) as a diagnostic probe within a 2×2 factorial interventional tensor-swap design to isolate and quantify these failure pathways.
                     </p>
                     <p class="lang-vi">
-                        Real-Time Detection Transformers (RT-DETR) đạt độ trễ thực thi dự đoán được trên thiết bị biên nhờ thay thế Non-Maximum Suppression (NMS) bằng bipartite matching và dynamic query selection. Tuy nhiên, do tầng lựa chọn ứng viên nằm ngay trên kim tự tháp đặc trưng đa tỷ lệ của Encoder, các tấn công đối kháng tất yếu làm sai lệch đồng thời cả bộ nhớ đặc trưng Encoder lẫn luồng định tuyến Query. Nghiên cứu này triển khai Adversarial Query Selection Manipulation (AQSM) như một công cụ chẩn đoán thực nghiệm trong thiết kế can thiệp hoán đổi tensor $2 \times 2$ nhằm cô lập và định lượng các kênh gây sụp đổ mô hình.
+                        Real-Time Detection Transformers (RT-DETR) đạt độ trễ thực thi dự đoán được trên thiết bị biên nhờ thay thế Non-Maximum Suppression (NMS) bằng bipartite matching và dynamic query selection. Tuy nhiên, do tầng lựa chọn ứng viên nằm ngay trên kim tự tháp đặc trưng đa tỷ lệ của Encoder, các tấn công đối kháng tất yếu làm sai lệch đồng thời cả bộ nhớ đặc trưng Encoder lẫn luồng định tuyến Query. Nghiên cứu này triển khai Adversarial Query Selection Manipulation (AQSM) như một công cụ chẩn đoán thực nghiệm trong thiết kế can thiệp hoán đổi tensor 2×2 nhằm cô lập và định lượng các kênh gây sụp đổ mô hình.
                     </p>
                 </div>
 
@@ -289,7 +289,7 @@
                     </summary>
                     <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed space-y-2 bg-slate-50/50 p-3 rounded-xl font-serif">
                         <p class="lang-en">
-                            Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection. However, because proposal routing sits directly atop the multi-scale encoder pyramid, adversarial attacks inevitably disrupt both encoder feature memories and candidate selection. We deploy Adversarial Query Selection Manipulation (AQSM) as a diagnostic probe within a $2 \times 2$ factorial interventional tensor-swap design to isolate and quantify these failure pathways across $1,000$ MS COCO val2017 images at native $640 \times 640$ resolution.
+                            Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection. However, because proposal routing sits directly atop the multi-scale encoder pyramid, adversarial attacks inevitably disrupt both encoder feature memories and candidate selection. We deploy Adversarial Query Selection Manipulation (AQSM) as a diagnostic probe within a 2×2 factorial interventional tensor-swap design to isolate and quantify these failure pathways across $1,000$ MS COCO val2017 images at native 640 × 640 resolution.
                         </p>
                         <p class="lang-en">
                             Under clean baseline conditions, RT-DETR-R18VD achieves $65.50\%$ mAP@50. Stationary AQSM degrades performance to $3.07\%$ (relative retention $4.69\%$). Repeated-measures ANOVA and 2-player Shapley attribution reveal that Encoder Representation Damage ($M$) is the primary failure driver, accounting for $61.78\%$ macro Shapley share ($70.68\%$ log-scale; ANOVA partial $\eta_p^2 = 0.795$). Concurrently, Query Prior Eviction ($Q$) represents an essential secondary transmission channel: isolated adversarial query indexing on clean memory drops retention by $-26.21$ pp to $39.29\%$ ($38.22\%$ Shapley share; ANOVA partial $\eta_p^2 = 0.704$). Fine-grained geometric telemetry shows that attention weights do not disperse into diffuse noise ($H(A) = 0.8009 \to 0.7944, d = -0.13$); rather, reference coordinates undergo spatial translation ($\Delta_{\mathrm{Hungarian}} = 0.2258$), clustering tightly into non-object boundaries with spatial foreground hit rates ($45.13\%$) statistically indistinguishable from uniform sampling chance ($44.26\%$, TOST $p = 0.0373 < 0.05$).
@@ -298,7 +298,7 @@
                             Hardware edge profiling across NVIDIA Jetson Orin Nano, Raspberry Pi 5, and Intel Core i7-1185G7 confirms that RT-DETR retains strict $O(1)$ decoding execution time ($14.2$ ms on Orin Nano) across all attack perturbations, demonstrating structural immunity to computational proposal-sponge latency attacks that inflate YOLOv8 inference time by up to $+232\%$. Finally, we evaluate defense mechanisms: while a runtime statistical Encoder Selection Monitor (ESM) detects stationary AQSM ($\text{TPR} = 37.14\%, \text{AUROC} = 0.7593$), white-box Carlini-Tramèr adaptive evasion suppresses detection to $1.43\%$. In contrast, architectural hardening via Static Query Augmentation (SQA) recovers $+15.01$ pp mAP@50 under stationary attack by structurally preserving foreground query capacity.
                         </p>
                         <p class="lang-vi">
-                            Real-Time Detection Transformers (RT-DETR) đạt độ trễ thực thi dự đoán được trên thiết bị biên nhờ thay thế Non-Maximum Suppression (NMS) bằng bipartite matching và dynamic query selection. Tuy nhiên, do tầng lựa chọn ứng viên nằm ngay trên kim tự tháp đặc trưng đa tỷ lệ của Encoder, các tấn công đối kháng tất yếu làm sai lệch đồng thời cả bộ nhớ đặc trưng Encoder lẫn luồng định tuyến Query. Nghiên cứu này triển khai Adversarial Query Selection Manipulation (AQSM) như một công cụ chẩn đoán thực nghiệm trong thiết kế can thiệp hoán đổi tensor $2 \times 2$ nhằm cô lập và định lượng các kênh gây sụp đổ mô hình trên $1.000$ ảnh MS COCO val2017 ở độ phân giải gốc $640 \times 640$.
+                            Real-Time Detection Transformers (RT-DETR) đạt độ trễ thực thi dự đoán được trên thiết bị biên nhờ thay thế Non-Maximum Suppression (NMS) bằng bipartite matching và dynamic query selection. Tuy nhiên, do tầng lựa chọn ứng viên nằm ngay trên kim tự tháp đặc trưng đa tỷ lệ của Encoder, các tấn công đối kháng tất yếu làm sai lệch đồng thời cả bộ nhớ đặc trưng Encoder lẫn luồng định tuyến Query. Nghiên cứu này triển khai Adversarial Query Selection Manipulation (AQSM) như một công cụ chẩn đoán thực nghiệm trong thiết kế can thiệp hoán đổi tensor 2×2 nhằm cô lập và định lượng các kênh gây sụp đổ mô hình trên $1.000$ ảnh MS COCO val2017 ở độ phân giải gốc 640 × 640.
                         </p>
                         <p class="lang-vi">
                             Ở điều kiện sạch danh định, RT-DETR-R18VD đạt $65.50\%$ mAP@50. Tấn công AQSM tĩnh làm suy giảm độ chính xác xuống $3.07\%$ (tỷ lệ duy trì $4.69\%$). Phân tích ANOVA đo lường lặp lại và phân bổ Shapley 2 người chơi chứng minh Tổn hại Biểu diễn Bộ nhớ Encoder ($M$) là động lực chính gây sụp đổ, chiếm $61.78\%$ tỷ trọng Shapley vĩ mô ($70.68\%$ thang log; ANOVA partial $\eta_p^2 = 0.795$). Đồng thời, Trục xuất Query Prior ($Q$) đại diện cho kênh truyền dẫn thứ cấp cốt lõi: việc hoán đổi chỉ số query đối kháng trên bộ nhớ sạch làm giảm tỷ lệ duy trì $-26.21$ pp xuống $39.29\%$ ($38.22\%$ tỷ trọng Shapley; ANOVA partial $\eta_p^2 = 0.704$). Telemetry hình học chi tiết chỉ ra rằng trọng số chú ý không bị phân tán thành nhiễu mờ ($H(A) = 0.8009 \to 0.7944, d = -0.13$); thay vào đó, các tọa độ tham chiếu chịu sự trôi dạt không gian ($\Delta_{\mathrm{Hungarian}} = 0.2258$), co cụm dày đặc ở ranh giới ngoài vật thể với tỷ lệ anchor trúng foreground ($45.13\%$) tương đương thống kê với lấy mẫu ngẫu nhiên đều ($44.26\%$, TOST $p = 0.0373 < 0.05$).
@@ -342,10 +342,10 @@
 
                     <div class="bg-slate-50 rounded-xl p-4 text-xs text-slate-600 leading-relaxed border border-slate-100">
                         <div class="lang-en">
-                            <strong>Figure 1 Walkthrough:</strong> (1) Input image ($640 \times 640$); (2) Hybrid Encoder extracting multi-scale feature maps; (3) Dynamic Query Selection where genuine foreground proposals (green path) are evicted under Adversarial Query Selection Manipulation (AQSM) by corrupting encoder logits (red path); (4) Deformable Decoder where spatial reference coordinates undergo Spatial Target Misrouting into background clutter; (5) Output Heads generating predictions without heuristic NMS post-processing.
+                            <strong>Figure 1 Walkthrough:</strong> (1) Input image (640 × 640); (2) Hybrid Encoder extracting multi-scale feature maps; (3) Dynamic Query Selection where genuine foreground proposals (green path) are evicted under Adversarial Query Selection Manipulation (AQSM) by corrupting encoder logits (red path); (4) Deformable Decoder where spatial reference coordinates undergo Spatial Target Misrouting into background clutter; (5) Output Heads generating predictions without heuristic NMS post-processing.
                         </div>
                         <div class="lang-vi">
-                            <strong>Diễn giải Hình 1:</strong> (1) Ảnh đầu vào ($640 \times 640$); (2) Hybrid Encoder trích xuất bản đồ đặc trưng đa tỷ lệ; (3) Dynamic Query Selection nơi các ứng viên foreground chuẩn (nhánh xanh) bị trục xuất bởi AQSM thông qua làm sai lệch encoder logits (nhánh đỏ); (4) Deformable Decoder nơi các tọa độ tham chiếu bị định tuyến sai lệch vào cụm nhiễu nền; (5) Output Heads đưa ra dự đoán trực tiếp không cần hậu xử lý NMS.
+                            <strong>Diễn giải Hình 1:</strong> (1) Ảnh đầu vào (640 × 640); (2) Hybrid Encoder trích xuất bản đồ đặc trưng đa tỷ lệ; (3) Dynamic Query Selection nơi các ứng viên foreground chuẩn (nhánh xanh) bị trục xuất bởi AQSM thông qua làm sai lệch encoder logits (nhánh đỏ); (4) Deformable Decoder nơi các tọa độ tham chiếu bị định tuyến sai lệch vào cụm nhiễu nền; (5) Output Heads đưa ra dự đoán trực tiếp không cần hậu xử lý NMS.
                         </div>
                     </div>
                 </div>
@@ -385,10 +385,10 @@
                                     <span class="lang-vi">Tấn công CNN Truyền thống</span>
                                 </div>
                                 <p class="text-slate-600 leading-relaxed lang-en">
-                                    Target fixed dense anchor grids ($H \times W \times A$). Adversarial gradients manipulate candidate classifications, flooding or suppressing heuristic Non-Maximum Suppression (NMS) windows.
+                                    Target fixed dense anchor grids (H × W × A). Adversarial gradients manipulate candidate classifications, flooding or suppressing heuristic Non-Maximum Suppression (NMS) windows.
                                 </p>
                                 <p class="text-slate-600 leading-relaxed lang-vi">
-                                    Nhắm vào lưới anchor cố định dày đặc ($H \times W \times A$). Gradient đối kháng bóp méo phân loại ứng viên, gây ngập lụt hoặc vô hiệu hóa cửa sổ Non-Maximum Suppression (NMS).
+                                    Nhắm vào lưới anchor cố định dày đặc (H × W × A). Gradient đối kháng bóp méo phân loại ứng viên, gây ngập lụt hoặc vô hiệu hóa cửa sổ Non-Maximum Suppression (NMS).
                                 </p>
                             </div>
                             <div class="mt-3 pt-2.5 border-t border-slate-200/60 font-mono text-[11px] text-slate-500">
@@ -1068,8 +1068,8 @@
                                 <span class="lang-en">Table 12: Architectural Hardening via SQA (Validation & Controls)</span>
                                 <span class="lang-vi">Bảng 12: Gia cố Kiến trúc qua SQA (Đánh giá Thực nghiệm & Nhóm Đối chứng)</span>
                             </h3>
-                            <p class="text-xs text-slate-500 mt-0.5 lang-en">COCO val2017 ($640 \times 640$, $N_{\text{def}} = 300$), evaluating stationary attack recovery and adaptive evasion boundary.</p>
-                            <p class="text-xs text-slate-500 mt-0.5 lang-vi">COCO val2017 ($640 \times 640$, $N_{\text{def}} = 300$), đánh giá mức độ khôi phục trước tấn công tĩnh và ranh giới né tránh thích nghi.</p>
+                            <p class="text-xs text-slate-500 mt-0.5 lang-en">COCO val2017 (640 × 640, $N_{\text{def}} = 300$), evaluating stationary attack recovery and adaptive evasion boundary.</p>
+                            <p class="text-xs text-slate-500 mt-0.5 lang-vi">COCO val2017 (640 × 640, $N_{\text{def}} = 300$), đánh giá mức độ khôi phục trước tấn công tĩnh và ranh giới né tránh thích nghi.</p>
                         </div>
                         <span class="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 w-fit">
                             $N_{\mathrm{static}} = 30$ &bull; Jetson Orin Nano
