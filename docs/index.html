@@ -974,75 +974,257 @@
             </div>
         </section>
 
-        <!-- Architectural Hardening & Defense Section (3-Panel Figure 9) -->
+        <!-- Architectural Hardening & Defense Section (Figure 8 & Table 12) -->
         <section id="defense" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="mb-6 text-center max-w-3xl mx-auto">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-8">
+                
+                <!-- Section Header -->
+                <div class="text-center max-w-3xl mx-auto">
                     <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">
                         <span class="lang-en">Defense Evaluation & Architectural Hardening</span>
                         <span class="lang-vi">Đánh giá Phòng thủ & Gia cố Kiến trúc</span>
                     </span>
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3 font-heading">
-                        <span class="lang-en">Figure 8: ESM Runtime Monitor & SQA Architectural Hardening</span>
-                        <span class="lang-vi">Hình 8: Bộ giám sát runtime ESM & Gia cố kiến trúc SQA</span>
+                        <span class="lang-en">From Runtime Monitoring (ESM) to Static Query Augmentation (SQA)</span>
+                        <span class="lang-vi">Từ Giám sát Runtime (ESM) đến Tiêm Anchor Tĩnh (SQA)</span>
                     </h2>
-                    <p class="text-sm text-slate-600 lang-en">
-                        Empirical evaluation of runtime defenses against stationary and adaptive adversaries, alongside intrinsic architectural hardening via Static Query Augmentation (SQA).
+                    <p class="text-sm text-slate-600 lang-en leading-relaxed">
+                        Evaluating the empirical limits of post-hoc scalar monitoring under Carlini-Tramèr adaptive evasion (Section 7.1), alongside our exploratory architectural probe—<strong>Static Query Augmentation (SQA)</strong>—injecting $N_{\mathrm{static}} = 30$ deterministic canvas grid anchors to break the single-point-of-failure proposal selection bottleneck (Section 7.2).
                     </p>
-                    <p class="text-sm text-slate-600 lang-vi">
-                        Đánh giá thực nghiệm các giải pháp phòng thủ runtime trước kẻ tấn công tĩnh và thích nghi, song hành cùng giải pháp gia cố kiến trúc thông qua Static Query Augmentation (SQA).
+                    <p class="text-sm text-slate-600 lang-vi leading-relaxed">
+                        Đánh giá ranh giới của cơ chế giám sát thống kê trước đối thủ thích nghi Carlini-Tramèr (Section 7.1), đồng thời đề xuất công cụ chẩn đoán kiến trúc—<strong>Static Query Augmentation (SQA)</strong>—bổ sung $N_{\mathrm{static}} = 30$ anchor lưới tĩnh đơn định nhằm phá vỡ điểm nghẽn sụp đổ duy nhất của tầng lựa chọn truy vấn (Section 7.2).
                     </p>
                 </div>
 
-                <div class="relative group rounded-2xl overflow-hidden border border-slate-200 mb-6 bg-slate-50 cursor-zoom-in" onclick="openModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                    <img src="assets/images/fig8_defense_evaluation.png" alt="Figure 8: Defense Evaluation & Architectural Hardening (ESM Detection, Carlini-Tramèr Adaptive Evasion, and SQA Hardening Recovery)" class="w-full h-auto transition-transform duration-300 group-hover:scale-[1.015]">
+                <!-- 3-Panel Figure 8 Showcase -->
+                <div class="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-zoom-in" onclick="openModal(this.querySelector('img').src, this.querySelector('img').alt)">
+                    <img src="assets/images/fig8_defense_sqa_3panel.png?v=20261125_sqa" alt="Figure 8: From Runtime Monitoring (ESM) to Static Query Augmentation (SQA) — (a) ESM Detection Performance (Table 11); (b) White-Box Adaptive Robustness (Carlini-Tramèr); (c) SQA Architectural Hardening (Table 12) showing +15.01 pp recovery via canvas spatial dispersion." class="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-[1.01]">
                     <div class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/70 text-white text-[11px] font-medium backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-none">
                         <i class="fa-solid fa-magnifying-glass-plus"></i>
-                        <span class="lang-en">Click to expand</span>
-                        <span class="lang-vi">Nhấn để phóng to</span>
+                        <span class="lang-en">Click to expand (Figure 8: 3-Panel ESM & SQA Evaluation)</span>
+                        <span class="lang-vi">Nhấn để phóng to (Hình 8: Đánh giá 3 Panel ESM & SQA)</span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-600">
-                    <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/60">
-                        <strong class="text-slate-900 font-bold block mb-1">
-                            <span class="lang-en">(a) Runtime Monitor (ESM)</span>
-                            <span class="lang-vi">(a) Bộ giám sát Runtime (ESM)</span>
-                        </strong>
-                        <p class="leading-relaxed lang-en">
-                            Leverages score dropoff and confidence margin heuristics. Flags stationary AQSM ($\text{TPR} = 37.14\%, \text{AUROC} = 0.7593$) at $6.57\%$ clean FPR ($N_{\mathrm{test}} = 700$).
-                        </p>
-                        <p class="leading-relaxed lang-vi">
-                            Khai thác chỉ số suy giảm đề xuất và biên độ tự tin. Phát hiện AQSM tĩnh ($\text{TPR} = 37.14\%, \text{AUROC} = 0.7593$) tại mức $6.57\%$ FPR trên tập ảnh sạch ($N_{\mathrm{test}} = 700$).
-                        </p>
+                <!-- 3 Key Findings Grid Matching Subplots (a), (b), (c) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs leading-relaxed">
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1.5 font-bold text-slate-900">
+                                <span class="w-5 h-5 rounded-md bg-rose-100 text-rose-600 flex items-center justify-center text-[10px] font-bold">(a)</span>
+                                <span class="lang-en">ESM Detection TPR</span>
+                                <span class="lang-vi">Hiệu năng Giám sát ESM</span>
+                            </div>
+                            <p class="text-slate-600 lang-en mb-2">
+                                Flags stationary AQSM at <strong>37.14% TPR</strong> ($\text{AUROC} = 0.7593$) within clean FPR $6.57\%$ (nominal $10\%$ Bonferroni bound), but drops to $8.57\%$ on Task PGD.
+                            </p>
+                            <p class="text-slate-600 lang-vi mb-2">
+                                Phát hiện AQSM tĩnh đạt <strong>37.14% TPR</strong> ($\text{AUROC} = 0.7593$) ở mức FPR sạch $6.57\%$ (chặn trên Bonferroni $10\%$), nhưng giảm còn $8.57\%$ với Task PGD.
+                            </p>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Section 7.1 &bull; Table 11</span>
                     </div>
 
-                    <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/60">
-                        <strong class="text-slate-900 font-bold block mb-1">
-                            <span class="lang-en">(b) Carlini-Tramèr Evasion</span>
-                            <span class="lang-vi">(b) Tấn công Thích nghi Carlini-Tramèr</span>
-                        </strong>
-                        <p class="leading-relaxed lang-en">
-                            White-box adaptive attacker optimizes joint Lagrangian loss, suppressing detection TPR to $\mathbf{1.43\%}$ ($98.57\%$ bypass rate across 700 test scenes) while maintaining destructive task degradation.
-                        </p>
-                        <p class="leading-relaxed lang-vi">
-                            Kẻ tấn công thích nghi hộp trắng tối ưu hàm mất mát Lagrangian, ép TPR xuống chỉ còn $\mathbf{1.43\%}$ ($98.57\%$ tỷ lệ vượt qua) trong khi vẫn duy trì sự sụp đổ độ chính xác của mô hình.
-                        </p>
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1.5 font-bold text-slate-900">
+                                <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] font-bold">(b)</span>
+                                <span class="lang-en">Adaptive Evasion Limit</span>
+                                <span class="lang-vi">Ranh giới Né tránh Adaptive</span>
+                            </div>
+                            <p class="text-slate-600 lang-en mb-2">
+                                A white-box adversary evades ESM completely (TPR suppressed to <strong>1.43%</strong> at $\lambda = 0.5$, $\ge 98.43\%$ bypass), proving scalar heuristic monitors cannot replace intrinsic hardening.
+                            </p>
+                            <p class="text-slate-600 lang-vi mb-2">
+                                Đối thủ white-box qua mặt ESM hoàn toàn (TPR bị dồn xuống <strong>1.43%</strong> tại $\lambda = 0.5$, tỷ lệ bypass $\ge 98.43\%$), chứng minh giám sát thống kê không thể thay thế gia cố kiến trúc.
+                            </p>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Carlini-Tramèr &bull; N=700</span>
                     </div>
 
-                    <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-200/60 bg-sky-50/40 border-sky-200/60">
-                        <strong class="text-sky-950 font-bold block mb-1">
-                            <span class="lang-en">(c) SQA Architectural Hardening</span>
-                            <span class="lang-vi">(c) Gia cố Kiến trúc SQA</span>
-                        </strong>
-                        <p class="leading-relaxed lang-en">
-                            Static Query Augmentation ($N_{\mathrm{static}} = 30$) blends learned anchors with dynamic proposals, recovering $\mathbf{+15.01\text{ pp}}$ ($18.42\%$ vs $3.41\%$) by structurally preventing total foreground query starvation.
-                        </p>
-                        <p class="leading-relaxed lang-vi">
-                            Static Query Augmentation ($N_{\mathrm{static}} = 30$) hòa trộn anchor học sẵn với đề xuất động, khôi phục $\mathbf{+15.01\text{ pp}}$ ($18.42\%$ so với $3.41\%$) nhờ ngăn chặn triệt để tình trạng bỏ đói query.
-                        </p>
+                    <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1.5 font-bold text-emerald-950">
+                                <span class="w-5 h-5 rounded-md bg-emerald-200 text-emerald-800 flex items-center justify-center text-[10px] font-bold">(c)</span>
+                                <span class="lang-en">SQA Architectural Gain</span>
+                                <span class="lang-vi">Khôi phục Kiến trúc SQA</span>
+                            </div>
+                            <p class="text-emerald-900 lang-en mb-2">
+                                Injecting 30 static grid anchors recovers <strong>+15.01 pp</strong> mAP@50 (from $3.41\%$ to <strong>18.42%</strong>, Table 12) with nominal $+0.38$ ms latency (+2.68%) on Jetson Orin Nano.
+                            </p>
+                            <p class="text-emerald-900 lang-vi mb-2">
+                                Tiêm 30 anchor lưới tĩnh giúp khôi phục <strong>+15.01 pp</strong> mAP@50 (từ $3.41\%$ lên <strong>18.42%</strong>, Bảng 12) với phụ trội độ trễ chỉ $+0.38$ ms (+2.68%) trên Jetson Orin Nano.
+                            </p>
+                        </div>
+                        <span class="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300 w-fit">Section 7.2 &bull; Table 12</span>
                     </div>
                 </div>
+
+                <!-- Table 12: Architectural Hardening via SQA Validation & Controls -->
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                    <div class="p-4 sm:p-5 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 font-heading">
+                                <span class="lang-en">Table 12: Architectural Hardening via SQA (Validation & Controls)</span>
+                                <span class="lang-vi">Bảng 12: Gia cố Kiến trúc qua SQA (Đánh giá Thực nghiệm & Nhóm Đối chứng)</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5 lang-en">COCO val2017 ($640 \times 640$, $N_{\text{def}} = 300$), evaluating stationary attack recovery and adaptive evasion boundary.</p>
+                            <p class="text-xs text-slate-500 mt-0.5 lang-vi">COCO val2017 ($640 \times 640$, $N_{\text{def}} = 300$), đánh giá mức độ khôi phục trước tấn công tĩnh và ranh giới né tránh thích nghi.</p>
+                        </div>
+                        <span class="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 w-fit">
+                            $N_{\mathrm{static}} = 30$ &bull; Jetson Orin Nano
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-4">
+                                        <span class="lang-en">Model Architecture / Evaluated Condition</span>
+                                        <span class="lang-vi">Kiến trúc Mô hình / Điều kiện Đánh giá</span>
+                                    </th>
+                                    <th class="py-3 px-3 text-right">
+                                        <span>COCO mAP@50</span>
+                                        <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'map50', event)" onmouseenter="showMetricPopover(this, 'map50')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                    </th>
+                                    <th class="py-3 px-3 text-right">
+                                        <span>mAP@50:95</span>
+                                        <button type="button" class="metric-help-btn" onclick="toggleMetricPopover(this, 'map5095', event)" onmouseenter="showMetricPopover(this, 'map5095')" onmouseleave="scheduleClosePopover()" title="Details">?</button>
+                                    </th>
+                                    <th class="py-3 px-3 text-right">
+                                        <span>Recall</span>
+                                    </th>
+                                    <th class="py-3 px-3 text-center">
+                                        <span>Edge Latency</span>
+                                    </th>
+                                    <th class="py-3 px-4">
+                                        <span class="lang-en">Mechanistic Note / Defense Status</span>
+                                        <span class="lang-vi">Ghi chú Cơ chế / Trạng thái Phòng thủ</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-medium text-[11px]">
+                                <!-- Clean Baseline Inference Group -->
+                                <tr class="bg-slate-50/40">
+                                    <td colspan="6" class="py-1.5 px-4 font-bold text-slate-800 text-[10px] uppercase tracking-wider bg-slate-100/50">
+                                        Clean Baseline Inference
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-900 pl-6">
+                                        Standard RT-DETR-R18VD ($300$ dynamic)
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">66.81%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">49.47%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">78.83%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">14.20 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">Nominal clean reference baseline</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-emerald-950 pl-6">
+                                        Hardened SQA Prototype ($300$ dyn $+ 30$ static)
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">66.14%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">49.12%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">79.05%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono text-emerald-700">14.58 ms</td>
+                                    <td class="py-2.5 px-4 text-emerald-700">Negligible clean penalty ($-0.67$ pp, $+2.68\%$ latency)</td>
+                                </tr>
+
+                                <!-- Stationary AQSM Attack Group -->
+                                <tr class="bg-rose-50/40">
+                                    <td colspan="6" class="py-1.5 px-4 font-bold text-rose-900 text-[10px] uppercase tracking-wider bg-rose-100/40">
+                                        Stationary AQSM Attack ($\epsilon = 16/255$)
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-rose-950 pl-6">
+                                        Standard RT-DETR-R18VD (Unhardened)
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-600">3.41%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600">1.45%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">29.05%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">14.20 ms</td>
+                                    <td class="py-2.5 px-4 text-rose-600">Catastrophic foreground query eviction (5.1% retention)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">
+                                        Control 1: Dynamic Top-330 ($+30$ dynamic ranking)
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-700">3.58%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-600">1.52%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">29.84%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">14.20 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">Expanding dynamic pool fails; eviction unmitigated ($+0.17$ pp)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">
+                                        Control 2: Random-30 Static Anchors
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-700">11.45%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-600">6.82%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">36.40%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">14.58 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">Non-uniform coverage yields intermediate recovery ($+8.04$ pp)</td>
+                                </tr>
+                                <tr class="hover:bg-emerald-50/40 transition bg-emerald-50/30">
+                                    <td class="py-2.5 px-4 font-bold text-emerald-950 pl-6">
+                                        Proposed SQA: Uniform Grid-30 Prototype
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">18.42%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">11.25%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">46.80%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono font-bold text-emerald-700">14.58 ms</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-semibold">+15.01 pp recovery via deterministic canvas spatial dispersion</td>
+                                </tr>
+                                <tr class="hover:bg-amber-50/40 transition bg-amber-50/20">
+                                    <td class="py-2.5 px-4 font-bold text-amber-950 pl-6">
+                                        Adaptive Evasion on SQA (White-Box Joint)
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-amber-700">4.35%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-amber-700">1.78%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">21.30%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">14.58 ms</td>
+                                    <td class="py-2.5 px-4 text-amber-800">Adaptive bypass: 97.8% ($-14.07$ pp drop under gradient attack)</td>
+                                </tr>
+
+                                <!-- Standard Task PGD Baseline Group -->
+                                <tr class="bg-slate-50/40">
+                                    <td colspan="6" class="py-1.5 px-4 font-bold text-slate-800 text-[10px] uppercase tracking-wider bg-slate-100/50">
+                                        Standard Task PGD Baseline ($\epsilon = 16/255$)
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-700 pl-6">
+                                        Standard RT-DETR-R18VD
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-700">0.98%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-600">0.76%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">14.20%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">14.20 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">1.5% relative retention under end-to-end task PGD</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-emerald-950 pl-6">
+                                        Hardened SQA Prototype
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">3.12%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">1.84%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">19.50%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono text-emerald-700">14.58 ms</td>
+                                    <td class="py-2.5 px-4 text-emerald-700">+2.14 pp gain (+218% relative retention)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="p-3.5 bg-slate-50/80 border-t border-slate-200 text-[11px] text-slate-500 leading-relaxed">
+                        <span class="lang-en"><strong>Mechanistic Takeaway:</strong> SQA operates zero-shot with only $+0.38$ ms latency overhead ($+2.68\%$) on Jetson Orin Nano ($14.20 \to 14.58$ ms). It successfully breaks the single-point-of-failure query selection bottleneck, achieving $+15.01$ pp recovery ($18.42\%$ vs $3.41\%$) by dispersing queries outside localized gradient hotspots. However, white-box adaptive evasion reduces recovery to $4.35\%$, confirming that architectural query diversification cannot substitute for representation-level encoder robustness.</span>
+                        <span class="lang-vi"><strong>Kết luận Cơ chế:</strong> SQA hoạt động zero-shot với chỉ $+0.38$ ms phụ trội độ trễ (+2.68%) trên Jetson Orin Nano ($14.20 \to 14.58$ ms). Nó phá vỡ thành công nút thắt sụp đổ lựa chọn truy vấn, đạt mức hồi phục $+15.01$ pp ($18.42\%$ so với $3.41\%$) nhờ phân tán anchor ra ngoài các điểm nóng gradient cục bộ. Tuy nhiên, tấn công thích nghi white-box làm giảm hồi phục xuống còn $4.35\%$, khẳng định đa dạng hóa query không thể thay thế cho độ bền vững ở tầng biểu diễn encoder.</span>
+                    </div>
+                </div>
+
             </div>
         </section>
 
