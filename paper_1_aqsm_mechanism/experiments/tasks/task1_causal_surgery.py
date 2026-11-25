@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+from scipy import stats
 import torch
 from tqdm import tqdm
 
@@ -340,12 +341,19 @@ def run_causal_surgery(
         std_diff = float(np.std(diff_arr, ddof=1))
         cohen_d = float(mean_diff / std_diff) if std_diff > 0 else 0.0
         
-        # Paired Wilcoxon signed-rank test
+        # Paired Wilcoxon signed-rank test & Rank-Biserial Correlation
         if np.any(diff_arr != 0):
             w_stat, w_p = stats.wilcoxon(diff_arr, alternative='two-sided')
             w_stat, w_p = float(w_stat), float(w_p)
+            diff_non_zero = diff_arr[diff_arr != 0]
+            ranks = stats.rankdata(np.abs(diff_non_zero))
+            w_plus = np.sum(ranks[diff_non_zero > 0])
+            w_minus = np.sum(ranks[diff_non_zero < 0])
+            total_w = w_plus + w_minus
+            r_rb = float((w_plus - w_minus) / total_w) if total_w > 0 else 0.0
         else:
             w_stat, w_p = 0.0, 1.0
+            r_rb = 0.0
             
         # Bootstrap BCa 95% Confidence Interval
         boot_means = []
@@ -362,11 +370,12 @@ def run_causal_surgery(
             "median_diff_pp": round(median_diff, 2),
             "std_diff": round(std_diff, 2),
             "cohen_d": round(cohen_d, 2),
+            "rank_biserial_r_rb": round(r_rb, 3),
             "paired_wilcoxon_stat": w_stat,
             "paired_wilcoxon_p_value": w_p,
             "bootstrap_95ci_pp": [round(ci_low, 2), round(ci_high, 2)],
         }
-        print(f"  * {desc} ({a1} - {a2}): Mean = {mean_diff:+.2f} pp, Median = {median_diff:+.2f} pp, Cohen's d = {cohen_d:.2f}, Wilcoxon p = {w_p:.2e}")
+        print(f"  * {desc} ({a1} - {a2}): Mean = {mean_diff:+.2f} pp, Median = {median_diff:+.2f} pp, Cohen's d = {cohen_d:.2f}, r_rb = {r_rb:+.3f}, Wilcoxon p = {w_p:.2e}")
 
     # Tính Per-image cell means cho từng nhánh can thiệp (Arm A, B, C_full, C_index, D_full, D_index)
     per_image_cell_means: Dict[str, Dict[str, float]] = {}
