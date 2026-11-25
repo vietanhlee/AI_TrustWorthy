@@ -64,7 +64,6 @@
                 <a href="#architecture" class="hover:text-sky-600 transition-colors">Architecture</a>
                 <a href="#decomposition" class="hover:text-sky-600 transition-colors">2×2 Decomposition</a>
                 <a href="#telemetry" class="hover:text-sky-600 transition-colors">Telemetry</a>
-                <a href="#hardware" class="hover:text-sky-600 transition-colors">Edge Benchmark</a>
                 <a href="#generalization" class="hover:text-sky-600 transition-colors">Generalization</a>
                 <a href="#provenance" class="hover:text-sky-600 transition-colors">Provenance</a>
             </nav>
@@ -412,80 +411,7 @@
             </div>
         </section>
 
-        <!-- Edge Hardware Latency Benchmarking -->
-        <section id="hardware" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">Physical Hardware Validation</span>
-                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3">Deterministic O(1) Edge Execution</h2>
-                <p class="text-sm text-slate-600">
-                    Benchmarked across 300 synchronized iterations on Raspberry Pi 5 (ARM Cortex-A76) and NVIDIA Jetson Orin Nano (Ampere GPU).
-                </p>
-            </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
-                                <i class="fa-solid fa-microchip"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-900 font-heading">NVIDIA Jetson Orin Nano</h4>
-                                <span class="text-xs text-slate-500">TensorRT 8.6.2 FP16 (20W MAXN)</span>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">70.4 FPS</span>
-                    </div>
-                    <div class="space-y-3 font-mono text-xs">
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Clean Inference:</span>
-                            <span class="font-bold text-slate-800">14.20 ± 0.35 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Adversarial Inference:</span>
-                            <span class="font-bold text-slate-800">14.22 ± 0.34 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 text-emerald-600 font-bold">
-                            <span>Latency Overhead:</span>
-                            <span>+0.14% (Strictly Constant)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-lg">
-                                <i class="fa-brands fa-raspberry-pi"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-slate-900 font-heading">Raspberry Pi 5 (CPU Edge)</h4>
-                                <span class="text-xs text-slate-500">ONNX Runtime 1.16.3 FP32 (4 Threads)</span>
-                            </div>
-                        </div>
-                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">2.39 FPS</span>
-                    </div>
-                    <div class="space-y-3 font-mono text-xs">
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Clean Inference:</span>
-                            <span class="font-bold text-slate-800">418.20 ± 12.40 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
-                            <span class="text-slate-500">Adversarial Inference:</span>
-                            <span class="font-bold text-slate-800">418.50 ± 12.10 ms</span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 text-sky-600 font-bold">
-                            <span>Latency Overhead:</span>
-                            <span>+0.07% (Strictly Constant)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed">
-                <strong>Architectural Contrast with YOLOv8-S:</strong> Convolutional detectors relying on pairwise NMS suffer catastrophic Sponge Stalls under proposal flooding (+242.6% on Jetson, $11.5 \to 39.4$ ms; +232.4% on Pi 5, $245.3 \to 815.4$ ms). RT-DETR decodes a constant $N_q = 300$ budget without data-dependent branching, guaranteeing deterministic real-time deadlines.
-            </div>
-        </section>
 
         <!-- Multi-Seed Stability and Model Generalization (Table 13) -->
         <section id="generalization" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
