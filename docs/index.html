@@ -109,6 +109,9 @@
                 <a href="#generalization" class="hover:text-sky-600 transition-colors">
                     <span class="lang-en">Generalization</span><span class="lang-vi">Mở rộng</span>
                 </a>
+                <a href="#defense" class="hover:text-sky-600 transition-colors">
+                    <span class="lang-en">Defense & SQA</span><span class="lang-vi">Phòng thủ & SQA</span>
+                </a>
                 <a href="#bibtex" class="hover:text-sky-600 transition-colors">
                     <span class="lang-en">Citation</span><span class="lang-vi">Trích dẫn</span>
                 </a>
@@ -634,47 +637,87 @@
             </div>
         </section>
 
-        <!-- Architectural Hardening via SQA -->
-        <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
+        <!-- Architectural Hardening & Defense Section (3-Panel Figure 9) -->
+        <section id="defense" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
             <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                    <div>
-                        <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">
-                            <span class="lang-en">Architectural Defense Exploration</span>
-                            <span class="lang-vi">Khám phá Phòng thủ Kiến trúc</span>
-                        </span>
-                        <h2 class="text-2xl font-extrabold text-slate-900 mt-1 mb-3 font-heading">Static Query Augmentation (SQA)</h2>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-4 lang-en">
-                            Drawing inspiration from DINO, SQA augments nominal dynamic top-300 queries with $N_{\mathrm{static}} = 30$ deterministic canvas grid anchors ($N_q = 330$), bypassing encoder classification ranking entirely.
-                        </p>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-4 lang-vi">
-                            Lấy cảm hứng từ DINO, SQA bổ sung vào 300 queries động thêm $N_{\mathrm{static}} = 30$ anchor lưới tĩnh đơn định ($N_q = 330$), bỏ qua hoàn toàn cơ chế xếp hạng phân lớp của Encoder.
-                        </p>
-                        <ul class="space-y-2 text-xs text-slate-600 mb-6">
-                            <li class="flex items-start gap-2">
-                                <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                                <span class="lang-en"><strong>Stationary AQSM Recovery:</strong> Lifts mAP@50 from $3.41\%$ to $18.42\%$ ($+15.01$ pp recovery) by sampling outside localized gradient hotspots.</span>
-                                <span class="lang-vi"><strong>Hồi phục trước AQSM tĩnh:</strong> Tăng mAP@50 từ $3.41\%$ lên $18.42\%$ (hồi phục $+15.01$ pp) nhờ lấy mẫu ngoài các điểm nóng gradient cục bộ.</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                                <span class="lang-en"><strong>Zero Retraining & Minimal Overhead:</strong> Operates zero-shot with only $+0.38$ ms latency overhead ($+2.68\%$) on Jetson Orin Nano.</span>
-                                <span class="lang-vi"><strong>Không cần huấn luyện lại & Độ trễ tối thiểu:</strong> Hoạt động zero-shot với chỉ $+0.38$ ms độ trễ phụ trội ($+2.68\%$) trên Jetson Orin Nano.</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
-                                <span class="lang-en"><strong>Adaptive Evasion Boundary:</strong> Suppressed to $4.35\%$ under joint white-box optimization, confirming that query diversification cannot substitute for representation hardening.</span>
-                                <span class="lang-vi"><strong>Ranh giới Né tránh Thích nghi:</strong> Bị dồn xuống $4.35\%$ dưới tối ưu hóa white-box thích nghi, khẳng định đa dạng hóa query không thể thay thế cho làm vững biểu diễn encoder.</span>
-                            </li>
-                        </ul>
+                <div class="mb-6 text-center max-w-3xl mx-auto">
+                    <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">
+                        <span class="lang-en">Defense Evaluation & Architectural Hardening</span>
+                        <span class="lang-vi">Đánh giá Phòng thủ & Gia cố Kiến trúc</span>
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3 font-heading">
+                        <span class="lang-en">From Runtime Monitoring (ESM) to Static Query Augmentation (SQA)</span>
+                        <span class="lang-vi">Từ Giám sát Runtime (ESM) đến Tiêm Anchor Tĩnh (SQA)</span>
+                    </h2>
+                    <p class="text-sm text-slate-600 lang-en leading-relaxed">
+                        Evaluating the empirical limits of post-hoc scalar monitoring under Carlini-Tramèr adaptive evasion (Section 7.1), alongside our exploratory architectural probe—<strong>Static Query Augmentation (SQA)</strong>—injecting $N_{\mathrm{static}} = 30$ deterministic canvas grid anchors to break the single-point-of-failure proposal selection bottleneck (Section 7.2).
+                    </p>
+                    <p class="text-sm text-slate-600 lang-vi leading-relaxed">
+                        Đánh giá ranh giới của cơ chế giám sát thống kê trước đối thủ thích nghi Carlini-Tramèr (Section 7.1), đồng thời đề xuất công cụ chẩn đoán kiến trúc—<strong>Static Query Augmentation (SQA)</strong>—bổ sung $N_{\mathrm{static}} = 30$ anchor lưới tĩnh đơn định nhằm phá vỡ điểm nghẽn sụp đổ duy nhất của tầng lựa chọn truy vấn (Section 7.2).
+                    </p>
+                </div>
+
+                <!-- 3-Panel Figure Preview (Click to Zoom) -->
+                <div class="relative group rounded-2xl overflow-hidden border border-slate-200 mb-6 bg-slate-50 cursor-zoom-in" onclick="openModal(this.querySelector('img').src, this.querySelector('img').alt)">
+                    <img src="assets/images/fig8_defense_evaluation.png" alt="Empirical evaluation of runtime defenses and architectural hardening: (a) ESM Detection Performance (Table 11); (b) White-Box Adaptive Robustness (Carlini-Tramèr); (c) SQA Architectural Hardening (Table 12) showing +15.01 pp recovery via canvas spatial dispersion." class="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-[1.01]">
+                    <div class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/70 text-white text-[11px] font-medium backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                        <span class="lang-en">Click to expand (Figure 9: ESM & SQA Evaluation)</span>
+                        <span class="lang-vi">Nhấn để phóng to (Hình 9: Đánh giá ESM & SQA)</span>
                     </div>
-                    <div class="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-zoom-in" onclick="openModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                        <img src="assets/images/fig8_defense_evaluation.png" alt="Defense evaluation and SQA trade-offs" class="w-full h-auto transition-transform duration-300 group-hover:scale-[1.015]">
-                        <div class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/70 text-white text-[11px] font-medium backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-none">
-                            <i class="fa-solid fa-magnifying-glass-plus"></i>
-                            <span class="lang-en">Click to expand</span>
-                            <span class="lang-vi">Nhấn để phóng to</span>
+                </div>
+
+                <!-- 3 Key Findings Grid Matching Subplots (a), (b), (c) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs leading-relaxed">
+                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1.5 font-bold text-slate-900">
+                                <span class="w-5 h-5 rounded-md bg-rose-100 text-rose-600 flex items-center justify-center text-[10px] font-bold">(a)</span>
+                                <span class="lang-en">ESM Detection TPR</span>
+                                <span class="lang-vi">Hiệu năng Giám sát ESM</span>
+                            </div>
+                            <p class="text-slate-600 lang-en mb-2">
+                                Flags stationary AQSM at <strong>37.14% TPR</strong> (AUROC 0.7593, Table 11) within clean FPR 6.57% (10% Bonferroni union bound), but drops to 8.57% on Task PGD.
+                            </p>
+                            <p class="text-slate-600 lang-vi mb-2">
+                                Phát hiện AQSM tĩnh đạt <strong>37.14% TPR</strong> (AUROC 0.7593, Bảng 11) ở mức FPR sạch 6.57% (chặn trên Bonferroni 10%), nhưng giảm còn 8.57% với Task PGD.
+                            </p>
                         </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Section 7.1 &bull; Table 11</span>
+                    </div>
+
+                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1.5 font-bold text-slate-900">
+                                <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] font-bold">(b)</span>
+                                <span class="lang-en">Adaptive Evasion Limit</span>
+                                <span class="lang-vi">Ranh giới Né tránh Adaptive</span>
+                            </div>
+                            <p class="text-slate-600 lang-en mb-2">
+                                A white-box adversary evades ESM completely (TPR suppressed to <strong>1.43%</strong> at $\lambda = 0.5$, $\ge 98.43\%$ bypass), proving scalar heuristic monitors cannot replace intrinsic hardening.
+                            </p>
+                            <p class="text-slate-600 lang-vi mb-2">
+                                Đối thủ white-box qua mặt ESM hoàn toàn (TPR bị dồn xuống <strong>1.43%</strong> tại $\lambda = 0.5$, tỷ lệ bypass $\ge 98.43\%$), chứng minh giám sát thống kê không thể thay thế gia cố kiến trúc.
+                            </p>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Carlini-Tramèr &bull; N=700</span>
+                    </div>
+
+                    <div class="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1.5 font-bold text-emerald-950">
+                                <span class="w-5 h-5 rounded-md bg-emerald-200 text-emerald-800 flex items-center justify-center text-[10px] font-bold">(c)</span>
+                                <span class="lang-en">SQA Architectural Gain</span>
+                                <span class="lang-vi">Khôi phục Kiến trúc SQA</span>
+                            </div>
+                            <p class="text-emerald-900 lang-en mb-2">
+                                Injecting 30 static grid anchors recovers <strong>+15.01 pp</strong> mAP@50 (from 3.41% to <strong>18.42%</strong>, Table 12) with nominal +0.38 ms latency (+2.68%) on Jetson Orin Nano.
+                            </p>
+                            <p class="text-emerald-900 lang-vi mb-2">
+                                Tiêm 30 anchor lưới tĩnh giúp khôi phục <strong>+15.01 pp</strong> mAP@50 (từ 3.41% lên <strong>18.42%</strong>, Bảng 12) với phụ trội độ trễ chỉ +0.38 ms (+2.68%) trên Jetson Orin Nano.
+                            </p>
+                        </div>
+                        <span class="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300 w-fit">Section 7.2 &bull; Table 12</span>
                     </div>
                 </div>
             </div>
