@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks</title>
+    <title>AI TrustWorthy - Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="alternate icon" href="favicon.svg">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 -->
@@ -135,39 +138,73 @@
             </div>
         </section>
 
-        <!-- Abstract Section -->
-        <section id="abstract" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-16">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="flex items-center gap-2.5 mb-4">
-                    <span class="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-sm">
-                        <i class="fa-solid fa-file-lines"></i>
-                    </span>
-                    <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 font-heading">Abstract</h2>
+        <!-- Abstract Section (Compact Executive Summary) -->
+        <section id="abstract" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-14">
+            <div class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center text-xs shadow-xs">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </span>
+                        <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 font-heading">Abstract Overview</h2>
+                    </div>
+                    <span class="text-[11px] font-semibold text-slate-400 bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-100 font-mono">MS COCO val2017 &bull; N=1,000</span>
                 </div>
 
-                <div class="prose prose-slate max-w-none text-slate-700 text-sm sm:text-base leading-relaxed space-y-4">
-                    <p>
-                        Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection, where multi-scale encoder features dynamically route candidate proposals into the decoder. However, because proposal selection sits atop the multi-scale feature pyramid, gradient-based perturbations targeting encoder outputs inevitably disrupt both encoder memory representations and query routing. In this work, we deploy Adversarial Query Selection Manipulation (AQSM) not as a competing attack, but as a diagnostic probe within a $2 \times 2$ factorial interventional tensor-swap design on Microsoft COCO val2017 ($N = 1,000$, $N_{\mathrm{valid}} = 992$) to isolate and quantify the failure pathways of real-time detection transformers.
-                    </p>
+                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+                    Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection. However, because proposal routing sits directly atop the multi-scale encoder pyramid, adversarial attacks inevitably disrupt both encoder feature memories and candidate selection. We deploy Adversarial Query Selection Manipulation (AQSM) as a diagnostic probe within a $2 \times 2$ factorial interventional tensor-swap design to isolate and quantify these failure pathways.
+                </p>
 
-                    <div class="pt-2">
-                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Principal Findings:</h3>
-                        <ol class="space-y-3 text-xs sm:text-sm list-decimal list-outside ml-5 text-slate-600">
-                            <li>
-                                <strong class="text-slate-900">Interventional Failure Decomposition:</strong> Under the evaluated interventional activation patching protocol, encoder representation corruption represents the primary driver of detector collapse, accounting for a $61.78\%$ macro Shapley attribution share (95% BCa CI $[60.52\%, 63.08\%]$; $65.32\%$ on global pooled COCO mAP), with sequential attribution revealing order dependence ($77.75\%$ memory-first vs. $45.81\%$ query-first). On the multiplicative log-retention scale, encoder memory accounts for $70.68\%$ and query eviction for $29.32\%$, with near-zero interaction ($+0.0155$), showing that the positive interaction in linear ANOVA reflects metric floor saturation rather than functional synergy. Dynamic query prior eviction operates as a substantial secondary channel under AQSM ($38.22\%$ macro share), where pure candidate index eviction reduces clean-memory accuracy to $35.44\%$ mAP@50 (Arm $\text{D}_{\text{index}}$) and $26.58\%$ under full query replacement (Arm $\text{D}_{\text{full}}$).
-                            </li>
-                            <li>
-                                <strong class="text-slate-900">Geometric Cascade of Query Eviction:</strong> Deformable attention weights remain localized across local sampling offsets ($0.8009 \to 0.7944$ normalized entropy). Instead, query eviction translates spatial reference coordinates, degrading anchor foreground hit rate from $68.93\%$ to $45.13\%$, which a two-sample Two One-Sided Tests (TOST, $p_{\text{TOST}} = 0.0373 < 0.05$ within $\pm 2.0$ pp bounds) confirms is statistically equivalent to uniform canvas sampling while rejecting camera-center spatial priors ($t = -12.84, p < 10^{-20}$). Controlled shift analysis demonstrates that content-coordinate decoupling accounts for $79.1\%$ ($4.63$ pp) of the 5.85 pp gap between matched-$L_2$ shift and AQSM misrouting.
-                            </li>
-                            <li>
-                                <strong class="text-slate-900">Physical Edge Latency Characterization:</strong> Across evaluated embedded platforms (Raspberry Pi 5 and NVIDIA Jetson Orin Nano), RT-DETR exhibits constant latency with respect to detected bounding boxes because it decodes a fixed query budget ($N_q = 300$) without heuristic post-processing, avoiding the quadratic NMS latency increases observed in convolutional baselines under proposal flooding.
-                            </li>
-                            <li>
-                                <strong class="text-slate-900">Exploratory Defense Boundaries:</strong> An empirical Encoder Selection Monitor is bypassed by white-box adaptive evasion ($\le 1.57\%$ TPR). As an exploratory architectural probe, Static Query Augmentation (SQA) recovers $+15.01$ pp mAP@50 under stationary AQSM via spatial canvas dispersion ($18.42\%$, compared to $3.58\%$ for dynamic top-330 and $11.45\%$ for random static anchors), but drops to $4.35\%$ under adaptive evasion and $3.12\%$ under task-level PGD, demonstrating that spatial diversification alone cannot substitute for joint defense of encoder feature representations.
-                            </li>
-                        </ol>
+                <!-- Compact 4-Pillar Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2">
+                        <span class="w-5 h-5 rounded-md bg-rose-100 text-rose-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">1</span>
+                        <div>
+                            <strong class="text-slate-900 block font-semibold mb-0.5">Failure Decomposition:</strong>
+                            <span class="text-slate-600 text-[11px] leading-relaxed">Memory damage accounts for $61.78\%$ macro Shapley share ($70.68\%$ log-scale); query prior eviction is an essential secondary channel ($38.22\%$, $-26.2$ pp).</span>
+                        </div>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2">
+                        <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">2</span>
+                        <div>
+                            <strong class="text-slate-900 block font-semibold mb-0.5">Geometric Misrouting:</strong>
+                            <span class="text-slate-600 text-[11px] leading-relaxed">Attention weights remain sharp ($0.801 \to 0.794$); anchors translate into background clusters (TOST equivalent to uniform sampling, $p=0.037$).</span>
+                        </div>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2">
+                        <span class="w-5 h-5 rounded-md bg-sky-100 text-sky-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">3</span>
+                        <div>
+                            <strong class="text-slate-900 block font-semibold mb-0.5">Hardware Determinism:</strong>
+                            <span class="text-slate-600 text-[11px] leading-relaxed">Constant latency decoding $N_q=300$ queries without branching, structurally immune to NMS proposal sponge stalls ($+232\%$ in YOLO).</span>
+                        </div>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2">
+                        <span class="w-5 h-5 rounded-md bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">4</span>
+                        <div>
+                            <strong class="text-slate-900 block font-semibold mb-0.5">Defense Boundaries:</strong>
+                            <span class="text-slate-600 text-[11px] leading-relaxed">Scalar monitors are bypassed ($\le 1.57\%$ TPR); Static Query Augmentation (SQA) recovers $+15.01$ pp under stationary attacks via spatial dispersion.</span>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Collapsible Full Manuscript Text -->
+                <details class="group mt-3 pt-3 border-t border-slate-100 text-xs">
+                    <summary class="cursor-pointer font-semibold text-sky-600 hover:text-sky-700 flex items-center justify-between select-none">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-book-open text-[11px]"></i>
+                            <span>Read Full Manuscript Abstract & Statistical Findings</span>
+                        </span>
+                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition-transform text-slate-400"></i>
+                    </summary>
+                    <div class="mt-3 text-[11px] text-slate-600 leading-relaxed space-y-2 bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 font-normal">
+                        <p>
+                            Real-Time Detection Transformers (RT-DETR) achieve predictable edge inference latency by replacing Non-Maximum Suppression (NMS) with bipartite matching and dynamic query selection, where multi-scale encoder features dynamically route candidate proposals into the decoder. However, because proposal selection sits atop the multi-scale feature pyramid, gradient-based perturbations targeting encoder outputs inevitably disrupt both encoder memory representations and query routing. In this work, we deploy Adversarial Query Selection Manipulation (AQSM) not as a competing attack, but as a diagnostic probe within a $2 \times 2$ factorial interventional tensor-swap design on Microsoft COCO val2017 ($N = 1,000$, $N_{\mathrm{valid}} = 992$) to isolate and quantify the failure pathways of real-time detection transformers.
+                        </p>
+                        <p>
+                            We establish four principal findings: (1) <strong>Interventional Failure Decomposition:</strong> Encoder representation corruption accounts for $61.78\%$ macro Shapley attribution share ($65.32\%$ on global pooled COCO mAP; $70.68\%$ on multiplicative log-retention scale with $+0.0155$ interaction). Dynamic query prior eviction operates as a substantial secondary channel ($38.22\%$ macro share), reducing clean-memory accuracy to $35.44\%$ mAP@50 under pure index eviction. (2) <strong>Geometric Cascade of Query Eviction:</strong> Deformable attention weights remain localized ($0.8009 \to 0.7944$ entropy). Spatial reference coordinates translate into background clusters, reducing foreground hit rate from $68.93\%$ to $45.13\%$ (TOST equivalence to uniform canvas sampling, $p = 0.0373$). (3) <strong>Edge Latency Determinism:</strong> RT-DETR decodes a fixed query budget ($N_q = 300$) with constant runtime ($14.2$ ms Jetson, $418.5$ ms Pi 5), preventing quadratic NMS slowdowns. (4) <strong>Exploratory Defense Boundaries:</strong> Scalar monitors are bypassed by adaptive evasion ($\le 1.57\%$ TPR), whereas Static Query Augmentation (SQA) recovers $+15.01$ pp mAP@50 under stationary AQSM via spatial canvas dispersion.
+                        </p>
+                    </div>
+                </details>
             </div>
         </section>
 
@@ -229,9 +266,18 @@
                                 <th class="py-4 px-6">Treatment Condition / Arm</th>
                                 <th class="py-4 px-4 text-center">Encoder Memory ($M$)</th>
                                 <th class="py-4 px-4 text-center">Query Prior ($Q$)</th>
-                                <th class="py-4 px-4 text-right">COCO mAP@50</th>
-                                <th class="py-4 px-4 text-right">mAP@50:95</th>
-                                <th class="py-4 px-6 text-right">Relative Retention</th>
+                                <th class="py-4 px-4 text-right">
+                                    <span>COCO mAP@50</span>
+                                    <span class="text-sky-500 font-normal ml-0.5 cursor-help" title="Mean Average Precision tại IoU >= 0.50">&#9432;</span>
+                                </th>
+                                <th class="py-4 px-4 text-right">
+                                    <span>mAP@50:95</span>
+                                    <span class="text-sky-500 font-normal ml-0.5 cursor-help" title="COCO primary metric: trung bình AP qua 10 ngưỡng IoU (0.50 đến 0.95)">&#9432;</span>
+                                </th>
+                                <th class="py-4 px-6 text-right">
+                                    <span>Relative Retention</span>
+                                    <span class="text-sky-500 font-normal ml-0.5 cursor-help" title="Tỷ lệ hiệu năng còn bảo toàn so với Clean Baseline (Arm A)">&#9432;</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 font-medium">
@@ -292,6 +338,40 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Concise Metric Explanations -->
+                <div class="p-4 bg-slate-50/90 border-t border-slate-200/80 text-xs text-slate-600">
+                    <div class="font-bold text-slate-800 text-[11px] uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
+                        <i class="fa-solid fa-circle-info text-sky-600"></i>
+                        <span>Chú thích Thước đo Đánh giá (Evaluation Metrics):</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] leading-relaxed">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+                            <div class="font-bold text-slate-900 font-mono text-xs text-sky-700 mb-1 flex items-center justify-between">
+                                <span>COCO mAP@50</span>
+                                <span class="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded font-mono">IoU &ge; 0.50</span>
+                            </div>
+                            <p class="text-slate-700"><strong>Cách tính:</strong> Tính AP cho từng lớp tại ngưỡng trùng khớp $\text{IoU} \ge 0.50$, sau đó lấy trung bình trên 80 lớp COCO.</p>
+                            <p class="text-slate-500 mt-1"><strong>Ý nghĩa:</strong> Đo lường khả năng nhận diện đúng vật thể ở mức dung sai hình học cơ bản (bounding box khớp &ge; 50%).</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+                            <div class="font-bold text-slate-900 font-mono text-xs text-indigo-700 mb-1 flex items-center justify-between">
+                                <span>mAP@50:95</span>
+                                <span class="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono">10 ngưỡng IoU</span>
+                            </div>
+                            <p class="text-slate-700"><strong>Cách tính:</strong> Trung bình cộng của 10 mức AP tại các ngưỡng IoU từ $0.50$ đến $0.95$ (bước nhảy $0.05$).</p>
+                            <p class="text-slate-500 mt-1"><strong>Ý nghĩa:</strong> Thước đo chính và khắt khe nhất của chuẩn COCO, đánh giá đồng thời cả độ nhận dạng lẫn độ khít của hộp tọa độ.</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+                            <div class="font-bold text-slate-900 font-mono text-xs text-emerald-700 mb-1 flex items-center justify-between">
+                                <span>Relative Retention</span>
+                                <span class="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-mono">Tỷ lệ bảo toàn</span>
+                            </div>
+                            <p class="text-slate-700"><strong>Cách tính:</strong> $\text{Retention} = (\text{mAP}_{\text{arm}} / \text{mAP}_{\text{clean}}) \times 100\%$ (tương tự cho độ giữ lại nhân tính ở thang logarit).</p>
+                            <p class="text-slate-500 mt-1"><strong>Ý nghĩa:</strong> Đo lường tỷ lệ phần trăm năng lực phát hiện còn sống sót sau can thiệp/tấn công so với mốc sạch danh định ban đầu (Arm A).</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
