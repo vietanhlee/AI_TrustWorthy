@@ -599,8 +599,16 @@ def plot_defense_evaluation_figure(
             res_d = h_data.get("results", {})
             aqsm_res = res_d.get("aqsm_attack_eps16", {})
             if "default_dynamic_only" in aqsm_res and "hardened_static_augmented" in aqsm_res:
-                sqa_map50[0] = float(aqsm_res["default_dynamic_only"].get("mAP@50", 3.41))
-                sqa_map50[3] = float(aqsm_res["hardened_static_augmented"].get("mAP@50", 18.42))
+                sqa_map50[0] = float(aqsm_res["default_dynamic_only"].get("mAP@50", sqa_map50[0]))
+                sqa_map50[3] = float(aqsm_res["hardened_static_augmented"].get("mAP@50", sqa_map50[3]))
+            ctrl_d = res_d.get("controls", {}) or h_data.get("strategy_ablation", {})
+            if "dynamic_top330" in ctrl_d:
+                sqa_map50[1] = float(ctrl_d["dynamic_top330"].get("mAP@50", sqa_map50[1]))
+            if "random30_static" in ctrl_d or "random" in ctrl_d:
+                r_val = ctrl_d.get("random30_static", ctrl_d.get("random", {}))
+                sqa_map50[2] = float(r_val.get("mAP@50", r_val.get("aqsm_recovered_map50", sqa_map50[2])))
+            if "adaptive_evasion_sqa" in ctrl_d:
+                sqa_map50[4] = float(ctrl_d["adaptive_evasion_sqa"].get("mAP@50", sqa_map50[4]))
         except Exception:
             pass
 
@@ -623,10 +631,12 @@ def plot_defense_evaluation_figure(
         ax3.annotate(f"{h:.2f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
                      xytext=(0, 3), textcoords="offset points", ha="center", va="bottom", fontsize=8.0, fontweight="bold")
 
-    # Recovery highlight badge on Proposed SQA bar
+    # Recovery highlight badge on Proposed SQA bar (dynamically calculated)
+    recovery_delta = sqa_map50[3] - sqa_map50[0]
+    badge_label = f"+{recovery_delta:.2f} pp\nRecovery" if recovery_delta >= 0 else f"{recovery_delta:.2f} pp"
     sqa_bar = bars_sqa[3]
     ax3.annotate(
-        "+15.01 pp\nRecovery",
+        badge_label,
         xy=(sqa_bar.get_x() + sqa_bar.get_width() / 2, sqa_map50[3]),
         xytext=(0, 15), textcoords="offset points",
         ha="center", va="bottom", fontsize=8.0, fontweight="bold", color="#065f46",

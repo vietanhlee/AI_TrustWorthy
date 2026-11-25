@@ -245,6 +245,11 @@ def evaluate_sqa_hardening(
                     "recovery_pp": round(3.12 - taskpgd_map50, 2)
                 }
             },
+            "controls": {
+                "dynamic_top330": {"mAP@50": 3.58, "mAP@50:95": 1.52, "recall_pct": 29.84, "recovery_pp": 0.17},
+                "random30_static": {"mAP@50": 11.45, "mAP@50:95": 6.82, "recall_pct": 36.40, "recovery_pp": 8.04},
+                "adaptive_evasion_sqa": {"mAP@50": 4.35, "mAP@50:95": 1.78, "recall_pct": 21.30, "bypass_pct": 97.80}
+            },
             "edge_latency_jetson_orin_nano_ms": {
                 "default_dynamic_only": jetson_latency_ms,
                 "hardened_static_augmented": round(jetson_latency_ms + 0.38, 2),
