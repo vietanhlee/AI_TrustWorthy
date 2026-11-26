@@ -16,20 +16,17 @@ từ 100% dữ liệu thực nghiệm trong `outputs/summary_json/`, hoàn toàn
 import argparse
 import datetime
 import json
-import os
 import platform
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 from paper_1_aqsm_mechanism.experiments.config import (
-    FIG_DIR,
     OUTPUTS_DIR,
-    PAPER_DIR,
     SUMMARY_JSON_DIR,
 )
 
@@ -46,17 +43,19 @@ def safe_load_json(file_path: Path) -> Dict[str, Any]:
         return {}
 
 
-def get_stat(val: Any, default: float = 0.0) -> float:
-    """Trích xuất float an toàn từ dict {'mean': ...} hoặc số nguyên/thực."""
+def require_stat(val: Any, label: str = "metric") -> float:
+    """Trích xuất float bắt buộc từ dict {'mean': ...} hoặc số nguyên/thực; báo lỗi rõ nếu thiếu."""
     if isinstance(val, dict):
         if "mean" in val:
             return float(val["mean"])
         if "value" in val:
             return float(val["value"])
-    try:
-        return float(val)
-    except (TypeError, ValueError):
-        return default
+    if val is not None:
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            pass
+    raise KeyError(f"Thiếu chỉ số thực nghiệm bắt buộc '{label}' trong JSON summary (không fallback cứng)!")
 
 
 def generate_provenance_manifest(
@@ -86,20 +85,23 @@ def generate_provenance_manifest(
     hardening = safe_load_json(summary_dir / "hardening_evaluation_results.json")
     multiseed = safe_load_json(summary_dir / "multimodel_and_seed_stability_summary.json")
 
-    # 2. Phát hiện môi trường phần cứng và cấu hình thử nghiệm
-    n_images = causal_aqsm.get("n_evaluated_images", 1000)
-    n_valid = causal_aqsm.get("n_valid_intra_subject_samples", 992)
+    # 2. Phát hiện môi trường phần cứng và cấu hình thử nghiệm trực tiếp từ artifact
+    if "n_evaluated_images" not in causal_aqsm:
+        raise KeyError("Thiếu 'n_evaluated_images' trong causal_swap_results_aqsm.json!")
+    n_images = int(causal_aqsm["n_evaluated_images"])
+    n_valid = int(
+        causal_aqsm["n_valid_intra_subject_samples"]
+        if "n_valid_intra_subject_samples" in causal_aqsm
+        else causal_aqsm["anova_repeated_measures_full"]["N"]
+    )
+    hw_meta = edge_lat.get("hardware_metadata", {})
 
     hw_info = {
         "execution_platform": platform.platform(),
         "python_version": platform.python_version(),
-        "primary_accelerator": "NVIDIA GeForce RTX 4090 (24GB VRAM)",
-        "edge_accelerators_benchmarked": [
-            "NVIDIA Jetson AGX Orin 64GB (Server-class Edge)",
-            "NVIDIA Jetson Orin Nano 8GB (Constrained Edge)",
-            "Raspberry Pi 5 (Quad-core Cortex-A76 @ 2.4GHz)",
-        ],
-        "inference_engine": "TensorRT 10.0 FP16 Engine / PyTorch 2.3 CUDA Native",
+        "gpu_benchmarked": hw_meta.get("gpu_name", "unknown"),
+        "latency_device_type": edge_lat.get("device_type", "unknown"),
+        "defense_source_model": hardening.get("model", defense.get("model", "unknown")),
     }
 
     # 3. Định nghĩa các đoàn hệ dữ liệu thực nghiệm (Cohorts)
@@ -130,13 +132,14 @@ def generate_provenance_manifest(
     t1_metrics: Dict[str, Any] = {}
 
     # --- Table 2: Main Benchmark ---
-    sweep = matched_budget.get("sweep_results", {})
-    t2_clean_m50 = get_stat(sweep.get("clean", {}).get("eps_0", {}).get("mAP@50"), 65.50)
-    t2_clean_m95 = get_stat(sweep.get("clean", {}).get("eps_0", {}).get("mAP@50:95"), 48.89)
-    t2_aqsm_m50 = get_stat(sweep.get("aqsm", {}).get("eps_16", {}).get("mAP@50"), 3.07)
-    t2_aqsm_m95 = get_stat(sweep.get("aqsm", {}).get("eps_16", {}).get("mAP@50:95"), 1.37)
-    t2_van_m50 = get_stat(sweep.get("vanishing", {}).get("eps_16", {}).get("mAP@50"), 1.72)
-    t2_pgd_m50 = get_stat(sweep.get("taskpgd", {}).get("eps_16", {}).get("mAP@50"), 0.86)
+    clean_blk = matched_budget["clean_baseline"]
+    sweep = matched_budget["sweep_results"]
+    t2_clean_m50 = require_stat(clean_blk["mAP@50"], "matched_budget.clean_baseline.mAP@50")
+    t2_clean_m95 = require_stat(clean_blk["mAP@50:95"], "matched_budget.clean_baseline.mAP@50:95")
+    t2_aqsm_m50 = require_stat(sweep["aqsm"]["eps_16"]["mAP@50"], "sweep.aqsm.eps_16.mAP@50")
+    t2_aqsm_m95 = require_stat(sweep["aqsm"]["eps_16"]["mAP@50:95"], "sweep.aqsm.eps_16.mAP@50:95")
+    t2_van_m50 = require_stat(sweep["vanishing"]["eps_16"]["mAP@50"], "sweep.vanishing.eps_16.mAP@50")
+    t2_pgd_m50 = require_stat(sweep["taskpgd"]["eps_16"]["mAP@50"], "sweep.taskpgd.eps_16.mAP@50")
     t2_metrics = {
         "Clean_mAP50": round(t2_clean_m50, 2),
         "Clean_mAP50_95": round(t2_clean_m95, 2),
@@ -147,145 +150,148 @@ def generate_provenance_manifest(
     }
 
     # --- Table 3: Causal Surgery ---
-    t3_point = causal_aqsm.get("point_maps", {})
+    t3_point = causal_aqsm["point_maps"]
     t3_metrics = {
-        "Arm_A_mAP50": round(get_stat(t3_point.get("Arm_A", {}).get("mAP@50"), 65.50), 2),
-        "Arm_B_mAP50": round(get_stat(t3_point.get("Arm_B", {}).get("mAP@50"), 3.07), 2),
-        "Arm_C_full_mAP50": round(get_stat(t3_point.get("Arm_C_full", {}).get("mAP@50"), 7.45), 2),
-        "Arm_D_full_mAP50": round(get_stat(t3_point.get("Arm_D_full", {}).get("mAP@50"), 26.58), 2),
-        "Arm_D_index_mAP50": round(get_stat(t3_point.get("Arm_D_index", {}).get("mAP@50"), 35.44), 2),
+        "Arm_A_mAP50": round(require_stat(t3_point["Arm_A"]["mAP@50"], "Arm_A"), 2),
+        "Arm_B_mAP50": round(require_stat(t3_point["Arm_B"]["mAP@50"], "Arm_B"), 2),
+        "Arm_C_full_mAP50": round(require_stat(t3_point["Arm_C_full"]["mAP@50"], "Arm_C_full"), 2),
+        "Arm_D_full_mAP50": round(require_stat(t3_point["Arm_D_full"]["mAP@50"], "Arm_D_full"), 2),
+        "Arm_D_index_mAP50": round(require_stat(t3_point["Arm_D_index"]["mAP@50"], "Arm_D_index"), 2),
     }
 
     # --- Table 4: ANOVA Decomposition ---
-    t4_anova = causal_aqsm.get("anova_repeated_measures_full", {})
-    t4_me = t4_anova.get("marginal_effects", {})
-    t4_shares = t4_anova.get("attribution_shares", {}).get("ss_share_pct", {})
+    t4_anova = causal_aqsm["anova_repeated_measures_full"]
+    t4_me = t4_anova["marginal_effects"]
+    t4_shares = t4_anova["attribution_shares"]["anova_condition_ss_share_pct"]
     t4_metrics = {
-        "ME_M": round(get_stat(t4_me.get("ME_M"), -43.88), 2),
-        "ME_Q": round(get_stat(t4_me.get("ME_Q"), -27.14), 2),
-        "Interaction_MxQ": round(get_stat(t4_me.get("Interaction_MxQ"), 11.34), 2),
-        "Memory_SS_Share_pct": round(get_stat(t4_shares.get("Memory_M"), 68.99), 2),
-        "Query_SS_Share_pct": round(get_stat(t4_shares.get("Query_Q"), 26.40), 2),
+        "ME_M": round(require_stat(t4_me["ME_M"], "ME_M"), 2),
+        "ME_Q": round(require_stat(t4_me["ME_Q"], "ME_Q"), 2),
+        "Interaction_MxQ": round(require_stat(t4_me["Interaction_MxQ"], "Interaction_MxQ"), 2),
+        "Memory_SS_Share_pct": round(require_stat(t4_shares["Memory_M"], "Memory_M_SS"), 2),
+        "Query_SS_Share_pct": round(require_stat(t4_shares["Query_Q"], "Query_Q_SS"), 2),
     }
 
     # --- Table 5: Memory Scales ---
-    mem_aqsm = mem_analysis.get("results", {}).get("aqsm", {})
-    t5_cos = mem_aqsm.get("cosine_similarity", {})
-    t5_l2 = mem_aqsm.get("relative_l2_perturbation", {})
+    mem_aqsm = mem_analysis["results"]["aqsm"]
+    t5_cos = mem_aqsm["cosine_similarity"]
+    t5_l2 = mem_aqsm["relative_l2_perturbation"]
     t5_metrics = {
-        "AQSM_Overall_Cosine": round(get_stat(t5_cos.get("Overall", {}), 0.6100), 4),
-        "AQSM_S3_Cosine": round(get_stat(t5_cos.get("S3", {}), 0.5917), 4),
-        "AQSM_S4_Cosine": round(get_stat(t5_cos.get("S4", {}), 0.5074), 4),
-        "AQSM_S5_Cosine": round(get_stat(t5_cos.get("S5", {}), 0.5846), 4),
-        "AQSM_FG_Rel_L2": round(get_stat(t5_l2.get("Foreground", {}), 0.8727), 4),
-        "AQSM_BG_Rel_L2": round(get_stat(t5_l2.get("Background", {}), 0.9782), 4),
+        "AQSM_Overall_Cosine": round(require_stat(t5_cos["Overall"], "cos.Overall"), 4),
+        "AQSM_S3_Cosine": round(require_stat(t5_cos["S3"], "cos.S3"), 4),
+        "AQSM_S4_Cosine": round(require_stat(t5_cos["S4"], "cos.S4"), 4),
+        "AQSM_S5_Cosine": round(require_stat(t5_cos["S5"], "cos.S5"), 4),
+        "AQSM_FG_Rel_L2": round(require_stat(t5_l2["Foreground"], "l2.Foreground"), 4),
+        "AQSM_BG_Rel_L2": round(require_stat(t5_l2["Background"], "l2.Background"), 4),
     }
 
     # --- Table 6: Query Dynamics ---
-    q_res = q_dynamics.get("results", {})
-    q_aqsm = q_res.get("aqsm", {})
-    q_clean = q_res.get("clean", {})
+    q_res = q_dynamics["results"]
+    q_aqsm = q_res["aqsm"]
+    q_cov = q_aqsm["object_coverage"]
     t6_metrics = {
-        "AQSM_Top300_Overlap": round(get_stat(q_aqsm.get("top300_overlap_pct"), 16.45), 2),
-        "AQSM_Evicted_Top15": round(get_stat(q_aqsm.get("evicted_top15_fg_pct"), 96.93), 2),
-        "AQSM_Center_in_GT": round(get_stat(q_aqsm.get("center_in_gt_pct"), 77.78), 2),
-        "Clean_Center_in_GT": round(get_stat(q_clean.get("center_in_gt_pct"), 98.98), 2),
-        "AQSM_Spearman_Rho": round(get_stat(q_aqsm.get("spearman_rho_all_proposals"), -0.063), 3),
-        "AQSM_Kendall_Tau": round(get_stat(q_aqsm.get("kendall_tau_all_proposals"), -0.043), 3),
+        "AQSM_Top300_Overlap": round(require_stat(q_aqsm["top300_overlap_pct"], "top300_overlap_pct"), 2),
+        "AQSM_Evicted_Top15": round(require_stat(q_aqsm["evicted_top15_fg_pct"], "evicted_top15_fg_pct"), 2),
+        "AQSM_Center_in_GT": round(require_stat(q_cov["center_in_gt_adv_pct"], "aqsm.center_in_gt_adv_pct"), 2),
+        "Clean_Center_in_GT": round(require_stat(q_cov["center_in_gt_clean_pct"], "clean.center_in_gt_clean_pct"), 2),
+        "AQSM_Spearman_Rho": round(require_stat(q_aqsm["spearman_rho_all_proposals"], "spearman_rho"), 3),
+        "AQSM_Kendall_Tau": round(require_stat(q_aqsm["kendall_tau_all_proposals"], "kendall_tau"), 3),
     }
 
     # --- Table 7: Attention Telemetry ---
-    tel_clean = telemetry.get("clean", {})
-    tel_aqsm = telemetry.get("aqsm", {})
-    tel_van = telemetry.get("vanishing", {})
+    tel_clean = telemetry["clean"]
+    tel_aqsm = telemetry["aqsm"]
+    tel_van = telemetry["vanishing"]
     t7_metrics = {
-        "Clean_Entropy": round(get_stat(tel_clean.get("mean_entropy_l1"), 0.8263), 4),
-        "AQSM_Entropy": round(get_stat(tel_aqsm.get("mean_entropy_l1"), 0.7944), 4),
-        "Vanishing_Entropy": round(get_stat(tel_van.get("mean_entropy_l1"), 0.8495), 4),
-        "Clean_FG_Hit": round(get_stat(tel_clean.get("mean_fg_hit_rate"), 0.6351) * 100.0, 2),
-        "AQSM_FG_Hit": round(get_stat(tel_aqsm.get("mean_fg_hit_rate"), 0.4321) * 100.0, 2),
-        "AQSM_Dropoff_Ratio": round(get_stat(tel_aqsm.get("mean_dropoff_ratio"), 0.77), 2),
+        "Clean_Entropy": round(require_stat(tel_clean["mean_entropy_l1"], "tel_clean.entropy"), 4),
+        "AQSM_Entropy": round(require_stat(tel_aqsm["mean_entropy_l1"], "tel_aqsm.entropy"), 4),
+        "Vanishing_Entropy": round(require_stat(tel_van["mean_entropy_l1"], "tel_van.entropy"), 4),
+        "Clean_FG_Hit": round(require_stat(tel_clean["mean_fg_hit_rate"], "tel_clean.fg_hit") * 100.0, 2),
+        "AQSM_FG_Hit": round(require_stat(tel_aqsm["mean_fg_hit_rate"], "tel_aqsm.fg_hit") * 100.0, 2),
+        "AQSM_Dropoff_Ratio": round(require_stat(tel_aqsm["mean_dropoff_ratio"], "tel_aqsm.dropoff"), 2),
     }
 
     # --- Table 8: Controlled Misrouting ---
-    mis_summ = misrouting.get("table8_summary", {})
+    mis_summ = misrouting["table8_summary"]
     t8_metrics = {
-        "Clean_mAP50": round(get_stat(mis_summ.get("Clean_Baseline", {}).get("mAP@50"), 65.50), 2),
-        "Random_Reassign_mAP50": round(get_stat(mis_summ.get("Random_Reassignment", {}).get("mAP@50_mean"), 60.87), 2),
-        "Random_Shift_mAP50": round(get_stat(mis_summ.get("Matched_L2_Random_Shift", {}).get("mAP@50_mean"), 30.97), 2),
-        "Decoupled_Shift_mAP50": round(get_stat(mis_summ.get("Decoupled_Random_Shift", {}).get("mAP@50_mean"), 26.34), 2),
-        "AQSM_Misrouting_mAP50": round(get_stat(mis_summ.get("AQSM_Spatial_Misrouting", {}).get("mAP@50"), 25.12), 2),
+        "Clean_mAP50": round(require_stat(mis_summ["Clean_Baseline"]["mAP@50"], "mis.clean"), 2),
+        "Random_Reassign_mAP50": round(require_stat(mis_summ["Random_Reassignment"]["mAP@50_mean"], "mis.reassign"), 2),
+        "Random_Shift_mAP50": round(require_stat(mis_summ["Matched_L2_Random_Shift"]["mAP@50_mean"], "mis.shift"), 2),
+        "Decoupled_Shift_mAP50": round(require_stat(mis_summ["Decoupled_Random_Shift"]["mAP@50_mean"], "mis.decoupled"), 2),
+        "AQSM_Misrouting_mAP50": round(require_stat(mis_summ["AQSM_Spatial_Misrouting"]["mAP@50"], "mis.aqsm"), 2),
     }
 
     # --- Table 9: Matched Budget Sweep ---
     t9_metrics = {
-        "AQSM_eps4": round(get_stat(sweep.get("aqsm", {}).get("eps_4", {}).get("mAP@50"), 8.61), 2),
-        "AQSM_eps8": round(get_stat(sweep.get("aqsm", {}).get("eps_8", {}).get("mAP@50"), 5.67), 2),
-        "AQSM_eps16": round(get_stat(sweep.get("aqsm", {}).get("eps_16", {}).get("mAP@50"), 3.07), 2),
-        "TaskPGD_eps4": round(get_stat(sweep.get("taskpgd", {}).get("eps_4", {}).get("mAP@50"), 4.12), 2),
-        "TaskPGD_eps8": round(get_stat(sweep.get("taskpgd", {}).get("eps_8", {}).get("mAP@50"), 1.84), 2),
-        "TaskPGD_eps16": round(get_stat(sweep.get("taskpgd", {}).get("eps_16", {}).get("mAP@50"), 0.86), 2),
+        "AQSM_eps4": round(require_stat(sweep["aqsm"]["eps_4"]["mAP@50"], "aqsm.eps4"), 2),
+        "AQSM_eps8": round(require_stat(sweep["aqsm"]["eps_8"]["mAP@50"], "aqsm.eps8"), 2),
+        "AQSM_eps16": round(require_stat(sweep["aqsm"]["eps_16"]["mAP@50"], "aqsm.eps16"), 2),
+        "TaskPGD_eps4": round(require_stat(sweep["taskpgd"]["eps_4"]["mAP@50"], "pgd.eps4"), 2),
+        "TaskPGD_eps8": round(require_stat(sweep["taskpgd"]["eps_8"]["mAP@50"], "pgd.eps8"), 2),
+        "TaskPGD_eps16": round(require_stat(sweep["taskpgd"]["eps_16"]["mAP@50"], "pgd.eps16"), 2),
     }
 
     # --- Table 10: Hardware Latency & Sponge ---
-    stages = edge_lat.get("stages", {})
+    stages = edge_lat["stages"]
     t10_metrics = {
-        "Backbone_ms": round(get_stat(stages.get("Backbone", {}).get("mean_ms"), 4.85), 2),
-        "Encoder_ms": round(get_stat(stages.get("Hybrid_Encoder", {}).get("mean_ms"), 3.92), 2),
-        "Query_Selection_ms": round(get_stat(stages.get("Query_Selection", {}).get("mean_ms"), 0.48), 2),
-        "Decoder_ms": round(get_stat(stages.get("Deformable_Decoder", {}).get("mean_ms"), 4.95), 2),
-        "Total_End_to_End_ms": round(get_stat(stages.get("End_to_End_Total", {}).get("mean_ms"), 14.20), 2),
-        "Throughput_FPS": round(get_stat(edge_lat.get("throughput_fps"), 70.42), 2),
+        "Backbone_ms": round(require_stat(stages["Backbone"]["mean_ms"], "lat.backbone"), 2),
+        "Encoder_ms": round(require_stat(stages["Hybrid_Encoder"]["mean_ms"], "lat.encoder"), 2),
+        "Query_Selection_ms": round(require_stat(stages["Query_Selection"]["mean_ms"], "lat.qs"), 2),
+        "Decoder_ms": round(require_stat(stages["Deformable_Decoder"]["mean_ms"], "lat.decoder"), 2),
+        "Total_End_to_End_ms": round(require_stat(stages["End_to_End_Total"]["mean_ms"], "lat.total"), 2),
+        "Throughput_FPS": round(require_stat(edge_lat["throughput_fps"], "lat.fps"), 2),
     }
 
     # --- Table 11: Defense Results ---
-    def_aqsm = defense.get("attacks", {}).get("aqsm", {})
-    adapt_ev = defense.get("adaptive_evasion", {})
+    def_aqsm = defense["attacks"]["aqsm"]
+    adapt_ev = defense["adaptive_evasion"]
     t11_metrics = {
-        "Clean_FPR": round(get_stat(defense.get("empirical_clean_fpr_pct"), 6.57), 2),
-        "AQSM_TPR": round(get_stat(def_aqsm.get("tpr_detection_rate_pct"), 37.14), 2),
-        "AQSM_AUROC": round(get_stat(def_aqsm.get("auroc"), 0.7593), 4),
-        "Adaptive_Evasion_TPR_lambda_0.5": round(get_stat(adapt_ev.get("lambda_0.5", {}).get("detected_tpr_pct"), 1.71), 2),
-        "Adaptive_Evasion_TPR_lambda_1.0": round(get_stat(adapt_ev.get("lambda_1.0", {}).get("detected_tpr_pct"), 0.86), 2),
+        "Clean_FPR": round(require_stat(defense["empirical_clean_fpr_pct"], "def.clean_fpr"), 2),
+        "AQSM_TPR": round(require_stat(def_aqsm["tpr_detection_rate_pct"], "def.aqsm_tpr"), 2),
+        "AQSM_AUROC": round(require_stat(def_aqsm["auroc"], "def.aqsm_auroc"), 4),
+        "Adaptive_Evasion_TPR_lambda_0.5": round(require_stat(adapt_ev["lambda_0.5"]["detected_tpr_pct"], "def.adapt_05"), 2),
+        "Adaptive_Evasion_TPR_lambda_1.0": round(require_stat(adapt_ev["lambda_1.0"]["detected_tpr_pct"], "def.adapt_10"), 2),
     }
 
     # --- Table 12: Hardening Validation ---
     sqa_res = hardening.get("results", hardening.get("sqa_hardening", hardening))
-    cl_dyn = sqa_res.get("clean_baseline", {}).get("default_dynamic_only", {})
-    cl_sqa = sqa_res.get("clean_baseline", {}).get("hardened_static_augmented", {})
-    aq_dyn = sqa_res.get("aqsm_attack_eps16", {}).get("default_dynamic_only", {})
-    aq_sqa = sqa_res.get("aqsm_attack_eps16", {}).get("hardened_static_augmented", {})
-    pgd_dyn = sqa_res.get("taskpgd_attack_eps16", {}).get("default_dynamic_only", {})
-    pgd_sqa = sqa_res.get("taskpgd_attack_eps16", {}).get("hardened_static_augmented", {})
-    aq_base_m50 = get_stat(aq_dyn.get("mAP@50"), 3.41)
-    aq_hard_m50 = get_stat(aq_sqa.get("mAP@50"), 18.42)
+    cl_dyn = sqa_res["clean_baseline"]["default_dynamic_only"]
+    cl_sqa = sqa_res["clean_baseline"]["hardened_static_augmented"]
+    aq_dyn = sqa_res["aqsm_attack_eps16"]["default_dynamic_only"]
+    aq_sqa = sqa_res["aqsm_attack_eps16"]["hardened_static_augmented"]
+    pgd_dyn = sqa_res["taskpgd_attack_eps16"]["default_dynamic_only"]
+    pgd_sqa = sqa_res["taskpgd_attack_eps16"]["hardened_static_augmented"]
+    edge_jetson = sqa_res["edge_latency_jetson_orin_nano_ms"]
+    aq_base_m50 = require_stat(aq_dyn["mAP@50"], "sqa.aq_base_m50")
+    aq_hard_m50 = require_stat(aq_sqa["mAP@50"], "sqa.aq_hard_m50")
     t12_metrics = {
-        "Clean_Default_mAP50": round(get_stat(cl_dyn.get("mAP@50"), 66.81), 2),
-        "Clean_Hardened_mAP50": round(get_stat(cl_sqa.get("mAP@50"), 66.14), 2),
+        "Clean_Default_mAP50": round(require_stat(cl_dyn["mAP@50"], "sqa.clean_dyn"), 2),
+        "Clean_Hardened_mAP50": round(require_stat(cl_sqa["mAP@50"], "sqa.clean_sqa"), 2),
         "AQSM_Default_mAP50": round(aq_base_m50, 2),
         "AQSM_Hardened_mAP50": round(aq_hard_m50, 2),
         "AQSM_Recovery_pp": round(aq_hard_m50 - aq_base_m50, 2),
-        "TaskPGD_Default_mAP50": round(get_stat(pgd_dyn.get("mAP@50"), 0.98), 2),
-        "TaskPGD_Hardened_mAP50": round(get_stat(pgd_sqa.get("mAP@50"), 3.12), 2),
-        "Edge_Latency_Jetson_Orin_Default_ms": 14.20,
-        "Edge_Latency_Jetson_Orin_Hardened_ms": 14.58,
+        "TaskPGD_Default_mAP50": round(require_stat(pgd_dyn["mAP@50"], "sqa.pgd_dyn"), 2),
+        "TaskPGD_Hardened_mAP50": round(require_stat(pgd_sqa["mAP@50"], "sqa.pgd_sqa"), 2),
+        "Edge_Latency_Jetson_Orin_Default_ms": round(require_stat(edge_jetson["default_dynamic_only"], "sqa.lat_dyn"), 2),
+        "Edge_Latency_Jetson_Orin_Hardened_ms": round(require_stat(edge_jetson["hardened_static_augmented"], "sqa.lat_sqa"), 2),
     }
 
     # --- Table 13: Multi-Seed Stability & Architecture Generalization ---
-    ms_recs = multiseed.get("records", {})
-    r18_can = ms_recs.get("rtdetr_r18vd_canonical", {})
-    r18_ms = ms_recs.get("rtdetr_r18vd_multiseed", {})
-    r50_can = ms_recs.get("rtdetr_r50vd_canonical", {})
+    ms_recs = multiseed["records"]
+    r18_can = ms_recs["rtdetr_r18vd_canonical"]
+    r18_ms = ms_recs["rtdetr_r18vd_multiseed"]
+    r50_can = ms_recs["rtdetr_r50vd_canonical"]
     t13_metrics = {
-        "RTDETR_R18_Clean_mAP50": round(get_stat(r18_can.get("clean_map50"), 65.50), 2),
-        "RTDETR_R18_Canonical_AQSM_mAP50": round(get_stat(r18_can.get("aqsm_map50"), 3.07), 2),
-        "RTDETR_R18_MultiSeed_Mean_AQSM_mAP50": round(get_stat(r18_ms.get("aqsm_map50_mean"), 3.07), 2),
-        "RTDETR_R18_MultiSeed_Std_AQSM_mAP50": round(get_stat(r18_ms.get("aqsm_map50_std"), 0.18), 2),
-        "RTDETR_R18_Hungarian_Drift": round(get_stat(r18_ms.get("hungarian_set_drift_mean"), 0.2258), 4),
-        "RTDETR_R18_Anchor_FG_Hit_pct": round(get_stat(r18_ms.get("anchor_fg_hit_pct_mean"), 45.13), 2),
-        "RTDETR_R50_Clean_mAP50": round(get_stat(r50_can.get("clean_map50"), 71.20), 2),
-        "RTDETR_R50_AQSM_mAP50": round(get_stat(r50_can.get("aqsm_map50"), 4.15), 2),
-        "RTDETR_R50_Relative_Drop_pct": round(get_stat(r50_can.get("relative_drop_pct"), -94.17), 2),
+        "RTDETR_R18_Clean_mAP50": round(require_stat(r18_can["clean_map50"], "r18_can.clean"), 2),
+        "RTDETR_R18_Canonical_AQSM_mAP50": round(require_stat(r18_can["aqsm_map50"], "r18_can.aqsm"), 2),
+        "RTDETR_R18_MultiSeed_Mean_AQSM_mAP50": round(require_stat(r18_ms["aqsm_map50_mean"], "r18_ms.aqsm_mean"), 2),
+        "RTDETR_R18_MultiSeed_Std_AQSM_mAP50": round(require_stat(r18_ms["aqsm_map50_std"], "r18_ms.aqsm_std"), 2),
+        "RTDETR_R18_Hungarian_Drift": round(require_stat(r18_ms["hungarian_set_drift_mean"], "r18_ms.drift"), 4),
+        "RTDETR_R18_Anchor_FG_Hit_pct": round(require_stat(r18_ms["anchor_fg_hit_pct_mean"], "r18_ms.hit"), 2),
+        "RTDETR_R50_Clean_mAP50": round(require_stat(r50_can["clean_map50"], "r50_can.clean"), 2),
+        "RTDETR_R50_AQSM_mAP50": round(require_stat(r50_can["aqsm_map50"], "r50_can.aqsm"), 2),
+        "RTDETR_R50_Relative_Drop_pct": round(require_stat(r50_can["relative_drop_pct"], "r50_can.rel"), 2),
+        "RTDETR_R50_Hungarian_Drift": round(require_stat(r50_can["hungarian_set_drift"], "r50_can.drift"), 4),
+        "RTDETR_R50_Anchor_FG_Hit_pct": round(require_stat(r50_can["anchor_fg_hit_pct"], "r50_can.hit"), 2),
     }
 
     tables = {
@@ -326,7 +332,7 @@ def generate_provenance_manifest(
         },
         "tab:tab4_anova_decomp": {
             "table_number": 4,
-            "caption": "ANOVA Factorial Decomposition and Causal Effect Attribution across Attack Formulations on COCO val2017",
+            "caption": "ANOVA Factorial Decomposition and Interventional-Protocol Attribution across Attack Formulations on COCO val2017",
             "active_cohort": "empirical_evaluation_cohort",
             "n_evaluated_images": n_images,
             "source_artifacts": [
@@ -430,6 +436,8 @@ def generate_provenance_manifest(
             "n_evaluated_images": n_images,
             "source_artifacts": [
                 "outputs/summary_json/multimodel_and_seed_stability_summary.json",
+                "outputs/summary_json/r50_cross_architecture_summary.json",
+                "outputs/summary_json/r50_set_distance_and_coverage.json",
             ],
             "metrics": t13_metrics,
         },

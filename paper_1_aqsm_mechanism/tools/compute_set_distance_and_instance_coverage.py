@@ -98,9 +98,9 @@ def run_set_distance_and_coverage_evaluation(
     rng = np.random.RandomState(42)
     n_eval = min(len(ds), len(cached_deltas))
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"--> [Evaluation] Đo khoảng cách tập hợp và GT coverage trên N={n_eval} ảnh...")
-    print(f"=======================================================")
+    print("=======================================================")
 
     for i in tqdm(range(n_eval), desc="Set Distance & Coverage"):
         img_c = ds.tensors[i : i + 1].to(device)
@@ -114,12 +114,13 @@ def run_set_distance_and_coverage_evaluation(
 
         c_ref = torch.sigmoid(c_comp["init_reference_points"])[0].detach().cpu().numpy()
         a_ref = torch.sigmoid(a_comp["init_reference_points"])[0].detach().cpu().numpy()
+        n_queries = int(c_ref.shape[0])
 
-        perm = rng.permutation(300)
+        perm = rng.permutation(n_queries)
         re_ref = c_ref[perm]
 
         sh_ref = np.zeros_like(c_ref)
-        for j in range(300):
+        for j in range(n_queries):
             sh_ref[j] = sample_exact_matched_shift_4d(c_ref[j], a_ref[j], rng)
 
         cond_boxes = {
@@ -176,7 +177,7 @@ def run_set_distance_and_coverage_evaluation(
             arr = [x for x in l if not np.isnan(x)]
             summary["results"][cname][m] = {
                 "mean": round(float(np.mean(arr)), 4),
-                "std": round(float(np.std(arr)), 4),
+                "std": round(float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0, 4),
             }
 
     if output_path is None:

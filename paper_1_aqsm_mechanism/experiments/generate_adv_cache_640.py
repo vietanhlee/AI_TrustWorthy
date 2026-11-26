@@ -23,7 +23,7 @@ import sys
 import time
 import zipfile
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -41,7 +41,6 @@ from paper_1_aqsm_mechanism.experiments.config import (
     COCO_ANN_FILE,
     COCO_VAL_DIR,
     MODEL_NAME,
-    RANDOM_SEED,
     configure_cpu_threads,
     detect_hardware_environment,
     get_adv_cache_dir,
@@ -98,10 +97,10 @@ def generate_single_attack_cache(
             except Exception:
                 print(f"[CACHE GEN] Cache {chk.name} bị lỗi đọc, tiến hành kiểm tra lại...")
 
-    print(f"\n[CACHE GEN] ==================================================================")
+    print("\n[CACHE GEN] ==================================================================")
     print(f"[CACHE GEN] Đang sinh: {attack_name.upper()} | eps={eps_int}/255 ({eps:.4f}) | N={n_total}")
     print(f"[CACHE GEN] PGD Steps={steps} | Alpha={alpha:.5f} | Batch Size={batch_size} | Device={device}")
-    print(f"[CACHE GEN] ==================================================================")
+    print("[CACHE GEN] ==================================================================")
 
     # Kiểm tra dung lượng đĩa trước khi khởi tạo
     needed_bytes = n_total * 3 * 640 * 640 * 4
@@ -182,7 +181,7 @@ def generate_single_attack_cache(
         # 3. Ghi meta_json.npy
         elapsed = time.time() - t_start
         mean_l2 = float(np.mean(all_l2s)) if all_l2s else 0.0
-        std_l2 = float(np.std(all_l2s)) if all_l2s else 0.0
+        std_l2 = float(np.std(all_l2s, ddof=1)) if len(all_l2s) > 1 else 0.0
         meta_info = {
             "attack": attack_name.lower(),
             "n_eval": n_total,

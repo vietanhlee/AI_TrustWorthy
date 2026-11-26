@@ -39,6 +39,7 @@ from paper_1_aqsm_mechanism.experiments.config import (
     ADV_CACHE_DIR,
     COCO_ANN_FILE,
     COCO_VAL_DIR,
+    DEFAULT_MULTI_SEEDS,
     FIG_DIR,
     LOGS_DIR,
     MODEL_NAME,
@@ -163,6 +164,13 @@ def _build_task_registry(
             "--fig_dir", str(args.fig_dir),
         ]
 
+    # Task 8 args
+    def build_task8_args() -> List[str]:
+        t8_args = list(common_args)
+        if getattr(args, "run_sqa_ablation", False):
+            t8_args.append("--run_sqa_ablation")
+        return t8_args
+
     # Task 9 args
     def build_task9_args() -> List[str]:
         return [
@@ -170,6 +178,21 @@ def _build_task_registry(
             "--tables_dir", str(Path(args.output_dir) / "tables"),
             "--verify_tex",
         ]
+
+    # Task 4 args (Controlled Spatial Misrouting)
+    def build_task4_args() -> List[str]:
+        t4_args = list(common_args)
+        if getattr(args, "seeds", None):
+            t4_args.extend(["--seeds", str(args.seeds)])
+        return t4_args
+
+    # Task 10 args (Multi-seed AQSM stability)
+    def build_task10_args() -> List[str]:
+        t10_args = list(common_args)
+        t10_args.extend(["--pgd_steps", str(args.pgd_steps)])
+        if getattr(args, "seeds", None):
+            t10_args.extend(["--seeds", str(args.seeds)])
+        return t10_args
 
     return {
         0: {
@@ -205,7 +228,7 @@ def _build_task_registry(
             "name": "Task 4 (Tautology Refutation)",
             "title": "Task 4: Controlled Spatial Misrouting & Tautology Refutation (Table 8)",
             "script": tasks_dir / "task4_controlled_misrouting.py",
-            "args_builder": lambda: list(common_args),
+            "args_builder": build_task4_args,
             "log_file": logs_dir / "task4_controlled_misrouting.log",
         },
         5: {
@@ -226,7 +249,7 @@ def _build_task_registry(
             "name": "Task 8 (Defense Evaluation)",
             "title": "Task 8: Empirical Defense ESM & Adaptive Evasion Evaluation (Table 11, Figure 9)",
             "script": tasks_dir / "task8_defense_evaluation.py",
-            "args_builder": lambda: list(common_args),
+            "args_builder": build_task8_args,
             "log_file": logs_dir / "task8_defense_evaluation.log",
         },
         7: {
@@ -242,6 +265,13 @@ def _build_task_registry(
             "script": tasks_dir / "task9_generate_tables.py",
             "args_builder": build_task9_args,
             "log_file": logs_dir / "task9_generate_tables.log",
+        },
+        10: {
+            "name": "Task 10 (Multi-Seed AQSM)",
+            "title": "Task 10: Multi-Seed AQSM Stability Benchmark (Table 12)",
+            "script": tasks_dir / "task10_multiseed_stability.py",
+            "args_builder": build_task10_args,
+            "log_file": logs_dir / "task10_multiseed_stability.log",
         },
     }
 
@@ -268,10 +298,14 @@ def main():
     parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU tối đa cho PyTorch")
 
     # 4. Tham số lựa chọn task
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7,9", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,8,7,9)")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,10,7,9", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,8,10,7,9)")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã tồn tại")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache từ đầu kể cả khi đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh thêm cache eps 4 và 8 cho Task 5")
+    parser.add_argument("--run_sqa_ablation", action="store_true", default=False, help="Chạy trực tiếp Live GPU Forward Pass cho SQA và các controls trong Task 8")
+    default_seeds_str = ",".join(map(str, DEFAULT_MULTI_SEEDS))
+    parser.add_argument("--run_multiseed", action="store_true", default=False, help="Bật Task 10 chạy thực nghiệm AQSM đa seed tự động khi truyền tập --tasks tùy chỉnh")
+    parser.add_argument("--seeds", type=str, default=default_seeds_str, help=f"Danh sách random seeds cho Task 4 & Task 10 (mặc định: {default_seeds_str})")
     parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD sinh mẫu đối kháng (mặc định 15)")
     args = parser.parse_args()
 
@@ -334,6 +368,11 @@ def main():
     registry = _build_task_registry(base_dir, args, common_args)
 
     tasks_to_run = [int(t.strip()) for t in args.tasks.split(",") if t.strip().isdigit()]
+    if getattr(args, "run_multiseed", False) and 10 not in tasks_to_run:
+        if 9 in tasks_to_run:
+            tasks_to_run.insert(tasks_to_run.index(9), 10)
+        else:
+            tasks_to_run.append(10)
     task_durations: Dict[str, float] = {}
     task_statuses: Dict[str, str] = {}
 

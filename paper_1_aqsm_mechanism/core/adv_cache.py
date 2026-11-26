@@ -11,7 +11,7 @@ Hỗ trợ:
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
@@ -115,7 +115,7 @@ def load_cached_adv_proxy(
     if fpath is None or not fpath.exists():
         if allow_onthefly:
             print(f"[ADV CACHE] Không tìm thấy cache trên đĩa cho {attack.upper()} (eps={eps_num}).")
-            print(f"            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
+            print("            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
             onthefly_proxy = OnTheFlyAdvImageBatchProxy(
                 clean_proxy=clean_proxy,
                 attack_name=attack,
@@ -139,7 +139,7 @@ def load_cached_adv_proxy(
         except Exception as e:
             if allow_onthefly:
                 print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
-                print(f"                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
+                print("                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
                 onthefly_proxy = OnTheFlyAdvImageBatchProxy(
                     clean_proxy=clean_proxy,
                     attack_name=attack,
@@ -161,8 +161,8 @@ def load_cached_adv_proxy(
     cached_subset = cached_ids[:n_eval]
     if cached_subset != expected_ids:
         if allow_onthefly:
-            print(f"[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
-            print(f"                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
+            print("[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
+            print("                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
             onthefly_proxy = OnTheFlyAdvImageBatchProxy(
                 clean_proxy=clean_proxy,
                 attack_name=attack,
@@ -225,7 +225,7 @@ def load_cached_adv_images(
     if fpath is None or not fpath.exists():
         if allow_onthefly:
             print(f"[ADV CACHE] Không tìm thấy cache trên đĩa cho {attack.upper()} (eps={eps_num}).")
-            print(f"            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
+            print("            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
             onthefly_proxy = OnTheFlyAdvImageBatchProxy(
                 clean_proxy=clean_imgs,
                 attack_name=attack,
@@ -249,7 +249,7 @@ def load_cached_adv_images(
         except Exception as e:
             if allow_onthefly:
                 print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
-                print(f"                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
+                print("                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
                 onthefly_proxy = OnTheFlyAdvImageBatchProxy(
                     clean_proxy=clean_imgs,
                     attack_name=attack,
@@ -269,8 +269,8 @@ def load_cached_adv_images(
     cached_subset = cached_ids[:n_eval]
     if cached_subset != expected_ids:
         if allow_onthefly:
-            print(f"[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
-            print(f"                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
+            print("[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
+            print("                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
             onthefly_proxy = OnTheFlyAdvImageBatchProxy(
                 clean_proxy=clean_imgs,
                 attack_name=attack,

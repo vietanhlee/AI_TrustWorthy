@@ -180,105 +180,129 @@ def run_sqa_decoder_forward(
 
 
 def evaluate_sqa_hardening(
-    clean_map50: float = 66.81,
-    clean_map50_95: float = 49.47,
-    clean_recall: float = 78.83,
-    aqsm_map50: float = 3.41,
-    aqsm_map50_95: float = 1.45,
-    aqsm_recall: float = 29.05,
-    taskpgd_map50: float = 0.98,
-    taskpgd_map50_95: float = 0.76,
-    taskpgd_recall: float = 14.20,
-    jetson_latency_ms: float = 14.20,
     empirical_ablation: Optional[Dict[str, Any]] = None,
+    summary_dir: Optional[Path] = None,
+    model_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Tổng hợp kết quả đánh giá thực nghiệm kiến trúc gia cố SQA (Bảng 12).
-    Hỗ trợ nạp động 100% từ kết quả chạy thực nghiệm GPU/Kaggle (empirical_ablation)
-    hoặc tệp JSON summary provenance, loại bỏ hoàn toàn việc fix cứng số liệu.
+    Bắt buộc nạp động 100% từ kết quả chạy thực nghiệm GPU/Kaggle (empirical_ablation)
+    hoặc tệp JSON summary hiện có trong summary_dir — tuyệt đối không fix cứng số liệu trong code.
     """
-    # 1. Khởi tạo giá trị mặc định có thể kế thừa từ empirical_ablation nếu có
-    sqa_clean_m50 = round(clean_map50 - 0.67, 2)
-    sqa_clean_m50_95 = round(clean_map50_95 - 0.35, 2)
-    sqa_clean_rec = round(clean_recall + 0.22, 2)
+    sdir = Path(summary_dir) if summary_dir is not None else (Path(__file__).resolve().parent.parent / "outputs" / "summary_json")
+    hardening_file = sdir / "hardening_evaluation_results.json"
+    summary_file = sdir / "sqa_controls_and_adaptive_summary.json"
 
-    sqa_aqsm_m50 = 18.42
-    sqa_aqsm_m50_95 = 11.25
-    sqa_aqsm_rec = 46.80
+    base_data: Dict[str, Any] = {}
+    provenance_source = ""
+    if hardening_file.exists():
+        with open(hardening_file, "r", encoding="utf-8") as hf:
+            base_data = json.load(hf)
+        provenance_source = f"loaded_from_provenance_json ({hardening_file.name})"
 
-    ctrl_dyn330_m50 = 3.58
-    ctrl_dyn330_m50_95 = 1.52
-    ctrl_dyn330_rec = 29.84
-
-    ctrl_rand30_m50 = 11.45
-    ctrl_rand30_m50_95 = 6.82
-    ctrl_rand30_rec = 36.40
-
-    adapt_m50 = 4.35
-    adapt_m50_95 = 1.78
-    adapt_rec = 21.30
-    adapt_bypass = 97.80
-
-    provenance_source = "canonical_empirical_benchmark"
-
-    # 2. Nếu có empirical_ablation truyền trực tiếp từ GPU inference (ví dụ chạy trên Kaggle):
     if empirical_ablation is not None:
-        provenance_source = "live_gpu_inference_ablation"
-        strat = empirical_ablation.get("strategy_ablation", {})
-        if "uniform_grid" in strat:
-            ug = strat["uniform_grid"]
-            sqa_clean_m50 = float(ug.get("clean_map50", sqa_clean_m50))
-            sqa_clean_m50_95 = float(ug.get("clean_map50_95", sqa_clean_m50_95))
-            sqa_aqsm_m50 = float(ug.get("aqsm_recovered_map50", sqa_aqsm_m50))
-            sqa_aqsm_m50_95 = float(ug.get("aqsm_recovered_map50_95", sqa_aqsm_m50_95))
-        if "random" in strat:
-            rnd = strat["random"]
-            ctrl_rand30_m50 = float(rnd.get("aqsm_recovered_map50", ctrl_rand30_m50))
-            ctrl_rand30_m50_95 = float(rnd.get("aqsm_recovered_map50_95", ctrl_rand30_m50_95))
-
+        strat = empirical_ablation["strategy_ablation"]
+        ug = strat["uniform_grid"]
+        rnd = strat["random"]
         adapt_info = empirical_ablation.get("adaptive_attack_carlini_tramer", {})
-        if "adaptive_post_sqa_map50" in adapt_info:
-            adapt_m50 = float(adapt_info["adaptive_post_sqa_map50"])
-            adapt_m50_95 = float(adapt_info.get("adaptive_post_sqa_map50_95", adapt_m50_95))
+        res_prev = base_data.get("results", {})
+        cl_prev = res_prev.get("clean_baseline", {})
+        aq_prev = res_prev.get("aqsm_attack_eps16", {})
+        pgd_prev = res_prev.get("taskpgd_attack_eps16", {})
+        ctrl_prev = res_prev.get("controls", {})
+        lat_prev = res_prev.get("edge_latency_jetson_orin_nano_ms", {})
 
-    # 3. Nếu chưa có empirical_ablation, thử tìm tệp sqa_controls_and_adaptive_summary.json
+        clean_m50 = float(ug.get("clean_dynamic_map50", cl_prev.get("default_dynamic_only", {}).get("mAP@50", 0.0)))
+        clean_m50_95 = float(ug.get("clean_dynamic_map50_95", cl_prev.get("default_dynamic_only", {}).get("mAP@50:95", 0.0)))
+        clean_rec = float(cl_prev.get("default_dynamic_only", {}).get("recall_pct", 0.0))
+        sqa_clean_m50 = float(ug["clean_map50"])
+        sqa_clean_m50_95 = float(ug["clean_map50_95"])
+        sqa_clean_rec = float(cl_prev.get("hardened_static_augmented", {}).get("recall_pct", clean_rec))
+
+        aqsm_m50 = float(ug.get("aqsm_dynamic_map50", aq_prev.get("default_dynamic_only", {}).get("mAP@50", 0.0)))
+        aqsm_m50_95 = float(aq_prev.get("default_dynamic_only", {}).get("mAP@50:95", 0.0))
+        aqsm_rec = float(aq_prev.get("default_dynamic_only", {}).get("recall_pct", 0.0))
+        sqa_aqsm_m50 = float(ug["aqsm_recovered_map50"])
+        sqa_aqsm_m50_95 = float(ug["aqsm_recovered_map50_95"])
+        sqa_aqsm_rec = float(aq_prev.get("hardened_static_augmented", {}).get("recall_pct", 0.0))
+
+        ctrl_dyn330_m50 = float(ctrl_prev.get("dynamic_top330", {}).get("mAP@50", aqsm_m50))
+        ctrl_dyn330_m50_95 = float(ctrl_prev.get("dynamic_top330", {}).get("mAP@50:95", aqsm_m50_95))
+        ctrl_dyn330_rec = float(ctrl_prev.get("dynamic_top330", {}).get("recall_pct", aqsm_rec))
+
+        ctrl_rand30_m50 = float(rnd["aqsm_recovered_map50"])
+        ctrl_rand30_m50_95 = float(rnd["aqsm_recovered_map50_95"])
+        ctrl_rand30_rec = float(ctrl_prev.get("random30_static", {}).get("recall_pct", 0.0))
+
+        adapt_m50 = float(adapt_info.get("adaptive_post_sqa_map50", ctrl_prev.get("adaptive_evasion_sqa", {}).get("mAP@50", 0.0)))
+        adapt_m50_95 = float(adapt_info.get("adaptive_post_sqa_map50_95", ctrl_prev.get("adaptive_evasion_sqa", {}).get("mAP@50:95", 0.0)))
+        adapt_rec = float(ctrl_prev.get("adaptive_evasion_sqa", {}).get("recall_pct", 0.0))
+        adapt_bypass = float(ctrl_prev.get("adaptive_evasion_sqa", {}).get("bypass_pct", 0.0))
+
+        taskpgd_dyn = pgd_prev.get("default_dynamic_only", {})
+        taskpgd_sqa = pgd_prev.get("hardened_static_augmented", {})
+        jetson_latency_ms = float(lat_prev["default_dynamic_only"]) if "default_dynamic_only" in lat_prev else 0.0
+        jetson_sqa_ms = float(lat_prev["hardened_static_augmented"]) if "hardened_static_augmented" in lat_prev else 0.0
+        provenance_source = "live_gpu_inference_ablation"
+        resolved_model = model_name or base_data.get("model", "unknown")
+    elif summary_file.exists():
+        with open(summary_file, "r", encoding="utf-8") as sf:
+            s_data = json.load(sf)
+        base_res = base_data.get("results", {})
+        b_cl = s_data["baselines"]["clean_nominal"]
+        b_aq = s_data["baselines"]["aqsm_eps16"]
+        ctrls = s_data["controls"]
+        adapt_block = s_data["adaptive_threat_boundary"]
+
+        clean_m50 = float(b_cl["dynamic_300_map50"])
+        clean_m50_95 = float(base_res["clean_baseline"]["default_dynamic_only"]["mAP@50:95"])
+        clean_rec = float(b_cl["dynamic_300_recall"])
+        sqa_clean_m50 = float(base_res["clean_baseline"]["hardened_static_augmented"]["mAP@50"])
+        sqa_clean_m50_95 = float(base_res["clean_baseline"]["hardened_static_augmented"]["mAP@50:95"])
+        sqa_clean_rec = float(base_res["clean_baseline"]["hardened_static_augmented"]["recall_pct"])
+
+        aqsm_m50 = float(b_aq["dynamic_300_map50"])
+        aqsm_m50_95 = float(base_res["aqsm_attack_eps16"]["default_dynamic_only"]["mAP@50:95"])
+        aqsm_rec = float(b_aq["dynamic_300_recall"])
+        sqa_aqsm_m50 = float(ctrls["uniform_grid_30_sqa"]["map50"])
+        sqa_aqsm_m50_95 = float(ctrls["uniform_grid_30_sqa"]["map50_95"])
+        sqa_aqsm_rec = float(ctrls["uniform_grid_30_sqa"]["recall_pct"])
+
+        ctrl_dyn330_m50 = float(ctrls["dynamic_330_topk"]["map50"])
+        ctrl_dyn330_m50_95 = float(ctrls["dynamic_330_topk"]["map50_95"])
+        ctrl_dyn330_rec = float(ctrls["dynamic_330_topk"]["recall_pct"])
+
+        ctrl_rand30_m50 = float(ctrls["random_30_static"]["map50"])
+        ctrl_rand30_m50_95 = float(ctrls["random_30_static"]["map50_95"])
+        ctrl_rand30_rec = float(ctrls["random_30_static"]["recall_pct"])
+
+        adapt_m50 = float(adapt_block["adaptive_map50"])
+        adapt_m50_95 = float(adapt_block["adaptive_map50_95"])
+        adapt_rec = float(adapt_block["adaptive_recall_pct"])
+        adapt_bypass = float(adapt_block["evasion_success_pct"])
+
+        taskpgd_dyn = base_res["taskpgd_attack_eps16"]["default_dynamic_only"]
+        taskpgd_sqa = base_res["taskpgd_attack_eps16"]["hardened_static_augmented"]
+        lat_prev = base_res["edge_latency_jetson_orin_nano_ms"]
+        jetson_latency_ms = float(lat_prev["default_dynamic_only"])
+        jetson_sqa_ms = float(lat_prev["hardened_static_augmented"])
+        provenance_source = f"loaded_from_provenance_json ({summary_file.name})"
+        resolved_model = s_data["metadata"]["model"]
+    elif base_data:
+        return base_data
     else:
-        summary_file = Path(__file__).resolve().parent.parent / "outputs" / "summary_json" / "sqa_controls_and_adaptive_summary.json"
-        if summary_file.exists():
-            try:
-                with open(summary_file, "r", encoding="utf-8") as sf:
-                    s_data = json.load(sf)
-                ctrls = s_data.get("controls", {})
-                if "dynamic_330_topk" in ctrls:
-                    ctrl_dyn330_m50 = float(ctrls["dynamic_330_topk"].get("map50", ctrl_dyn330_m50))
-                    ctrl_dyn330_m50_95 = float(ctrls["dynamic_330_topk"].get("map50_95", ctrl_dyn330_m50_95))
-                    ctrl_dyn330_rec = float(ctrls["dynamic_330_topk"].get("recall_pct", ctrl_dyn330_rec))
-                if "random_30_static" in ctrls:
-                    ctrl_rand30_m50 = float(ctrls["random_30_static"].get("map50", ctrl_rand30_m50))
-                    ctrl_rand30_m50_95 = float(ctrls["random_30_static"].get("map50_95", ctrl_rand30_m50_95))
-                    ctrl_rand30_rec = float(ctrls["random_30_static"].get("recall_pct", ctrl_rand30_rec))
-                if "uniform_grid_30_sqa" in ctrls:
-                    sqa_aqsm_m50 = float(ctrls["uniform_grid_30_sqa"].get("map50", sqa_aqsm_m50))
-                    sqa_aqsm_m50_95 = float(ctrls["uniform_grid_30_sqa"].get("map50_95", sqa_aqsm_m50_95))
-                    sqa_aqsm_rec = float(ctrls["uniform_grid_30_sqa"].get("recall_pct", sqa_aqsm_rec))
-                adapt_block = s_data.get("adaptive_threat_boundary", {})
-                if "adaptive_map50" in adapt_block:
-                    adapt_m50 = float(adapt_block.get("adaptive_map50", adapt_m50))
-                    adapt_m50_95 = float(adapt_block.get("adaptive_map50_95", adapt_m50_95))
-                    adapt_rec = float(adapt_block.get("adaptive_recall_pct", adapt_rec))
-                    adapt_bypass = float(adapt_block.get("evasion_success_pct", adapt_bypass))
-                provenance_source = f"loaded_from_provenance_json ({summary_file.name})"
-            except Exception as e:
-                provenance_source = f"canonical_fallback ({e})"
+        raise FileNotFoundError(
+            f"Không tìm thấy dữ liệu SQA thực nghiệm tại {summary_file} hoặc {hardening_file} và cũng không có live empirical_ablation!"
+        )
 
-    # Tính toán các giá trị delta và tỷ lệ hồi phục động
-    recovery_pp_sqa = round(sqa_aqsm_m50 - aqsm_map50, 2)
-    recovery_pp_dyn330 = round(ctrl_dyn330_m50 - aqsm_map50, 2)
-    recovery_pp_rand30 = round(ctrl_rand30_m50 - aqsm_map50, 2)
+    recovery_pp_sqa = round(sqa_aqsm_m50 - aqsm_m50, 2)
+    recovery_pp_dyn330 = round(ctrl_dyn330_m50 - aqsm_m50, 2)
+    recovery_pp_rand30 = round(ctrl_rand30_m50 - aqsm_m50, 2)
+    lat_overhead_ms = round(jetson_sqa_ms - jetson_latency_ms, 2)
 
     results = {
         "experiment": "Section 7.2: Empirical Validation of Architectural Hardening via Static Query Augmentation",
-        "model": "PekingU/rtdetr_r18vd",
+        "model": resolved_model,
         "resolution": "640x640",
         "num_dynamic_queries": 300,
         "num_static_anchors": 30,
@@ -287,74 +311,65 @@ def evaluate_sqa_hardening(
         "results": {
             "clean_baseline": {
                 "default_dynamic_only": {
-                    "mAP@50": clean_map50,
-                    "mAP@50:95": clean_map50_95,
-                    "recall_pct": clean_recall
+                    "mAP@50": clean_m50,
+                    "mAP@50:95": clean_m50_95,
+                    "recall_pct": clean_rec,
                 },
                 "hardened_static_augmented": {
                     "mAP@50": sqa_clean_m50,
                     "mAP@50:95": sqa_clean_m50_95,
                     "recall_pct": sqa_clean_rec,
-                    "clean_penalty_pp": round(sqa_clean_m50 - clean_map50, 2)
-                }
+                    "clean_penalty_pp": round(sqa_clean_m50 - clean_m50, 2),
+                },
             },
             "aqsm_attack_eps16": {
                 "default_dynamic_only": {
-                    "mAP@50": aqsm_map50,
-                    "mAP@50:95": aqsm_map50_95,
-                    "recall_pct": aqsm_recall,
-                    "retention_pct": round((aqsm_map50 / max(clean_map50, 1e-4)) * 100.0, 2)
+                    "mAP@50": aqsm_m50,
+                    "mAP@50:95": aqsm_m50_95,
+                    "recall_pct": aqsm_rec,
+                    "retention_pct": round((aqsm_m50 / max(clean_m50, 1e-4)) * 100.0, 2),
                 },
                 "hardened_static_augmented": {
                     "mAP@50": sqa_aqsm_m50,
                     "mAP@50:95": sqa_aqsm_m50_95,
                     "recall_pct": sqa_aqsm_rec,
                     "recovery_pp": recovery_pp_sqa,
-                    "retention_pct": round((sqa_aqsm_m50 / max(clean_map50, 1e-4)) * 100.0, 2)
-                }
+                    "retention_pct": round((sqa_aqsm_m50 / max(clean_m50, 1e-4)) * 100.0, 2),
+                },
             },
             "taskpgd_attack_eps16": {
-                "default_dynamic_only": {
-                    "mAP@50": taskpgd_map50,
-                    "mAP@50:95": taskpgd_map50_95,
-                    "recall_pct": taskpgd_recall
-                },
-                "hardened_static_augmented": {
-                    "mAP@50": 3.12,
-                    "mAP@50:95": 1.84,
-                    "recall_pct": 19.50,
-                    "recovery_pp": round(3.12 - taskpgd_map50, 2)
-                }
+                "default_dynamic_only": taskpgd_dyn,
+                "hardened_static_augmented": taskpgd_sqa,
             },
             "controls": {
                 "dynamic_top330": {
                     "mAP@50": ctrl_dyn330_m50,
                     "mAP@50:95": ctrl_dyn330_m50_95,
                     "recall_pct": ctrl_dyn330_rec,
-                    "recovery_pp": recovery_pp_dyn330
+                    "recovery_pp": recovery_pp_dyn330,
                 },
                 "random30_static": {
                     "mAP@50": ctrl_rand30_m50,
                     "mAP@50:95": ctrl_rand30_m50_95,
                     "recall_pct": ctrl_rand30_rec,
-                    "recovery_pp": recovery_pp_rand30
+                    "recovery_pp": recovery_pp_rand30,
                 },
                 "adaptive_evasion_sqa": {
                     "mAP@50": adapt_m50,
                     "mAP@50:95": adapt_m50_95,
                     "recall_pct": adapt_rec,
-                    "bypass_pct": adapt_bypass
-                }
+                    "bypass_pct": adapt_bypass,
+                },
             },
             "edge_latency_jetson_orin_nano_ms": {
                 "default_dynamic_only": jetson_latency_ms,
-                "hardened_static_augmented": round(jetson_latency_ms + 0.38, 2),
-                "overhead_ms": 0.38,
-                "overhead_pct": round((0.38 / max(jetson_latency_ms, 1e-4)) * 100.0, 2),
+                "hardened_static_augmented": jetson_sqa_ms,
+                "overhead_ms": lat_overhead_ms,
+                "overhead_pct": round((lat_overhead_ms / max(jetson_latency_ms, 1e-4)) * 100.0, 2),
                 "real_time_deadline_ms": 20.0,
-                "satisfies_real_time": True
-            }
-        }
+                "satisfies_real_time": jetson_sqa_ms < 20.0,
+            },
+        },
     }
     return results
 

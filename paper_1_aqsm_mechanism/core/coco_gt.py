@@ -13,11 +13,14 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from PIL import Image
-from scipy import stats
 import torch
 import torchvision.transforms.functional as TF
 
 from paper_1_aqsm_mechanism.experiments.config import IMG_SIZE
+from paper_1_aqsm_mechanism.utils.stats import (
+    bootstrap_paired_diff,
+    repeated_measures_2x2_anova,
+)
 
 def get_default_coco_val_dir() -> Path:
     """Lấy đường dẫn thư mục ảnh COCO val2017 động từ cấu hình."""
@@ -85,23 +88,54 @@ def compute_image_gt_union_area(
     return float(np.mean(grid))
 
 
+def compute_image_uniform_grid_fg_hit(
+    boxes_xyxy: np.ndarray,
+    num_queries: int = 300,
+) -> float:
+    """
+    Tính tỷ lệ điểm lưới đều tất định (Uniform Grid Anchors) trên canvas [0, 1]^2
+    rơi trúng bên trong ít nhất một Ground Truth bounding box (chỉ tính ảnh có GT).
+    Dùng làm đối chứng Null lưới đều trực tiếp trên cùng tập ảnh cho Paired TOST.
+    """
+    if len(boxes_xyxy) == 0:
+        return 0.0
+
+    # Lưới 15 x 20 = 300 điểm tâm ô đều phủ kín canvas [0, 1]^2
+    n_rows = max(1, int(round(np.sqrt(num_queries * 0.75))))
+    n_cols = max(1, int(round(num_queries / n_rows)))
+    ys = np.linspace(0.5 / n_rows, 1.0 - 0.5 / n_rows, n_rows)
+    xs = np.linspace(0.5 / n_cols, 1.0 - 0.5 / n_cols, n_cols)
+    gx, gy = np.meshgrid(xs, ys)
+    grid_pts = np.stack([gx.ravel(), gy.ravel()], axis=1)[:num_queries]
+
+    boxes = np.asarray(boxes_xyxy, dtype=np.float64)
+    in_x = (grid_pts[:, 0:1] >= boxes[None, :, 0]) & (grid_pts[:, 0:1] <= boxes[None, :, 2])
+    in_y = (grid_pts[:, 1:2] >= boxes[None, :, 1]) & (grid_pts[:, 1:2] <= boxes[None, :, 3])
+    return float(np.mean(np.any(in_x & in_y, axis=1)))
+
+
 def compute_dataset_gt_union_null_baseline(
     gt_list: Sequence[Dict[str, Any]],
     resolution: int = 640,
+    num_queries: int = 300,
 ) -> Dict[str, Any]:
     """
-    Tính toán phân phối thực nghiệm của Null Baseline (Exact GT Union Area)
-    trên toàn bộ tập ảnh COCO thực tế thay vì hằng số cố định.
+    Tính toán phân phối thực nghiệm của Null Baseline (Exact GT Union Area
+    và Uniform Canvas Grid Hit Rate) trên toàn bộ tập ảnh COCO thực tế thay vì hằng số cố định.
     """
     per_image_union_areas = []
+    per_image_uniform_grid_hits = []
     for gt in gt_list:
         boxes = gt.get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32))
         crowd = gt.get("iscrowd", np.zeros(len(boxes), dtype=bool))
         non_crowd_boxes = boxes[~crowd] if len(boxes) > 0 and len(crowd) == len(boxes) else boxes
         area = compute_image_gt_union_area(non_crowd_boxes, resolution=resolution)
+        grid_hit = compute_image_uniform_grid_fg_hit(non_crowd_boxes, num_queries=num_queries)
         per_image_union_areas.append(area)
+        per_image_uniform_grid_hits.append(grid_hit)
 
     arr = np.array(per_image_union_areas, dtype=np.float64)
+    grid_arr = np.array(per_image_uniform_grid_hits, dtype=np.float64)
     return {
         "mean_pct": round(float(np.mean(arr)) * 100.0, 2),
         "std_pct": round(float(np.std(arr, ddof=1)) * 100.0, 2) if len(arr) > 1 else 0.0,
@@ -110,7 +144,10 @@ def compute_dataset_gt_union_null_baseline(
         "ci95_pct": [round(float(np.percentile(arr, 2.5)) * 100.0, 2), round(float(np.percentile(arr, 97.5)) * 100.0, 2)],
         "min_pct": round(float(np.min(arr)) * 100.0, 2) if len(arr) > 0 else 0.0,
         "max_pct": round(float(np.max(arr)) * 100.0, 2) if len(arr) > 0 else 0.0,
+        "uniform_grid_mean_pct": round(float(np.mean(grid_arr)) * 100.0, 2),
+        "uniform_grid_std_pct": round(float(np.std(grid_arr, ddof=1)) * 100.0, 2) if len(grid_arr) > 1 else 0.0,
         "per_image_union_areas": [round(float(v), 6) for v in per_image_union_areas],
+        "per_image_uniform_grid_hits": [round(float(v), 6) for v in per_image_uniform_grid_hits],
     }
 
 
@@ -688,8 +725,4 @@ def compute_per_image_coco_aps(
 # nhằm đảm bảo tuân thủ nguyên tắc Single Responsibility (SRP) và giữ nguyên
 # 100% tính tương thích ngược cho các module đang import từ coco_gt.
 # -----------------------------------------------------------------------------
-from paper_1_aqsm_mechanism.utils.stats import (
-    bootstrap_paired_diff,
-    repeated_measures_2x2_anova,
-)
 

@@ -9,17 +9,16 @@ chuẩn công nghiệp cho RT-DETR -> Phục vụ Table 10 trong bài báo:
     + CPU: Đo bằng High-resolution Performance Counter, số luồng (Threads), Throughput (FPS).
   - Phân tích chi tiết từng giai đoạn kiến trúc:
     Backbone -> Hybrid Encoder -> Query Selection -> Deformable Decoder -> End-to-End.
-  - Chứng minh tính bất biến của độ trễ suy luận (Timing Invariance) giữa Clean, AQSM và Vanishing.
+  - Đánh giá tính ổn định độ trễ suy luận đo đạc thực tế (Measured Latency Stability) giữa Clean, AQSM và Vanishing dưới các điều kiện proposal-flooding được kiểm định (không kết luận miễn nhiễm tuyệt đối mọi biến động runtime).
 """
 
-import argparse
 import gc
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -39,14 +38,13 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
-    get_model_tag,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
-from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json, write_csv_rows
+from paper_1_aqsm_mechanism.utils.io_helpers import save_json, write_csv_rows
 
 
 def _measure_stage_gpu(fn, *args, **kwargs) -> Tuple[float, Any]:
@@ -100,14 +98,14 @@ def profile_pipeline_latency(
     times_decoder: List[float] = []
     times_total: List[float] = []
 
-    print(f"\n==================================================================")
+    print("\n==================================================================")
     print(f" [Hardware Latency Profiler] Đo đạc thời gian thực thi ({n_runs} runs)")
     print(f" Thiết bị đang chạy: {hw_info['device_type'].upper()} ({hw_info.get('gpu_names', [hw_info.get('processor')])})")
     if is_cuda:
         print(f" CUDA Device: {torch.cuda.get_device_name(0)} | VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
     else:
         print(f" CPU Threads: {torch.get_num_threads()} | Cores: {hw_info.get('cpu_cores')}")
-    print(f"==================================================================")
+    print("==================================================================")
 
     print(f">>> Đang khởi động (Warm-up {n_warmup} runs)...")
     with torch.no_grad():
@@ -236,10 +234,10 @@ def profile_pipeline_latency(
     print("\n" + "=" * 80)
     print(" KẾT QUẢ PROFILING ĐỘ TRỄ THỰC THI PHẦN CỨNG (RT-DETR Native 640x640)")
     print("=" * 80)
-    print(f" 1. Backbone (ResNet18vd)           : {stats_bb['mean_ms']:6.2f} ms +- {stats_bb['std_ms']:4.2f} ({(stats_bb['mean_ms']/mean_tot)*100:4.1f}%)")
+    print(f" 1. Backbone ({getattr(wrapper, 'pretrained_model_name', 'ResNet') or 'ResNet'}) : {stats_bb['mean_ms']:6.2f} ms +- {stats_bb['std_ms']:4.2f} ({(stats_bb['mean_ms']/mean_tot)*100:4.1f}%)")
     print(f" 2. Hybrid Encoder (AIFI + CCFM)    : {stats_enc['mean_ms']:6.2f} ms +- {stats_enc['std_ms']:4.2f} ({(stats_enc['mean_ms']/mean_tot)*100:4.1f}%)")
     print(f" 3. Query Selection (Head + Top-k)  : {stats_sel['mean_ms']:6.2f} ms +- {stats_sel['std_ms']:4.2f} ({(stats_sel['mean_ms']/mean_tot)*100:4.1f}%)")
-    print(f" 4. Deformable Decoder (3 Layers)   : {stats_dec['mean_ms']:6.2f} ms +- {stats_dec['std_ms']:4.2f} ({(stats_dec['mean_ms']/mean_tot)*100:4.1f}%)")
+    print(f" 4. Deformable Decoder ({getattr(wrapper, 'decoder_layers', 3)} Layers)   : {stats_dec['mean_ms']:6.2f} ms +- {stats_dec['std_ms']:4.2f} ({(stats_dec['mean_ms']/mean_tot)*100:4.1f}%)")
     print("-" * 80)
     print(f" TỔNG ĐỘ TRỄ SUY LUẬN (End-to-End)  : {mean_tot:6.2f} ms +- {stats_tot['std_ms']:4.2f} | P95: {stats_tot['p95_ms']:.2f} ms")
     print(f" THÔNG LƯỢNG SUY LUẬN (Throughput)  : {fps:6.2f} FPS")
@@ -300,7 +298,11 @@ def profile_pipeline_latency(
             "Query_Selection_pct": round((stats_sel["mean_ms"] / mean_tot) * 100.0, 2),
             "Deformable_Decoder_pct": round((stats_dec["mean_ms"] / mean_tot) * 100.0, 2),
         },
-        "timing_invariance_note": "RT-DETR eliminates NMS sponge attacks; computational latency remains deterministic across clean and perturbed inputs.",
+        "timing_invariance_note": (
+            "RT-DETR exhibits stable measured inference latency under the evaluated "
+            "proposal-flooding conditions, consistent with its fixed-query, NMS-free "
+            "inference architecture (without ruling out hardware or system-level runtime variability)."
+        ),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
 
@@ -362,7 +364,7 @@ def main():
         "device": str(device),
         "hardware_info": hw_info,
         "random_seed": RANDOM_SEED,
-        "model_name": MODEL_NAME,
+        "model_name": chosen_model,
     })
 
     profile_pipeline_latency(

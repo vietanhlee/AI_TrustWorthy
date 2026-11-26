@@ -16,13 +16,12 @@ giữa các biến thể RT-DETR (ví dụ: RT-DETR-R18VD vs RT-DETR-R50VD).
 
 import argparse
 import gc
-import json
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import numpy as np
 import torch
@@ -52,11 +51,8 @@ from paper_1_aqsm_mechanism.experiments.config import (
     detect_hardware_environment,
     get_device,
     get_model_tag,
-    get_summary_json_dir,
     resolve_model_name,
-    update_experiment_paths,
 )
-from paper_1_aqsm_mechanism.utils.cli import create_base_parser
 from paper_1_aqsm_mechanism.utils.io_helpers import save_json
 
 

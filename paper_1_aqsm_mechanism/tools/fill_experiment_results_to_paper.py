@@ -12,13 +12,12 @@ Mục đích: Tự động hóa 100% quy trình điền dữ liệu thực nghi�
 
 import argparse
 import json
-import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
@@ -65,6 +64,8 @@ KNOWN_PAPER1_JSON_FILES = {
     "mechanism_telemetry_results.json",
     "multimodel_and_seed_stability_summary.json",
     "query_selection_dynamics.json",
+    "r50_cross_architecture_summary.json",
+    "r50_set_distance_and_coverage.json",
     "refined_statistical_methodology_summary.json",
     "set_distance_and_instance_coverage.json",
     "sqa_controls_and_adaptive_summary.json",
@@ -116,7 +117,7 @@ def sync_json_artifacts(source_dir: Path, target_dir: Path, allow_downgrade: boo
 
     if tgt_n and src_n and src_n < tgt_n and not allow_downgrade:
         print("=" * 80)
-        print(f"[CẢNH BÁO BẢO VỆ DỮ LIỆU] Phát hiện xung đột quy mô thực nghiệm:")
+        print("[CẢNH BÁO BẢO VỆ DỮ LIỆU] Phát hiện xung đột quy mô thực nghiệm:")
         print(f"  - Thư mục nguồn ({resolved_src.name}): N = {src_n} (chuỗi test nhanh/trung gian)")
         print(f"  - Thư mục đích ({target_dir.name}): N = {tgt_n} (chuỗi toàn diện COCO chuẩn)")
         print(f"  - Cơ chế tự động bảo vệ giữ nguyên dữ liệu N = {tgt_n} để duy trì độ tin cậy và liêm chính dữ liệu.")
@@ -235,8 +236,8 @@ def main():
     # 1. Đồng bộ file JSON
     sync_json_artifacts(results_dir, target_summary_dir, allow_downgrade=args.allow_downgrade)
 
-    # 2. Sinh lại toàn bộ 12 bảng biểu
-    print("\n>>> Bước 1/3: Kết xuất lại toàn bộ 12 bảng biểu LaTeX từ dữ liệu thực nghiệm...")
+    # 2. Sinh lại toàn bộ 13 bảng biểu
+    print("\n>>> Bước 1/4: Kết xuất lại toàn bộ 13 bảng biểu LaTeX từ dữ liệu thực nghiệm...")
     gen_script = PAPER_DIR / "tools" / "generate_publication_tables.py"
     ret = subprocess.run([sys.executable, str(gen_script), "--output_dir", str(OUTPUTS_DIR)], capture_output=True, text=True)
     if ret.returncode != 0:
@@ -253,19 +254,25 @@ def main():
     manifest_script = PAPER_DIR / "tools" / "generate_data_provenance_manifest.py"
     ret_manifest = subprocess.run([sys.executable, str(manifest_script), "--summary_dir", str(target_summary_dir)], capture_output=True, text=True)
     if ret_manifest.returncode != 0:
-        print(f"[CẢNH BÁO] Không thể sinh tự động manifest:\n{ret_manifest.stderr}")
-    else:
-        print(ret_manifest.stdout)
+        print(f"[LỖI] Không thể sinh tự động manifest:\n{ret_manifest.stderr}")
+        sys.exit(1)
+    print(ret_manifest.stdout)
 
     # 5. Kiểm định toàn vẹn dữ liệu
     print("\n>>> Bước 4/4: Kiểm tra Data Provenance và đối soát tính toàn vẹn 100%...")
     audit_script = PAPER_DIR / "tools" / "audit_data_provenance.py"
     ret_audit = subprocess.run([sys.executable, str(audit_script)], capture_output=True, text=True)
     print(ret_audit.stdout)
+    if ret_audit.returncode != 0:
+        print(f"[LỖI] audit_data_provenance.py thất bại:\n{ret_audit.stderr}")
+        sys.exit(ret_audit.returncode)
 
-    # 5. Kiểm tra verify_tex
+    # 6. Kiểm tra verify_tex
     ret_verify = subprocess.run([sys.executable, str(gen_script), "--output_dir", str(OUTPUTS_DIR), "--verify_tex"], capture_output=True, text=True)
     print(ret_verify.stdout)
+    if ret_verify.returncode != 0:
+        print(f"[LỖI] --verify_tex thất bại:\n{ret_verify.stderr}")
+        sys.exit(ret_verify.returncode)
 
     print("=" * 80)
     print(" [THÀNH CÔNG] Toàn bộ số liệu thực nghiệm đã được điền và đồng bộ chuẩn xác 100% vào bài báo!")

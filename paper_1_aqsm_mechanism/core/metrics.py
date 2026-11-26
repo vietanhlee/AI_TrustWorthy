@@ -9,10 +9,9 @@ Mục đích: Cung cấp bộ công cụ tính toán các chỉ số thống kê
 5. Tiện ích tuần tự hóa JSON cho dữ liệu numpy / PyTorch.
 """
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 import numpy as np
 from scipy.stats import beta
-from sklearn.metrics import roc_auc_score, roc_curve
 import torch
 
 

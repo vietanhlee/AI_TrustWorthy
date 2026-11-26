@@ -1,6 +1,0 @@
-Condition,Norm. Attention Entropy,Spatial Sampling Hit Rate (FG),Reference Drift (Delta p),Dropoff Ratio,Score Margin
-Clean Baseline,0.8009 ± 0.0423,63.51%,0.0000,37.51 ± 25.80,0.7984 ± 0.1281
-Gaussian Noise (sigma = 16/255),0.8005 ± 0.0430,58.40%,0.0150,32.10 ± 21.40,0.7650 ± 0.1250
-PGD Vanishing (T = 15),0.8334 ± 0.0286,48.37%,0.4286 ± 0.0532,17.93 ± 11.62,0.3314 ± 0.1717
-AQSM Probe (T = 15),0.7944 ± 0.0285,43.21%,0.4722 ± 0.0656,10.84 ± 7.75,0.6731 ± 0.1175
-Standard Task PGD (T = 15),0.8141 ± 0.0291,52.17%,0.4288 ± 0.0516,41.60 ± 28.06,0.7287 ± 0.1648

@@ -14,12 +14,10 @@ cho RT-DETR tại tầng biên:
 3. Hỗ trợ đánh giá đòn tấn công thích ứng White-Box Adaptive Evasion Attack (Carlini-Tramèr).
 """
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple
 import numpy as np
 import sklearn.metrics as skm
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 class SingleFeatureMonitor:

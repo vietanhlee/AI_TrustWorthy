@@ -101,7 +101,7 @@ def draw_system_architecture(output_pdf: Path, output_png: Path):
     ax.add_patch(b5)
     ax.text(92.25, 86, "Predictions", ha="center", **subtitle_font)
     ax.text(92.25, 80, "No NMS", ha="center", color="#2f855a", fontweight="bold", **body_font)
-    ax.text(92.25, 70, "Classes $\\hat{P}$\nBoxes $\\hat{B}$\nDeterministic\n$\\mathcal{O}(1)$ Graph",
+    ax.text(92.25, 70, "Classes $\\hat{P}$\nBoxes $\\hat{B}$\nFixed-Budget\nNMS-Free Graph",
             ha="center", color="#4a5568", **small_font)
 
     # -------------------------------------------------------------

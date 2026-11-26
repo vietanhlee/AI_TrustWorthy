@@ -15,7 +15,7 @@ Hỗ trợ:
 import os
 import platform
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 import torch
 
 # Ngăn ngừa xung đột OpenMP trên hệ điều hành Windows
@@ -200,6 +200,7 @@ SWEEP_EPSILONS: List[float] = [4.0 / 255.0, 8.0 / 255.0, 16.0 / 255.0]
 # -----------------------------------------------------------------------------
 COHORT_SIZE: int = 1000      # Giá trị mặc định danh định chuẩn cho cohort đánh giá
 RANDOM_SEED: int = 42        # Seed cố định bảo đảm khả năng tái lập 100%
+DEFAULT_MULTI_SEEDS: List[int] = [42, 100, 2024, 777, 9999]  # Danh sách 5 random seeds chuẩn cho đánh giá đa hạt giống (Task 4 & Task 10)
 N_BOOTSTRAP: int = 1000      # Số lần lấy mẫu Bootstrap tính khoảng tin cậy 95% CI
 
 # Ngưỡng phát hiện danh định

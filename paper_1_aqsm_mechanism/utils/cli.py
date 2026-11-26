@@ -6,17 +6,14 @@ giúp các Task 1 -> Task 8 và Orchestrator kế thừa đồng nhất, loại 
 """
 
 import argparse
-from pathlib import Path
 from typing import Optional
 
 from paper_1_aqsm_mechanism.experiments.config import (
     ADV_CACHE_DIR,
     COCO_ANN_FILE,
     COCO_VAL_DIR,
-    FIG_DIR,
     MODEL_NAME,
     OUTPUTS_DIR,
-    resolve_model_name,
 )
 
 

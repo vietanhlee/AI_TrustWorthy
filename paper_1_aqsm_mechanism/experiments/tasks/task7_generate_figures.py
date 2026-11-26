@@ -18,12 +18,10 @@ toàn bộ các biểu đồ vector PDF/PNG xuất bản chuẩn Elsevier EAAI:
   - Tuyệt đối không hardcode, đọc động 100% từ các artifact JSON thực nghiệm.
 """
 
-import json
-import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 # BẮT BUỘC: Thiết lập matplotlib backend 'Agg' TRƯỚC KHI import pyplot
 # để hoạt động ổn định trên môi trường máy chủ Linux headless (Kaggle / Colab / HPC) không có X-Server.
@@ -70,6 +68,17 @@ def _to_pct(val: float) -> float:
     return val * 100.0 if 0.0 <= val <= 1.0 else val
 
 
+def _require_stat(d: Any, label: str = "") -> float:
+    """Trích xuất giá trị thống kê bắt buộc từ dict {'mean': ...} hoặc số (không dùng fallback tĩnh)."""
+    if isinstance(d, dict):
+        if "mean" in d and d["mean"] is not None:
+            return float(d["mean"])
+        raise KeyError(f"[STRICT PROVENANCE] Thiếu khóa 'mean' cho '{label}': {list(d.keys())}")
+    if isinstance(d, (int, float)):
+        return float(d)
+    raise KeyError(f"[STRICT PROVENANCE] Giá trị thống kê không hợp lệ cho '{label}': {d!r}")
+
+
 def _get_stat(d: Any, default: float = 0.0) -> float:
     """Trích xuất giá trị thống kê an toàn từ dict {'mean': ...} hoặc số nguyên / số thực."""
     if isinstance(d, dict):
@@ -111,13 +120,13 @@ def plot_score_spectrum_figure(json_path: Path, output_pdf: Path, output_png: Pa
     if not spec:
         raise KeyError(f"Không tìm thấy trường 'score_spectrum' trong {json_path}.")
 
-    clean_s1 = _get_stat(spec.get("clean_s1"), 0.8325)
-    clean_s50 = _get_stat(spec.get("clean_s50"), 0.5214)
-    clean_s300 = _get_stat(spec.get("clean_s300"), 0.0341)
+    clean_s1 = _require_stat(spec["clean_s1"], "spec.clean_s1")
+    clean_s50 = _require_stat(spec["clean_s50"], "spec.clean_s50")
+    clean_s300 = _require_stat(spec["clean_s300"], "spec.clean_s300")
 
-    adv_s1 = _get_stat(spec.get("adv_s1"), 0.7939)
-    adv_s50 = _get_stat(spec.get("adv_s50"), 0.4852)
-    adv_s300 = _get_stat(spec.get("adv_s300"), 0.1359)
+    adv_s1 = _require_stat(spec["adv_s1"], "spec.adv_s1")
+    adv_s50 = _require_stat(spec["adv_s50"], "spec.adv_s50")
+    adv_s300 = _require_stat(spec["adv_s300"], "spec.adv_s300")
 
     ranks = np.arange(1, 301)
     rank_anchors = [1, 50, 300]
@@ -167,14 +176,11 @@ def plot_causal_swap_figure(json_path: Path, output_pdf: Path, output_png: Path)
     """
     data = load_json(json_path)
 
-    pm = data.get("point_maps", {})
+    pm = data["point_maps"]
     arms_order = ["Arm_A", "Arm_D_index", "Arm_D_full", "Arm_C_full", "Arm_B"]
 
-    default_map50 = {"Arm_A": 65.50, "Arm_D_index": 33.04, "Arm_D_full": 25.11, "Arm_C_full": 6.25, "Arm_B": 2.50}
-    default_map95 = {"Arm_A": 48.89, "Arm_D_index": 19.85, "Arm_D_full": 14.12, "Arm_C_full": 3.10, "Arm_B": 1.37}
-
-    map50_vals = [float(pm.get(a, {}).get("mAP@50", default_map50.get(a, 0.0))) for a in arms_order]
-    map95_vals = [float(pm.get(a, {}).get("mAP@50:95", default_map95.get(a, 0.0))) for a in arms_order]
+    map50_vals = [float(pm[a]["mAP@50"]) for a in arms_order]
+    map95_vals = [float(pm[a]["mAP@50:95"]) for a in arms_order]
 
     labels = [
         "Arm A\n(Clean Baseline)",
@@ -211,17 +217,14 @@ def plot_causal_swap_figure(json_path: Path, output_pdf: Path, output_png: Path)
                      xytext=(0, 3), textcoords="offset points", ha="center", va="bottom", fontsize=8)
 
     # Subplot (b): ANOVA Factorial Effect Attribution
-    anova = data.get("anova_repeated_measures_full", {})
-    eta_sq = anova.get("attribution_shares", {}).get("partial_eta_squared", {})
-    if not eta_sq:
-        anova_idx = data.get("anova_repeated_measures_index", {})
-        eta_sq = anova_idx.get("attribution_shares", {}).get("partial_eta_squared", {})
+    anova = data.get("anova_repeated_measures_full") or data["anova_repeated_measures_index"]
+    eta_sq = anova["attribution_shares"]["partial_eta_squared"]
 
     factors = ["Memory ($M$)", "Query ($Q$)", "Interaction\n($M \\times Q$)"]
     eta_vals = [
-        float(eta_sq.get("Memory_M", 0.678)),
-        float(eta_sq.get("Query_Q", 0.274)),
-        float(eta_sq.get("Interaction_MxQ", 0.048)),
+        float(eta_sq["Memory_M"]),
+        float(eta_sq["Query_Q"]),
+        float(eta_sq["Interaction_MxQ"]),
     ]
 
     colors = ["#d62728", "#ff7f0e", "#2ca02c"]
@@ -268,18 +271,18 @@ def plot_multiscale_and_overlap_figure(
     x = np.arange(len(scales))
     width = 0.20
 
-    def _get_cos_scale(atk_name: str, scale_name: str, fallback: float) -> float:
-        atk_d = mem_res.get(atk_name, {})
-        cos_d = atk_d.get("cosine_similarity", {})
-        sc_d = cos_d.get(scale_name, {})
-        return _get_stat(sc_d, fallback)
+    def _req_cos_scale(atk_name: str, scale_name: str) -> float:
+        return _require_stat(mem_res[atk_name]["cosine_similarity"][scale_name], f"{atk_name}.cosine.{scale_name}")
 
-    aqsm_cos = [_get_cos_scale("aqsm", "S3", 0.5917), _get_cos_scale("aqsm", "S4", 0.5074), _get_cos_scale("aqsm", "S5", 0.5846)]
-    vanish_cos = [_get_cos_scale("vanishing", "S3", 0.6482), _get_cos_scale("vanishing", "S4", 0.6120), _get_cos_scale("vanishing", "S5", 0.6385)]
-    taskpgd_cos = [_get_cos_scale("taskpgd", "S3", 0.6210), _get_cos_scale("taskpgd", "S4", 0.5780), _get_cos_scale("taskpgd", "S5", 0.6050)]
-    noise_cos = [_get_cos_scale("gaussian", "S3", 0.9150), _get_cos_scale("gaussian", "S4", 0.9420), _get_cos_scale("gaussian", "S5", 0.9620)]
+    aqsm_cos = [_req_cos_scale("aqsm", "S3"), _req_cos_scale("aqsm", "S4"), _req_cos_scale("aqsm", "S5")]
+    vanish_cos = [_req_cos_scale("vanishing", "S3"), _req_cos_scale("vanishing", "S4"), _req_cos_scale("vanishing", "S5")]
+    taskpgd_cos = [_req_cos_scale("taskpgd", "S3"), _req_cos_scale("taskpgd", "S4"), _req_cos_scale("taskpgd", "S5")]
+    has_gaussian = "gaussian" in mem_res
+    if has_gaussian:
+        noise_cos = [_req_cos_scale("gaussian", "S3"), _req_cos_scale("gaussian", "S4"), _req_cos_scale("gaussian", "S5")]
 
-    ax1.bar(x - 1.5 * width, noise_cos, width, label="Gaussian Noise", color="#7f7f7f", edgecolor="black", alpha=0.85)
+    if has_gaussian:
+        ax1.bar(x - 1.5 * width, noise_cos, width, label="Gaussian Noise", color="#7f7f7f", edgecolor="black", alpha=0.85)
     ax1.bar(x - 0.5 * width, vanish_cos, width, label="PGD Vanishing", color="#1f77b4", edgecolor="black", alpha=0.85)
     ax1.bar(x + 0.5 * width, taskpgd_cos, width, label="Task PGD", color="#ff7f0e", edgecolor="black", alpha=0.85)
     ax1.bar(x + 1.5 * width, aqsm_cos, width, label="AQSM (Ours)", color="#d62728", edgecolor="black", alpha=0.85)
@@ -293,23 +296,23 @@ def plot_multiscale_and_overlap_figure(
     ax1.grid(axis="y", linestyle="--", alpha=0.5)
 
     # Subplot (b): Query Selection Dynamics & Proposal Coverage
-    aqsm_q = q_res.get("aqsm", {})
-    cov = aqsm_q.get("object_coverage", {})
+    aqsm_q = q_res["aqsm"]
+    cov = aqsm_q["object_coverage"]
 
     metrics = ["Top-300\nOverlap", "Top-15 FG\nEvicted", "Center-in-GT\nCoverage", "GT IoU $\\geq$ 0.30\nCoverage"]
 
     clean_vals = [
         100.0,
         0.0,
-        _get_stat(cov.get("center_in_gt_clean_pct"), 98.98),
-        _get_stat(cov.get("iou30_clean_pct"), 98.46),
+        _require_stat(cov["center_in_gt_clean_pct"], "cov.center_in_gt_clean_pct"),
+        _require_stat(cov["iou30_clean_pct"], "cov.iou30_clean_pct"),
     ]
 
     aqsm_vals = [
-        _get_stat(aqsm_q.get("top300_overlap_pct"), 12.21),
-        _get_stat(aqsm_q.get("evicted_top15_fg_pct"), 98.50),
-        _get_stat(cov.get("center_in_gt_adv_pct"), 73.92),
-        _get_stat(cov.get("iou30_adv_pct"), 53.11),
+        _require_stat(aqsm_q["top300_overlap_pct"], "aqsm.top300_overlap_pct"),
+        _require_stat(aqsm_q["evicted_top15_fg_pct"], "aqsm.evicted_top15_fg_pct"),
+        _require_stat(cov["center_in_gt_adv_pct"], "cov.center_in_gt_adv_pct"),
+        _require_stat(cov["iou30_adv_pct"], "cov.iou30_adv_pct"),
     ]
 
     x2 = np.arange(len(metrics))
@@ -353,24 +356,17 @@ def plot_attention_telemetry_figure(json_path: Path, output_pdf: Path, output_pn
     conditions = ["clean", "vanishing", "taskpgd", "aqsm"]
     cond_labels = ["Clean Baseline", "Query Vanishing", "Task PGD", "AQSM (Ours)"]
 
-    defaults = {
-        "clean": {"mean_entropy_l1": 0.8263, "std_entropy_l1": 0.0423, "mean_fg_hit_rate": 0.6351, "std_fg_hit_rate": 0.2539},
-        "vanishing": {"mean_entropy_l1": 0.8495, "std_entropy_l1": 0.0283, "mean_fg_hit_rate": 0.4882, "std_fg_hit_rate": 0.2835},
-        "taskpgd": {"mean_entropy_l1": 0.8366, "std_entropy_l1": 0.0293, "mean_fg_hit_rate": 0.5207, "std_fg_hit_rate": 0.2928},
-        "aqsm": {"mean_entropy_l1": 0.8146, "std_entropy_l1": 0.0246, "mean_fg_hit_rate": 0.3877, "std_fg_hit_rate": 0.3259},
-    }
-
     entropy_means = []
     entropy_stds = []
     hit_means = []
     hit_stds = []
 
     for c in conditions:
-        cond_dict = data.get(c, defaults.get(c, {}))
-        ent = float(cond_dict.get("mean_entropy_l1", defaults[c]["mean_entropy_l1"]))
-        ent_std = float(cond_dict.get("std_entropy_l1", defaults[c]["std_entropy_l1"]))
-        hit = float(_to_pct(cond_dict.get("mean_fg_hit_rate", defaults[c]["mean_fg_hit_rate"])))
-        hit_std = float(_to_pct(cond_dict.get("std_fg_hit_rate", defaults[c]["std_fg_hit_rate"])))
+        cond_dict = data[c]
+        ent = float(cond_dict["mean_entropy_l1"])
+        ent_std = float(cond_dict["std_entropy_l1"])
+        hit = float(_to_pct(cond_dict["mean_fg_hit_rate"]))
+        hit_std = float(_to_pct(cond_dict["std_fg_hit_rate"]))
 
         entropy_means.append(ent)
         entropy_stds.append(ent_std)
@@ -427,21 +423,21 @@ def plot_matched_budget_figure(json_path: Path, output_pdf: Path, output_png: Pa
     """
     data = load_json(json_path)
 
-    sweep = data.get("sweep_results", {})
-    clean_base = data.get("clean_baseline", {})
-    clean_map50 = float(clean_base.get("mAP@50", 65.50))
-    clean_map95 = float(clean_base.get("mAP@50:95", 48.89))
+    sweep = data["sweep_results"]
+    clean_base = data["clean_baseline"]
+    clean_map50 = float(clean_base["mAP@50"])
+    clean_map95 = float(clean_base["mAP@50:95"])
 
-    aqsm_sweep = sweep.get("aqsm", {})
-    vanish_sweep = sweep.get("vanishing", {})
-    taskpgd_sweep = sweep.get("taskpgd", {})
+    aqsm_sweep = sweep["aqsm"]
+    vanish_sweep = sweep["vanishing"]
+    taskpgd_sweep = sweep["taskpgd"]
 
     available_keys = sorted(
         [k for k in aqsm_sweep.keys() if k.startswith("eps_")],
         key=lambda x: int(x.split("_")[1]) if x.split("_")[1].isdigit() else 0
     )
     if not available_keys:
-        available_keys = ["eps_4", "eps_8", "eps_16"]
+        raise KeyError(f"Thiếu khóa eps_* trong {json_path}")
 
     eps_numeric = [0] + [int(k.split("_")[1]) for k in available_keys]
     x_tick_labels = ["Clean (0)"] + [f"{int(k.split('_')[1])}/255" for k in available_keys]
@@ -455,13 +451,13 @@ def plot_matched_budget_figure(json_path: Path, output_pdf: Path, output_png: Pa
     taskpgd_map95 = [clean_map95]
 
     for k in available_keys:
-        aqsm_pts.append(float(aqsm_sweep.get(k, {}).get("mAP@50", 2.50)))
-        vanish_pts.append(float(vanish_sweep.get(k, {}).get("mAP@50", 1.16)))
-        taskpgd_pts.append(float(taskpgd_sweep.get(k, {}).get("mAP@50", 0.67)))
+        aqsm_pts.append(float(aqsm_sweep[k]["mAP@50"]))
+        vanish_pts.append(float(vanish_sweep[k]["mAP@50"]))
+        taskpgd_pts.append(float(taskpgd_sweep[k]["mAP@50"]))
 
-        aqsm_map95.append(float(aqsm_sweep.get(k, {}).get("mAP@50:95", 1.37)))
-        vanish_map95.append(float(vanish_sweep.get(k, {}).get("mAP@50:95", 0.68)))
-        taskpgd_map95.append(float(taskpgd_sweep.get(k, {}).get("mAP@50:95", 0.41)))
+        aqsm_map95.append(float(aqsm_sweep[k]["mAP@50:95"]))
+        vanish_map95.append(float(vanish_sweep[k]["mAP@50:95"]))
+        taskpgd_map95.append(float(taskpgd_sweep[k]["mAP@50:95"]))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.0, 3.8))
 
@@ -518,18 +514,18 @@ def plot_defense_evaluation_figure(
     attacks = ["aqsm", "vanishing", "taskpgd"]
     labels = ["AQSM (Ours)", "Query Vanishing", "Task PGD"]
 
-    atk_dict = data.get("attacks", {})
-    defaults_tpr = {"aqsm": 64.57, "vanishing": 8.86, "taskpgd": 7.14}
-    tpr_vals = [float(atk_dict.get(a, {}).get("tpr_detection_rate_pct", defaults_tpr.get(a, 10.0))) for a in attacks]
+    atk_dict = data["attacks"]
+    clean_fpr = float(data["empirical_clean_fpr_pct"])
+    tpr_vals = [float(atk_dict[a]["tpr_detection_rate_pct"]) for a in attacks]
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14.2, 3.9))
 
     # =========================================================================
-    # Subplot (a): Bar chart TPR at empirical FPR = 6.57%
+    # Subplot (a): Bar chart TPR at empirical clean FPR
     # =========================================================================
     x = np.arange(len(labels))
     bars = ax1.bar(x, tpr_vals, width=0.45, color=["#d62728", "#1f77b4", "#ff7f0e"], edgecolor="black", alpha=0.85)
-    ax1.set_ylabel("Detection TPR (%) [Clean FPR = 6.57%]", fontweight="bold")
+    ax1.set_ylabel(f"Detection TPR (%) [Clean FPR = {clean_fpr:.2f}%]", fontweight="bold")
     ax1.set_title("(a) ESM Detection Performance (Table 11)", fontweight="bold", fontsize=10)
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=8.5)
@@ -556,7 +552,7 @@ def plot_defense_evaluation_figure(
                 except ValueError:
                     l_val = len(lambdas) * 0.5
                 lambdas.append(l_val)
-                tpr_val = float(l_data.get("detected_tpr_pct", 1.5))
+                tpr_val = float(l_data["detected_tpr_pct"])
                 evade_tpr.append(tpr_val)
                 ev_succ = l_data.get(
                     "evasion_success_pct",
@@ -591,26 +587,33 @@ def plot_defense_evaluation_figure(
         "Proposed SQA\n(Grid-30)",
         "Adaptive\n(on SQA)"
     ]
-    sqa_map50 = [3.41, 3.58, 11.45, 18.42, 4.35]
-
-    if hardening_json_path and Path(hardening_json_path).exists():
-        try:
-            h_data = load_json(hardening_json_path)
-            res_d = h_data.get("results", {})
-            aqsm_res = res_d.get("aqsm_attack_eps16", {})
-            if "default_dynamic_only" in aqsm_res and "hardened_static_augmented" in aqsm_res:
-                sqa_map50[0] = float(aqsm_res["default_dynamic_only"].get("mAP@50", sqa_map50[0]))
-                sqa_map50[3] = float(aqsm_res["hardened_static_augmented"].get("mAP@50", sqa_map50[3]))
-            ctrl_d = res_d.get("controls", {}) or h_data.get("strategy_ablation", {})
-            if "dynamic_top330" in ctrl_d:
-                sqa_map50[1] = float(ctrl_d["dynamic_top330"].get("mAP@50", sqa_map50[1]))
-            if "random30_static" in ctrl_d or "random" in ctrl_d:
-                r_val = ctrl_d.get("random30_static", ctrl_d.get("random", {}))
-                sqa_map50[2] = float(r_val.get("mAP@50", r_val.get("aqsm_recovered_map50", sqa_map50[2])))
-            if "adaptive_evasion_sqa" in ctrl_d:
-                sqa_map50[4] = float(ctrl_d["adaptive_evasion_sqa"].get("mAP@50", sqa_map50[4]))
-        except Exception:
-            pass
+    if not hardening_json_path or not Path(hardening_json_path).exists():
+        raise FileNotFoundError(
+            f"Thiếu tệp hardening JSON bắt buộc ({hardening_json_path}) để vẽ Subplot (c) SQA — không dùng số liệu hardcode!"
+        )
+    h_data = load_json(hardening_json_path)
+    if "results" in h_data:
+        res_d = h_data["results"]
+        aqsm_res = res_d["aqsm_attack_eps16"]
+        ctrl_d = res_d["controls"]
+        sqa_map50 = [
+            float(aqsm_res["default_dynamic_only"]["mAP@50"]),
+            float(ctrl_d["dynamic_top330"]["mAP@50"]),
+            float(ctrl_d["random30_static"]["mAP@50"]),
+            float(aqsm_res["hardened_static_augmented"]["mAP@50"]),
+            float(ctrl_d["adaptive_evasion_sqa"]["mAP@50"]),
+        ]
+    elif "controls" in h_data and "baselines" in h_data:
+        c2 = h_data["controls"]
+        sqa_map50 = [
+            float(h_data["baselines"]["aqsm_eps16"]["dynamic_300_map50"]),
+            float(c2["dynamic_330_topk"]["map50"]),
+            float(c2["random_30_static"]["map50"]),
+            float(c2["uniform_grid_30_sqa"]["map50"]),
+            float(h_data["adaptive_threat_boundary"]["adaptive_map50"]),
+        ]
+    else:
+        raise KeyError(f"Cấu trúc JSON hardening không hợp lệ tại: {hardening_json_path}")
 
     x_sqa = np.arange(len(sqa_conditions))
     sqa_colors = ["#d62728", "#64748b", "#f59e0b", "#10b981", "#8b5cf6"]
@@ -816,7 +819,7 @@ def generate_all_figures_and_tables(
     )
     hardening_json = find_artifact_file(
         valid_candidate_dirs,
-        ["hardening_evaluation_results.json"],
+        ["hardening_evaluation_results.json", "sqa_controls_and_adaptive_summary.json"],
     )
     if defense_json:
         try:

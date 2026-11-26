@@ -33,7 +33,6 @@ from paper_1_aqsm_mechanism.core.defense_engine import (
     evaluate_defense_cohort,
 )
 from paper_1_aqsm_mechanism.core.hardening_prototype import (
-    StaticQueryAugmenter,
     evaluate_sqa_empirical_ablation,
     evaluate_sqa_hardening,
     save_hardening_results,
@@ -46,7 +45,6 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
-    get_model_tag,
     get_summary_json_dir,
     resolve_model_name,
     update_experiment_paths,
@@ -198,6 +196,8 @@ def run_defense_evaluation(
     n_adaptive: int = 50,
     cache_dir: Optional[Path] = None,
     audit_logger: Any = None,
+    run_sqa_ablation: bool = False,
+    batch_size: int = 4,
 ) -> Dict[str, Any]:
     """
     Thực hiện đánh giá toàn diện cơ chế phòng thủ ESM trên tập ảnh kiểm thử.
@@ -208,7 +208,7 @@ def run_defense_evaluation(
     device = wrapper.device
 
     print("\n==================================================================")
-    print(f" [Defense Evaluation Engine] Đánh giá Hệ thống Phòng thủ ESM & Guardrail")
+    print(" [Defense Evaluation Engine] Đánh giá Hệ thống Phòng thủ ESM & Guardrail")
     print(f" N={n_actual} ảnh COCO val2017 | Target FPR={target_fpr*100:.1f}%")
     print("==================================================================")
 
@@ -348,9 +348,27 @@ def run_defense_evaluation(
     )
     defense_results["adaptive_evasion"] = adaptive_results
 
-    # Đánh giá kiến trúc gia cố SQA (Section 7.2)
-    print("\n[Defense Eval] Đánh giá Đề xuất Gia cố Kiến trúc SQA (Section 7.2 - Table 12)...")
-    sqa_results = evaluate_sqa_hardening()
+    # Đánh giá kiến trúc gia cố SQA (Section 6.4 - Table 12)
+    print("\n[Defense Eval] Đánh giá Đề xuất Gia cố Kiến trúc SQA (Section 6.4 - Table 12)...")
+    empirical_ablation = None
+    if run_sqa_ablation and hasattr(dataset, "gt_list") and len(dataset.gt_list) > 0 and "aqsm" in adv_dict:
+        try:
+            print("   [Task 8] Đang thực hiện Live GPU Forward Pass cho SQA Ablation...")
+            empirical_ablation = evaluate_sqa_empirical_ablation(
+                model_wrapper=wrapper,
+                clean_imgs=clean_imgs,
+                adv_imgs=adv_dict["aqsm"],
+                gt_list=dataset.gt_list,
+                batch_size=batch_size,
+            )
+        except Exception as e:
+            print(f"   [CẢNH BÁO] Không thể chạy live SQA ablation ({e}). Sẽ sử dụng fallback provenance.")
+
+    sqa_results = evaluate_sqa_hardening(
+        empirical_ablation=empirical_ablation,
+        summary_dir=get_summary_json_dir(),
+        model_name=wrapper.pretrained_model_name,
+    )
     defense_results["sqa_hardening"] = sqa_results
 
     summary_json_dir = get_summary_json_dir()
@@ -380,6 +398,7 @@ def main():
     parser = create_base_parser("Empirical Defense & Adaptive Evasion Evaluation (Table 11)", task_name="Task 8")
     parser.add_argument("--cal_ratio", type=float, default=0.3, help="Tỷ lệ tập calibration không chồng lấn (mặc định 30%%)")
     parser.add_argument("--n_adaptive", type=int, default=1000, help="Số lượng ảnh kiểm thử tấn công thích ứng (mặc định 1000 để chạy toàn bộ tập test)")
+    parser.add_argument("--run_sqa_ablation", action="store_true", help="Chạy trực tiếp Forward Pass thực tế qua Deformable Decoder trên GPU để đánh giá SQA và các controls")
     args = parser.parse_args()
 
     chosen_model = resolve_model_name(getattr(args, "model", None))
@@ -417,7 +436,7 @@ def main():
         "device": str(device),
         "hardware_info": hw_info,
         "random_seed": RANDOM_SEED,
-        "model_name": MODEL_NAME,
+        "model_name": chosen_model,
         "defense_name": "EncoderSelectionMonitor (ESM)",
         "max_samples": args.max_samples,
     })
@@ -430,6 +449,8 @@ def main():
         n_adaptive=args.n_adaptive,
         cache_dir=args.cache_dir,
         audit_logger=audit_logger,
+        run_sqa_ablation=args.run_sqa_ablation,
+        batch_size=batch_size,
     )
 
     audit_logger.log_step(

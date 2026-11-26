@@ -3,7 +3,7 @@
 Module: paper_1_aqsm_mechanism.tests.test_refactored_mechanism
 Mục đích: Unit test và Integration test toàn diện cho các cải tiến phương pháp
 theo nhận xét phản biện của Reviewer (Paper 1 - RT-DETR AQSM Mechanism Breakdown):
-  1. AQSM Margin Ranking Loss trong không gian Logit & Saturation to 0.
+  1. AQSM Margin Ranking Loss trong không gian Logit & Hinge-Loss Inactivity.
   2. Bổ sung các biến thể tấn công đối chứng: Memory-Isolated Query & Pure Memory.
   3. Chuẩn hóa Metric: Exact Union Area Null Baseline & Spatial Clustering (ANND, Variance).
   4. Khớp chính xác độ dịch chuyển trong Controlled Misrouting (Post-clipping matching).
@@ -34,6 +34,7 @@ from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
 )
 from paper_1_aqsm_mechanism.experiments.tasks.task4_controlled_misrouting import (
     sample_exact_matched_shift_4d,
+    sample_exact_matched_shift_4d_with_diagnostics,
 )
 from paper_1_aqsm_mechanism.core.defense_engine import (
     SingleFeatureMonitor,
@@ -51,24 +52,28 @@ from paper_1_aqsm_mechanism.core.dataset_loader import (
 class TestAQSMRevampedComponents(unittest.TestCase):
     """Bộ kiểm thử đơn vị cho các thành phần toán học và thuật toán mới cải tiến."""
 
-    def test_01_logit_margin_ranking_loss_saturation(self):
+    def test_01_logit_margin_ranking_loss_hinge_inactivity(self):
         """
         Kiểm tra Margin Ranking Loss trong không gian Logit:
         Loss = ReLU(z_j - z_(300) + gamma_logit).
-        Khi z_j <= z_(300) - gamma_logit, hàm ReLU phải bão hòa về đúng 0.0 tuyệt đối.
+        Khi thỏa biên margin (z_j <= z_(300) - gamma_logit), số hạng hinge-loss trở nên
+        bất hoạt (hinge-loss inactivity) với giá trị 0.0 và gradient bằng 0.0.
         """
         # Giả lập logits của foreground (z_j) và ngưỡng candidate 300 (z_300)
         gamma_logit = 1.0
 
-        # Trường hợp 1: z_j nhỏ hơn z_300 đáng kể (vượt ngưỡng margin an toàn)
-        z_j_safe = torch.tensor([-2.5, -3.0, -1.8])
+        # Trường hợp 1: z_j nhỏ hơn z_300 đáng kể (vượt ngưỡng margin an toàn) -> loss=0, grad=0
+        z_j_safe = torch.tensor([-2.5, -3.0, -1.8], requires_grad=True)
         z_300 = torch.tensor([-0.5, -0.5, -0.5])
         loss_satisfied = F.relu(z_j_safe - z_300 + gamma_logit).mean()
         self.assertEqual(
             loss_satisfied.item(),
             0.0,
-            "Margin loss trong không gian logit phải bão hòa về 0 khi z_j <= z_300 - gamma",
+            "Hinge-loss term phải bất hoạt (giá trị 0) khi thỏa mãn margin z_j <= z_300 - gamma",
         )
+        loss_satisfied.backward()
+        self.assertIsNotNone(z_j_safe.grad)
+        self.assertTrue(torch.all(z_j_safe.grad == 0.0))
 
         # Trường hợp 2: z_j chưa bị dìm (vẫn cao hơn z_300), loss > 0 và có gradient
         z_j_violated = torch.tensor([1.5, 2.0, 0.8], requires_grad=True)
@@ -78,6 +83,19 @@ class TestAQSMRevampedComponents(unittest.TestCase):
         loss_violated.backward()
         self.assertIsNotNone(z_j_violated.grad)
         self.assertTrue(torch.all(z_j_violated.grad > 0.0))
+
+    def test_02b_per_query_center_size_diagnostics_corner_cases(self):
+        """
+        Kiểm tra khớp đồng thời Center L2 và Size L2 cấp từng query ngay cả gần biên góc [0, 1]^2.
+        """
+        rng = np.random.RandomState(123)
+        for _ in range(100):
+            c = rng.uniform(0.01, 0.99, size=4)
+            a = rng.uniform(0.01, 0.99, size=4)
+            shifted, diag = sample_exact_matched_shift_4d_with_diagnostics(c, a, rng)
+            self.assertTrue(np.all(shifted >= 0.0) and np.all(shifted <= 1.0))
+            self.assertLess(diag["center_l2_err"], 1e-4)
+            self.assertLess(diag["size_l2_err"], 1e-4)
 
     def test_02_sample_exact_matched_shift_post_clipping(self):
         """
@@ -314,8 +332,8 @@ class TestAQSMRevampedComponents(unittest.TestCase):
             generate_table9, generate_table10, generate_table11, generate_table12,
         )
         summary_dir = Path(WORKSPACE_DIR) / "paper_1_aqsm_mechanism" / "outputs" / "summary_json"
-        if not summary_dir.exists():
-            return  # Bỏ qua nếu chạy trong môi trường không có outputs
+        if not summary_dir.exists() or not (summary_dir / "causal_swap_results_aqsm.json").exists():
+            self.skipTest("Bỏ qua test kiểm bảng từ summary_json khi outputs/ đã được dọn sạch chờ chạy mới.")
 
         table_funcs = [
             generate_table1, generate_table2, generate_table3, generate_table4,
@@ -338,8 +356,8 @@ class TestAQSMRevampedComponents(unittest.TestCase):
         """
         from paper_1_aqsm_mechanism.utils.io_helpers import load_json
         summary_dir = Path(WORKSPACE_DIR) / "paper_1_aqsm_mechanism" / "outputs" / "summary_json"
-        if not summary_dir.exists():
-            return
+        if not summary_dir.exists() or not (summary_dir / "causal_swap_results_aqsm.json").exists():
+            self.skipTest("Bỏ qua test phân tích biểu đồ khi outputs/ đã được dọn sạch chờ chạy mới.")
 
         # Kiểm tra đọc dữ liệu Fig 3
         eqd = load_json(summary_dir / "encoder_query_dynamics.json")

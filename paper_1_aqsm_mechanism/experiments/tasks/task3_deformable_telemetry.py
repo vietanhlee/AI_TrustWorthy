@@ -28,7 +28,6 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
-    get_model_tag,
     resolve_model_name,
     update_experiment_paths,
 )
@@ -81,7 +80,7 @@ def main():
         "device": str(device),
         "hardware_info": hw_info,
         "random_seed": RANDOM_SEED,
-        "model_name": MODEL_NAME,
+        "model_name": chosen_model,
         "attacks": args.attacks,
     })
 
@@ -99,9 +98,9 @@ def main():
         )
         adv_dict[atk] = adv_imgs
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"--> [Task 3] Khởi chạy Telemetry Deformable Attention trên N={n_total} ảnh...")
-    print(f"=======================================================")
+    print("=======================================================")
 
     run_mechanism_telemetry_cohort(
         wrapper=wrapper,

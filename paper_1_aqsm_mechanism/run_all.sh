@@ -15,12 +15,17 @@ MAX_SAMPLES=0
 MODEL="r18"
 DEVICE="auto"
 BATCH_SIZE=0
-TASKS="0,1,2,3,4,5,6,8,7,9"
+TASKS="0,1,2,3,4,5,6,8,10,7,9"
 OUTPUT_DIR="outputs"
 CACHE_DIR="cache/adv_cache_640"
 FIG_DIR="fig"
 SKIP_CACHE_GEN=""
 FORCE_RECOMPUTE=""
+INCLUDE_SWEEP=""
+RUN_SQA_ABLATION=""
+RUN_MULTISEED=""
+SEEDS=""
+PGD_STEPS=""
 
 print_usage() {
     echo "======================================================================"
@@ -35,7 +40,7 @@ print_usage() {
     echo "Optional:"
     echo "  --model ARCH               Kiến trúc mô hình: r18 (mặc định), r50, hoặc checkpoint"
     echo "  --annotations PATH         Đường dẫn file instances_val2017.json"
-    echo "  --tasks LIST               Danh sách tasks (0,1,2,3,4,5,6,8,7)"
+    echo "  --tasks LIST               Danh sách tasks (mặc định: 0,1,2,3,4,5,6,8,10,7,9)"
     echo "  --num_images INT           Số ảnh giới hạn (0 = chạy toàn bộ ảnh)"
     echo "  --max_samples INT          Alias tương đương --num_images"
     echo "  --device DEV               Thiết bị: auto (mặc định), cuda, cpu"
@@ -45,6 +50,11 @@ print_usage() {
     echo "  --fig_dir PATH             Thư mục lưu biểu đồ xuất bản (mặc định: fig)"
     echo "  --skip_cache_gen           Bỏ qua tiền sinh cache Task 0 -> Chạy On-The-Fly VRAM Streaming (0 GB đĩa)"
     echo "  --force_recompute          Bắt buộc tính toán lại và ghi đè cache"
+    echo "  --include_sweep            Sinh thêm cache eps 4 và 8 cho Task 5"
+    echo "  --run_sqa_ablation         Chạy Live GPU Forward Pass cho SQA và các controls trong Task 8"
+    echo "  --run_multiseed            Bật Task 10 chạy thực nghiệm AQSM 5-seed tự động khi chạy tập tasks tùy chỉnh"
+    echo "  --seeds LIST               Danh sách seed cho Task 4 & Task 10 (mặc định: 42,100,2024,777,9999)"
+    echo "  --pgd_steps INT            Số bước lặp PGD sinh mẫu đối kháng (mặc định: 15)"
     echo "  -h, --help                 Hiển thị hướng dẫn này"
     echo "======================================================================"
 }
@@ -65,6 +75,11 @@ while [[ "$#" -gt 0 ]]; do
         --fig_dir) FIG_DIR="$2"; shift ;;
         --skip_cache_gen) SKIP_CACHE_GEN="--skip_cache_gen" ;;
         --force_recompute) FORCE_RECOMPUTE="--force_recompute" ;;
+        --include_sweep) INCLUDE_SWEEP="--include_sweep" ;;
+        --run_sqa_ablation) RUN_SQA_ABLATION="--run_sqa_ablation" ;;
+        --run_multiseed) RUN_MULTISEED="--run_multiseed" ;;
+        --seeds) SEEDS="$2"; shift ;;
+        --pgd_steps) PGD_STEPS="$2"; shift ;;
         -h|--help) print_usage; exit 0 ;;
         *) echo "Tham số không nhận dạng: $1"; print_usage; exit 1 ;;
     esac
@@ -128,6 +143,21 @@ if [ -n "$SKIP_CACHE_GEN" ]; then
 fi
 if [ -n "$FORCE_RECOMPUTE" ]; then
     EXTRA_ARGS+=(--force_recompute)
+fi
+if [ -n "$INCLUDE_SWEEP" ]; then
+    EXTRA_ARGS+=(--include_sweep)
+fi
+if [ -n "$RUN_SQA_ABLATION" ]; then
+    EXTRA_ARGS+=(--run_sqa_ablation)
+fi
+if [ -n "$RUN_MULTISEED" ]; then
+    EXTRA_ARGS+=(--run_multiseed)
+fi
+if [ -n "$SEEDS" ]; then
+    EXTRA_ARGS+=(--seeds "$SEEDS")
+fi
+if [ -n "$PGD_STEPS" ]; then
+    EXTRA_ARGS+=(--pgd_steps "$PGD_STEPS")
 fi
 
 $PYTHON_CMD run_all_experiments.py \

@@ -1,9 +1,0 @@
-Evaluated Condition,Detection TPR (%),Empirical FPR (%),AUROC,Mean Anomaly Score,Post-Attack mAP@50 (%)
-Clean Test Baseline,---,6.57% [Union Bound 10.0%],---,0.4950,65.50%
-Stationary AQSM (eps = 16/255),37.14%,6.57%,0.7593,0.8531,3.07%
-Stationary Standard Task PGD (eps = 16/255),8.57%,6.57%,0.4838,0.6548,0.86%
-Stationary Query Vanishing (eps = 16/255),9.57%,6.57%,0.5653,0.7285,1.72%
-Adaptive Evasion (lambda = 0.2),0.57%,---,Degenerate*,Bypass: 99.43%,3.65%
-Adaptive Evasion (lambda = 0.5),1.43%,---,Degenerate*,Bypass: 98.57%,4.12%
-Adaptive Evasion (lambda = 1.0),1.00%,---,Degenerate*,Bypass: 99.00%,5.20%
-Adaptive Evasion (lambda = 2.0),1.57%,---,Degenerate*,Bypass: 98.43%,6.85%

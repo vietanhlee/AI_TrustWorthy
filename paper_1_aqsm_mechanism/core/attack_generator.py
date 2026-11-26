@@ -22,7 +22,6 @@ Kiến trúc các đòn tấn công tinh gọn (Streamlined Attack Suite):
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 from paper_1_aqsm_mechanism.core.detr_wrapper import DETRModelWrapper, RTDETRModelWrapper
@@ -112,10 +111,11 @@ class DETRAttackGenerator:
         lambda_elev: float = 0.5,
         fg_selection_mode: str = "clean_prediction_proxy",
         gt_boxes: Optional[Sequence[np.ndarray]] = None,
+        bg_seed: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Adversarial Query Selection Manipulation (AQSM / Selection Starvation Attack):
-        Tấn công có chủ đích vào mắt xích Encoder Query Selection (đặc thù độc nhất của RT-DETR).
+        Tấn công có chủ đích vào mắt xích Encoder Query Selection (cơ chế lựa chọn đề xuất top-K động kế thừa từ two-stage DETR, triển khai trên RT-DETR không dùng NMS).
         Thao túng thứ hạng (ranking) của S candidate predictions từ Hybrid Encoder (S = 8,400 ở native 640x640; 2,100 ở 320x320):
         1. Dìm điểm các candidate thuộc về vật thể thật (foreground candidates) để chúng rơi khỏi Top-300.
         2. Kích hoạt và nâng điểm các candidate thuộc vùng nền (background candidates) thế chỗ vào Top-300.
@@ -124,8 +124,10 @@ class DETRAttackGenerator:
 
         Đặc tính toán học chuẩn mực:
         - Ranking Margin Loss được tính toán trong KHÔNG GIAN LOGIT (z_j - z_{(300)} + gamma_logit),
-          đảm bảo khi z_j <= z_{(300)} - gamma_logit thì ReLU(.) bão hòa về đúng 0 tuyệt đối,
-          khắc phục triệt để lỗi vô hiệu hóa bão hòa khi dùng trong không gian xác suất bị chặn [0, 1].
+          đảm bảo khi thỏa mãn biên margin z_j <= z_{(300)} - gamma_logit thì hàm hinge-loss ReLU(.)
+          trở nên bất hoạt (hinge-loss inactivity) và đóng góp gradient bằng 0 cho ứng viên đó
+          (thay vì ép gradient vô ích ngoài vùng vi phạm margin; tránh bị lẫn với hiện tượng
+          gradient saturation của sigmoid hay toàn bộ objective).
         - Đưa tham số lambda_elev (trọng số nâng nền) vào biểu thức tối ưu hóa tường minh.
 
         Tham số fg_selection_mode:
@@ -187,7 +189,17 @@ class DETRAttackGenerator:
 
             # Chọn background candidates (các candidates xếp hạng thấp ngoài top 500)
             k_bg = min(30, S)
-            _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)  # [B, k_bg]
+            if bg_seed is not None and S > 500 + k_bg:
+                rng_bg = np.random.RandomState(int(bg_seed))
+                sorted_idx = torch.argsort(max_clean_probs, dim=-1, descending=True).cpu().numpy()
+                bg_list = []
+                for b in range(B):
+                    pool_bg = sorted_idx[b, 500:]
+                    sampled_bg = rng_bg.choice(pool_bg, size=k_bg, replace=False)
+                    bg_list.append(torch.from_numpy(sampled_bg).to(self.device))
+                bottom_bg_idx = torch.stack(bg_list, dim=0)
+            else:
+                _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)  # [B, k_bg]
 
         # Bước 2: Tối ưu hóa PGD thao túng ranking và dìm điểm trong không gian logit
         for _ in range(n_steps):
@@ -210,7 +222,8 @@ class DETRAttackGenerator:
             val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)  # [B]
 
             # Margin Ranking Loss trong không gian Logit (-inf, +inf):
-            # Khi max_fg_logits <= val_at_300_logit - effective_margin, ReLU(.) bão hòa về 0 chuẩn mực toán học!
+            # Khi thỏa biên margin (max_fg_logits <= val_at_300_logit - effective_margin),
+            # số hạng hinge-loss trở nên bất hoạt (hinge-loss inactivity) và cho gradient bằng 0 cho ứng viên đó.
             loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + effective_margin).mean()
 
             # 3. Đẩy điểm background candidates lên để chiếm chỗ trong Top-300
@@ -245,6 +258,7 @@ class DETRAttackGenerator:
         lambda_mem: float = 20.0,
         fg_selection_mode: str = "clean_prediction_proxy",
         gt_boxes: Optional[Sequence[np.ndarray]] = None,
+        bg_seed: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Memory-Isolated / Feature-Constrained AQSM Attack (Nhóm đối chứng cô lập kênh Query Selection):

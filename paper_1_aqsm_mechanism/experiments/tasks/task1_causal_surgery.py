@@ -12,16 +12,14 @@ AQSM, Query Vanishing, Standard Task PGD -> Phục vụ Table 3, Table 4, Figure
   - Ghi nhận raw CSV từng ảnh và summary JSON đầy đủ ngữ cảnh phục vụ điền bài báo.
 """
 
-import argparse
 import csv
 import gc
-import json
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from scipy import stats
@@ -54,16 +52,14 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
-    get_model_tag,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
-from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json
+from paper_1_aqsm_mechanism.utils.io_helpers import save_json
 from paper_1_aqsm_mechanism.utils.stats import (
-    bootstrap_paired_diff,
     repeated_measures_2x2_anova,
 )
 
@@ -153,10 +149,10 @@ def run_causal_surgery(
     preds_by_arm: Dict[str, List[Dict[str, np.ndarray]]] = {a: [] for a in arms}
     evicted_ratios: List[float] = []
 
-    print(f"\n==================================================================")
+    print("\n==================================================================")
     print(f" [Causal Surgery] Khởi chạy 6 nhánh can thiệp 2x2 trên N={n_eval} ảnh")
     print(f" Đòn tấn công: {attack_name}")
-    print(f"==================================================================")
+    print("==================================================================")
     t_start = time.time()
 
     with torch.no_grad():
@@ -405,8 +401,8 @@ def run_causal_surgery(
     results_summary: Dict[str, Any] = {
         "attack_name": attack_name,
         "n_evaluated_images": n_eval,
-        "mean_evicted_ratio": float(np.mean(evicted_ratios)),
-        "std_evicted_ratio": float(np.std(evicted_ratios)),
+        "mean_evicted_ratio": float(np.mean(evicted_ratios)) if evicted_ratios else 0.0,
+        "std_evicted_ratio": float(np.std(evicted_ratios, ddof=1)) if len(evicted_ratios) > 1 else 0.0,
         "point_maps": point_maps,
         "per_image_cell_means": per_image_cell_means,
         "arm_definitions": arm_definitions,
@@ -476,15 +472,15 @@ def main():
         "hardware_info": hw_info,
         "attacks": args.attacks,
         "random_seed": RANDOM_SEED,
-        "model_name": MODEL_NAME,
+        "model_name": chosen_model,
         "max_samples": args.max_samples,
     })
 
     attack_list = [a.strip().lower() for a in args.attacks.split(",") if a.strip()]
     for atk in attack_list:
-        audit_logger.logger.info(f"\n=======================================================")
+        audit_logger.logger.info("\n=======================================================")
         audit_logger.logger.info(f"=== Đang thực hiện Causal Surgery cho: {atk.upper()} (N={n_actual}) ===")
-        audit_logger.logger.info(f"=======================================================")
+        audit_logger.logger.info("=======================================================")
 
         adv_imgs, _ = load_cached_adv_images(
             attack=atk,

@@ -10,7 +10,7 @@ Mục đích: Bộ trích xuất và phân tích cơ chế nội tại của RT-
 """
 
 from contextlib import contextmanager
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import numpy as np
 from scipy import stats
@@ -352,8 +352,9 @@ def compute_spatial_clustering_metrics(boxes_or_centers: np.ndarray) -> Dict[str
     mean_center = np.mean(centers, axis=0, keepdims=True)
     sq_dist_to_mean = np.sum((centers - mean_center) ** 2, axis=-1)
     spatial_variance = float(np.mean(sq_dist_to_mean))
-    std_x = float(np.std(centers[:, 0]))
-    std_y = float(np.std(centers[:, 1]))
+    ddof_c = 1 if centers.shape[0] > 1 else 0
+    std_x = float(np.std(centers[:, 0], ddof=ddof_c))
+    std_y = float(np.std(centers[:, 1], ddof=ddof_c))
 
     return {
         "annd": round(annd, 6),

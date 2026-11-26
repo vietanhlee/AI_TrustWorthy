@@ -34,13 +34,28 @@ param (
     [int]$Threads = 8,
 
     [Parameter(Mandatory = $false)]
-    [string]$Tasks = "0,1,2,3,4,5,6,8,7,9",
+    [string]$Model = "r18",
+
+    [Parameter(Mandatory = $false)]
+    [string]$Tasks = "0,1,2,3,4,5,6,8,10,7,9",
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipCacheGen,
 
     [Parameter(Mandatory = $false)]
     [switch]$ForceRecompute,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$IncludeSweep,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$RunSqaAblation,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$RunMultiseed,
+
+    [Parameter(Mandatory = $false)]
+    [string]$Seeds = "",
 
     [Parameter(Mandatory = $false)]
     [int]$PgdSteps = 15
@@ -80,9 +95,14 @@ if ($FigDir -ne "") { $PyArgs += @("--fig_dir", $FigDir) }
 if ($Device -ne "") { $PyArgs += @("--device", $Device) }
 if ($BatchSize -gt 0) { $PyArgs += @("--batch_size", $BatchSize) }
 if ($Threads -gt 0) { $PyArgs += @("--threads", $Threads) }
+if ($Model -ne "") { $PyArgs += @("--model", $Model) }
 if ($Tasks -ne "") { $PyArgs += @("--tasks", $Tasks) }
 if ($SkipCacheGen) { $PyArgs += @("--skip_cache_gen") }
 if ($ForceRecompute) { $PyArgs += @("--force_recompute") }
+if ($IncludeSweep) { $PyArgs += @("--include_sweep") }
+if ($RunSqaAblation) { $PyArgs += @("--run_sqa_ablation") }
+if ($RunMultiseed) { $PyArgs += @("--run_multiseed") }
+if ($Seeds -ne "") { $PyArgs += @("--seeds", $Seeds) }
 if ($PgdSteps -gt 0) { $PyArgs += @("--pgd_steps", $PgdSteps) }
 
 Write-Host ""

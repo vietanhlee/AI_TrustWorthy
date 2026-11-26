@@ -20,7 +20,6 @@ import torch
 import torchvision.transforms.functional as TF
 
 from paper_1_aqsm_mechanism.core.coco_gt import (
-    _COCO_NAME_ALIASES,
     build_coco_category_mapping,
 )
 

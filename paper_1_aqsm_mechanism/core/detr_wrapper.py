@@ -71,6 +71,7 @@ class RTDETRModelWrapper(nn.Module):
         """
         super().__init__()
         self.device = device or torch.device("cpu")
+        self.pretrained_model_name = pretrained_model_name
         self.is_sigmoid = True
 
         if pretrained_model_name is not None:
@@ -169,6 +170,7 @@ class DETRModelWrapper(nn.Module):
     ) -> None:
         super().__init__()
         self.device = device or torch.device("cpu")
+        self.pretrained_model_name = pretrained_model_name
         self.use_rtdetr = use_rtdetr
 
         if use_rtdetr:

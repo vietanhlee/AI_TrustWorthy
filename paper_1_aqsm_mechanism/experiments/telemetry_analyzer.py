@@ -19,9 +19,7 @@ Lưu trữ đầy đủ per-image raw CSV và summary JSON phục vụ audit kho
 
 import gc
 import math
-import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence
 
 import numpy as np
 import torch
@@ -107,10 +105,10 @@ def run_mechanism_telemetry_cohort(
     model.eval()
     n_eval = len(gt_list)
 
-    print(f"\n==================================================================")
-    print(f" [Telemetry Analyzer] Phân tích Deformable Attention & Proposal Dynamics")
+    print("\n==================================================================")
+    print(" [Telemetry Analyzer] Phân tích Deformable Attention & Proposal Dynamics")
     print(f" Quy mô: N={n_eval} ảnh | Đòn đánh giá: Clean vs {list(adv_imgs_dict.keys())}")
-    print(f"==================================================================")
+    print("==================================================================")
 
     all_conditions = ["clean"] + list(adv_imgs_dict.keys())
 
@@ -329,28 +327,36 @@ def run_mechanism_telemetry_cohort(
     for cond in all_conditions:
         n_c = len(cond_results[cond]["entropy_l1"])
         sqrt_n = np.sqrt(n_c) if n_c > 0 else 1.0
+        ddof_c = 1 if n_c > 1 else 0
+        std_el1 = float(np.std(cond_results[cond]["entropy_l1"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_el2 = float(np.std(cond_results[cond]["entropy_l2"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_el3 = float(np.std(cond_results[cond]["entropy_l3"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_fg = float(np.std(cond_results[cond]["fg_hit_rate"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_drop = float(np.std(cond_results[cond]["dropoff_ratio"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_margin = float(np.std(cond_results[cond]["score_margin"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_drift = float(np.std(cond_results[cond]["ref_drift"], ddof=ddof_c)) if n_c > 0 else 0.0
         cohort_stats[cond] = {
             "mean_entropy_l1": float(np.mean(cond_results[cond]["entropy_l1"])),
-            "std_entropy_l1": float(np.std(cond_results[cond]["entropy_l1"])),
-            "sem_entropy_l1": float(np.std(cond_results[cond]["entropy_l1"]) / sqrt_n),
+            "std_entropy_l1": std_el1,
+            "sem_entropy_l1": float(std_el1 / sqrt_n),
             "mean_entropy_l2": float(np.mean(cond_results[cond]["entropy_l2"])),
-            "std_entropy_l2": float(np.std(cond_results[cond]["entropy_l2"])),
-            "sem_entropy_l2": float(np.std(cond_results[cond]["entropy_l2"]) / sqrt_n),
+            "std_entropy_l2": std_el2,
+            "sem_entropy_l2": float(std_el2 / sqrt_n),
             "mean_entropy_l3": float(np.mean(cond_results[cond]["entropy_l3"])),
-            "std_entropy_l3": float(np.std(cond_results[cond]["entropy_l3"])),
-            "sem_entropy_l3": float(np.std(cond_results[cond]["entropy_l3"]) / sqrt_n),
+            "std_entropy_l3": std_el3,
+            "sem_entropy_l3": float(std_el3 / sqrt_n),
             "mean_fg_hit_rate": float(np.mean(cond_results[cond]["fg_hit_rate"])),
-            "std_fg_hit_rate": float(np.std(cond_results[cond]["fg_hit_rate"])),
-            "sem_fg_hit_rate": float(np.std(cond_results[cond]["fg_hit_rate"]) / sqrt_n),
+            "std_fg_hit_rate": std_fg,
+            "sem_fg_hit_rate": float(std_fg / sqrt_n),
             "mean_dropoff_ratio": float(np.mean(cond_results[cond]["dropoff_ratio"])),
-            "std_dropoff_ratio": float(np.std(cond_results[cond]["dropoff_ratio"])),
+            "std_dropoff_ratio": std_drop,
             "mean_score_margin": float(np.mean(cond_results[cond]["score_margin"])),
-            "std_score_margin": float(np.std(cond_results[cond]["score_margin"])),
+            "std_score_margin": std_margin,
             "mean_top1_score": float(np.mean(cond_results[cond]["top1_score"])),
             "mean_top300_score": float(np.mean(cond_results[cond]["top300_score"])),
             "mean_ref_drift": float(np.mean(cond_results[cond]["ref_drift"])),
-            "std_ref_drift": float(np.std(cond_results[cond]["ref_drift"])),
-            "sem_ref_drift": float(np.std(cond_results[cond]["ref_drift"]) / sqrt_n),
+            "std_ref_drift": std_drift,
+            "sem_ref_drift": float(std_drift / sqrt_n),
         }
 
     cohort_stats["hypothesis_tests"] = {

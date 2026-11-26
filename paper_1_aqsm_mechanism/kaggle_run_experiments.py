@@ -22,9 +22,11 @@ if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 import torch
+from paper_1_aqsm_mechanism.experiments.config import DEFAULT_MULTI_SEEDS
 
 
 def main():
+    default_seeds_str = ",".join(map(str, DEFAULT_MULTI_SEEDS))
     parser = argparse.ArgumentParser(description="Kaggle/Colab GPU Master Experiment Runner")
     parser.add_argument("--folder_image", type=str, default=None, help="Đường dẫn thư mục ảnh COCO val2017")
     parser.add_argument("--annotations", type=str, default=None, help="Đường dẫn file instances_val2017.json")
@@ -32,9 +34,14 @@ def main():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
     parser.add_argument("--max_samples", type=int, default=1000, help="Số lượng ảnh thực nghiệm (mặc định 1000 ảnh chuẩn)")
     parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples")
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,7,9", help="Danh sách tasks cần chạy")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,10,7,9", help="Danh sách tasks cần chạy (mặc định gồm cả Task 10 đa seed)")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
+    parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache từ đầu kể cả khi đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8 cho Task 5")
+    parser.add_argument("--run_sqa_ablation", action="store_true", default=False, help="Chạy Live GPU Forward Pass cho SQA và controls trong Task 8")
+    parser.add_argument("--run_multiseed", action="store_true", default=False, help="Bật Task 10 chạy thực nghiệm AQSM đa seed khi truyền tập --tasks tùy chỉnh")
+    parser.add_argument("--seeds", type=str, default=default_seeds_str, help=f"Danh sách random seeds cho Task 4 & Task 10 (mặc định: {default_seeds_str})")
+    parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD sinh mẫu đối kháng (mặc định 15)")
     args = parser.parse_args()
 
     if args.num_images is not None:
@@ -117,8 +124,18 @@ def main():
         cmd.extend(["--tasks", str(args.tasks)])
     if args.skip_cache_gen:
         cmd.append("--skip_cache_gen")
+    if args.force_recompute:
+        cmd.append("--force_recompute")
     if args.include_sweep:
         cmd.append("--include_sweep")
+    if args.run_sqa_ablation:
+        cmd.append("--run_sqa_ablation")
+    if args.run_multiseed:
+        cmd.append("--run_multiseed")
+    if args.seeds:
+        cmd.extend(["--seeds", str(args.seeds)])
+    if args.pgd_steps is not None:
+        cmd.extend(["--pgd_steps", str(args.pgd_steps)])
 
     start_time = time.time()
     print(f"\n>>> Đang thực thi lệnh: {' '.join(cmd)}\n")

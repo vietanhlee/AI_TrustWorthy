@@ -13,14 +13,13 @@ theo chuẩn L_inf qua các mức eps in {4/255, 8/255, 16/255} (RQ4) -> Phục 
   - Lưu trữ chi tiết kết quả thô ra CSV và tổng hợp thống kê ra JSON.
 """
 
-import argparse
 import gc
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
@@ -50,14 +49,13 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
-    get_model_tag,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
-from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json, write_csv_rows
+from paper_1_aqsm_mechanism.utils.io_helpers import save_json, write_csv_rows
 
 
 def run_matched_budget_sweep(
@@ -80,10 +78,10 @@ def run_matched_budget_sweep(
     eps_list = epsilons or SWEEP_EPSILONS
     cdir = Path(cache_dir) if cache_dir is not None else ADV_CACHE_DIR
 
-    print(f"\n==================================================================")
+    print("\n==================================================================")
     print(f" [Matched-Budget Sweep] Quét ngân sách L_inf qua eps={[f'{int(round(e*255))}/255' for e in eps_list]}")
     print(f" Quy mô: N={n_eval} ảnh | So sánh: AQSM vs Task PGD vs Vanishing")
-    print(f"==================================================================")
+    print("==================================================================")
 
     attacks = ["aqsm", "vanishing", "taskpgd"]
     sweep_results: Dict[str, Dict[str, Any]] = {
@@ -173,7 +171,7 @@ def run_matched_budget_sweep(
                             for b in range(end - start):
                                 s_c = set(c_ind[b].cpu().tolist())
                                 s_a = set(a_ind[b].cpu().tolist())
-                                evicted_list.append(float(1.0 - len(s_c & s_a) / 300.0))
+                                evicted_list.append(float(1.0 - len(s_c & s_a) / float(max(len(s_c), 1))))
 
                     pbar.update(end - start)
 
@@ -228,7 +226,7 @@ def run_matched_budget_sweep(
     final_output = {
         "experiment": "Table 9 & Figure 8: Matched-Budget Perturbation Sweep",
         "n_images": n_eval,
-        "model": "RT-DETR-R18vd",
+        "model": getattr(wrapper, "pretrained_model_name", None) or resolve_model_name(),
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "clean_baseline": {
@@ -297,7 +295,7 @@ def main():
         "device": str(device),
         "hardware_info": hw_info,
         "random_seed": RANDOM_SEED,
-        "model_name": MODEL_NAME,
+        "model_name": chosen_model,
         "epsilons": args.epsilons,
         "max_samples": args.max_samples,
     })

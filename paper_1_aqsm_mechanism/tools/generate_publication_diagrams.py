@@ -102,7 +102,7 @@ def draw_fig1_pipeline(output_pdf: Path, output_png: Path):
     ax.add_patch(b5)
     ax.text(92.75, 86.5, "Predictions", ha="center", va="center", **subtitle_font)
     ax.text(92.75, 82.0, "No NMS", ha="center", va="center", color="#2f855a", fontweight="bold", **body_font)
-    ax.text(92.75, 77.0, "Classes $\\hat{P}$\nBoxes $\\hat{B}$\nDeterministic\nEdge Latency\n(Sponge Proof)",
+    ax.text(92.75, 77.0, "Classes $\\hat{P}$\nBoxes $\\hat{B}$\nFixed-Budget\nStable Latency\n(No NMS Stall)",
             ha="center", va="top", color="#4a5568", **small_font)
 
     # Bottom Section: ESM Guardrail
@@ -204,10 +204,10 @@ def draw_fig2_taxonomy(output_pdf: Path, output_png: Path):
                                 edgecolor="#64748b", facecolor="#ffffff", linewidth=1.2)
     ax.add_patch(c1)
     ax.text(18.5, 84.5, "Tier A: CNN Threat Models", ha="center", va="center", color="#334155", **subtitle_font)
-    ax.text(18.5, 80.5, "Dense Anchor Grids + NMS", ha="center", va="center", color="#64748b", **body_font)
+    ax.text(18.5, 80.5, "Anchor / Dense Heads + NMS", ha="center", va="center", color="#64748b", **body_font)
 
     ax.text(18.5, 76.0,
-            "• Target: Anchor grid probabilities\n  or bounding-box IoU overlap.\n\n"
+            "• Target: Dense candidate scores\n  or bounding-box IoU overlap.\n\n"
             "• Attack Method: Dense sponge attacks\n  (flooding candidate proposals),\n  adversarial patch on feature maps.\n\n"
             "• Failure Mode: Quadratic NMS delay\n  surge (+242% on Jetson, +232% on Pi 5)\n  stalling real-time control loops.\n\n"
             "• Interface: Heuristic post-processing.",
@@ -217,7 +217,7 @@ def draw_fig2_taxonomy(output_pdf: Path, output_png: Path):
                                     edgecolor="#94a3b8", facecolor="#f1f5f9", linewidth=1)
     ax.add_patch(b1_bot)
     ax.text(18.5, 18.0, "Availability Risk (Sponge)", ha="center", va="center", color="#334155", fontweight="bold", **small_font)
-    ax.text(18.5, 13.0, "NMS execution time explodes;\nLatency non-deterministic.", ha="center", va="center", color="#64748b", **small_font)
+    ax.text(18.5, 13.0, "NMS execution time explodes;\nData-dependent latency.", ha="center", va="center", color="#64748b", **small_font)
 
     # Column 2: Vanilla DETR Output-Space Attacks
     c2 = patches.FancyBboxPatch((35.5, 6), 29, 83, boxstyle="round,pad=0.5,rounding_size=1",

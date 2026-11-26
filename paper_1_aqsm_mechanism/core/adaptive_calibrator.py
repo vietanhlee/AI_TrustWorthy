@@ -12,11 +12,10 @@ tấn công thích ứng né tránh giám sát (White-box Adaptive Evasion Attac
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from paper_1_aqsm_mechanism.experiments.config import get_outputs_dir
 
@@ -118,13 +117,15 @@ class AdaptiveAttackCalibrator:
         top1_means_np = np.array(top1_means)
         dropoffs_np = np.array(dropoffs)
         margins_np = np.array(margins)
+        act_std = float(np.std(act_ratios_np, ddof=1)) if act_ratios_np.size > 1 else 0.0
+        top1_std = float(np.std(top1_means_np, ddof=1)) if top1_means_np.size > 1 else 0.0
 
         cal_params = {
             "n_calibration_images": n_imgs,
             "clean_act_mean": float(np.mean(act_ratios_np)),
-            "clean_act_std": float(np.std(act_ratios_np)),
+            "clean_act_std": act_std,
             "clean_top1_mean": float(np.mean(top1_means_np)),
-            "clean_top1_std": float(np.std(top1_means_np)),
+            "clean_top1_std": top1_std,
             "clean_dropoff_bounds": [
                 float(np.percentile(dropoffs_np, 5.0)),
                 float(np.percentile(dropoffs_np, 95.0)),
@@ -136,12 +137,12 @@ class AdaptiveAttackCalibrator:
             ],
             "clean_margin_median": float(np.median(margins_np)),
             "tau_bounds_act": [
-                float(max(0.0, np.mean(act_ratios_np) - 2.0 * np.std(act_ratios_np))),
-                float(np.mean(act_ratios_np) + 2.0 * np.std(act_ratios_np)),
+                float(max(0.0, np.mean(act_ratios_np) - 2.0 * act_std)),
+                float(np.mean(act_ratios_np) + 2.0 * act_std),
             ],
             "tau_bounds_top1": [
-                float(max(0.0, np.mean(top1_means_np) - 2.0 * np.std(top1_means_np))),
-                float(np.mean(top1_means_np) + 2.0 * np.std(top1_means_np)),
+                float(max(0.0, np.mean(top1_means_np) - 2.0 * top1_std)),
+                float(np.mean(top1_means_np) + 2.0 * top1_std),
             ],
         }
 

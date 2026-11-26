@@ -7,8 +7,7 @@ tối ưu hóa số luồng CPU và quản lý thu hồi bộ nhớ đồ họa 
 
 import gc
 import os
-import sys
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict
 import torch
 
 

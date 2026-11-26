@@ -15,10 +15,7 @@ Mục đích: Đánh giá thực nghiệm động lực học Encoder Memory & Q
   - Ghi nhận raw CSV từng ảnh và summary JSON đầy đủ ngữ cảnh phục vụ điền bài báo.
 """
 
-import argparse
-import csv
 import gc
-import json
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
@@ -39,7 +36,6 @@ from paper_1_aqsm_mechanism.core.coco_gt import compute_dataset_gt_union_null_ba
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
-    SCALE_NAMES,
     analyze_encoder_memory_batch,
     analyze_query_selection_batch,
     extract_encoder_components,
@@ -51,14 +47,13 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
-    get_model_tag,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
     update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
-from paper_1_aqsm_mechanism.utils.io_helpers import format_duration, save_json, write_csv_rows
+from paper_1_aqsm_mechanism.utils.io_helpers import save_json, write_csv_rows
 
 
 def summarize_metric_list(arr: Sequence[float]) -> Dict[str, float]:
@@ -103,14 +98,21 @@ def run_encoder_query_dynamics_evaluation(
     n_total = len(gt_list)
     gt_boxes_batch = [gt.get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32)) for gt in gt_list]
 
+    # Tính trước Null Baseline theo từng ảnh (Exact GT Union Area & Uniform Grid 300 Hit Rate)
+    # để lưu đầy đủ dữ liệu ghép cặp (paired per-image) vào CSV cho kiểm định Paired TOST.
+    print("\n>>> Đang tính toán phân phối thực nghiệm Null Baseline (GT Union & Uniform Grid 300)...")
+    null_baseline_stats = compute_dataset_gt_union_null_baseline(gt_list)
+    per_img_union_pct = [float(v) * 100.0 for v in null_baseline_stats["per_image_union_areas"]]
+    per_img_grid_pct = [float(v) * 100.0 for v in null_baseline_stats["per_image_uniform_grid_hits"]]
+
     results_by_attack: Dict[str, Any] = {}
     memory_results_by_attack: Dict[str, Any] = {}
     csv_rows = []
 
     for atk_name in attacks_to_eval:
-        print(f"\n=======================================================")
+        print("\n=======================================================")
         print(f"--> [Task 2] Phân tích cơ chế cho đòn: {atk_name.upper()} (N={n_total})...")
-        print(f"=======================================================")
+        print("=======================================================")
 
         adv_imgs, meta = load_cached_adv_images(
             attack=atk_name,
@@ -246,6 +248,8 @@ def run_encoder_query_dynamics_evaluation(
         for i in range(n_total):
             m_r = all_mem_records[i]
             q_r = all_query_records[i]
+            fg_clean_pct = q_r.get("anchor_foreground_ratio_clean", q_r.get("fg_query_ratio_clean_top300", 0.0)) * 100.0
+            fg_adv_pct = q_r.get("anchor_foreground_ratio_adv", q_r.get("fg_query_ratio_adv_top300", 0.0)) * 100.0
             csv_rows.append([
                 atk_name,
                 i,
@@ -271,6 +275,10 @@ def run_encoder_query_dynamics_evaluation(
                 q_r["cov_iou50_adv"],
                 q_r["clean_dropoff"],
                 q_r["adv_dropoff"],
+                round(fg_clean_pct, 4),
+                round(fg_adv_pct, 4),
+                round(per_img_union_pct[i], 4),
+                round(per_img_grid_pct[i], 4),
             ])
 
         del adv_imgs
@@ -286,18 +294,20 @@ def run_encoder_query_dynamics_evaluation(
         "rank_shift_top15", "spearman_all_proposals", "kendall_all_proposals", "spearman_2100", "kendall_2100",
         "cov_center_clean", "cov_center_adv", "cov_iou50_clean", "cov_iou50_adv",
         "clean_dropoff", "adv_dropoff",
+        "anchor_fg_ratio_clean_pct", "anchor_fg_ratio_adv_pct", "gt_union_null_pct", "uniform_grid_300_hit_pct",
     ]
     write_csv_rows(raw_csv_path, headers, csv_rows)
     print(f"\n>>> Đã ghi nhận số liệu thô per-image: {raw_csv_path}")
 
     summary_json_dir = get_summary_json_dir()
     summary_json_dir.mkdir(parents=True, exist_ok=True)
+    active_model_name = getattr(wrapper, "pretrained_model_name", None) or resolve_model_name()
 
     json_path_mem = summary_json_dir / "encoder_memory_analysis.json"
     mem_payload = {
         "experiment": "Table 5: Multi-Scale Encoder Memory Deformation",
         "n_images": n_total,
-        "model": MODEL_NAME,
+        "model": active_model_name,
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "results": memory_results_by_attack,
@@ -305,15 +315,11 @@ def run_encoder_query_dynamics_evaluation(
     save_json(mem_payload, json_path_mem)
     print(f">>> Đã xuất JSON Table 5: {json_path_mem}")
 
-    # Tính phân phối thực nghiệm của Null Baseline (Exact GT Union Area)
-    print("\n>>> Đang tính toán phân phối thực nghiệm của Null Baseline (Exact GT Union Area)...")
-    null_baseline_stats = compute_dataset_gt_union_null_baseline(gt_list)
-
     json_path_query = summary_json_dir / "query_selection_dynamics.json"
     query_payload = {
         "experiment": "Table 6: Query Selection Perturbation Dynamics",
         "n_images": n_total,
-        "model": MODEL_NAME,
+        "model": active_model_name,
         "device": str(device),
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "empirical_null_baseline": null_baseline_stats,
@@ -380,7 +386,7 @@ def main():
         "hardware_info": hw_info,
         "attacks": args.attacks,
         "random_seed": RANDOM_SEED,
-        "model_name": MODEL_NAME,
+        "model_name": chosen_model,
         "max_samples": args.max_samples,
     })
 
