@@ -28,6 +28,7 @@ if str(WORKSPACE_DIR) not in sys.path:
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.defense_engine import (
+    ActiveBoxCountMonitor,
     EncoderSelectionMonitor,
     SpatialConsistencyMonitor,
     evaluate_defense_cohort,
@@ -257,10 +258,11 @@ def run_defense_evaluation(
     esm_fitted = EncoderSelectionMonitor(target_fpr=target_fpr)
     esm_fitted.fit(cal_logits)
 
-    # Đánh giá Spatial-Consistency Monitor (SCM)
-    print("\n[Defense Eval] Đánh giá Spatial-Consistency Monitor (SCM)...")
+    # Đánh giá Spatial-Consistency Monitor (SCM) & Active-Box Count Watchdog Baseline
+    print("\n[Defense Eval] Đánh giá Spatial-Consistency Monitor (SCM) & Box-Count Watchdog...")
     cal_refs = []
     cal_preds_b = []
+    cal_dec_logits = []
     with torch.no_grad():
         for i in range(0, n_cal, 10):
             end_i = min(i + 10, n_cal)
@@ -271,13 +273,18 @@ def run_defense_evaluation(
             r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
             cal_refs.append(r.cpu())
             cal_preds_b.append(out.pred_boxes.cpu())
+            cal_dec_logits.append(out.logits.cpu())
 
     scm = SpatialConsistencyMonitor(target_fpr=target_fpr)
     scm.fit(cal_refs, cal_preds_b)
 
+    box_monitor = ActiveBoxCountMonitor(target_fpr=target_fpr, conf_threshold=0.35)
+    box_monitor.fit(cal_dec_logits)
+
     # Đánh giá SCM trên Clean Test (FPR)
     test_clean_refs = []
     test_clean_preds_b = []
+    test_clean_dec_logits = []
     with torch.no_grad():
         for i in range(0, n_test, 10):
             start_idx = n_cal + i
@@ -289,6 +296,7 @@ def run_defense_evaluation(
             r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
             test_clean_refs.append(r.cpu())
             test_clean_preds_b.append(out.pred_boxes.cpu())
+            test_clean_dec_logits.append(out.logits.cpu())
 
     scm_clean_scores = scm.score(torch.cat(test_clean_refs, dim=0), torch.cat(test_clean_preds_b, dim=0))
     scm_clean_fpr = float(np.mean(scm_clean_scores >= scm.fused_thresh)) * 100.0
@@ -301,9 +309,11 @@ def run_defense_evaluation(
     }
 
     import sklearn.metrics as skm
+    test_adv_dec_logits_dict: Dict[str, torch.Tensor] = {}
     for atk_name, adv_full in adv_dict.items():
         test_adv_refs = []
         test_adv_preds_b = []
+        test_adv_dec_lgt = []
         with torch.no_grad():
             for i in range(0, n_test, 10):
                 start_idx = n_cal + i
@@ -315,7 +325,9 @@ def run_defense_evaluation(
                 r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
                 test_adv_refs.append(r.cpu())
                 test_adv_preds_b.append(out.pred_boxes.cpu())
+                test_adv_dec_lgt.append(out.logits.cpu())
 
+        test_adv_dec_logits_dict[atk_name] = torch.cat(test_adv_dec_lgt, dim=0)
         scores_adv_scm = scm.score(torch.cat(test_adv_refs, dim=0), torch.cat(test_adv_preds_b, dim=0))
         tpr_scm = float(np.mean(scores_adv_scm >= scm.fused_thresh)) * 100.0
         all_lbls = np.concatenate([np.zeros(n_test), np.ones(n_test)])
@@ -333,6 +345,21 @@ def run_defense_evaluation(
         print(f"   + [SCM] {atk_name.upper():12s}: TPR = {tpr_scm:5.2f}% | AUROC = {auroc_scm:.4f}")
 
     defense_results["spatial_consistency_monitor"] = scm_results
+    box_count_eval = box_monitor.evaluate_cohort(
+        torch.cat(test_clean_dec_logits, dim=0),
+        test_adv_dec_logits_dict,
+    )
+    defense_results["box_count_monitor"] = box_count_eval
+    print(
+        f"   + [BoxWatchdog] Clean FPR(upper/2-sided)={box_count_eval['clean_fpr_upper_pct']:.2f}% / {box_count_eval['clean_fpr_twosided_pct']:.2f}% | "
+        f"Clean boxes={box_count_eval['clean_box_stats']['mean']:.2f}"
+    )
+    for atk_k, b_info in box_count_eval["attacks"].items():
+        print(
+            f"     - {atk_k.upper():10s}: boxes={b_info['box_stats']['mean']:5.2f} +- {b_info['box_stats']['std']:4.2f} "
+            f"(p95={b_info['box_stats']['p95']:.1f}, max={b_info['box_stats']['max']:.0f}) | "
+            f"TPR(upper)={b_info['tpr_upper_pct']:5.2f}% | TPR(2-sided)={b_info['tpr_twosided_pct']:5.2f}% | AUROC(2-sided)={b_info['auroc_twosided']:.4f}"
+        )
 
     # Đánh giá tấn công thích ứng White-Box Adaptive Evasion
     avail_test = n_actual - n_cal if (n_actual - n_cal) > 0 else n_actual

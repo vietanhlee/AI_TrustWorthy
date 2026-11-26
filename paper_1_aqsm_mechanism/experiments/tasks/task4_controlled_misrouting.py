@@ -47,6 +47,7 @@ from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
     _box_iou_np,
     _cxcywh_to_xyxy_np,
+    compute_directional_misrouting_metrics,
     compute_spatial_clustering_metrics,
     extract_encoder_components,
     run_decoder_from_components,
@@ -404,8 +405,9 @@ def run_controlled_misrouting_evaluation(
                     gt_cov_center = float("nan")
                     gt_cov_iou30 = float("nan")
 
-                # Đo đạc gom cụm không gian ANND và độ phân tán spatial variance
+                # Đo đạc gom cụm không gian ANND, độ phân tán spatial variance và hướng dịch chuyển
                 clust_metrics = compute_spatial_clustering_metrics(ref_sig_np[b, :, :2])
+                dir_metrics = compute_directional_misrouting_metrics(c_ref_np[b, :, :2], ref_sig_np[b, :, :2])
 
                 rec_dict: Dict[str, float] = {
                     "l2_full": float(l2_full_img[b]),
@@ -425,6 +427,9 @@ def run_controlled_misrouting_evaluation(
                     "spatial_variance": clust_metrics["spatial_variance"],
                     "spatial_std_x": clust_metrics["spatial_std_x"],
                     "spatial_std_y": clust_metrics["spatial_std_y"],
+                    "mean_shift_vector_norm": dir_metrics["mean_shift_vector_norm"],
+                    "directional_resultant_length": dir_metrics["directional_resultant_length"],
+                    "radial_outward_bias": dir_metrics["radial_outward_bias"],
                 }
                 if cond.startswith("Random_Shift_seed"):
                     rec_dict["max_center_l2_err"] = batch_shift_q_diags[f"{cond}_max_c"][b]
@@ -457,6 +462,9 @@ def run_controlled_misrouting_evaluation(
             "gt_object_cov_iou30_pct": float(np.mean(cov_i_arr) * 100.0) if cov_i_arr else 0.0,
             "annd": float(np.mean([m["annd"] for m in recs])),
             "spatial_variance": float(np.mean([m["spatial_variance"] for m in recs])),
+            "mean_shift_vector_norm": float(np.mean([m["mean_shift_vector_norm"] for m in recs])),
+            "directional_resultant_length": float(np.mean([m["directional_resultant_length"] for m in recs])),
+            "radial_outward_bias": float(np.mean([m["radial_outward_bias"] for m in recs])),
         }
         if cond in per_query_match_diags and per_query_match_diags[cond]["center_err"]:
             c_arr = np.asarray(per_query_match_diags[cond]["center_err"], dtype=np.float64)
@@ -600,6 +608,8 @@ def run_controlled_misrouting_evaluation(
             "gt_object_cov_iou30_pct": round(float(np.mean(_agg_seed_list("Random_Reassign", "gt_object_cov_iou30_pct"))), 4),
             "annd_mean": round(float(np.mean(_agg_seed_list("Random_Reassign", "annd"))), 4),
             "spatial_variance_mean": round(float(np.mean(_agg_seed_list("Random_Reassign", "spatial_variance"))), 4),
+            "directional_resultant_length_mean": round(float(np.mean(_agg_seed_list("Random_Reassign", "directional_resultant_length"))), 4),
+            "radial_outward_bias_mean": round(float(np.mean(_agg_seed_list("Random_Reassign", "radial_outward_bias"))), 4),
             "delta_map50_ci95": [round(boot_ci_reassign["ci_95"][0], 2), round(boot_ci_reassign["ci_95"][1], 2)],
             "wilcoxon_p": boot_ci_reassign["wilcoxon_p"],
             "multiseed_statistical_evidence": ev_reassign,
@@ -623,6 +633,8 @@ def run_controlled_misrouting_evaluation(
             "gt_object_cov_iou30_pct": round(float(np.mean(_agg_seed_list("Random_Shift", "gt_object_cov_iou30_pct"))), 4),
             "annd_mean": round(float(np.mean(_agg_seed_list("Random_Shift", "annd"))), 4),
             "spatial_variance_mean": round(float(np.mean(_agg_seed_list("Random_Shift", "spatial_variance"))), 4),
+            "directional_resultant_length_mean": round(float(np.mean(_agg_seed_list("Random_Shift", "directional_resultant_length"))), 4),
+            "radial_outward_bias_mean": round(float(np.mean(_agg_seed_list("Random_Shift", "radial_outward_bias"))), 4),
             "per_query_center_l2_err_max": round(float(max(map_results[f"Random_Shift_seed{s}"]["per_query_matching_diagnostics"]["center_l2_err_max"] for s in seeds)), 6),
             "per_query_size_l2_err_max": round(float(max(map_results[f"Random_Shift_seed{s}"]["per_query_matching_diagnostics"]["size_l2_err_max"] for s in seeds)), 6),
             "clip_fallback_rate_center": round(float(np.mean([map_results[f"Random_Shift_seed{s}"]["per_query_matching_diagnostics"]["clip_fallback_rate_center"] for s in seeds])), 6),
@@ -648,6 +660,8 @@ def run_controlled_misrouting_evaluation(
             "gt_object_cov_iou30_pct": round(float(np.mean(_agg_seed_list("Decoupled_Random_Shift", "gt_object_cov_iou30_pct"))), 4),
             "annd_mean": round(float(np.mean(_agg_seed_list("Decoupled_Random_Shift", "annd"))), 4),
             "spatial_variance_mean": round(float(np.mean(_agg_seed_list("Decoupled_Random_Shift", "spatial_variance"))), 4),
+            "directional_resultant_length_mean": round(float(np.mean(_agg_seed_list("Decoupled_Random_Shift", "directional_resultant_length"))), 4),
+            "radial_outward_bias_mean": round(float(np.mean(_agg_seed_list("Decoupled_Random_Shift", "radial_outward_bias"))), 4),
             "observed_gap_from_shift_pp": round(rs_m50_mean - drs_m50_mean, 2),
             "observed_gap_to_aqsm_pp": round(drs_m50_mean - aq_m50_val, 2),
             "delta_map50_ci95": [round(boot_ci_decoupled["ci_95"][0], 2), round(boot_ci_decoupled["ci_95"][1], 2)],
@@ -669,6 +683,9 @@ def run_controlled_misrouting_evaluation(
             "gt_object_cov_iou30_pct": round(map_results["AQSM_Misrouting"]["gt_object_cov_iou30_pct"], 4),
             "annd": round(map_results["AQSM_Misrouting"]["annd"], 4),
             "spatial_variance": round(map_results["AQSM_Misrouting"]["spatial_variance"], 4),
+            "mean_shift_vector_norm": round(map_results["AQSM_Misrouting"]["mean_shift_vector_norm"], 4),
+            "directional_resultant_length": round(map_results["AQSM_Misrouting"]["directional_resultant_length"], 4),
+            "radial_outward_bias": round(map_results["AQSM_Misrouting"]["radial_outward_bias"], 4),
             "delta_map50_ci95": [round(boot_ci_aqsm["ci_95"][0], 2), round(boot_ci_aqsm["ci_95"][1], 2)],
             "wilcoxon_p": boot_ci_aqsm["wilcoxon_p"],
         },
@@ -756,6 +773,8 @@ def run_controlled_misrouting_evaluation(
         "clean_fg_hit_pct", "aqsm_fg_hit_pct", "reassign_fg_hit_mean_pct",
         "shift_fg_hit_mean_pct", "decoupled_shift_fg_hit_mean_pct",
         "gt_union_null_pct", "uniform_grid_300_hit_pct",
+        "aqsm_dir_alignment", "shift_dir_alignment",
+        "aqsm_radial_bias", "shift_radial_bias",
     ]
     csv_rows: List[List[Any]] = []
     for i in range(n_total):
@@ -793,6 +812,10 @@ def run_controlled_misrouting_evaluation(
             f"{float(np.mean([disp_metrics_by_cond[f'Decoupled_Random_Shift_seed{s}'][i]['fg_hit'] for s in seeds])) * 100.0:.4f}",
             f"{gt_union_i:.4f}",
             f"{grid_hit_i:.4f}",
+            f"{disp_metrics_by_cond['AQSM_Misrouting'][i]['directional_resultant_length']:.6f}",
+            f"{float(np.mean([disp_metrics_by_cond[f'Random_Shift_seed{s}'][i]['directional_resultant_length'] for s in seeds])):.6f}",
+            f"{disp_metrics_by_cond['AQSM_Misrouting'][i]['radial_outward_bias']:.6f}",
+            f"{float(np.mean([disp_metrics_by_cond[f'Random_Shift_seed{s}'][i]['radial_outward_bias'] for s in seeds])):.6f}",
         ])
     write_csv_rows(raw_csv_path, csv_header, csv_rows)
     write_csv_rows(raw_csv_dir / "controlled_misrouting_per_image.csv", csv_header, csv_rows)

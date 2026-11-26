@@ -14,7 +14,7 @@ cho RT-DETR tại tầng biên:
 3. Hỗ trợ đánh giá đòn tấn công thích ứng White-Box Adaptive Evasion Attack (Carlini-Tramèr).
 """
 
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 import numpy as np
 import sklearn.metrics as skm
 import torch
@@ -317,3 +317,113 @@ def evaluate_defense_cohort(
         print(f"   + {atk_name.upper():15s}: TPR = {tpr:5.2f}% | AUROC = {auroc:.4f}")
 
     return results
+
+
+class ActiveBoxCountMonitor:
+    """
+    Baseline giám sát đơn giản dựa trên đếm số lượng Active Bounding Boxes đầu ra
+    (một chiều: số query có max_c sigma(L_{q, c}) >= conf_threshold).
+    Dùng làm đối chứng cho độ thưa trung bình (stealthiness) giữa AQSM, Query Vanishing
+    và Standard Task PGD trên cùng ngưỡng hiệu chuẩn FPR danh định.
+    """
+
+    def __init__(self, target_fpr: float = 0.05, conf_threshold: float = 0.35):
+        self.target_fpr = float(target_fpr)
+        self.conf_threshold = float(conf_threshold)
+        self.twosided_monitor = SingleFeatureMonitor(target_fpr=target_fpr)
+        self.upper_thresh: float = 0.0
+        self.cal_counts: np.ndarray = np.array([], dtype=np.float64)
+        self.is_fitted: bool = False
+
+    def count_active_boxes(self, dec_logits_list: Any) -> np.ndarray:
+        """Đếm số box vượt ngưỡng conf_threshold trên từng ảnh từ logits [B, N_q, C]."""
+        if isinstance(dec_logits_list, torch.Tensor):
+            probs = torch.sigmoid(dec_logits_list)
+            max_probs, _ = probs.max(dim=-1)
+            counts = (max_probs >= self.conf_threshold).sum(dim=-1)
+            return counts.detach().cpu().numpy().astype(np.float64)
+        counts_all: List[np.ndarray] = []
+        for batch_t in dec_logits_list:
+            probs = torch.sigmoid(batch_t)
+            max_probs, _ = probs.max(dim=-1)
+            counts_all.append((max_probs >= self.conf_threshold).sum(dim=-1).detach().cpu().numpy().astype(np.float64))
+        return np.concatenate(counts_all, axis=0) if counts_all else np.array([], dtype=np.float64)
+
+    def fit(self, clean_dec_logits: Any) -> None:
+        counts = self.count_active_boxes(clean_dec_logits)
+        self.cal_counts = counts
+        self.twosided_monitor.fit(counts)
+        self.upper_thresh = float(np.percentile(counts, (1.0 - self.target_fpr) * 100.0)) if counts.size > 0 else 0.0
+        self.is_fitted = True
+
+    @staticmethod
+    def _summarize_counts(counts: np.ndarray) -> Dict[str, float]:
+        if counts.size == 0:
+            return {"mean": 0.0, "std": 0.0, "median": 0.0, "p95": 0.0, "max": 0.0}
+        return {
+            "mean": round(float(np.mean(counts)), 2),
+            "std": round(float(np.std(counts, ddof=1)) if counts.size > 1 else 0.0, 2),
+            "median": round(float(np.median(counts)), 2),
+            "p95": round(float(np.percentile(counts, 95.0)), 2),
+            "max": round(float(np.max(counts)), 2),
+        }
+
+    def evaluate_cohort(
+        self,
+        clean_test_dec_logits: Any,
+        adv_dec_logits_dict: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Đánh giá Active-Box Watchdog (1-sided flooding + 2-sided count anomaly)."""
+        if not self.is_fitted:
+            raise RuntimeError("ActiveBoxCountMonitor chưa được fit trên dữ liệu hiệu chuẩn!")
+
+        clean_counts = self.count_active_boxes(clean_test_dec_logits)
+        clean_fpr_upper = float(np.mean(clean_counts > self.upper_thresh)) * 100.0 if clean_counts.size > 0 else 0.0
+        clean_fpr_two = float(np.mean(self.twosided_monitor.predict(clean_counts))) * 100.0 if clean_counts.size > 0 else 0.0
+        clean_scores_two = self.twosided_monitor.score(clean_counts)
+
+        out: Dict[str, Any] = {
+            "conf_threshold": self.conf_threshold,
+            "target_fpr_pct": round(self.target_fpr * 100.0, 2),
+            "upper_threshold_gt": round(self.upper_thresh, 2),
+            "twosided_bounds": [
+                round(self.twosided_monitor.lower_thresh, 2),
+                round(self.twosided_monitor.upper_thresh, 2),
+            ],
+            "clean_fpr_upper_pct": round(clean_fpr_upper, 2),
+            "clean_fpr_twosided_pct": round(clean_fpr_two, 2),
+            "clean_box_stats": self._summarize_counts(clean_counts),
+            "attacks": {},
+        }
+
+        for atk_name, adv_lgts in adv_dec_logits_dict.items():
+            adv_counts = self.count_active_boxes(adv_lgts)
+            n_c = clean_counts.size
+            n_a = adv_counts.size
+            tpr_upper = float(np.mean(adv_counts > self.upper_thresh)) * 100.0 if n_a > 0 else 0.0
+            tpr_two = float(np.mean(self.twosided_monitor.predict(adv_counts))) * 100.0 if n_a > 0 else 0.0
+            adv_scores_two = self.twosided_monitor.score(adv_counts)
+
+            if n_c > 0 and n_a > 0 and (np.std(np.concatenate([clean_counts, adv_counts])) > 0):
+                labels = np.concatenate([np.zeros(n_c), np.ones(n_a)])
+                try:
+                    auroc_upper = float(skm.roc_auc_score(labels, np.concatenate([clean_counts, adv_counts])))
+                except Exception:
+                    auroc_upper = 0.5
+                try:
+                    auroc_two = float(skm.roc_auc_score(labels, np.concatenate([clean_scores_two, adv_scores_two])))
+                except Exception:
+                    auroc_two = 0.5
+            else:
+                auroc_upper = 0.5
+                auroc_two = 0.5
+
+            out["attacks"][atk_name] = {
+                "box_stats": self._summarize_counts(adv_counts),
+                "tpr_upper_pct": round(tpr_upper, 2),
+                "auroc_upper": round(auroc_upper, 4),
+                "tpr_twosided_pct": round(tpr_two, 2),
+                "auroc_twosided": round(auroc_two, 4),
+            }
+
+        return out

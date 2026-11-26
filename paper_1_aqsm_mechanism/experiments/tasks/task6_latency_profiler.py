@@ -28,6 +28,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import _get_rtdetr_core_model
@@ -200,10 +201,12 @@ def profile_pipeline_latency(
             times_total.append(t_tot)
 
     def _calc_stats(arr: List[float]) -> Dict[str, float]:
-        a = np.array(arr)
+        a = np.array(arr, dtype=np.float64)
+        if a.size == 0:
+            return {"mean_ms": 0.0, "std_ms": 0.0, "median_ms": 0.0, "p95_ms": 0.0, "p99_ms": 0.0, "min_ms": 0.0, "max_ms": 0.0}
         return {
             "mean_ms": round(float(np.mean(a)), 3),
-            "std_ms": round(float(np.std(a, ddof=1)), 3),
+            "std_ms": round(float(np.std(a, ddof=1)) if a.size > 1 else 0.0, 3),
             "median_ms": round(float(np.median(a)), 3),
             "p95_ms": round(float(np.percentile(a, 95)), 3),
             "p99_ms": round(float(np.percentile(a, 99)), 3),
@@ -219,6 +222,51 @@ def profile_pipeline_latency(
 
     mean_tot = stats_tot["mean_ms"]
     fps = round(1000.0 / max(mean_tot, 1e-4), 2)
+
+    # Benchmark đối chứng 4 điều kiện trên mô hình RT-DETR (Clean, AQSM, Task PGD, Flooding Sponge nhắm RT-DETR)
+    print("\n>>> [Latency Contrast] Đo độ trễ & số active boxes (tau>=0.35) dưới các điều kiện tấn công (kể cả RT-DETR Flooding Sponge)...")
+    n_adv_runs = min(n_runs, 100)
+    attacker = DETRAttackGenerator(wrapper, epsilon=16.0 / 255.0, alpha=2.0 / 255.0, num_steps=15)
+    adv_aqsm = attacker.generate_query_selection_attack(sample_img, steps=15, bg_seed=RANDOM_SEED)
+    adv_pgd = attacker.generate_standard_task_pgd(sample_img, steps=15)
+    adv_flood = attacker.generate_latency_flooding_attack(sample_img, steps=15, conf_threshold=0.35)
+
+    cond_inputs = {
+        "Clean_Baseline": sample_img,
+        "AQSM_Attack": adv_aqsm,
+        "Task_PGD": adv_pgd,
+        "RT_DETR_Flooding_Sponge": adv_flood,
+    }
+    adv_latency_summary: Dict[str, Any] = {}
+    for cond_name, c_tensor in cond_inputs.items():
+        c_tensor = c_tensor.to(device)
+        c_times: List[float] = []
+        active_cnt = 0
+        with torch.no_grad():
+            for _ in range(min(10, n_warmup)):
+                _ = model(c_tensor)
+                if is_cuda:
+                    torch.cuda.synchronize()
+            for r_i in range(n_adv_runs):
+                if is_cuda:
+                    t_c, out_c = _measure_stage_gpu(model, c_tensor)
+                else:
+                    t_c, out_c = _measure_stage_cpu(model, c_tensor)
+                c_times.append(t_c)
+                if r_i == 0 and hasattr(out_c, "logits"):
+                    probs_c = torch.sigmoid(out_c.logits).max(dim=-1)[0]
+                    active_cnt = int((probs_c >= 0.35).sum().item())
+        c_stats = _calc_stats(c_times)
+        adv_latency_summary[cond_name] = {
+            **c_stats,
+            "throughput_fps": round(1000.0 / max(c_stats["mean_ms"], 1e-4), 2),
+            "active_boxes_tau35": active_cnt,
+            "n_runs": n_adv_runs,
+        }
+        print(
+            f"   * {cond_name:24s}: {c_stats['mean_ms']:6.2f} +- {c_stats['std_ms']:5.2f} ms "
+            f"(p95={c_stats['p95_ms']:6.2f} ms) | Active boxes={active_cnt}"
+        )
 
     mem_metrics: Dict[str, Any] = {}
     if is_cuda:
@@ -283,6 +331,7 @@ def profile_pipeline_latency(
         "experiment": "Table 10: Hardware Execution Latency Breakdown & Profiling",
         "n_runs": n_runs,
         "device_type": hw_info["device_type"],
+        "timing_backend": "cuda_events_pytorch_fp32" if is_cuda else "perf_counter_cpu_pytorch_fp32",
         "hardware_metadata": mem_metrics,
         "throughput_fps": fps,
         "stages": {
@@ -292,6 +341,7 @@ def profile_pipeline_latency(
             "Deformable_Decoder": stats_dec,
             "End_to_End_Total": stats_tot,
         },
+        "adversarial_latency_comparison": adv_latency_summary,
         "percentage_breakdown": {
             "Backbone_pct": round((stats_bb["mean_ms"] / mean_tot) * 100.0, 2),
             "Hybrid_Encoder_pct": round((stats_enc["mean_ms"] / mean_tot) * 100.0, 2),

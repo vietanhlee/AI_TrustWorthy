@@ -534,6 +534,7 @@ def analyze_null_baselines() -> Dict[str, Any]:
                 valid_df = df_t4.dropna(subset=["aqsm_fg_hit_pct", "uniform_grid_300_hit_pct"])
                 # Chỉ đánh giá khi không bị NaN toàn bộ
                 if len(valid_df) >= 2:
+                    tost_margins = [1.0, 2.0, 2.5, 3.0, 5.0]
                     paired_t4_res = compute_paired_tost_equivalence(
                         valid_df["aqsm_fg_hit_pct"].values,
                         valid_df["uniform_grid_300_hit_pct"].values,
@@ -544,6 +545,15 @@ def analyze_null_baselines() -> Dict[str, Any]:
                             "nhỏ hơn 15% độ lệch chuẩn phân bố vùng vật thể GT trên tập COCO."
                         ),
                     )
+                    paired_t4_res["multi_margin_tost"] = {
+                        f"margin_{m:.1f}pp": compute_paired_tost_equivalence(
+                            valid_df["aqsm_fg_hit_pct"].values,
+                            valid_df["uniform_grid_300_hit_pct"].values,
+                            bound=m,
+                            alpha=0.05,
+                        )
+                        for m in tost_margins
+                    }
                     if "gt_union_null_pct" in valid_df.columns:
                         paired_t4_res["vs_gt_union_area"] = compute_paired_tost_equivalence(
                             valid_df["aqsm_fg_hit_pct"].values,
@@ -565,6 +575,15 @@ def analyze_null_baselines() -> Dict[str, Any]:
                 bound=2.0,
                 alpha=0.05,
             )
+            paired_t2_res["multi_margin_tost"] = {
+                f"margin_{m:.1f}pp": compute_paired_tost_equivalence(
+                    df_aq["anchor_fg_ratio_adv_pct"].values,
+                    df_aq["uniform_grid_300_hit_pct"].values,
+                    bound=m,
+                    alpha=0.05,
+                )
+                for m in (1.0, 2.0, 2.5, 3.0, 5.0)
+            }
 
     if paired_t4_res is not None:
         print(f">>> [Paired TOST - Table 8 B_ref, N={paired_t4_res['n_paired']}]")

@@ -364,6 +364,59 @@ def compute_spatial_clustering_metrics(boxes_or_centers: np.ndarray) -> Dict[str
     }
 
 
+def compute_directional_misrouting_metrics(
+    c_ref_centers: np.ndarray,
+    target_centers: np.ndarray,
+) -> Dict[str, float]:
+    """
+    Đo tính định hướng (directional spatial bias) của phép dịch chuyển tọa độ anchor
+    giữa Clean [Q, 2] và trạng thái đích [Q, 2] trong không gian [0, 1]^2:
+      - mean_shift_vector_norm: chuẩn vector tịnh tiến trung bình ||mean(delta_c)||_2
+        (xấp xỉ 0 nếu đẳng hướng, dương nếu đẩy có hướng hệ thống).
+      - directional_resultant_length: độ dài tổng hợp đơn vị R = ||mean(u_i)||_2 in [0, 1]
+        (Mean Resultant Length chuẩn thống kê hướng).
+      - radial_outward_bias: trung bình tích vô hướng của vector dịch chuyển theo tia
+        hướng từ tâm ảnh (0.5, 0.5) ra rìa (dương = đẩy ra rìa, âm = co về tâm).
+    """
+    if len(c_ref_centers) == 0 or len(target_centers) == 0:
+        return {
+            "mean_shift_vector_norm": 0.0,
+            "directional_resultant_length": 0.0,
+            "radial_outward_bias": 0.0,
+        }
+
+    c0 = np.asarray(c_ref_centers[:, :2], dtype=np.float64)
+    c1 = np.asarray(target_centers[:, :2], dtype=np.float64)
+    deltas = c1 - c0
+    mean_shift_vec = np.mean(deltas, axis=0)
+    mean_shift_norm = float(np.linalg.norm(mean_shift_vec))
+
+    norms = np.linalg.norm(deltas, axis=1)
+    nz_mask = norms > 1e-8
+    if np.any(nz_mask):
+        unit_vecs = deltas[nz_mask] / norms[nz_mask, None]
+        resultant_length = float(np.linalg.norm(np.mean(unit_vecs, axis=0)))
+    else:
+        resultant_length = 0.0
+
+    # Xu hướng đẩy ra biên so với co về tâm khung ảnh (0.5, 0.5)
+    radial_vecs = c0 - np.array([[0.5, 0.5]], dtype=np.float64)
+    radial_norms = np.linalg.norm(radial_vecs, axis=1)
+    r_mask = radial_norms > 1e-8
+    if np.any(r_mask):
+        radial_unit = radial_vecs[r_mask] / radial_norms[r_mask, None]
+        radial_proj = np.sum(deltas[r_mask] * radial_unit, axis=1)
+        radial_bias = float(np.mean(radial_proj))
+    else:
+        radial_bias = 0.0
+
+    return {
+        "mean_shift_vector_norm": round(mean_shift_norm, 6),
+        "directional_resultant_length": round(resultant_length, 6),
+        "radial_outward_bias": round(radial_bias, 6),
+    }
+
+
 def analyze_query_selection_batch(
     clean_comp: Dict[str, Any],
     adv_comp: Dict[str, Any],

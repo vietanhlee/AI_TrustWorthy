@@ -117,6 +117,7 @@ def run_mechanism_telemetry_cohort(
             "entropy_l1": [],
             "entropy_l2": [],
             "entropy_l3": [],
+            "entropy_all_layers": [],
             "fg_hit_rate": [],
             "dropoff_ratio": [],
             "score_margin": [],
@@ -157,6 +158,7 @@ def run_mechanism_telemetry_cohort(
             ent_l1 = compute_attention_entropy(w_l1)
             ent_l2 = compute_attention_entropy(w_l2)
             ent_l3 = compute_attention_entropy(w_l3)
+            ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)])) if n_layers > 0 else ent_l1
 
             locs_l3 = hooks[l3_idx]["sampling_locations"][b].cpu().numpy()
             fg_hit = compute_foreground_spatial_hit_rate(locs_l3, gt_boxes)
@@ -175,6 +177,7 @@ def run_mechanism_telemetry_cohort(
             cond_results["clean"]["entropy_l1"].append(ent_l1)
             cond_results["clean"]["entropy_l2"].append(ent_l2)
             cond_results["clean"]["entropy_l3"].append(ent_l3)
+            cond_results["clean"]["entropy_all_layers"].append(ent_all)
             cond_results["clean"]["fg_hit_rate"].append(fg_hit)
             cond_results["clean"]["dropoff_ratio"].append(dropoff)
             cond_results["clean"]["score_margin"].append(margin)
@@ -213,6 +216,7 @@ def run_mechanism_telemetry_cohort(
                 ent_l1 = compute_attention_entropy(w_l1)
                 ent_l2 = compute_attention_entropy(w_l2)
                 ent_l3 = compute_attention_entropy(w_l3)
+                ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)])) if n_layers > 0 else ent_l1
 
                 locs_l3 = hooks[l3_idx]["sampling_locations"][b].cpu().numpy()
                 fg_hit = compute_foreground_spatial_hit_rate(locs_l3, gt_boxes)
@@ -231,6 +235,7 @@ def run_mechanism_telemetry_cohort(
                 cond_results[cond]["entropy_l1"].append(ent_l1)
                 cond_results[cond]["entropy_l2"].append(ent_l2)
                 cond_results[cond]["entropy_l3"].append(ent_l3)
+                cond_results[cond]["entropy_all_layers"].append(ent_all)
                 cond_results[cond]["fg_hit_rate"].append(fg_hit)
                 cond_results[cond]["dropoff_ratio"].append(dropoff)
                 cond_results[cond]["score_margin"].append(margin)
@@ -331,6 +336,7 @@ def run_mechanism_telemetry_cohort(
         std_el1 = float(np.std(cond_results[cond]["entropy_l1"], ddof=ddof_c)) if n_c > 0 else 0.0
         std_el2 = float(np.std(cond_results[cond]["entropy_l2"], ddof=ddof_c)) if n_c > 0 else 0.0
         std_el3 = float(np.std(cond_results[cond]["entropy_l3"], ddof=ddof_c)) if n_c > 0 else 0.0
+        std_eall = float(np.std(cond_results[cond]["entropy_all_layers"], ddof=ddof_c)) if n_c > 0 else 0.0
         std_fg = float(np.std(cond_results[cond]["fg_hit_rate"], ddof=ddof_c)) if n_c > 0 else 0.0
         std_drop = float(np.std(cond_results[cond]["dropoff_ratio"], ddof=ddof_c)) if n_c > 0 else 0.0
         std_margin = float(np.std(cond_results[cond]["score_margin"], ddof=ddof_c)) if n_c > 0 else 0.0
@@ -345,6 +351,9 @@ def run_mechanism_telemetry_cohort(
             "mean_entropy_l3": float(np.mean(cond_results[cond]["entropy_l3"])),
             "std_entropy_l3": std_el3,
             "sem_entropy_l3": float(std_el3 / sqrt_n),
+            "mean_entropy_all_layers": float(np.mean(cond_results[cond]["entropy_all_layers"])),
+            "std_entropy_all_layers": std_eall,
+            "sem_entropy_all_layers": float(std_eall / sqrt_n),
             "mean_fg_hit_rate": float(np.mean(cond_results[cond]["fg_hit_rate"])),
             "std_fg_hit_rate": std_fg,
             "sem_fg_hit_rate": float(std_fg / sqrt_n),

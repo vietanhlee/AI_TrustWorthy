@@ -13,15 +13,53 @@ chuẩn công nghiệp được triển khai phổ biến trên thiết bị Edg
 """
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from transformers import (
+    AutoConfig,
+    DeformableDetrForObjectDetection,
     DetrConfig,
     DetrForObjectDetection,
     RTDetrConfig,
     RTDetrForObjectDetection,
+    RTDetrV2ForObjectDetection,
 )
+
+
+CROSS_DETECTOR_SPECS: Dict[str, Dict[str, object]] = {
+    "r18": {"hf_id": "PekingU/rtdetr_r18vd", "family": "rtdetr", "is_sigmoid": True, "has_dynamic_selection": True, "imagenet_normalize": False},
+    "r50": {"hf_id": "PekingU/rtdetr_r50vd", "family": "rtdetr", "is_sigmoid": True, "has_dynamic_selection": True, "imagenet_normalize": False},
+    "rtdetrv2_r18": {"hf_id": "PekingU/rtdetr_v2_r18vd", "family": "rtdetrv2", "is_sigmoid": True, "has_dynamic_selection": True, "imagenet_normalize": False},
+    "rtdetrv2_r50": {"hf_id": "PekingU/rtdetr_v2_r50vd", "family": "rtdetrv2", "is_sigmoid": True, "has_dynamic_selection": True, "imagenet_normalize": False},
+    "deformable_detr": {"hf_id": "SenseTime/deformable-detr", "family": "deformable_detr", "is_sigmoid": True, "has_dynamic_selection": False, "imagenet_normalize": True},
+    "deformable_detr_twostage": {"hf_id": "SenseTime/deformable-detr-with-box-refine-two-stage", "family": "deformable_detr", "is_sigmoid": True, "has_dynamic_selection": True, "imagenet_normalize": True},
+    "detr_r50": {"hf_id": "facebook/detr-resnet-50", "family": "detr", "is_sigmoid": False, "has_dynamic_selection": False, "imagenet_normalize": True},
+}
+
+
+class NormalizedHFDetector(nn.Module):
+    """
+    Lớp bọc chuẩn hóa ImageNet (mean/std) khả vi ngay trong forward()
+    cho DETR / Deformable DETR sao cho toàn bộ tấn công PGD vẫn tối ưu trực tiếp
+    trên không gian pixel [0, 1] đồng nhất với RT-DETR.
+    """
+
+    def __init__(self, inner_model: nn.Module, imagenet_normalize: bool = True) -> None:
+        super().__init__()
+        self.inner_model = inner_model
+        self.config = inner_model.config
+        self.imagenet_normalize = bool(imagenet_normalize)
+        mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32).view(1, 3, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32).view(1, 3, 1, 1)
+        self.register_buffer("_img_mean", mean)
+        self.register_buffer("_img_std", std)
+
+    def forward(self, pixel_values: torch.Tensor, **kwargs):
+        x = pixel_values
+        if self.imagenet_normalize:
+            x = (x - self._img_mean.to(device=x.device, dtype=x.dtype)) / self._img_std.to(device=x.device, dtype=x.dtype)
+        return self.inner_model(pixel_values=x, **kwargs)
 
 
 @dataclass
@@ -257,3 +295,79 @@ class DETRModelWrapper(nn.Module):
         if self.is_sigmoid:
             return torch.sigmoid(logits)
         return torch.softmax(logits, dim=-1)
+
+
+class CrossDetectorWrapper(nn.Module):
+    """
+    Wrapper thống nhất cho benchmark đối chứng đa họ kiến trúc Transformer Detector:
+    RT-DETR, RT-DETRv2, Deformable DETR (1-stage / 2-stage) và Vanilla DETR (Static Queries).
+    """
+
+    def __init__(
+        self,
+        model_name_or_alias: str,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        super().__init__()
+        self.device = device or torch.device("cpu")
+        key = str(model_name_or_alias).strip().lower()
+        spec = CROSS_DETECTOR_SPECS.get(key)
+
+        if spec is not None:
+            hf_id = str(spec["hf_id"])
+            family = str(spec["family"])
+            self.is_sigmoid = bool(spec["is_sigmoid"])
+            self.has_dynamic_selection = bool(spec["has_dynamic_selection"])
+            imagenet_norm = bool(spec["imagenet_normalize"])
+        else:
+            hf_id = str(model_name_or_alias)
+            cfg = AutoConfig.from_pretrained(hf_id, token=False)
+            mtype = str(getattr(cfg, "model_type", "")).lower()
+            if "rtdetr_v2" in mtype:
+                family, self.is_sigmoid, self.has_dynamic_selection, imagenet_norm = "rtdetrv2", True, True, False
+            elif "rtdetr" in mtype:
+                family, self.is_sigmoid, self.has_dynamic_selection, imagenet_norm = "rtdetr", True, True, False
+            elif "deformable_detr" in mtype:
+                family = "deformable_detr"
+                self.is_sigmoid = True
+                self.has_dynamic_selection = bool(getattr(cfg, "two_stage", False))
+                imagenet_norm = True
+            else:
+                family, self.is_sigmoid, self.has_dynamic_selection, imagenet_norm = "detr", False, False, True
+
+        self.pretrained_model_name = hf_id
+        self.family = family
+
+        if family == "rtdetr":
+            cfg = AutoConfig.from_pretrained(hf_id, token=False)
+            cfg._attn_implementation = "eager"
+            raw_model = RTDetrForObjectDetection.from_pretrained(hf_id, config=cfg, attn_implementation="eager", token=False)
+        elif family == "rtdetrv2":
+            cfg = AutoConfig.from_pretrained(hf_id, token=False)
+            cfg._attn_implementation = "eager"
+            raw_model = RTDetrV2ForObjectDetection.from_pretrained(hf_id, config=cfg, attn_implementation="eager", token=False)
+        elif family == "deformable_detr":
+            cfg = AutoConfig.from_pretrained(hf_id, token=False)
+            cfg._attn_implementation = "eager"
+            raw_model = DeformableDetrForObjectDetection.from_pretrained(hf_id, config=cfg, attn_implementation="eager", token=False)
+            self.has_dynamic_selection = bool(getattr(cfg, "two_stage", self.has_dynamic_selection))
+        else:
+            cfg = AutoConfig.from_pretrained(hf_id, token=False)
+            cfg._attn_implementation = "eager"
+            raw_model = DetrForObjectDetection.from_pretrained(hf_id, config=cfg, attn_implementation="eager", token=False)
+
+        self.model = NormalizedHFDetector(raw_model, imagenet_normalize=imagenet_norm).to(self.device)
+        self.model.eval()
+        self.num_queries = int(getattr(raw_model.config, "num_queries", 300))
+        self.num_labels = int(getattr(raw_model.config, "num_labels", 80))
+        self.d_model = int(getattr(raw_model.config, "d_model", 256))
+        self.decoder_layers = int(getattr(raw_model.config, "decoder_layers", 6))
+
+    def forward(self, pixel_values: torch.Tensor) -> Dict[str, torch.Tensor]:
+        pixel_values = pixel_values.to(self.device)
+        outputs = self.model(pixel_values=pixel_values, return_dict=True)
+        return {
+            "logits": outputs.logits,
+            "pred_boxes": outputs.pred_boxes,
+            "enc_outputs_class": getattr(outputs, "enc_outputs_class", None),
+        }

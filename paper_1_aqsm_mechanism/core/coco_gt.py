@@ -358,7 +358,10 @@ def postprocess_rtdetr_predictions(
     """
     logits_c = logits.detach().cpu()
     boxes_xyxy = box_cxcywh_to_xyxy(pred_boxes.detach().cpu()).clamp(0.0, 1.0)
-    probs = torch.sigmoid(logits_c)
+    if mode == "detr_softmax":
+        probs = torch.softmax(logits_c, dim=-1)[..., :-1]
+    else:
+        probs = torch.sigmoid(logits_c)
     bsz, num_q, num_c = probs.shape
 
     results: List[Dict[str, np.ndarray]] = []
@@ -369,7 +372,7 @@ def postprocess_rtdetr_predictions(
             labels = flat_idx % num_c
             box_idx = torch.div(flat_idx, num_c, rounding_mode="floor")
             b_boxes = boxes_xyxy[b, box_idx]
-        elif mode == "per_query_max":
+        elif mode in ("per_query_max", "detr_softmax"):
             scores, labels = probs[b].max(dim=-1)
             order = torch.argsort(scores, descending=True)[:max_dets]
             scores = scores[order]

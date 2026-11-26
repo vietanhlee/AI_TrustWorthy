@@ -637,17 +637,18 @@ def generate_table7(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     cl_l1 = float(require_val(cl, ["mean_entropy_l1"], "tel.cl.ent_l1"))
     aq_l1 = float(require_val(aq, ["mean_entropy_l1"], "tel.aq.ent_l1"))
-    cl_ent = (cl_l1 + float(require_val(cl, ["mean_entropy_l2"], "tel.cl.ent_l2")) + float(require_val(cl, ["mean_entropy_l3"], "tel.cl.ent_l3"))) / 3.0
-    cl_ent_std = float(require_val(cl, ["std_entropy_l1"], "tel.cl.std_ent_l1"))
 
-    aq_ent = (aq_l1 + float(require_val(aq, ["mean_entropy_l2"], "tel.aq.ent_l2")) + float(require_val(aq, ["mean_entropy_l3"], "tel.aq.ent_l3"))) / 3.0
-    aq_ent_std = float(require_val(aq, ["std_entropy_l1"], "tel.aq.std_ent_l1"))
+    def _ent_mean_std(blk: Dict[str, Any], tag: str) -> Tuple[float, float]:
+        if "mean_entropy_all_layers" in blk and "std_entropy_all_layers" in blk:
+            return float(blk["mean_entropy_all_layers"]), float(blk["std_entropy_all_layers"])
+        m = (float(require_val(blk, ["mean_entropy_l1"], f"{tag}.l1")) + float(require_val(blk, ["mean_entropy_l2"], f"{tag}.l2")) + float(require_val(blk, ["mean_entropy_l3"], f"{tag}.l3"))) / 3.0
+        s = float(require_val(blk, ["std_entropy_l1"], f"{tag}.std_l1"))
+        return m, s
 
-    van_ent = (float(require_val(van, ["mean_entropy_l1"], "tel.van.ent_l1")) + float(require_val(van, ["mean_entropy_l2"], "tel.van.ent_l2")) + float(require_val(van, ["mean_entropy_l3"], "tel.van.ent_l3"))) / 3.0
-    van_ent_std = float(require_val(van, ["std_entropy_l1"], "tel.van.std_ent_l1"))
-
-    pgd_ent = (float(require_val(pgd, ["mean_entropy_l1"], "tel.pgd.ent_l1")) + float(require_val(pgd, ["mean_entropy_l2"], "tel.pgd.ent_l2")) + float(require_val(pgd, ["mean_entropy_l3"], "tel.pgd.ent_l3"))) / 3.0
-    pgd_ent_std = float(require_val(pgd, ["std_entropy_l1"], "tel.pgd.std_ent_l1"))
+    cl_ent, cl_ent_std = _ent_mean_std(cl, "tel.cl")
+    aq_ent, aq_ent_std = _ent_mean_std(aq, "tel.aq")
+    van_ent, van_ent_std = _ent_mean_std(van, "tel.van")
+    pgd_ent, pgd_ent_std = _ent_mean_std(pgd, "tel.pgd")
 
     cl_hit = float(require_val(cl, ["mean_fg_hit_rate"], "tel.cl.fg_hit")) * 100.0
     cl_drop = float(require_val(cl, ["mean_dropoff_ratio"], "tel.cl.dropoff"))

@@ -371,6 +371,144 @@ class TestAQSMRevampedComponents(unittest.TestCase):
         self.assertIn("Arm_A", c_aqsm["point_maps"])
         self.assertIn("Arm_B", c_aqsm["point_maps"])
 
+    def test_10_directional_misrouting_metrics(self):
+        """
+        Kiểm tra compute_directional_misrouting_metrics với 3 kịch bản hình học:
+        1) Không dịch chuyển -> tất cả chỉ số = 0.0
+        2) Tịnh tiến đồng hướng (+0.1, 0.0) -> resultant_length ≈ 1.0, mean_shift_vector_norm ≈ 0.1
+        3) Đẩy tỏa ra biên đối xứng quanh tâm (0.5, 0.5) -> resultant_length ≈ 0.0, radial_outward_bias > 0
+        """
+        from paper_1_aqsm_mechanism.core.mechanism_analyzer import compute_directional_misrouting_metrics
+
+        c0 = np.array([[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]], dtype=np.float64)
+
+        # 1. Không dịch chuyển
+        m_zero = compute_directional_misrouting_metrics(c0, c0.copy())
+        self.assertAlmostEqual(m_zero["mean_shift_vector_norm"], 0.0, places=6)
+        self.assertAlmostEqual(m_zero["directional_resultant_length"], 0.0, places=6)
+        self.assertAlmostEqual(m_zero["radial_outward_bias"], 0.0, places=6)
+
+        # 2. Tịnh tiến đồng hướng
+        c_shift = c0 + np.array([[0.1, 0.0]], dtype=np.float64)
+        m_dir = compute_directional_misrouting_metrics(c0, c_shift)
+        self.assertAlmostEqual(m_dir["mean_shift_vector_norm"], 0.1, places=5)
+        self.assertAlmostEqual(m_dir["directional_resultant_length"], 1.0, places=5)
+
+        # 3. Đẩy tỏa ra rìa đối xứng
+        c_out = np.array([[0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]], dtype=np.float64)
+        m_rad = compute_directional_misrouting_metrics(c0, c_out)
+        self.assertAlmostEqual(m_rad["mean_shift_vector_norm"], 0.0, places=5)
+        self.assertAlmostEqual(m_rad["directional_resultant_length"], 0.0, places=5)
+        self.assertGreater(m_rad["radial_outward_bias"], 0.1)
+
+    def test_11_active_box_count_monitor(self):
+        """
+        Kiểm tra ActiveBoxCountMonitor (Watchdog đếm số box active):
+        - Fit trên clean logits giả lập, xác nhận ngưỡng trên và FPR.
+        - Đánh giá trên cohort flooding (nhiều box vượt conf_threshold) cho AUROC cao.
+        """
+        from paper_1_aqsm_mechanism.core.defense_engine import ActiveBoxCountMonitor
+
+        torch.manual_seed(0)
+        # Clean: 40 ảnh x 50 queries x 10 classes, đa số logits âm (-3.0 -> sigmoid ~0.047)
+        cal_logits = torch.full((40, 50, 10), -3.0)
+        cal_logits[:, :4, 0] = 2.0  # ~4 active boxes mỗi ảnh
+
+        test_clean = torch.full((20, 50, 10), -3.0)
+        test_clean[:, :4, 0] = 2.0
+
+        # Flooding attack: 25 active boxes mỗi ảnh
+        test_flood = torch.full((20, 50, 10), -3.0)
+        test_flood[:, :25, 0] = 2.0
+
+        mon = ActiveBoxCountMonitor(target_fpr=0.05, conf_threshold=0.35)
+        mon.fit(cal_logits)
+        self.assertTrue(mon.is_fitted)
+
+        res = mon.evaluate_cohort(test_clean, {"Flooding": test_flood})
+        self.assertIn("Flooding", res["attacks"])
+        self.assertGreaterEqual(res["attacks"]["Flooding"]["auroc_upper"], 0.99)
+        self.assertAlmostEqual(res["attacks"]["Flooding"]["box_stats"]["mean"], 25.0, places=1)
+
+    def test_12_latency_flooding_attack(self):
+        """
+        Kiểm tra generate_latency_flooding_attack trên mô hình giả lập khả vi:
+        - Đầu ra đúng shape, nằm trong [0, 1], thỏa ràng buộc L_inf <= epsilon.
+        """
+        from types import SimpleNamespace
+        from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
+
+        class _MockFloodModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.conv = nn.Conv2d(3, 8, kernel_size=3, padding=1)
+                self.head = nn.Linear(8, 5)
+                self.enc_head = nn.Linear(8, 5)
+
+            def forward(self, pixel_values, return_dict=True):
+                feat = self.conv(pixel_values).mean(dim=(-2, -1))  # [B, 8]
+                logits = self.head(feat).unsqueeze(1).repeat(1, 12, 1)
+                enc_cls = self.enc_head(feat).unsqueeze(1).repeat(1, 20, 1)
+                return SimpleNamespace(logits=logits, enc_outputs_class=enc_cls)
+
+        class _MockWrapper:
+            def __init__(self):
+                self.device = torch.device("cpu")
+                self.model = _MockFloodModel()
+                self.is_sigmoid = True
+
+        wrapper = _MockWrapper()
+        eps = 16.0 / 255.0
+        attacker = DETRAttackGenerator(wrapper, epsilon=eps, alpha=4.0 / 255.0, num_steps=3)
+        clean_x = torch.rand(2, 3, 16, 16)
+        adv_x = attacker.generate_latency_flooding_attack(clean_x, steps=3, conf_threshold=0.35)
+
+        self.assertEqual(adv_x.shape, clean_x.shape)
+        self.assertTrue(torch.all(adv_x >= 0.0) and torch.all(adv_x <= 1.0))
+        linf_err = float((adv_x - clean_x).abs().max().item())
+        self.assertLessEqual(linf_err, eps + 1e-6)
+
+    def test_13_cross_detector_wrapper_mock(self):
+        """
+        Kiểm tra CrossDetectorWrapper với mock AutoConfig/DetrForObjectDetection
+        để đảm bảo không cần tải weights từ mạng vẫn kiểm chứng đúng logic routing.
+        """
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from paper_1_aqsm_mechanism.core.detr_wrapper import CrossDetectorWrapper
+
+        class _MockDetrInner(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.config = SimpleNamespace(
+                    model_type="detr",
+                    num_queries=100,
+                    num_labels=91,
+                    d_model=256,
+                    decoder_layers=6,
+                )
+
+            def forward(self, pixel_values, return_dict=True):
+                bsz = pixel_values.shape[0]
+                return SimpleNamespace(
+                    logits=torch.zeros(bsz, 100, 92),
+                    pred_boxes=torch.zeros(bsz, 100, 4),
+                )
+
+        mock_cfg = SimpleNamespace(model_type="detr")
+        mock_inner = _MockDetrInner()
+
+        with patch("paper_1_aqsm_mechanism.core.detr_wrapper.AutoConfig.from_pretrained", return_value=mock_cfg), \
+             patch("paper_1_aqsm_mechanism.core.detr_wrapper.DetrForObjectDetection.from_pretrained", return_value=mock_inner):
+            cw = CrossDetectorWrapper("detr_r50", device=torch.device("cpu"))
+            self.assertEqual(cw.family, "detr")
+            self.assertFalse(cw.is_sigmoid)
+            self.assertFalse(cw.has_dynamic_selection)
+            out = cw(torch.rand(1, 3, 32, 32))
+            self.assertEqual(out["logits"].shape, (1, 100, 92))
+            self.assertEqual(out["pred_boxes"].shape, (1, 100, 4))
+            self.assertIsNone(out["enc_outputs_class"])
+
 
 if __name__ == "__main__":
     unittest.main()

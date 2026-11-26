@@ -112,6 +112,9 @@ class DETRAttackGenerator:
         fg_selection_mode: str = "clean_prediction_proxy",
         gt_boxes: Optional[Sequence[np.ndarray]] = None,
         bg_seed: Optional[int] = None,
+        top_k_fg: int = 15,
+        k_bg: int = 30,
+        bg_rank_min: int = 500,
     ) -> torch.Tensor:
         """
         Adversarial Query Selection Manipulation (AQSM / Selection Starvation Attack):
@@ -155,7 +158,7 @@ class DETRAttackGenerator:
             clean_enc_probs = torch.sigmoid(clean_enc_logits)  # [B, S, C]
             max_clean_probs, _ = clean_enc_probs.max(dim=-1)  # [B, S]
             B, S = max_clean_probs.shape
-            k_fg = min(15, S)
+            k_fg = min(max(1, int(top_k_fg)), S)
 
             if fg_selection_mode == "ground_truth_matched" and gt_boxes is not None:
                 from paper_1_aqsm_mechanism.core.mechanism_analyzer import compute_token_fg_masks
@@ -187,19 +190,20 @@ class DETRAttackGenerator:
                 # Mặc định: Unsupervised Clean-Prediction Proxy
                 _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)  # [B, k_fg]
 
-            # Chọn background candidates (các candidates xếp hạng thấp ngoài top 500)
-            k_bg = min(30, S)
-            if bg_seed is not None and S > 500 + k_bg:
+            # Chọn background candidates (các candidates xếp hạng thấp ngoài top bg_rank_min)
+            k_bg_eff = min(max(1, int(k_bg)), S)
+            rank_min_eff = max(0, int(bg_rank_min))
+            if bg_seed is not None and S > rank_min_eff + k_bg_eff:
                 rng_bg = np.random.RandomState(int(bg_seed))
                 sorted_idx = torch.argsort(max_clean_probs, dim=-1, descending=True).cpu().numpy()
                 bg_list = []
                 for b in range(B):
-                    pool_bg = sorted_idx[b, 500:]
-                    sampled_bg = rng_bg.choice(pool_bg, size=k_bg, replace=False)
+                    pool_bg = sorted_idx[b, rank_min_eff:]
+                    sampled_bg = rng_bg.choice(pool_bg, size=k_bg_eff, replace=False)
                     bg_list.append(torch.from_numpy(sampled_bg).to(self.device))
                 bottom_bg_idx = torch.stack(bg_list, dim=0)
             else:
-                _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)  # [B, k_bg]
+                _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg_eff, dim=-1)  # [B, k_bg_eff]
 
         # Bước 2: Tối ưu hóa PGD thao túng ranking và dìm điểm trong không gian logit
         for _ in range(n_steps):
@@ -1099,7 +1103,10 @@ class DETRAttackGenerator:
         if need_fallback:
             with torch.no_grad():
                 clean_out = self.model(pixel_values=orig, return_dict=True)
-                clean_probs = torch.sigmoid(clean_out.logits)
+                if getattr(self.wrapper, "is_sigmoid", True):
+                    clean_probs = torch.sigmoid(clean_out.logits)
+                else:
+                    clean_probs = torch.softmax(clean_out.logits, dim=-1)[..., :-1]
                 for b in need_fallback:
                     scores_b, labels_b = clean_probs[b].max(dim=-1)
                     mask_b = scores_b >= fallback_conf_thresh
@@ -1137,7 +1144,10 @@ class DETRAttackGenerator:
                 out_fb = self.model(pixel_values=sub_fb_x, return_dict=True)
                 for local_i, b in enumerate(need_fallback):
                     m_b = fallback_masks[b]
-                    probs_b = torch.sigmoid(out_fb.logits[local_i])
+                    if getattr(self.wrapper, "is_sigmoid", True):
+                        probs_b = torch.sigmoid(out_fb.logits[local_i])
+                    else:
+                        probs_b = torch.softmax(out_fb.logits[local_i], dim=-1)[..., :-1]
                     fg_probs = probs_b[m_b, fallback_labels[b]]
                     cls_drop = -torch.log(fg_probs + 1e-6).mean()
                     coord_drift = F.l1_loss(out_fb.pred_boxes[local_i][m_b], fallback_boxes[b])
@@ -1151,6 +1161,55 @@ class DETRAttackGenerator:
             with torch.no_grad():
                 grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
                 adv_images = adv_images + step_alpha * grad_sign
+                delta = torch.clamp(adv_images - orig, min=-self.epsilon, max=self.epsilon)
+                adv_images = torch.clamp(orig + delta, min=0.0, max=1.0).detach()
+
+        return adv_images
+
+    @torch.enable_grad()
+    def generate_latency_flooding_attack(
+        self,
+        images: torch.Tensor,
+        steps: Optional[int] = None,
+        alpha: Optional[float] = None,
+        conf_threshold: float = 0.35,
+    ) -> torch.Tensor:
+        """
+        Worst-Case Proposal-Flooding / Sponge Attack nhắm thẳng vào RT-DETR:
+        Khác với Task PGD hay AQSM, mục tiêu này tối ưu PGD L_inf nhằm ĐẨY CỰC ĐẠI
+        độ tự tin phân loại trên toàn bộ 300 decoder queries (và encoder proposals)
+        vượt qua ngưỡng conf_threshold, kiểm chứng xem mật độ active boxes cực đại
+        có gây suy giảm thông lượng/độ trễ trên RT-DETR hay không.
+        """
+        self.model.eval()
+        orig = images.clone().detach().to(self.device)
+        adv_images = orig.clone().detach()
+        n_steps = steps if steps is not None else self.num_steps
+        step_alpha = alpha if alpha is not None else self.alpha
+
+        for _ in range(n_steps):
+            adv_images.requires_grad_(True)
+            outputs = self.model(pixel_values=adv_images, return_dict=True)
+
+            dec_probs = torch.sigmoid(outputs.logits)
+            max_dec_probs, _ = dec_probs.max(dim=-1)  # [B, N_q]
+            # Phạt mượt (soft hinge + probability boost) đẩy mọi query vượt ngưỡng conf_threshold
+            loss_dec_flood = F.relu((conf_threshold + 0.25) - max_dec_probs).mean() - 0.5 * max_dec_probs.mean()
+
+            total_loss = loss_dec_flood
+            if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
+                enc_max_probs, _ = torch.sigmoid(outputs.enc_outputs_class).max(dim=-1)
+                top_enc_probs, _ = torch.topk(enc_max_probs, k=min(300, enc_max_probs.shape[1]), dim=-1)
+                total_loss = total_loss - 0.5 * top_enc_probs.mean()
+
+            self.model.zero_grad()
+            if adv_images.grad is not None:
+                adv_images.grad.zero_()
+            total_loss.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
+                adv_images = adv_images - step_alpha * grad_sign
                 delta = torch.clamp(adv_images - orig, min=-self.epsilon, max=self.epsilon)
                 adv_images = torch.clamp(orig + delta, min=0.0, max=1.0).detach()
 
