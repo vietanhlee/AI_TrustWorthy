@@ -192,12 +192,26 @@ echo "    -> $FIG_DIR/fig6_attention_scattering_comparison.pdf"
 echo "    -> $FIG_DIR/fig7_matched_budget_sweep.pdf"
 echo "    -> $FIG_DIR/fig8_defense_evaluation.pdf"
 
+echo ""
+echo " 3. Đang tự động đóng gói kết quả vào file ZIP..."
 if command -v zip &>/dev/null; then
-    echo ""
-    echo " 3. Đang tự động đóng gói kết quả vào file ZIP..."
     zip -q -r "paper1_experiment_results.zip" "$OUTPUT_DIR" "$FIG_DIR" 2>/dev/null || true
-    if [ -f "paper1_experiment_results.zip" ]; then
-        echo "    -> File tải về tiện lợi: $(pwd)/paper1_experiment_results.zip"
-    fi
+else
+    $PYTHON_CMD - "$OUTPUT_DIR" "$FIG_DIR" "paper1_experiment_results.zip" <<'PYEOF'
+import os, sys, zipfile
+out_dir, fig_dir, zip_name = sys.argv[1], sys.argv[2], sys.argv[3]
+with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+    for root_dir in (out_dir, fig_dir):
+        if os.path.isdir(root_dir):
+            for r, _, files in os.walk(root_dir):
+                for fn in files:
+                    fp = os.path.join(r, fn)
+                    zf.write(fp, fp)
+PYEOF
+fi
+if [ -f "paper1_experiment_results.zip" ]; then
+    echo "    -> File tải về tiện lợi: $(pwd)/paper1_experiment_results.zip"
+else
+    echo "    -> [CẢNH BÁO] Không tạo được file paper1_experiment_results.zip!"
 fi
 echo "======================================================================"

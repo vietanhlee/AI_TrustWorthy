@@ -350,8 +350,13 @@ def run_defense_evaluation(
 
     # Đánh giá kiến trúc gia cố SQA (Section 6.4 - Table 12)
     print("\n[Defense Eval] Đánh giá Đề xuất Gia cố Kiến trúc SQA (Section 6.4 - Table 12)...")
+    sdir_sqa = get_summary_json_dir()
+    has_sqa_provenance = (sdir_sqa / "hardening_evaluation_results.json").exists() or (
+        sdir_sqa / "sqa_controls_and_adaptive_summary.json"
+    ).exists()
+    need_live_sqa = run_sqa_ablation or (not has_sqa_provenance)
     empirical_ablation = None
-    if run_sqa_ablation and hasattr(dataset, "gt_list") and len(dataset.gt_list) > 0 and "aqsm" in adv_dict:
+    if need_live_sqa and hasattr(dataset, "gt_list") and len(dataset.gt_list) > 0 and "aqsm" in adv_dict:
         try:
             print("   [Task 8] Đang thực hiện Live GPU Forward Pass cho SQA Ablation...")
             empirical_ablation = evaluate_sqa_empirical_ablation(
@@ -362,13 +367,22 @@ def run_defense_evaluation(
                 batch_size=batch_size,
             )
         except Exception as e:
-            print(f"   [CẢNH BÁO] Không thể chạy live SQA ablation ({e}). Sẽ sử dụng fallback provenance.")
+            print(f"   [CẢNH BÁO] Không thể chạy live SQA ablation ({e}).")
 
-    sqa_results = evaluate_sqa_hardening(
-        empirical_ablation=empirical_ablation,
-        summary_dir=get_summary_json_dir(),
-        model_name=wrapper.pretrained_model_name,
-    )
+    if empirical_ablation is not None or has_sqa_provenance:
+        sqa_results = evaluate_sqa_hardening(
+            empirical_ablation=empirical_ablation,
+            summary_dir=sdir_sqa,
+            model_name=wrapper.pretrained_model_name,
+        )
+    else:
+        print("   [CẢNH BÁO] Chưa có SQA provenance và live ablation không khả dụng; ghi kết quả trạng thái pending.")
+        sqa_results = {
+            "experiment": "Section 7.2: Empirical Validation of Architectural Hardening via Static Query Augmentation",
+            "model": wrapper.pretrained_model_name,
+            "status": "pending_sqa_controls_run",
+            "results": {},
+        }
     defense_results["sqa_hardening"] = sqa_results
 
     summary_json_dir = get_summary_json_dir()

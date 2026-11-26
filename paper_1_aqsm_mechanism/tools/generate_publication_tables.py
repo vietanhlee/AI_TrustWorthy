@@ -1121,13 +1121,13 @@ def generate_table12(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     aq_rec = float(require_val(aq_sqa, ["recall_pct"], "aq_sqa.rec"))
     aq_recovery = aq_m50 - aq_base_m50
 
-    pgd_base_m50 = float(require_val(pgd_dyn, ["mAP@50"], "pgd_dyn.m50"))
-    pgd_base_m95 = float(require_val(pgd_dyn, ["mAP@50:95"], "pgd_dyn.m95"))
-    pgd_base_rec = float(require_val(pgd_dyn, ["recall_pct"], "pgd_dyn.rec"))
-    pgd_base_ret = round((pgd_base_m50 / clean_dyn_m50) * 100.0, 1)
-    pgd_m50 = float(require_val(pgd_sqa, ["mAP@50"], "pgd_sqa.m50"))
-    pgd_m95 = float(require_val(pgd_sqa, ["mAP@50:95"], "pgd_sqa.m95"))
-    pgd_rec = float(require_val(pgd_sqa, ["recall_pct"], "pgd_sqa.rec"))
+    pgd_base_m50 = float(pgd_dyn.get("mAP@50", 0.0))
+    pgd_base_m95 = float(pgd_dyn.get("mAP@50:95", 0.0))
+    pgd_base_rec = float(pgd_dyn.get("recall_pct", 0.0))
+    pgd_base_ret = round((pgd_base_m50 / max(clean_dyn_m50, 1e-6)) * 100.0, 1)
+    pgd_m50 = float(pgd_sqa.get("mAP@50", 0.0))
+    pgd_m95 = float(pgd_sqa.get("mAP@50:95", 0.0))
+    pgd_rec = float(pgd_sqa.get("recall_pct", 0.0))
     pgd_recovery = pgd_m50 - pgd_base_m50
 
     # Trích xuất động các nhóm đối chứng và tấn công thích ứng SQA (không fallback hardcode)
@@ -1210,21 +1210,13 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
         summary_dir / "multimodel_and_seed_stability_summary.json",
         OUTPUTS_DIR / "summary_json" / "multimodel_and_seed_stability_summary.json",
     ], default_dict={})
-    records = ms_data["records"]
-    r18_ms = records["rtdetr_r18vd_multiseed"]
+    records = ms_data.get("records", {})
+    if not records:
+        raise KeyError("Không có bản ghi nào trong multimodel_and_seed_stability_summary.json")
+
+    r18_ms = records.get("rtdetr_r18vd_multiseed")
     r50_ms = records.get("rtdetr_r50vd_multiseed")
     r50_can = records.get("rtdetr_r50vd_canonical")
-
-    n_r18_seeds = len(r18_ms.get("seeds", []))
-    r18_proto_md = rf"{n_r18_seeds} seeds ($\mu \pm \sigma$)" if n_r18_seeds > 0 else str(r18_ms.get("protocol", "Multi-Seed"))
-    r18_ms_clean = float(r18_ms["clean_map50"])
-    r18_ms_aqsm_m = float(r18_ms["aqsm_map50_mean"])
-    r18_ms_aqsm_s = float(r18_ms["aqsm_map50_std"])
-    r18_ms_rel = float(r18_ms["relative_drop_pct"])
-    r18_ms_drift_m = float(r18_ms["hungarian_set_drift_mean"])
-    r18_ms_drift_s = float(r18_ms["hungarian_set_drift_std"])
-    r18_ms_hit_m = float(r18_ms["anchor_fg_hit_pct_mean"])
-    r18_ms_hit_s = float(r18_ms["anchor_fg_hit_pct_std"])
 
     headers = [
         "Model Architecture",
@@ -1235,20 +1227,46 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
         "Delta_Hungarian Set Drift",
         "Anchor FG Hit",
     ]
-    rows = [
-        [
+    rows: List[List[str]] = []
+    tex_rows: List[str] = []
+    seed_counts: List[int] = []
+
+    if r18_ms is not None:
+        n_r18_seeds = len(r18_ms.get("seeds", []))
+        if n_r18_seeds > 0:
+            seed_counts.append(n_r18_seeds)
+        r18_proto_md = rf"{n_r18_seeds} seeds ($\mu \pm \sigma$)" if n_r18_seeds > 0 else str(r18_ms.get("protocol", "Multi-Seed"))
+        r18_backbone = str(r18_ms.get("backbone", "ResNet-18 (20M)"))
+        r18_ms_clean = float(r18_ms["clean_map50"])
+        r18_ms_aqsm_m = float(r18_ms["aqsm_map50_mean"])
+        r18_ms_aqsm_s = float(r18_ms["aqsm_map50_std"])
+        r18_ms_rel = float(r18_ms["relative_drop_pct"])
+        r18_ms_drift_m = float(r18_ms["hungarian_set_drift_mean"])
+        r18_ms_drift_s = float(r18_ms["hungarian_set_drift_std"])
+        r18_ms_hit_m = float(r18_ms["anchor_fg_hit_pct_mean"])
+        r18_ms_hit_s = float(r18_ms["anchor_fg_hit_pct_std"])
+        rows.append([
             "RT-DETR-R18VD (Multi-Seed)",
-            str(r18_ms.get("backbone", "ResNet-18 (20M)")),
+            r18_backbone,
             r18_proto_md,
             f"{r18_ms_clean:.2f}%",
             f"{r18_ms_aqsm_m:.2f} \u00b1 {r18_ms_aqsm_s:.2f}% [{r18_ms_rel:+.2f}%]",
             f"{r18_ms_drift_m:.4f} \u00b1 {r18_ms_drift_s:.4f}",
             f"{r18_ms_hit_m:.2f} \u00b1 {r18_ms_hit_s:.2f}%",
-        ]
-    ]
+        ])
+        r18_tex_bb = r18_ms.get("backbone", "ResNet-18 (20M, 3 dec.)")
+        if r18_tex_bb == "ResNet-18 (20M)":
+            r18_tex_bb = "ResNet-18 (20M, 3 dec.)"
+        tex_rows.append(
+            f"RT-DETR-R18VD (Multi-Seed) & {r18_tex_bb} & {r18_proto_md} & {r18_ms_clean:.2f}\\% & "
+            f"{r18_ms_aqsm_m:.2f} $\\pm$ {r18_ms_aqsm_s:.2f}\\% [$-${abs(r18_ms_rel):.2f}\\%] & "
+            f"{r18_ms_drift_m:.4f} $\\pm$ {r18_ms_drift_s:.4f} & {r18_ms_hit_m:.2f} $\\pm$ {r18_ms_hit_s:.2f}\\% \\\\"
+        )
 
     if r50_ms is not None:
         n_r50_seeds = len(r50_ms.get("seeds", []))
+        if n_r50_seeds > 0:
+            seed_counts.append(n_r50_seeds)
         r50_proto_str = rf"{n_r50_seeds} seeds ($\mu \pm \sigma$)" if n_r50_seeds > 0 else str(r50_ms.get("protocol", "Multi-Seed"))
         r50_backbone = str(r50_ms.get("backbone", "ResNet-50 (42M, 6 dec.)"))
         r50_clean = float(r50_ms["clean_map50"])
@@ -1268,7 +1286,7 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
             f"{r50_drift_m:.4f} \u00b1 {r50_drift_s:.4f}",
             f"{r50_hit_m:.2f} \u00b1 {r50_hit_s:.2f}%",
         ])
-        r50_tex_row = (
+        tex_rows.append(
             f"RT-DETR-R50VD (Deep, Multi-Seed) & {r50_backbone} & {r50_proto_str} & {r50_clean:.2f}\\% & "
             f"{r50_aqsm_m:.2f} $\\pm$ {r50_aqsm_s:.2f}\\% [$-${abs(r50_rel):.2f}\\%] & "
             f"{r50_drift_m:.4f} $\\pm$ {r50_drift_s:.4f} & {r50_hit_m:.2f} $\\pm$ {r50_hit_s:.2f}\\% \\\\"
@@ -1290,14 +1308,15 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
             f"{r50_drift:.4f}",
             f"{r50_hit:.2f}%",
         ])
-        r50_tex_row = (
+        tex_rows.append(
             f"RT-DETR-R50VD (Deep) & {r50_backbone} & {r50_protocol} & {r50_clean:.2f}\\% & "
             f"{r50_aqsm:.2f}\\% [$-${abs(r50_rel):.2f}\\%] & {r50_drift:.4f} & {r50_hit:.2f}\\% \\\\"
         )
-    else:
-        raise KeyError("Thiếu cả rtdetr_r50vd_multiseed và rtdetr_r50vd_canonical trong multimodel_and_seed_stability_summary.json")
 
-    caption_k = f"$K={n_r18_seeds}$ seeds" if n_r18_seeds > 0 else "multi-seed"
+    if not rows:
+        raise KeyError("Không tìm thấy bản ghi r18 hoặc r50 hợp lệ trong multimodel_and_seed_stability_summary.json")
+
+    caption_k = f"$K={seed_counts[0]}$ seeds" if seed_counts else "multi-seed"
     tex = r"""\begin{table}[!htbp]
 \centering
 \caption{Multi-seed optimization stability (""" + caption_k + r""") and cross-variant generalization on COCO val2017 ($640 \times 640$, $\epsilon = 16/255, T = 15$).}
@@ -1307,8 +1326,7 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
 \toprule
 \textbf{Model Architecture} & \textbf{Backbone / Params} & \textbf{Evaluation Seed / Protocol} & \textbf{Clean mAP@50} & \textbf{AQSM mAP@50 [Rel. Drop]} & \textbf{$\Delta_{\mathrm{Hungarian}}$ Set Drift} & \textbf{Anchor FG Hit} \\
 \midrule
-RT-DETR-R18VD (Multi-Seed) & """ + f"{str(r18_ms.get('backbone', 'ResNet-18 (20M, 3 dec.)'))} & {r18_proto_md} & {r18_ms_clean:.2f}\\% & {r18_ms_aqsm_m:.2f} $\\pm$ {r18_ms_aqsm_s:.2f}\\% [$-${abs(r18_ms_rel):.2f}\\%] & {r18_ms_drift_m:.4f} $\\pm$ {r18_ms_drift_s:.4f} & {r18_ms_hit_m:.2f} $\\pm$ {r18_ms_hit_s:.2f}\\%" + r""" \\
-""" + r50_tex_row + r"""
+""" + "\n".join(tex_rows) + r"""
 \bottomrule
 \end{tabular}%
 }
@@ -1441,46 +1459,84 @@ def main():
                 tex_content = f.read()
 
             missing_keys = []
-            # Trích xuất động toàn bộ mốc kiểm chứng từ JSON thực nghiệm (zero hardcode)
-            c_aq = load_json(summary_dir / "causal_swap_results_aqsm.json")
-            mb_j = load_json(summary_dir / "matched_budget_sweep.json")
-            mem_j = load_json(summary_dir / "encoder_memory_analysis.json")
-            dyn_j = load_json(summary_dir / "query_selection_dynamics.json")
-            tel_j = load_json(summary_dir / "deformable_attention_telemetry.json")
-            mis_j = load_json(summary_dir / "controlled_misrouting_results.json")
-            esm_j = load_json(summary_dir / "defense_esm_evaluation.json")
-            sqa_j = load_json(summary_dir / "hardening_evaluation_results.json")
-            ms_j = load_json(summary_dir / "multimodel_and_seed_stability_summary.json")
+            test_patterns = []
 
-            test_patterns = [
-                ("Table 1 Clean mAP", f"{mb_j['clean_baseline']['mAP@50']:.2f}%"),
-                ("Table 1 AQSM mAP", f"{mb_j['sweep_results']['aqsm']['eps_16']['mAP@50']:.2f}%"),
-                ("Table 2 AQSM 16 mAP", f"{mb_j['sweep_results']['aqsm']['eps_16']['mAP@50']:.2f}%"),
-                ("Table 3 Arm A", f"{c_aq['point_maps']['Arm_A']['mAP@50']:.2f}%"),
-                ("Table 3 Arm B", f"{c_aq['point_maps']['Arm_B']['mAP@50']:.2f}%"),
-                ("Table 3 Arm C_full", f"{c_aq['point_maps']['Arm_C_full']['mAP@50']:.2f}%"),
-                ("Table 3 Arm D_full", f"{c_aq['point_maps']['Arm_D_full']['mAP@50']:.2f}%"),
-                ("Table 3 Arm D_index", f"{c_aq['point_maps']['Arm_D_index']['mAP@50']:.2f}%"),
-                ("Table 4 ME_M", f"{c_aq['anova_repeated_measures_full']['marginal_effects']['ME_M']:.2f}"),
-                ("Table 4 ME_Q", f"{c_aq['anova_repeated_measures_full']['marginal_effects']['ME_Q']:.2f}"),
-                ("Table 4 SS_M", f"{c_aq['anova_repeated_measures_full']['anova_table']['Memory_M']['SS']:.1f}"),
-                ("Table 4 SS_Q", f"{c_aq['anova_repeated_measures_full']['anova_table']['Query_Q']['SS']:.1f}"),
-                ("Table 5 Overall Cosine", f"{mem_j['results']['aqsm']['cosine_similarity']['Overall']['mean']:.4f}"),
-                ("Table 6 Overlap", f"{dyn_j['results']['aqsm']['top300_overlap_pct']['mean']:.2f}%"),
-                ("Table 6 Evicted Top15", f"{dyn_j['results']['aqsm']['evicted_top15_fg_pct']['mean']:.2f}%"),
-                ("Table 7 FG Hit", f"{tel_j['aqsm']['mean_fg_hit_rate'] * 100.0:.2f}%"),
-                ("Table 8 Random Reassignment", f"{mis_j['table8_summary']['Random_Reassignment']['mAP@50_mean']:.2f}"),
-                ("Table 8 Random Shift", f"{mis_j['table8_summary']['Matched_L2_Random_Shift']['mAP@50_mean']:.2f}"),
-                ("Table 8 AQSM Misrouting", f"{mis_j['table8_summary']['AQSM_Spatial_Misrouting']['mAP@50']:.2f}%"),
-                ("Table 9 AQSM eps4", f"{mb_j['sweep_results']['aqsm']['eps_4']['mAP@50']:.2f}%"),
-                ("Table 10 Jetson Orin", f"{sqa_j['results']['edge_latency_jetson_orin_nano_ms']['default_dynamic_only']:.2f}"),
-                ("Table 11 AQSM TPR", f"{esm_j['attacks']['aqsm']['tpr_detection_rate_pct']:.2f}%"),
-                ("Table 11 AUROC", f"{esm_j['attacks']['aqsm']['auroc']:.4f}"),
-                ("Table 12 SQA Recovery", f"{sqa_j['results']['aqsm_attack_eps16']['hardened_static_augmented']['mAP@50']:.2f}%"),
-                ("Table 13 R18 Multi-Seed", f"{ms_j['records']['rtdetr_r18vd_multiseed']['aqsm_map50_mean']:.2f} $\\pm$ {ms_j['records']['rtdetr_r18vd_multiseed']['aqsm_map50_std']:.2f}%"),
-                ("Table 13 R50 Clean", f"{ms_j['records']['rtdetr_r50vd_canonical']['clean_map50']:.2f}%"),
-                ("Table 13 R50 AQSM", f"{ms_j['records']['rtdetr_r50vd_canonical']['aqsm_map50']:.2f}%"),
-            ]
+            def _try_json(fname: str) -> Dict[str, Any]:
+                fp = summary_dir / fname
+                return load_json(fp) if fp.exists() else {}
+
+            c_aq = _try_json("causal_swap_results_aqsm.json")
+            mb_j = _try_json("matched_budget_sweep.json")
+            mem_j = _try_json("encoder_memory_analysis.json")
+            dyn_j = _try_json("query_selection_dynamics.json")
+            tel_j = _try_json("deformable_attention_telemetry.json")
+            mis_j = _try_json("controlled_misrouting_results.json")
+            esm_j = _try_json("defense_esm_evaluation.json")
+            sqa_j = _try_json("hardening_evaluation_results.json")
+            ms_j = _try_json("multimodel_and_seed_stability_summary.json")
+
+            if mb_j.get("clean_baseline"):
+                test_patterns.append(("Table 1 Clean mAP", f"{mb_j['clean_baseline']['mAP@50']:.2f}%"))
+            if mb_j.get("sweep_results", {}).get("aqsm"):
+                test_patterns.extend([
+                    ("Table 1 AQSM mAP", f"{mb_j['sweep_results']['aqsm']['eps_16']['mAP@50']:.2f}%"),
+                    ("Table 9 AQSM eps4", f"{mb_j['sweep_results']['aqsm']['eps_4']['mAP@50']:.2f}%"),
+                ])
+            if c_aq.get("point_maps"):
+                pm = c_aq["point_maps"]
+                test_patterns.extend([
+                    ("Table 3 Arm A", f"{pm['Arm_A']['mAP@50']:.2f}%"),
+                    ("Table 3 Arm B", f"{pm['Arm_B']['mAP@50']:.2f}%"),
+                    ("Table 3 Arm C_full", f"{pm['Arm_C_full']['mAP@50']:.2f}%"),
+                    ("Table 3 Arm D_full", f"{pm['Arm_D_full']['mAP@50']:.2f}%"),
+                    ("Table 3 Arm D_index", f"{pm['Arm_D_index']['mAP@50']:.2f}%"),
+                ])
+            if c_aq.get("anova_repeated_measures_full"):
+                av = c_aq["anova_repeated_measures_full"]
+                test_patterns.extend([
+                    ("Table 4 ME_M", f"{av['marginal_effects']['ME_M']:.2f}"),
+                    ("Table 4 ME_Q", f"{av['marginal_effects']['ME_Q']:.2f}"),
+                    ("Table 4 SS_M", f"{av['anova_table']['Memory_M']['SS']:.1f}"),
+                    ("Table 4 SS_Q", f"{av['anova_table']['Query_Q']['SS']:.1f}"),
+                ])
+            if mem_j.get("results", {}).get("aqsm"):
+                test_patterns.append(("Table 5 Overall Cosine", f"{mem_j['results']['aqsm']['cosine_similarity']['Overall']['mean']:.4f}"))
+            if dyn_j.get("results", {}).get("aqsm"):
+                test_patterns.extend([
+                    ("Table 6 Overlap", f"{dyn_j['results']['aqsm']['top300_overlap_pct']['mean']:.2f}%"),
+                    ("Table 6 Evicted Top15", f"{dyn_j['results']['aqsm']['evicted_top15_fg_pct']['mean']:.2f}%"),
+                ])
+            if tel_j.get("aqsm"):
+                test_patterns.append(("Table 7 FG Hit", f"{tel_j['aqsm']['mean_fg_hit_rate'] * 100.0:.2f}%"))
+            if mis_j.get("table8_summary"):
+                t8s = mis_j["table8_summary"]
+                test_patterns.extend([
+                    ("Table 8 Random Reassignment", f"{t8s['Random_Reassignment']['mAP@50_mean']:.2f}"),
+                    ("Table 8 Random Shift", f"{t8s['Matched_L2_Random_Shift']['mAP@50_mean']:.2f}"),
+                    ("Table 8 AQSM Misrouting", f"{t8s['AQSM_Spatial_Misrouting']['mAP@50']:.2f}%"),
+                ])
+            if esm_j.get("attacks", {}).get("aqsm"):
+                test_patterns.extend([
+                    ("Table 11 AQSM TPR", f"{esm_j['attacks']['aqsm']['tpr_detection_rate_pct']:.2f}%"),
+                    ("Table 11 AUROC", f"{esm_j['attacks']['aqsm']['auroc']:.4f}"),
+                ])
+            if sqa_j.get("results", {}).get("aqsm_attack_eps16"):
+                sqa_res = sqa_j["results"]
+                if "default_dynamic_only" in sqa_res.get("edge_latency_jetson_orin_nano_ms", {}):
+                    test_patterns.append(("Table 10 Jetson Orin", f"{sqa_res['edge_latency_jetson_orin_nano_ms']['default_dynamic_only']:.2f}"))
+                test_patterns.append(("Table 12 SQA Recovery", f"{sqa_res['aqsm_attack_eps16']['hardened_static_augmented']['mAP@50']:.2f}%"))
+
+            ms_recs = ms_j.get("records", {})
+            if "rtdetr_r18vd_multiseed" in ms_recs:
+                r18_r = ms_recs["rtdetr_r18vd_multiseed"]
+                test_patterns.append(("Table 13 R18 Multi-Seed", f"{r18_r['aqsm_map50_mean']:.2f} $\\pm$ {r18_r['aqsm_map50_std']:.2f}%"))
+            r50_r = ms_recs.get("rtdetr_r50vd_multiseed") or ms_recs.get("rtdetr_r50vd_canonical")
+            if isinstance(r50_r, dict):
+                test_patterns.append(("Table 13 R50 Clean", f"{r50_r['clean_map50']:.2f}%"))
+                if "aqsm_map50_mean" in r50_r:
+                    test_patterns.append(("Table 13 R50 AQSM", f"{r50_r['aqsm_map50_mean']:.2f} $\\pm$ {r50_r['aqsm_map50_std']:.2f}%"))
+                elif "aqsm_map50" in r50_r:
+                    test_patterns.append(("Table 13 R50 AQSM", f"{r50_r['aqsm_map50']:.2f}%"))
             for desc, pat in test_patterns:
                 pat_escaped = pat.replace("%", r"\%")
                 if pat not in tex_content and pat_escaped not in tex_content:

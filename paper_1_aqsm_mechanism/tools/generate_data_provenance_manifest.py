@@ -269,30 +269,40 @@ def generate_provenance_manifest(
         "AQSM_Default_mAP50": round(aq_base_m50, 2),
         "AQSM_Hardened_mAP50": round(aq_hard_m50, 2),
         "AQSM_Recovery_pp": round(aq_hard_m50 - aq_base_m50, 2),
-        "TaskPGD_Default_mAP50": round(require_stat(pgd_dyn["mAP@50"], "sqa.pgd_dyn"), 2),
-        "TaskPGD_Hardened_mAP50": round(require_stat(pgd_sqa["mAP@50"], "sqa.pgd_sqa"), 2),
+        "TaskPGD_Default_mAP50": round(float(pgd_dyn["mAP@50"]), 2) if "mAP@50" in pgd_dyn else None,
+        "TaskPGD_Hardened_mAP50": round(float(pgd_sqa["mAP@50"]), 2) if "mAP@50" in pgd_sqa else None,
         "Edge_Latency_Jetson_Orin_Default_ms": round(require_stat(edge_jetson["default_dynamic_only"], "sqa.lat_dyn"), 2),
         "Edge_Latency_Jetson_Orin_Hardened_ms": round(require_stat(edge_jetson["hardened_static_augmented"], "sqa.lat_sqa"), 2),
     }
 
     # --- Table 13: Multi-Seed Stability & Architecture Generalization ---
-    ms_recs = multiseed["records"]
-    r18_can = ms_recs["rtdetr_r18vd_canonical"]
-    r18_ms = ms_recs["rtdetr_r18vd_multiseed"]
-    r50_can = ms_recs["rtdetr_r50vd_canonical"]
-    t13_metrics = {
-        "RTDETR_R18_Clean_mAP50": round(require_stat(r18_can["clean_map50"], "r18_can.clean"), 2),
-        "RTDETR_R18_Canonical_AQSM_mAP50": round(require_stat(r18_can["aqsm_map50"], "r18_can.aqsm"), 2),
-        "RTDETR_R18_MultiSeed_Mean_AQSM_mAP50": round(require_stat(r18_ms["aqsm_map50_mean"], "r18_ms.aqsm_mean"), 2),
-        "RTDETR_R18_MultiSeed_Std_AQSM_mAP50": round(require_stat(r18_ms["aqsm_map50_std"], "r18_ms.aqsm_std"), 2),
-        "RTDETR_R18_Hungarian_Drift": round(require_stat(r18_ms["hungarian_set_drift_mean"], "r18_ms.drift"), 4),
-        "RTDETR_R18_Anchor_FG_Hit_pct": round(require_stat(r18_ms["anchor_fg_hit_pct_mean"], "r18_ms.hit"), 2),
-        "RTDETR_R50_Clean_mAP50": round(require_stat(r50_can["clean_map50"], "r50_can.clean"), 2),
-        "RTDETR_R50_AQSM_mAP50": round(require_stat(r50_can["aqsm_map50"], "r50_can.aqsm"), 2),
-        "RTDETR_R50_Relative_Drop_pct": round(require_stat(r50_can["relative_drop_pct"], "r50_can.rel"), 2),
-        "RTDETR_R50_Hungarian_Drift": round(require_stat(r50_can["hungarian_set_drift"], "r50_can.drift"), 4),
-        "RTDETR_R50_Anchor_FG_Hit_pct": round(require_stat(r50_can["anchor_fg_hit_pct"], "r50_can.hit"), 2),
-    }
+    ms_recs = multiseed.get("records", {})
+    r18_can = ms_recs.get("rtdetr_r18vd_canonical", {})
+    r18_ms = ms_recs.get("rtdetr_r18vd_multiseed", {})
+    r50_ms = ms_recs.get("rtdetr_r50vd_multiseed", {})
+    r50_can = ms_recs.get("rtdetr_r50vd_canonical", {})
+    t13_metrics: Dict[str, Any] = {}
+    if r18_can:
+        t13_metrics["RTDETR_R18_Clean_mAP50"] = round(require_stat(r18_can["clean_map50"], "r18_can.clean"), 2)
+        t13_metrics["RTDETR_R18_Canonical_AQSM_mAP50"] = round(require_stat(r18_can["aqsm_map50"], "r18_can.aqsm"), 2)
+    if r18_ms:
+        t13_metrics["RTDETR_R18_MultiSeed_Mean_AQSM_mAP50"] = round(require_stat(r18_ms["aqsm_map50_mean"], "r18_ms.aqsm_mean"), 2)
+        t13_metrics["RTDETR_R18_MultiSeed_Std_AQSM_mAP50"] = round(require_stat(r18_ms["aqsm_map50_std"], "r18_ms.aqsm_std"), 2)
+        t13_metrics["RTDETR_R18_Hungarian_Drift"] = round(require_stat(r18_ms["hungarian_set_drift_mean"], "r18_ms.drift"), 4)
+        t13_metrics["RTDETR_R18_Anchor_FG_Hit_pct"] = round(require_stat(r18_ms["anchor_fg_hit_pct_mean"], "r18_ms.hit"), 2)
+    if r50_ms:
+        t13_metrics["RTDETR_R50_Clean_mAP50"] = round(require_stat(r50_ms["clean_map50"], "r50_ms.clean"), 2)
+        t13_metrics["RTDETR_R50_MultiSeed_Mean_AQSM_mAP50"] = round(require_stat(r50_ms["aqsm_map50_mean"], "r50_ms.aqsm_mean"), 2)
+        t13_metrics["RTDETR_R50_MultiSeed_Std_AQSM_mAP50"] = round(require_stat(r50_ms["aqsm_map50_std"], "r50_ms.aqsm_std"), 2)
+        t13_metrics["RTDETR_R50_Relative_Drop_pct"] = round(require_stat(r50_ms["relative_drop_pct"], "r50_ms.rel"), 2)
+        t13_metrics["RTDETR_R50_Hungarian_Drift"] = round(require_stat(r50_ms["hungarian_set_drift_mean"], "r50_ms.drift"), 4)
+        t13_metrics["RTDETR_R50_Anchor_FG_Hit_pct"] = round(require_stat(r50_ms["anchor_fg_hit_pct_mean"], "r50_ms.hit"), 2)
+    elif r50_can:
+        t13_metrics["RTDETR_R50_Clean_mAP50"] = round(require_stat(r50_can["clean_map50"], "r50_can.clean"), 2)
+        t13_metrics["RTDETR_R50_AQSM_mAP50"] = round(require_stat(r50_can["aqsm_map50"], "r50_can.aqsm"), 2)
+        t13_metrics["RTDETR_R50_Relative_Drop_pct"] = round(require_stat(r50_can["relative_drop_pct"], "r50_can.rel"), 2)
+        t13_metrics["RTDETR_R50_Hungarian_Drift"] = round(require_stat(r50_can["hungarian_set_drift"], "r50_can.drift"), 4)
+        t13_metrics["RTDETR_R50_Anchor_FG_Hit_pct"] = round(require_stat(r50_can["anchor_fg_hit_pct"], "r50_can.hit"), 2)
 
     tables = {
         "tab:tab1_ablation": {
