@@ -57,7 +57,7 @@ AUDIT_STREAMS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def resolve_model_name(name: Optional[str] = None) -> str:
-    """Chuẩn hóa tên model checkpoint hoặc alias ('r18', 'r50', ...)."""
+    """Chuẩn hóa tên model checkpoint hoặc alias ('r18', 'r50', 'r101', 'detr', 'deformable_detr', ...)."""
     if not name:
         return os.environ.get("EDGE_SEC_MODEL", "PekingU/rtdetr_r18vd")
     clean = str(name).strip()
@@ -68,14 +68,36 @@ def resolve_model_name(name: Optional[str] = None) -> str:
         "r50": "PekingU/rtdetr_r50vd",
         "rtdetr_r50": "PekingU/rtdetr_r50vd",
         "rtdetr_r50vd": "PekingU/rtdetr_r50vd",
+        "r101": "PekingU/rtdetr_r101vd",
+        "rtdetr_r101": "PekingU/rtdetr_r101vd",
+        "rtdetr_r101vd": "PekingU/rtdetr_r101vd",
+        "detr": "facebook/detr-resnet-50",
+        "detr_r50": "facebook/detr-resnet-50",
+        "deformable_detr": "SenseTime/deformable-detr",
     }
     return alias_map.get(clean.lower(), clean)
+
+
+def infer_num_decoder_layers(model_name: Optional[str] = None) -> int:
+    """Suy luận số tầng decoder mặc định dựa trên kiến trúc mô hình."""
+    resolved = resolve_model_name(model_name).lower()
+    if any(tok in resolved for tok in ("r50", "r101", "deformable", "detr-resnet", "detr_resnet")):
+        return 6
+    return 3
+
+
+def infer_num_queries(model_name: Optional[str] = None) -> int:
+    """Suy luận số object query mặc định theo kiến trúc mô hình (DETR=100, RT-DETR/Deformable=300)."""
+    resolved = resolve_model_name(model_name).lower()
+    if "detr-resnet" in resolved and "rtdetr" not in resolved and "deformable" not in resolved:
+        return 100
+    return 300
 
 
 def get_model_tag(name: Optional[str] = None) -> str:
     """Trả về tag ngắn gọn của model để phân biệt file cache/output (ví dụ: rtdetr_r18vd, rtdetr_r50vd)."""
     m = resolve_model_name(name)
-    return m.split("/")[-1].lower()
+    return m.split("/")[-1].lower().replace("-", "_")
 
 
 def update_experiment_paths(
@@ -85,18 +107,32 @@ def update_experiment_paths(
     cache_dir: Optional[Union[str, Path]] = None,
     fig_dir: Optional[Union[str, Path]] = None,
     model: Optional[str] = None,
+    pgd_steps: Optional[int] = None,
+    eps_l_inf: Optional[float] = None,
+    pgd_step_size: Optional[float] = None,
+    img_size: Optional[int] = None,
 ) -> None:
     """
-    Cập nhật động các đường dẫn toàn cục phục vụ thực nghiệm linh hoạt.
+    Cập nhật động các đường dẫn và siêu tham số toàn cục phục vụ thực nghiệm linh hoạt.
     """
-    global COCO_VAL_DIR, COCO_ANN_FILE, OUTPUTS_DIR, LOGS_DIR, RAW_CSV_DIR, SUMMARY_JSON_DIR, AUDIT_STREAMS_DIR, ADV_CACHE_DIR, FIG_DIR, MODEL_NAME, NUM_DECODER_LAYERS
+    global COCO_VAL_DIR, COCO_ANN_FILE, OUTPUTS_DIR, LOGS_DIR, RAW_CSV_DIR, SUMMARY_JSON_DIR, AUDIT_STREAMS_DIR, ADV_CACHE_DIR, FIG_DIR, MODEL_NAME, NUM_DECODER_LAYERS, NUM_QUERIES, PGD_NUM_STEPS, EPSILON_L_INF, PGD_STEP_SIZE, IMG_SIZE
 
     if model is not None:
         MODEL_NAME = resolve_model_name(model)
-        if "r50" in MODEL_NAME.lower():
-            NUM_DECODER_LAYERS = 6
-        else:
-            NUM_DECODER_LAYERS = 3
+        NUM_DECODER_LAYERS = infer_num_decoder_layers(MODEL_NAME)
+        NUM_QUERIES = infer_num_queries(MODEL_NAME)
+
+    if pgd_steps is not None and int(pgd_steps) > 0:
+        PGD_NUM_STEPS = int(pgd_steps)
+
+    if eps_l_inf is not None and float(eps_l_inf) > 0:
+        EPSILON_L_INF = float(eps_l_inf)
+
+    if pgd_step_size is not None and float(pgd_step_size) > 0:
+        PGD_STEP_SIZE = float(pgd_step_size)
+
+    if img_size is not None and int(img_size) > 0:
+        IMG_SIZE = int(img_size)
 
     if folder_image is not None:
         COCO_VAL_DIR = Path(folder_image).resolve()
@@ -168,15 +204,43 @@ def get_coco_ann_file() -> Path:
     return COCO_ANN_FILE
 
 
+def get_model_name() -> str:
+    return MODEL_NAME
+
+
+def get_num_queries() -> int:
+    return NUM_QUERIES
+
+
+def get_num_decoder_layers() -> int:
+    return NUM_DECODER_LAYERS
+
+
+def get_pgd_num_steps() -> int:
+    return PGD_NUM_STEPS
+
+
+def get_epsilon_l_inf() -> float:
+    return EPSILON_L_INF
+
+
+def get_pgd_step_size() -> float:
+    return PGD_STEP_SIZE
+
+
+def get_img_size() -> int:
+    return IMG_SIZE
+
+
 # -----------------------------------------------------------------------------
 # 2. CẤU HÌNH MÔ HÌNH RT-DETR (NATIVE 640x640 PRODUCTION PROFILE)
 # -----------------------------------------------------------------------------
-MODEL_NAME: str = os.environ.get("EDGE_SEC_MODEL", "PekingU/rtdetr_r18vd")
+MODEL_NAME: str = resolve_model_name(os.environ.get("EDGE_SEC_MODEL", "PekingU/rtdetr_r18vd"))
 IMG_SIZE: int = int(os.environ.get("EDGE_SEC_IMG_SIZE", "640"))
 NUM_CANDIDATES: int = 8400   # 80x80 (S3, 1/8 = 6400) + 40x40 (S4, 1/16 = 1600) + 20x20 (S5, 1/32 = 400)
-NUM_QUERIES: int = 300       # N_q = 300 top-k encoder proposals truyền sang Decoder
+NUM_QUERIES: int = infer_num_queries(MODEL_NAME)       # N_q top-k encoder proposals truyền sang Decoder
 HIDDEN_DIM: int = 256        # Vector nhúng ẩn d_model = 256
-NUM_DECODER_LAYERS: int = 3  # Số tầng Deformable Cross-Attention trong RT-DETR-R18
+NUM_DECODER_LAYERS: int = infer_num_decoder_layers(MODEL_NAME)  # Số tầng Deformable Cross-Attention
 NUM_CLASSES: int = 80        # Số lớp COCO object classes
 
 # -----------------------------------------------------------------------------

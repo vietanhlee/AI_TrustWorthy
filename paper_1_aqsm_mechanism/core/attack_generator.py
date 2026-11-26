@@ -52,6 +52,86 @@ class DETRAttackGenerator:
         self.alpha = alpha
         self.num_steps = num_steps
 
+    def _get_num_queries(self, total_candidates: int) -> int:
+        """Lấy số query hợp lệ dựa theo wrapper.num_queries và giới hạn S candidates."""
+        n_q_cfg = int(getattr(self.wrapper, "num_queries", 300) or 300)
+        return min(max(1, n_q_cfg), max(1, int(total_candidates)))
+
+    def _class_probs(self, logits: torch.Tensor) -> torch.Tensor:
+        """Chuyển đổi logits sang xác suất lớp tương thích Sigmoid (RT-DETR/Deformable) và Softmax (DETR)."""
+        if self.is_sigmoid:
+            return torch.sigmoid(logits)
+        return F.softmax(logits, dim=-1)[..., :-1]
+
+    def _class_logits(self, logits: torch.Tensor, is_enc_output: bool = False) -> torch.Tensor:
+        """Trích xuất tensor logit thuần của các lớp đối tượng (loại bỏ lớp no-object nếu là DETR Softmax)."""
+        if is_enc_output or self.is_sigmoid:
+            return logits
+        return logits[..., :-1]
+
+    def _select_fg_bg_indices(
+        self,
+        clean_out: Any,
+        max_clean_probs: torch.Tensor,
+        top_k_fg: int = 15,
+        fg_selection_mode: str = "clean_prediction_proxy",
+        gt_boxes: Optional[Sequence[np.ndarray]] = None,
+        k_bg: int = 30,
+        bg_rank_min: int = 400,
+        bg_seed: Optional[int] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Chọn ứng viên foreground (clean proxy hoặc ground-truth matched theo từng ảnh b) và background."""
+        B, S = max_clean_probs.shape
+        k_fg = min(max(1, int(top_k_fg)), S)
+
+        if fg_selection_mode == "ground_truth_matched" and gt_boxes is not None:
+            from paper_1_aqsm_mechanism.core.mechanism_analyzer import compute_token_fg_masks
+            anchors_all = None
+            if hasattr(clean_out, "enc_outputs_coord_logits") and clean_out.enc_outputs_coord_logits is not None:
+                anchors_all = torch.sigmoid(clean_out.enc_outputs_coord_logits).detach().cpu().numpy()
+            elif hasattr(clean_out, "pred_boxes") and clean_out.pred_boxes is not None:
+                anchors_all = clean_out.pred_boxes.detach().cpu().numpy()
+
+            topk_fg_list = []
+            base_fg_seed = int(bg_seed) if bg_seed is not None else 42
+            for b in range(B):
+                gt_b = gt_boxes[b] if b < len(gt_boxes) else np.zeros((0, 4), dtype=np.float32)
+                anchors_b = anchors_all[b] if anchors_all is not None and b < len(anchors_all) else None
+                if len(gt_b) > 0 and anchors_b is not None:
+                    fg_mask = compute_token_fg_masks(anchors_b, gt_b)
+                    fg_idx = np.where(fg_mask)[0]
+                    if len(fg_idx) >= k_fg:
+                        topk_fg_list.append(torch.tensor(fg_idx[:k_fg], device=self.device))
+                    elif len(fg_idx) > 0:
+                        rng_fg = np.random.RandomState(base_fg_seed + b)
+                        pad = rng_fg.choice(fg_idx, size=k_fg - len(fg_idx), replace=True)
+                        topk_fg_list.append(torch.tensor(np.concatenate([fg_idx, pad]), device=self.device))
+                    else:
+                        _, topk_b = torch.topk(max_clean_probs[b], k=k_fg)
+                        topk_fg_list.append(topk_b)
+                else:
+                    _, topk_b = torch.topk(max_clean_probs[b], k=k_fg)
+                    topk_fg_list.append(topk_b)
+            topk_fg_idx = torch.stack(topk_fg_list, dim=0)
+        else:
+            _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)
+
+        k_bg_eff = min(max(1, int(k_bg)), S)
+        rank_min_eff = max(0, int(bg_rank_min))
+        if bg_seed is not None and S > rank_min_eff + k_bg_eff:
+            rng_bg = np.random.RandomState(int(bg_seed))
+            sorted_idx = torch.argsort(max_clean_probs, dim=-1, descending=True).cpu().numpy()
+            bg_list = []
+            for b in range(B):
+                pool_bg = sorted_idx[b, rank_min_eff:]
+                sampled_bg = rng_bg.choice(pool_bg, size=k_bg_eff, replace=False)
+                bg_list.append(torch.from_numpy(sampled_bg).to(self.device))
+            bottom_bg_idx = torch.stack(bg_list, dim=0)
+        else:
+            _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg_eff, dim=-1)
+
+        return topk_fg_idx, bottom_bg_idx
+
     @torch.enable_grad()
     def generate_vanishing_attack(
         self,
@@ -149,91 +229,56 @@ class DETRAttackGenerator:
         # Bước 1: Xác định tập candidate đại diện cho vật thể thật
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
-            if hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None:
-                clean_enc_logits = clean_out.enc_outputs_class  # [B, S, C], S = 8,400 at native 640x640
-            else:
-                clean_enc_logits = clean_out.logits
+            has_enc_clean = hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None
+            clean_enc_logits = self._class_logits(
+                clean_out.enc_outputs_class if has_enc_clean else clean_out.logits,
+                is_enc_output=has_enc_clean,
+            )
 
             # Tính điểm tối đa trên các lớp cho từng spatial candidate
-            clean_enc_probs = torch.sigmoid(clean_enc_logits)  # [B, S, C]
+            clean_enc_probs = torch.sigmoid(clean_enc_logits) if has_enc_clean else self._class_probs(clean_out.logits)
             max_clean_probs, _ = clean_enc_probs.max(dim=-1)  # [B, S]
-            B, S = max_clean_probs.shape
-            k_fg = min(max(1, int(top_k_fg)), S)
-
-            if fg_selection_mode == "ground_truth_matched" and gt_boxes is not None:
-                from paper_1_aqsm_mechanism.core.mechanism_analyzer import compute_token_fg_masks
-                anchors_sig = None
-                if hasattr(clean_out, "enc_outputs_coord_logits") and clean_out.enc_outputs_coord_logits is not None:
-                    anchors_sig = torch.sigmoid(clean_out.enc_outputs_coord_logits[0]).cpu().numpy()
-                elif hasattr(clean_out, "pred_boxes"):
-                    anchors_sig = clean_out.pred_boxes[0].cpu().numpy()
-
-                topk_fg_list = []
-                for b in range(B):
-                    gt_b = gt_boxes[b] if b < len(gt_boxes) else np.zeros((0, 4), dtype=np.float32)
-                    if len(gt_b) > 0 and anchors_sig is not None:
-                        fg_mask = compute_token_fg_masks(anchors_sig, gt_b)
-                        fg_idx = np.where(fg_mask)[0]
-                        if len(fg_idx) >= k_fg:
-                            topk_fg_list.append(torch.tensor(fg_idx[:k_fg], device=self.device))
-                        elif len(fg_idx) > 0:
-                            pad = np.random.choice(fg_idx, size=k_fg - len(fg_idx), replace=True)
-                            topk_fg_list.append(torch.tensor(np.concatenate([fg_idx, pad]), device=self.device))
-                        else:
-                            _, topk_b = torch.topk(max_clean_probs[b], k=k_fg)
-                            topk_fg_list.append(topk_b)
-                    else:
-                        _, topk_b = torch.topk(max_clean_probs[b], k=k_fg)
-                        topk_fg_list.append(topk_b)
-                topk_fg_idx = torch.stack(topk_fg_list, dim=0)
-            else:
-                # Mặc định: Unsupervised Clean-Prediction Proxy
-                _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)  # [B, k_fg]
-
-            # Chọn background candidates (các candidates xếp hạng thấp ngoài top bg_rank_min)
-            k_bg_eff = min(max(1, int(k_bg)), S)
-            rank_min_eff = max(0, int(bg_rank_min))
-            if bg_seed is not None and S > rank_min_eff + k_bg_eff:
-                rng_bg = np.random.RandomState(int(bg_seed))
-                sorted_idx = torch.argsort(max_clean_probs, dim=-1, descending=True).cpu().numpy()
-                bg_list = []
-                for b in range(B):
-                    pool_bg = sorted_idx[b, rank_min_eff:]
-                    sampled_bg = rng_bg.choice(pool_bg, size=k_bg_eff, replace=False)
-                    bg_list.append(torch.from_numpy(sampled_bg).to(self.device))
-                bottom_bg_idx = torch.stack(bg_list, dim=0)
-            else:
-                _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg_eff, dim=-1)  # [B, k_bg_eff]
+            topk_fg_idx, bottom_bg_idx = self._select_fg_bg_indices(
+                clean_out=clean_out,
+                max_clean_probs=max_clean_probs,
+                top_k_fg=top_k_fg,
+                fg_selection_mode=fg_selection_mode,
+                gt_boxes=gt_boxes,
+                k_bg=k_bg,
+                bg_rank_min=bg_rank_min,
+                bg_seed=bg_seed,
+            )
 
         # Bước 2: Tối ưu hóa PGD thao túng ranking và dìm điểm trong không gian logit
         for _ in range(n_steps):
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, return_dict=True)
 
-            if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
-                enc_logits = outputs.enc_outputs_class  # [B, S, C]
-            else:
-                enc_logits = outputs.logits
+            has_enc = hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None
+            raw_enc_logits = outputs.enc_outputs_class if has_enc else outputs.logits
+            enc_logits = self._class_logits(raw_enc_logits, is_enc_output=has_enc)
+            enc_probs = torch.sigmoid(enc_logits) if has_enc else self._class_probs(raw_enc_logits)
 
             # 1. Suppression Loss: Ép xác suất nhận diện của real object candidates về 0
-            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
-            max_fg_logits, _ = fg_logits.max(dim=-1)  # [B, k_fg]
-            fg_probs = torch.sigmoid(max_fg_logits)
+            fg_probs_gathered = torch.gather(enc_probs, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
+            fg_probs, _ = fg_probs_gathered.max(dim=-1)  # [B, k_fg]
             loss_suppress = (fg_probs ** 2).mean()
 
-            # 2. Ngưỡng điểm của ứng viên thứ 300 trong toàn bộ S candidates (8,400 tại 640x640)
+            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_fg_logits, _ = fg_logits.max(dim=-1)  # [B, k_fg]
+
+            # 2. Ngưỡng điểm của ứng viên thứ N_q trong toàn bộ S candidates
             max_all_logits, _ = enc_logits.max(dim=-1)  # [B, S]
-            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)  # [B]
+            n_q_eff = self._get_num_queries(max_all_logits.shape[1])
+            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max(1, max_all_logits.shape[1] - n_q_eff + 1), dim=-1)  # [B]
 
             # Margin Ranking Loss trong không gian Logit (-inf, +inf):
-            # Khi thỏa biên margin (max_fg_logits <= val_at_300_logit - effective_margin),
-            # số hạng hinge-loss trở nên bất hoạt (hinge-loss inactivity) và cho gradient bằng 0 cho ứng viên đó.
             loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + effective_margin).mean()
 
-            # 3. Đẩy điểm background candidates lên để chiếm chỗ trong Top-300
-            bg_logits = torch.gather(enc_logits, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
-            max_bg_logits, _ = bg_logits.max(dim=-1)  # [B, k_bg]
-            loss_bg_boost = -torch.sigmoid(max_bg_logits).mean()
+            # 3. Đẩy điểm background candidates lên để chiếm chỗ trong Top-N_q
+            bg_probs_gathered = torch.gather(enc_probs, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
+            max_bg_probs, _ = bg_probs_gathered.max(dim=-1)  # [B, k_bg]
+            loss_bg_boost = -max_bg_probs.mean()
 
             total_loss = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
 
@@ -278,19 +323,24 @@ class DETRAttackGenerator:
         # Bước 1: Trích xuất đặc trưng sạch tham chiếu (Clean Memory Reference)
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
-            if hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None:
-                clean_enc_logits = clean_out.enc_outputs_class
-            else:
-                clean_enc_logits = clean_out.logits
+            has_enc_clean = hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None
+            clean_enc_logits = self._class_logits(
+                clean_out.enc_outputs_class if has_enc_clean else clean_out.logits,
+                is_enc_output=has_enc_clean,
+            )
 
-            clean_enc_probs = torch.sigmoid(clean_enc_logits)
+            clean_enc_probs = torch.sigmoid(clean_enc_logits) if has_enc_clean else self._class_probs(clean_out.logits)
             max_clean_probs, _ = clean_enc_probs.max(dim=-1)
-            B, S = max_clean_probs.shape
-            k_fg = min(15, S)
-
-            _, topk_fg_idx = torch.topk(max_clean_probs, k=k_fg, dim=-1)
-            k_bg = min(30, S)
-            _, bottom_bg_idx = torch.topk(-max_clean_probs, k=k_bg, dim=-1)
+            topk_fg_idx, bottom_bg_idx = self._select_fg_bg_indices(
+                clean_out=clean_out,
+                max_clean_probs=max_clean_probs,
+                top_k_fg=15,
+                fg_selection_mode=fg_selection_mode,
+                gt_boxes=gt_boxes,
+                k_bg=30,
+                bg_rank_min=400,
+                bg_seed=bg_seed,
+            )
 
             # Lưu giữ hidden states của encoder và coordinate logits sạch
             clean_enc_hidden = (
@@ -309,24 +359,27 @@ class DETRAttackGenerator:
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, return_dict=True)
 
-            if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
-                enc_logits = outputs.enc_outputs_class
-            else:
-                enc_logits = outputs.logits
+            has_enc = hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None
+            raw_enc_logits = outputs.enc_outputs_class if has_enc else outputs.logits
+            enc_logits = self._class_logits(raw_enc_logits, is_enc_output=has_enc)
+            enc_probs = torch.sigmoid(enc_logits) if has_enc else self._class_probs(raw_enc_logits)
 
             # AQSM Task Objectives (trong không gian Logit)
-            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
-            max_fg_logits, _ = fg_logits.max(dim=-1)
-            fg_probs = torch.sigmoid(max_fg_logits)
+            fg_probs_gathered = torch.gather(enc_probs, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
+            fg_probs, _ = fg_probs_gathered.max(dim=-1)
             loss_suppress = (fg_probs ** 2).mean()
 
+            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_fg_logits, _ = fg_logits.max(dim=-1)
+
             max_all_logits, _ = enc_logits.max(dim=-1)
-            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)
+            n_q_eff = self._get_num_queries(max_all_logits.shape[1])
+            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max(1, max_all_logits.shape[1] - n_q_eff + 1), dim=-1)
             loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + margin_logit).mean()
 
-            bg_logits = torch.gather(enc_logits, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
-            max_bg_logits, _ = bg_logits.max(dim=-1)
-            loss_bg_boost = -torch.sigmoid(max_bg_logits).mean()
+            bg_probs_gathered = torch.gather(enc_probs, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
+            max_bg_probs, _ = bg_probs_gathered.max(dim=-1)
+            loss_bg_boost = -max_bg_probs.mean()
 
             loss_aqsm = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
 
@@ -454,8 +507,8 @@ class DETRAttackGenerator:
             )
 
             # Tấn công thích ứng: dìm toàn bộ confidence scores của cả dynamic lẫn static queries
-            probs = torch.sigmoid(dec_out["logits"])
-            max_probs, _ = probs.max(dim=-1)  # [B, 300 + N_static]
+            probs = self._class_probs(dec_out["logits"])
+            max_probs, _ = probs.max(dim=-1)  # [B, N_q + N_static]
             k_top = min(20, max_probs.shape[1])
             top_p, _ = torch.topk(max_probs, k=k_top, dim=-1)
             loss = (top_p ** 2).mean()
@@ -606,8 +659,9 @@ class DETRAttackGenerator:
 
                 outputs = self.model(pixel_values=batch_imgs, return_dict=True)
                 logits = outputs.logits  # [B, N, C_out]
-
-                target_prob = torch.sigmoid(logits[..., target_class_idx])
+                probs = self._class_probs(logits)
+                eff_cls = min(max(0, int(target_class_idx)), probs.shape[-1] - 1)
+                target_prob = probs[..., eff_cls]
                 k_top = min(3, target_prob.shape[1])
                 top_probs, _ = torch.topk(target_prob, k=k_top, dim=-1)
                 loss = -torch.log(top_probs + 1e-6).mean()
@@ -714,7 +768,8 @@ class DETRAttackGenerator:
         if target_detector in ["joint", "maha_aware"] and evasion_weight > 0.0:
             with torch.no_grad():
                 clean_out = self.model(pixel_values=images.to(self.device), output_hidden_states=True, return_dict=True)
-                clean_h_refs = [h.detach() for h in clean_out.decoder_hidden_states]
+                dec_hs = getattr(clean_out, "decoder_hidden_states", None)
+                clean_h_refs = [h.detach() for h in dec_hs] if dec_hs is not None else None
 
         # Nạp tham số hiệu chuẩn thực tế nếu chưa được truyền tường minh
         if tau_bounds_act is None or tau_bounds_top1 is None:
@@ -745,10 +800,12 @@ class DETRAttackGenerator:
             need_hidden = (target_detector in ["joint", "maha_aware"] and evasion_weight > 0.0)
             outputs = self.model(pixel_values=adv_images, output_hidden_states=need_hidden, return_dict=True)
             logits = outputs.logits  # [B, N, C]
-            probs = torch.sigmoid(logits)  # [B, N, C]
+            probs = self._class_probs(logits)  # [B, N, C]
 
             # 1. Mục tiêu Tác vụ: Ép top-k queries nhạy cảm nhất nhận diện lớp target
-            target_logits = logits[..., target_class_idx]  # [B, N]
+            cls_logits = self._class_logits(logits, is_enc_output=False)
+            eff_cls = min(max(0, int(target_class_idx)), cls_logits.shape[-1] - 1)
+            target_logits = cls_logits[..., eff_cls]  # [B, N]
             k = min(num_target_queries, target_logits.shape[1])
             top_target_logits, _ = torch.topk(target_logits, k=k, dim=-1)
             task_loss = -top_target_logits.mean()
@@ -768,10 +825,11 @@ class DETRAttackGenerator:
                     z_top1 = (top1_mean_batch - clean_top1_mean) / max(1e-4, clean_top1_std)
                     evasion_1d = (z_act ** 2 + z_top1 ** 2).mean()
 
-                if target_detector in ["joint", "maha_aware"] and clean_h_refs is not None:
+                out_dec_hs = getattr(outputs, "decoder_hidden_states", None)
+                if target_detector in ["joint", "maha_aware"] and clean_h_refs is not None and out_dec_hs is not None:
                     # Phạt độ lệch L2 trên hidden states của Decoder
-                    maha_surrogate = 0.0
-                    for l_idx, h_cur in enumerate(outputs.decoder_hidden_states):
+                    maha_surrogate = torch.zeros((), device=self.device)
+                    for l_idx, h_cur in enumerate(out_dec_hs):
                         h_ref = clean_h_refs[l_idx]
                         maha_surrogate = maha_surrogate + F.mse_loss(h_cur, h_ref)
                     evasion_loss = evasion_1d + 10.0 * maha_surrogate
@@ -819,25 +877,45 @@ class DETRAttackGenerator:
 
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
-            clean_enc_logits = clean_out.enc_outputs_class
-            clean_enc_probs = torch.sigmoid(clean_enc_logits)
+            has_enc_clean = hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None
+            clean_enc_logits = self._class_logits(
+                clean_out.enc_outputs_class if has_enc_clean else clean_out.logits,
+                is_enc_output=has_enc_clean,
+            )
+            clean_enc_probs = torch.sigmoid(clean_enc_logits) if has_enc_clean else self._class_probs(clean_out.logits)
             clean_max_probs, _ = clean_enc_probs.max(dim=-1)
-            top300_clean_val, _ = torch.topk(clean_max_probs, k=min(300, clean_max_probs.shape[1]), dim=-1)
+            n_q_eff = self._get_num_queries(clean_max_probs.shape[1])
+            top300_clean_val, _ = torch.topk(clean_max_probs, k=n_q_eff, dim=-1)
             tau_300_clean = top300_clean_val[:, -1]
 
             bg_mask = (clean_max_probs < 0.10)
+            # Bảo đảm mỗi ảnh có ít nhất k_eff ứng viên nền hợp lệ
+            k_eff = min(max(1, int(k_fake)), clean_max_probs.shape[1])
+            insufficient = bg_mask.sum(dim=-1) < k_eff
+            if insufficient.any():
+                _, bot_idx = torch.topk(-clean_max_probs, k=k_eff, dim=-1)
+                for b_i in range(bg_mask.shape[0]):
+                    if insufficient[b_i]:
+                        bg_mask[b_i, bot_idx[b_i]] = True
 
         for _ in range(n_steps):
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, return_dict=True)
-            enc_logits = outputs.enc_outputs_class
-            target_logits = enc_logits[..., target_class_idx]
+            has_enc = hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None
+            raw_enc_logits = outputs.enc_outputs_class if has_enc else outputs.logits
+            enc_logits = self._class_logits(raw_enc_logits, is_enc_output=has_enc)
+            eff_cls = min(max(0, int(target_class_idx)), enc_logits.shape[-1] - 1)
+            target_logits = enc_logits[..., eff_cls]
 
             masked_target_logits = target_logits.masked_fill(~bg_mask, -1e4)
-            top_fake_logits, _ = torch.topk(masked_target_logits, k=k_fake, dim=-1)
+            top_fake_logits, top_fake_idx = torch.topk(masked_target_logits, k=k_eff, dim=-1)
 
             loss_fake = -top_fake_logits.mean()
-            min_fake_prob = torch.sigmoid(top_fake_logits[:, -1])
+            if has_enc or self.is_sigmoid:
+                min_fake_prob = torch.sigmoid(top_fake_logits[:, -1])
+            else:
+                all_probs = self._class_probs(raw_enc_logits)[..., eff_cls]
+                min_fake_prob = torch.gather(all_probs, 1, top_fake_idx[:, -1:]) .squeeze(-1)
             loss_rank = F.relu(tau_300_clean - min_fake_prob + margin).mean()
 
             total_loss = loss_fake + lambda_rank * loss_rank
@@ -887,12 +965,13 @@ class DETRAttackGenerator:
         # Xác định foreground và background candidates trên ảnh sạch
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), return_dict=True)
-            if hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None:
-                clean_enc_logits = clean_out.enc_outputs_class
-            else:
-                clean_enc_logits = clean_out.logits
+            has_enc_clean = hasattr(clean_out, "enc_outputs_class") and clean_out.enc_outputs_class is not None
+            clean_enc_logits = self._class_logits(
+                clean_out.enc_outputs_class if has_enc_clean else clean_out.logits,
+                is_enc_output=has_enc_clean,
+            )
 
-            clean_enc_probs = torch.sigmoid(clean_enc_logits)
+            clean_enc_probs = torch.sigmoid(clean_enc_logits) if has_enc_clean else self._class_probs(clean_out.logits)
             max_clean_probs, _ = clean_enc_probs.max(dim=-1)
 
             k_fg = min(15, max_clean_probs.shape[1])
@@ -917,32 +996,33 @@ class DETRAttackGenerator:
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, return_dict=True)
 
-            if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
-                enc_logits = outputs.enc_outputs_class
-            else:
-                enc_logits = outputs.logits
-
-            enc_probs = torch.sigmoid(enc_logits)
+            has_enc = hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None
+            raw_enc_logits = outputs.enc_outputs_class if has_enc else outputs.logits
+            enc_logits = self._class_logits(raw_enc_logits, is_enc_output=has_enc)
+            enc_probs = torch.sigmoid(enc_logits) if has_enc else self._class_probs(raw_enc_logits)
             max_all_probs, _ = enc_probs.max(dim=-1)  # [B, S]
             max_all_logits, _ = enc_logits.max(dim=-1)
 
             # 1. AQSM Task Loss: Dìm foreground và nâng background trong không gian Logit
-            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
-            max_fg_logits, _ = fg_logits.max(dim=-1)
-            fg_probs = torch.sigmoid(max_fg_logits)
+            fg_probs_gathered = torch.gather(enc_probs, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
+            fg_probs, _ = fg_probs_gathered.max(dim=-1)
             loss_suppress = (fg_probs ** 2).mean()
 
-            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max_all_logits.shape[1] - 300 + 1, dim=-1)
+            fg_logits = torch.gather(enc_logits, 1, topk_fg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
+            max_fg_logits, _ = fg_logits.max(dim=-1)
+
+            n_q_eff = self._get_num_queries(max_all_logits.shape[1])
+            val_at_300_logit, _ = torch.kthvalue(max_all_logits, k=max(1, max_all_logits.shape[1] - n_q_eff + 1), dim=-1)
             loss_rank = F.relu(max_fg_logits - val_at_300_logit.unsqueeze(-1) + effective_margin).mean()
 
-            bg_logits = torch.gather(enc_logits, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_logits.shape[-1]))
-            max_bg_logits, _ = bg_logits.max(dim=-1)
-            loss_bg_boost = -torch.sigmoid(max_bg_logits).mean()
+            bg_probs_gathered = torch.gather(enc_probs, 1, bottom_bg_idx.unsqueeze(-1).expand(-1, -1, enc_probs.shape[-1]))
+            max_bg_probs, _ = bg_probs_gathered.max(dim=-1)
+            loss_bg_boost = -max_bg_probs.mean()
 
             task_loss = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
 
             # 2. ESM Evasion Loss: Giữ dropoff và margin trong vùng sạch chuẩn
-            topk_vals, _ = torch.topk(max_all_probs, k=min(300, max_all_probs.shape[1]), dim=-1)
+            topk_vals, _ = torch.topk(max_all_probs, k=n_q_eff, dim=-1)
             top1_val = topk_vals[:, 0]
             top300_val = topk_vals[:, -1]
             diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
@@ -950,7 +1030,8 @@ class DETRAttackGenerator:
             top300_mean = topk_vals.mean(dim=-1)
             all_sum = max_all_probs.sum(dim=-1)
             topk_sum = topk_vals.sum(dim=-1)
-            bg_mean = (all_sum - topk_sum) / float(max(1, max_all_probs.shape[1] - 300))
+            bg_count = max_all_probs.shape[1] - n_q_eff
+            bg_mean = (all_sum - topk_sum) / float(bg_count) if bg_count > 0 else torch.zeros_like(top300_mean)
             diff_margin = top300_mean - bg_mean
 
             pen_drop = F.relu(tau_drop_min - diff_dropoff) + F.relu(diff_dropoff - tau_drop_max)
@@ -1000,7 +1081,8 @@ class DETRAttackGenerator:
 
         with torch.no_grad():
             clean_out = self.model(pixel_values=images.to(self.device), output_hidden_states=True, return_dict=True)
-            clean_h_refs = [h.detach() for h in clean_out.decoder_hidden_states]
+            dec_hs = getattr(clean_out, "decoder_hidden_states", None)
+            clean_h_refs = [h.detach() for h in dec_hs] if dec_hs is not None else None
 
         try:
             from paper_1_aqsm_mechanism.core.adaptive_calibrator import get_or_create_calibrated_params
@@ -1024,10 +1106,12 @@ class DETRAttackGenerator:
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, output_hidden_states=True, return_dict=True)
             logits = outputs.logits
-            probs = torch.sigmoid(logits)
+            probs = self._class_probs(logits)
 
             # 1. Task Objective (Fabrication of target class)
-            target_logits = logits[..., target_class_idx]
+            cls_logits = self._class_logits(logits, is_enc_output=False)
+            eff_cls = min(max(0, int(target_class_idx)), cls_logits.shape[-1] - 1)
+            target_logits = cls_logits[..., eff_cls]
             k = min(5, target_logits.shape[1])
             top_target_logits, _ = torch.topk(target_logits, k=k, dim=-1)
             task_loss = -top_target_logits.mean()
@@ -1045,16 +1129,19 @@ class DETRAttackGenerator:
             if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
                 enc_p = torch.sigmoid(outputs.enc_outputs_class)
                 max_enc_p, _ = enc_p.max(dim=-1)
-                topk_enc, _ = torch.topk(max_enc_p, k=min(300, max_enc_p.shape[1]), dim=-1)
+                n_q_eff = self._get_num_queries(max_enc_p.shape[1])
+                topk_enc, _ = torch.topk(max_enc_p, k=n_q_eff, dim=-1)
                 diff_drop = topk_enc[:, 0] / (topk_enc[:, -1].clamp(min=1e-4) + 1e-4)
                 loss_t1 = (F.relu(tau_drop_min - diff_drop) + F.relu(diff_drop - tau_drop_max)).pow(2).mean()
             else:
                 loss_t1 = 0.0
 
             # 4. Tier 2 Evasion (Decoder Manifold L2 Surrogate)
-            loss_t2 = 0.0
-            for l_idx, h_cur in enumerate(outputs.decoder_hidden_states):
-                loss_t2 = loss_t2 + F.mse_loss(h_cur, clean_h_refs[l_idx])
+            loss_t2 = torch.zeros((), device=self.device)
+            out_dec_hs = getattr(outputs, "decoder_hidden_states", None)
+            if clean_h_refs is not None and out_dec_hs is not None:
+                for l_idx, h_cur in enumerate(out_dec_hs):
+                    loss_t2 = loss_t2 + F.mse_loss(h_cur, clean_h_refs[l_idx])
 
             total_loss = task_loss + evasion_weight * (loss_t0 + 0.5 * loss_t1 + 5.0 * loss_t2)
 
@@ -1096,7 +1183,7 @@ class DETRAttackGenerator:
 
         need_fallback = [
             b for b in range(bsz)
-            if hf_labels is None or len(hf_labels[b]["boxes"]) == 0
+            if hf_labels is None or b >= len(hf_labels) or len(hf_labels[b]["boxes"]) == 0
         ]
         fallback_masks: Dict[int, torch.Tensor] = {}
         fallback_labels: Dict[int, torch.Tensor] = {}
@@ -1104,10 +1191,7 @@ class DETRAttackGenerator:
         if need_fallback:
             with torch.no_grad():
                 clean_out = self.model(pixel_values=orig, return_dict=True)
-                if getattr(self.wrapper, "is_sigmoid", True):
-                    clean_probs = torch.sigmoid(clean_out.logits)
-                else:
-                    clean_probs = torch.softmax(clean_out.logits, dim=-1)[..., :-1]
+                clean_probs = self._class_probs(clean_out.logits)
                 for b in need_fallback:
                     scores_b, labels_b = clean_probs[b].max(dim=-1)
                     mask_b = scores_b >= fallback_conf_thresh
@@ -1121,7 +1205,7 @@ class DETRAttackGenerator:
 
         valid_indices = [
             b for b in range(bsz)
-            if hf_labels is not None and len(hf_labels[b]["boxes"]) > 0
+            if hf_labels is not None and b < len(hf_labels) and len(hf_labels[b]["boxes"]) > 0
         ]
 
         for _ in range(n_steps):
@@ -1138,17 +1222,23 @@ class DETRAttackGenerator:
                     for b in valid_indices
                 ]
                 out_gt = self.model(pixel_values=sub_x, labels=sub_lbls, return_dict=True)
-                total_loss = total_loss + out_gt.loss
+                gt_loss = getattr(out_gt, "loss", None)
+                if gt_loss is not None:
+                    total_loss = total_loss + gt_loss
+                else:
+                    # Fallback nếu wrapper/mock không tính loss khi nhận labels
+                    gt_probs_all = self._class_probs(out_gt.logits)
+                    for local_i, b in enumerate(valid_indices):
+                        cls_t = hf_labels[b]["class_labels"].to(self.device)
+                        top_p = gt_probs_all[local_i, :, cls_t].max(dim=0).values
+                        total_loss = total_loss - torch.log(top_p.clamp(min=1e-6)).mean()
 
             if need_fallback:
                 sub_fb_x = adv_images[need_fallback]
                 out_fb = self.model(pixel_values=sub_fb_x, return_dict=True)
                 for local_i, b in enumerate(need_fallback):
                     m_b = fallback_masks[b]
-                    if getattr(self.wrapper, "is_sigmoid", True):
-                        probs_b = torch.sigmoid(out_fb.logits[local_i])
-                    else:
-                        probs_b = torch.softmax(out_fb.logits[local_i], dim=-1)[..., :-1]
+                    probs_b = self._class_probs(out_fb.logits[local_i])
                     fg_probs = probs_b[m_b, fallback_labels[b]]
                     cls_drop = -torch.log(fg_probs + 1e-6).mean()
                     coord_drift = F.l1_loss(out_fb.pred_boxes[local_i][m_b], fallback_boxes[b])
@@ -1192,7 +1282,7 @@ class DETRAttackGenerator:
             adv_images.requires_grad_(True)
             outputs = self.model(pixel_values=adv_images, return_dict=True)
 
-            dec_probs = torch.sigmoid(outputs.logits)
+            dec_probs = self._class_probs(outputs.logits)
             max_dec_probs, _ = dec_probs.max(dim=-1)  # [B, N_q]
             # Phạt mượt (soft hinge + probability boost) đẩy mọi query vượt ngưỡng conf_threshold
             loss_dec_flood = F.relu((conf_threshold + 0.25) - max_dec_probs).mean() - 0.5 * max_dec_probs.mean()
@@ -1200,7 +1290,8 @@ class DETRAttackGenerator:
             total_loss = loss_dec_flood
             if hasattr(outputs, "enc_outputs_class") and outputs.enc_outputs_class is not None:
                 enc_max_probs, _ = torch.sigmoid(outputs.enc_outputs_class).max(dim=-1)
-                top_enc_probs, _ = torch.topk(enc_max_probs, k=min(300, enc_max_probs.shape[1]), dim=-1)
+                n_q_eff = self._get_num_queries(enc_max_probs.shape[1])
+                top_enc_probs, _ = torch.topk(enc_max_probs, k=n_q_eff, dim=-1)
                 total_loss = total_loss - 0.5 * top_enc_probs.mean()
 
             self.model.zero_grad()

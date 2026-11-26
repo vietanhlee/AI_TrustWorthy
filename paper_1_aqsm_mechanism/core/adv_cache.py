@@ -11,7 +11,7 @@ Hỗ trợ:
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
@@ -92,6 +92,37 @@ def find_cache_file(
     return target_tagged
 
 
+def _make_onthefly_proxy(
+    attack: str,
+    eps_num: int,
+    n_eval: int,
+    clean_imgs: Any,
+    wrapper: Optional[Any],
+    steps: Optional[int],
+    hf_labels: Optional[Sequence[Dict[str, Any]]],
+    mode_note: str = "on_the_fly_streaming",
+) -> Tuple[OnTheFlyAdvImageBatchProxy, Dict[str, Any]]:
+    """Khởi tạo OnTheFlyAdvImageBatchProxy thống nhất với hf_labels và steps từ cấu hình."""
+    from paper_1_aqsm_mechanism.experiments.config import get_pgd_num_steps
+    eff_steps = int(steps) if steps is not None else int(get_pgd_num_steps())
+    onthefly_proxy = OnTheFlyAdvImageBatchProxy(
+        clean_proxy=clean_imgs,
+        attack_name=attack,
+        eps_num=eps_num,
+        wrapper=wrapper,
+        steps=eff_steps,
+        hf_labels=hf_labels,
+    )
+    meta = {
+        "attack": attack.lower(),
+        "n_eval": n_eval,
+        "epsilon_num_255": eps_num,
+        "steps": eff_steps,
+        "mode": mode_note,
+    }
+    return onthefly_proxy, meta
+
+
 def load_cached_adv_proxy(
     attack: str,
     eps_num: int,
@@ -102,6 +133,8 @@ def load_cached_adv_proxy(
     wrapper: Optional[Any] = None,
     allow_onthefly: bool = True,
     model_name: Optional[str] = None,
+    steps: Optional[int] = None,
+    hf_labels: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Tuple[Union[LazyAdvImageBatchProxy, OnTheFlyAdvImageBatchProxy], Dict[str, Any]]:
     """
     Nạp đối tượng Proxy lười cho ảnh đối kháng từ cache npz trên đĩa.
@@ -116,45 +149,32 @@ def load_cached_adv_proxy(
         if allow_onthefly:
             print(f"[ADV CACHE] Không tìm thấy cache trên đĩa cho {attack.upper()} (eps={eps_num}).")
             print("            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
-            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
-                clean_proxy=clean_proxy,
-                attack_name=attack,
-                eps_num=eps_num,
-                wrapper=wrapper,
-            )
-            meta = {
-                "attack": attack.lower(),
-                "n_eval": n_eval,
-                "epsilon_num_255": eps_num,
-                "mode": "on_the_fly_streaming",
-            }
-            return onthefly_proxy, meta
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_proxy, wrapper, steps, hf_labels)
         raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
-    try:
-        data = np.load(fpath, mmap_mode="r")
-    except Exception:
+    def _read_npz_validated(
+        cache_path: Path,
+    ) -> Tuple[List[int], np.ndarray, Dict[str, Any]]:
+        """Mở, kiểm tra và giải phóng handle tệp npz an toàn (tránh rò rỉ file descriptor)."""
         try:
-            data = np.load(fpath, allow_pickle=False)
-        except Exception as e:
-            if allow_onthefly:
-                print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
-                print("                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
-                onthefly_proxy = OnTheFlyAdvImageBatchProxy(
-                    clean_proxy=clean_proxy,
-                    attack_name=attack,
-                    eps_num=eps_num,
-                    wrapper=wrapper,
-                )
-                meta = {
-                    "attack": attack.lower(),
-                    "n_eval": n_eval,
-                    "epsilon_num_255": eps_num,
-                    "mode": "on_the_fly_streaming",
-                }
-                return onthefly_proxy, meta
-            raise
-    cached_ids = data["image_ids"].tolist()
+            ctx = np.load(cache_path, mmap_mode="r")
+        except Exception:
+            ctx = np.load(cache_path, allow_pickle=False)
+        with ctx as data:
+            cached_ids_local = data["image_ids"].tolist()
+            delta_key_local = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
+            delta_sub = np.array(data[delta_key_local][:n_eval], copy=True)
+            meta_local = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
+        return cached_ids_local, delta_sub, meta_local
+
+    try:
+        cached_ids, delta_all, meta = _read_npz_validated(fpath)
+    except Exception as e:
+        if allow_onthefly:
+            print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
+            print("                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_proxy, wrapper, steps, hf_labels)
+        raise
 
     # Kiểm tra tính khớp của image_ids
     expected_ids = list(expected_image_ids)[:n_eval]
@@ -163,27 +183,22 @@ def load_cached_adv_proxy(
         if allow_onthefly:
             print("[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
             print("                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
-            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
-                clean_proxy=clean_proxy,
-                attack_name=attack,
-                eps_num=eps_num,
-                wrapper=wrapper,
-            )
-            meta = {
-                "attack": attack.lower(),
-                "n_eval": n_eval,
-                "epsilon_num_255": eps_num,
-                "mode": "on_the_fly_streaming",
-            }
-            return onthefly_proxy, meta
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_proxy, wrapper, steps, hf_labels)
         raise ValueError(
             f"Image IDs không khớp giữa cache {fpath.name} và cohort hiện tại! "
             f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
         )
 
-    delta_key = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
-    delta_all = data[delta_key][:n_eval]
-    meta = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
+    if tuple(delta_all.shape[-2:]) != tuple(clean_proxy.shape[-2:]):
+        if allow_onthefly:
+            print(
+                f"[ADV CACHE WARNING] Kích thước không gian cache {delta_all.shape[-2:]} "
+                f"không khớp ảnh sạch {clean_proxy.shape[-2:]}. Chuyển sang On-The-Fly VRAM Streaming!"
+            )
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_proxy, wrapper, steps, hf_labels)
+        raise ValueError(
+            f"Kích thước không gian không khớp giữa delta {delta_all.shape[-2:]} và clean {clean_proxy.shape[-2:]}!"
+        )
 
     adv_proxy = LazyAdvImageBatchProxy(clean_proxy, delta_all, device=clean_proxy.device)
     return adv_proxy, meta
@@ -199,6 +214,8 @@ def load_cached_adv_images(
     wrapper: Optional[Any] = None,
     allow_onthefly: bool = True,
     model_name: Optional[str] = None,
+    steps: Optional[int] = None,
+    hf_labels: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Tuple[Union[torch.Tensor, LazyAdvImageBatchProxy, OnTheFlyAdvImageBatchProxy], Dict[str, Any]]:
     """
     Nạp ảnh đối kháng từ file cache npz trên đĩa.
@@ -219,6 +236,8 @@ def load_cached_adv_images(
             wrapper=wrapper,
             allow_onthefly=allow_onthefly,
             model_name=effective_model,
+            steps=steps,
+            hf_labels=hf_labels,
         )
 
     fpath = find_cache_file(attack, eps_num, n_eval, cache_dir=cache_dir, model_name=effective_model)
@@ -226,73 +245,46 @@ def load_cached_adv_images(
         if allow_onthefly:
             print(f"[ADV CACHE] Không tìm thấy cache trên đĩa cho {attack.upper()} (eps={eps_num}).")
             print("            --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa, sinh và giải phóng theo batch)!")
-            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
-                clean_proxy=clean_imgs,
-                attack_name=attack,
-                eps_num=eps_num,
-                wrapper=wrapper,
-            )
-            meta = {
-                "attack": attack.lower(),
-                "n_eval": n_eval,
-                "epsilon_num_255": eps_num,
-                "mode": "on_the_fly_streaming",
-            }
-            return onthefly_proxy, meta
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_imgs, wrapper, steps, hf_labels)
         raise FileNotFoundError(f"Chưa tìm thấy cache đối kháng cho {attack} (eps={eps_num}) tại: {fpath}")
 
     try:
-        data = np.load(fpath, mmap_mode="r")
-    except Exception:
         try:
-            data = np.load(fpath, allow_pickle=False)
-        except Exception as e:
-            if allow_onthefly:
-                print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
-                print("                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
-                onthefly_proxy = OnTheFlyAdvImageBatchProxy(
-                    clean_proxy=clean_imgs,
-                    attack_name=attack,
-                    eps_num=eps_num,
-                    wrapper=wrapper,
-                )
-                meta = {
-                    "attack": attack.lower(),
-                    "n_eval": n_eval,
-                    "epsilon_num_255": eps_num,
-                    "mode": "on_the_fly_streaming",
-                }
-                return onthefly_proxy, meta
-            raise
-    cached_ids = data["image_ids"].tolist()
+            ctx = np.load(fpath, mmap_mode="r")
+        except Exception:
+            ctx = np.load(fpath, allow_pickle=False)
+        with ctx as data:
+            cached_ids = data["image_ids"].tolist()
+            delta_key = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
+            delta_raw = np.array(data[delta_key][:n_eval], copy=True)
+            meta = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
+    except Exception as e:
+        if allow_onthefly:
+            print(f"[ADV CACHE WARNING] Lỗi đọc file cache {fpath}: {e}")
+            print("                    --> Kích hoạt On-The-Fly VRAM Streaming (0 GB đĩa)!")
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_imgs, wrapper, steps, hf_labels)
+        raise
+
     expected_ids = list(expected_image_ids)[:n_eval]
     cached_subset = cached_ids[:n_eval]
     if cached_subset != expected_ids:
         if allow_onthefly:
             print("[ADV CACHE WARNING] Image IDs trong cache không khớp hoàn toàn với cohort hiện tại!")
             print("                    --> Tự động chuyển sang On-The-Fly VRAM Streaming!")
-            onthefly_proxy = OnTheFlyAdvImageBatchProxy(
-                clean_proxy=clean_imgs,
-                attack_name=attack,
-                eps_num=eps_num,
-                wrapper=wrapper,
-            )
-            meta = {
-                "attack": attack.lower(),
-                "n_eval": n_eval,
-                "epsilon_num_255": eps_num,
-                "mode": "on_the_fly_streaming",
-            }
-            return onthefly_proxy, meta
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_imgs, wrapper, steps, hf_labels)
         raise ValueError(
             f"Image IDs không khớp giữa cache {fpath.name} và cohort hiện tại! "
             f"Cache[:3]={cached_subset[:3]}, Cohort[:3]={expected_ids[:3]}"
         )
 
-    delta_key = "delta" if "delta" in data else ("delta_f32" if "delta_f32" in data else "delta_f16")
-    delta_raw = data[delta_key][:n_eval]
     delta = torch.from_numpy(delta_raw if delta_raw.dtype == np.float32 else delta_raw.astype(np.float32))
     if delta.shape[-2:] != clean_imgs.shape[-2:]:
+        if allow_onthefly:
+            print(
+                f"[ADV CACHE WARNING] Kích thước không gian cache {delta.shape[-2:]} "
+                f"không khớp ảnh sạch {clean_imgs.shape[-2:]}. Chuyển sang On-The-Fly VRAM Streaming!"
+            )
+            return _make_onthefly_proxy(attack, eps_num, n_eval, clean_imgs, wrapper, steps, hf_labels)
         raise ValueError(
             f"Kích thước không gian không khớp giữa delta {delta.shape[-2:]} và clean {clean_imgs.shape[-2:]}!"
         )
@@ -300,5 +292,4 @@ def load_cached_adv_images(
         delta = delta.to(clean_imgs.device)
 
     adv = torch.clamp(clean_imgs[:n_eval] + delta, 0.0, 1.0)
-    meta = json.loads(str(data["meta_json"])) if "meta_json" in data else {}
     return adv, meta

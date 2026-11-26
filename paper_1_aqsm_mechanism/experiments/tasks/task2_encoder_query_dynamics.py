@@ -47,6 +47,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_pgd_num_steps,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
@@ -86,6 +89,7 @@ def run_encoder_query_dynamics_evaluation(
     batch_size: int = 10,
     cache_dir: Optional[Path] = None,
     audit_logger: Any = None,
+    hf_labels: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Thực hiện phân tích toàn diện Encoder Memory & Query Selection Dynamics trên tập ảnh.
@@ -97,11 +101,18 @@ def run_encoder_query_dynamics_evaluation(
 
     n_total = len(gt_list)
     gt_boxes_batch = [gt.get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32)) for gt in gt_list]
+    n_q_model = int(getattr(wrapper, "num_queries", 300) or 300)
+    eff_eps_num = int(round(get_epsilon_l_inf() * 255.0))
+    eff_steps = get_pgd_num_steps()
 
-    # Tính trước Null Baseline theo từng ảnh (Exact GT Union Area & Uniform Grid 300 Hit Rate)
+    # Tính trước Null Baseline theo từng ảnh (Exact GT Union Area & Uniform Grid N_q Hit Rate)
     # để lưu đầy đủ dữ liệu ghép cặp (paired per-image) vào CSV cho kiểm định Paired TOST.
-    print("\n>>> Đang tính toán phân phối thực nghiệm Null Baseline (GT Union & Uniform Grid 300)...")
-    null_baseline_stats = compute_dataset_gt_union_null_baseline(gt_list)
+    print(f"\n>>> Đang tính toán phân phối thực nghiệm Null Baseline (GT Union & Uniform Grid {n_q_model})...")
+    null_baseline_stats = compute_dataset_gt_union_null_baseline(
+        gt_list,
+        resolution=get_img_size(),
+        num_queries=n_q_model,
+    )
     per_img_union_pct = [float(v) * 100.0 for v in null_baseline_stats["per_image_union_areas"]]
     per_img_grid_pct = [float(v) * 100.0 for v in null_baseline_stats["per_image_uniform_grid_hits"]]
 
@@ -116,12 +127,14 @@ def run_encoder_query_dynamics_evaluation(
 
         adv_imgs, meta = load_cached_adv_images(
             attack=atk_name,
-            eps_num=16,
+            eps_num=eff_eps_num,
             n_eval=n_total,
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=cache_dir,
             wrapper=wrapper,
+            steps=eff_steps,
+            hf_labels=hf_labels,
         )
 
         all_mem_records: List[Dict[str, Any]] = []
@@ -365,7 +378,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -401,6 +414,7 @@ def main():
         batch_size=batch_size,
         cache_dir=Path(args.cache_dir),
         audit_logger=audit_logger,
+        hf_labels=dataset.hf_labels,
     )
 
     audit_logger.close()

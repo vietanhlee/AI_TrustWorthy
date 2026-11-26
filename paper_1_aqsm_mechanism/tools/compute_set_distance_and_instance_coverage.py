@@ -33,6 +33,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
@@ -41,6 +42,19 @@ from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
     compute_spatial_clustering_metrics,
     extract_encoder_components,
 )
+from paper_1_aqsm_mechanism.experiments.config import (
+    RANDOM_SEED,
+    get_adv_cache_dir,
+    get_coco_ann_file,
+    get_coco_val_dir,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_model_name,
+    get_pgd_num_steps,
+    get_summary_json_dir,
+    resolve_model_name,
+    update_experiment_paths,
+)
 from paper_1_aqsm_mechanism.experiments.tasks.task4_controlled_misrouting import sample_exact_matched_shift_4d
 
 
@@ -48,37 +62,45 @@ def run_set_distance_and_coverage_evaluation(
     max_samples: int = 100,
     device_str: str = "cpu",
     output_path: Optional[Path] = None,
+    folder_image: Optional[str] = None,
+    annotations_file: Optional[str] = None,
+    cache_dir: Optional[str] = None,
+    model_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     device = torch.device(device_str)
-    wrapper = RTDETRModelWrapper(pretrained_model_name="PekingU/rtdetr_r18vd", device=device)
+    resolved_model = resolve_model_name(model_name or get_model_name())
+    wrapper = RTDETRModelWrapper(pretrained_model_name=resolved_model, device=device)
     model = wrapper.model.eval()
+    img_size = get_img_size()
+
+    f_img = folder_image or str(get_coco_val_dir())
+    f_ann = annotations_file or str(get_coco_ann_file())
+    c_dir = Path(cache_dir) if cache_dir else get_adv_cache_dir()
 
     ds = FlexibleCOCODataset(
-        folder_image="coco5k/val2017",
-        annotations_file="coco5k/annotations/instances_val2017.json",
-        img_size=640,
+        folder_image=f_img,
+        annotations_file=f_ann,
+        img_size=img_size,
         id2label=model.config.id2label,
         lazy_tensors=True,
         device=device,
         max_samples=max_samples,
     )
 
-    candidates_npz = [
-        Path(__file__).resolve().parent.parent / "cache" / "adv_cache_640" / "adv_cache_aqsm_eps16_n1000.npz",
-        Path(__file__).resolve().parent.parent / "cache" / "adv_cache_640" / "adv_cache_aqsm_eps16_n300.npz",
-        Path("paper_1_aqsm_mechanism/cache/adv_cache_640/adv_cache_aqsm_eps16_n300.npz"),
-        Path("cache/adv_cache_640/adv_cache_aqsm_eps16_n300.npz"),
-        Path("C:/Users/levie/Downloads/results (2)/AI_TrustWorthy/paper_1_aqsm_mechanism/cache/adv_cache_640/adv_cache_aqsm_eps16_n1000.npz"),
-    ]
-    p_npz = None
-    for cand in candidates_npz:
-        if cand.exists():
-            p_npz = cand
-            break
-    if p_npz is None:
-        raise FileNotFoundError(f"Không tìm thấy file adv_cache_aqsm_eps16 trong các đường dẫn: {candidates_npz}")
-    f_npz = np.load(str(p_npz))
-    cached_deltas = f_npz["delta"][:max_samples] if "delta" in f_npz else f_npz["delta_f16"][:max_samples]
+    n_eval = len(ds)
+    adv_aqsm_all, _ = load_cached_adv_images(
+        attack="aqsm",
+        eps_num=int(round(get_epsilon_l_inf() * 255.0)),
+        n_eval=n_eval,
+        clean_imgs=ds.tensors,
+        expected_image_ids=ds.image_ids,
+        cache_dir=c_dir,
+        wrapper=wrapper,
+        allow_onthefly=True,
+        model_name=resolved_model,
+        steps=get_pgd_num_steps(),
+        hf_labels=getattr(ds, "hf_labels", None),
+    )
 
     conditions = ["Clean_Baseline", "Random_Reassignment", "Random_Shift", "Decoupled_Random_Shift", "AQSM_Spatial_Misrouting"]
     stats: Dict[str, Dict[str, List[float]]] = {
@@ -95,8 +117,7 @@ def run_set_distance_and_coverage_evaluation(
         for c in conditions
     }
 
-    rng = np.random.RandomState(42)
-    n_eval = min(len(ds), len(cached_deltas))
+    rng = np.random.RandomState(RANDOM_SEED)
 
     print("\n=======================================================")
     print(f"--> [Evaluation] Đo khoảng cách tập hợp và GT coverage trên N={n_eval} ảnh...")
@@ -104,8 +125,7 @@ def run_set_distance_and_coverage_evaluation(
 
     for i in tqdm(range(n_eval), desc="Set Distance & Coverage"):
         img_c = ds.tensors[i : i + 1].to(device)
-        delta = torch.from_numpy(cached_deltas[i : i + 1]).float().to(device)
-        img_a = torch.clamp(img_c + delta, 0.0, 1.0)
+        img_a = adv_aqsm_all[i : i + 1].to(device)
         gt_boxes = ds.gt_list[i].get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32))
 
         with torch.no_grad():
@@ -181,7 +201,7 @@ def run_set_distance_and_coverage_evaluation(
             }
 
     if output_path is None:
-        output_path = Path("paper_1_aqsm_mechanism/outputs/summary_json/set_distance_and_instance_coverage.json")
+        output_path = get_summary_json_dir() / "set_distance_and_instance_coverage.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
@@ -198,8 +218,27 @@ def run_set_distance_and_coverage_evaluation(
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Đo khoảng cách tập hợp bất biến hoán vị và GT Instance Coverage")
+    parser.add_argument("--folder_image", type=str, default=str(get_coco_val_dir()))
+    parser.add_argument("--annotations", type=str, default=str(get_coco_ann_file()))
+    parser.add_argument("--cache_dir", type=str, default=str(get_adv_cache_dir()))
+    parser.add_argument("--output_dir", type=str, default=None)
+    parser.add_argument("--model", type=str, default=get_model_name())
     parser.add_argument("--max_samples", type=int, default=100)
     parser.add_argument("--device", type=str, default="cpu")
     args = parser.parse_args()
-    run_set_distance_and_coverage_evaluation(max_samples=args.max_samples, device_str=args.device)
+    update_experiment_paths(
+        folder_image=args.folder_image,
+        annotations=args.annotations,
+        output_dir=args.output_dir,
+        cache_dir=args.cache_dir,
+        model=args.model,
+    )
+    run_set_distance_and_coverage_evaluation(
+        max_samples=args.max_samples,
+        device_str=args.device,
+        folder_image=args.folder_image,
+        annotations_file=args.annotations,
+        cache_dir=args.cache_dir,
+        model_name=args.model,
+    )

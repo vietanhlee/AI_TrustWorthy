@@ -45,8 +45,13 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
     get_model_tag,
+    get_pgd_num_steps,
+    get_pgd_step_size,
     resolve_model_name,
+    update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.io_helpers import save_json
 
@@ -126,7 +131,7 @@ def benchmark_single_model(
     dataset = FlexibleCOCODataset(
         folder_image=folder_image,
         annotations_file=annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -136,10 +141,12 @@ def benchmark_single_model(
     gt_list = dataset.gt_list
     n_eval = len(dataset)
 
+    base_alpha = float(get_pgd_step_size())
+    step_alpha = base_alpha if int(eps_255) >= 8 else min(base_alpha, 1.0 / 255.0)
     attacker = DETRAttackGenerator(
         wrapper,
         epsilon=float(eps_255) / 255.0,
-        alpha=(2.0 / 255.0),
+        alpha=step_alpha,
         num_steps=pgd_steps,
     )
 
@@ -230,7 +237,8 @@ def benchmark_single_model(
     for i in tqdm(range(0, n_eval, batch_size), desc=f"{model_tag}_taskpgd"):
         end_idx = min(i + batch_size, n_eval)
         b_clean = clean_proxy[i:end_idx].to(device)
-        b_adv = attacker.generate_standard_task_pgd(b_clean, steps=pgd_steps)
+        b_hf_labels = dataset.hf_labels[i:end_idx] if getattr(dataset, "hf_labels", None) is not None else None
+        b_adv = attacker.generate_standard_task_pgd(b_clean, hf_labels=b_hf_labels, steps=pgd_steps)
 
         with torch.no_grad():
             c_out = model(pixel_values=b_clean, return_dict=True)
@@ -284,13 +292,13 @@ def _format_arch_display_name(tag: str) -> str:
     return tag.upper()
 
 
-def generate_multimodel_latex(all_results: Dict[str, Dict[str, Any]]) -> str:
+def generate_multimodel_latex(all_results: Dict[str, Dict[str, Any]], eps_255: int = 16) -> str:
     """Sinh bảng LaTeX so sánh các biến thể kiến trúc."""
     tex = [
         r"\begin{table*}[t]",
         r"\centering",
         r"\small",
-        r"\caption{Cross-Architecture Robustness Benchmark across Real-Time DETR Variants under $\varepsilon=16/255$.}",
+        rf"\caption{{Cross-Architecture Robustness Benchmark across Real-Time DETR Variants under $\varepsilon={eps_255}/255$.}}",
         r"\label{tab:multimodel_benchmark}",
         r"\begin{tabular}{lcccccc}",
         r"\toprule",
@@ -332,7 +340,19 @@ def main():
     parser.add_argument("--batch_size", type=int, default=None, help="Batch size suy luận")
     parser.add_argument("--device", type=str, default="auto", help="Thiết bị (auto / cuda / cpu)")
     parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU")
+    parser.add_argument("--eps_255", type=int, default=None, help="Biên độ nhiễu L_inf trên thang 255 (mặc định đọc từ cấu hình)")
+    parser.add_argument("--pgd_steps", type=int, default=None, help="Số bước lặp PGD (mặc định đọc từ cấu hình)")
     args = parser.parse_args()
+
+    eff_eps_255 = int(args.eps_255) if args.eps_255 is not None else int(round(get_epsilon_l_inf() * 255.0))
+    eff_pgd_steps = int(args.pgd_steps) if args.pgd_steps is not None else int(get_pgd_num_steps())
+    update_experiment_paths(
+        folder_image=args.folder_image,
+        annotations=args.annotations,
+        output_dir=args.output_dir,
+        pgd_steps=eff_pgd_steps,
+        eps_l_inf=float(eff_eps_255) / 255.0,
+    )
 
     configure_cpu_threads(args.threads)
     hw_info = detect_hardware_environment(preferred_device=args.device)
@@ -356,6 +376,8 @@ def main():
             max_samples=args.max_samples,
             batch_size=batch_size,
             device=device,
+            eps_255=eff_eps_255,
+            pgd_steps=eff_pgd_steps,
         )
         all_results[res["model_tag"]] = res
 
@@ -370,7 +392,7 @@ def main():
     # Xuất LaTeX snippet
     tables_dir = out_dir / "tables"
     tables_dir.mkdir(parents=True, exist_ok=True)
-    tex_str = generate_multimodel_latex(all_results)
+    tex_str = generate_multimodel_latex(all_results, eps_255=eff_eps_255)
     tex_path = tables_dir / "table_multimodel_benchmark.tex"
     with open(tex_path, "w", encoding="utf-8") as f:
         f.write(tex_str)

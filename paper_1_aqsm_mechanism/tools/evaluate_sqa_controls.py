@@ -56,6 +56,10 @@ def load_from_hardening_results(hardening_file: Path) -> Optional[Dict[str, Any]
         lat_ovh_ms = round(float(lat_blk["hardened_static_augmented"]) - float(lat_blk["default_dynamic_only"]), 2)
 
         return {
+            "model": str(data.get("model", "unknown")),
+            "num_dynamic_queries": int(data.get("num_dynamic_queries", 300)),
+            "num_static_anchors": int(data.get("num_static_anchors", 30)),
+            "resolution": str(data.get("resolution", "640x640")),
             "clean_nom_m50": clean_nom_m50,
             "clean_nom_rec": clean_nom_rec,
             "clean_pen_pp": clean_pen_pp,
@@ -87,10 +91,11 @@ def load_from_hardening_results(hardening_file: Path) -> Optional[Dict[str, Any]
 def main():
     parser = argparse.ArgumentParser(description="Đánh giá & Xuất dữ liệu SQA Controls và Adaptive Threat Boundary")
     parser.add_argument("--sync_from", type=str, default=None, help="Đường dẫn tới hardening_evaluation_results.json để trích xuất số liệu")
+    parser.add_argument("--output_dir", type=str, default=None, help="Thư mục outputs chứa summary_json/")
     args = parser.parse_args()
 
     base_dir = Path(__file__).resolve().parent.parent
-    summary_dir = base_dir / "outputs" / "summary_json"
+    summary_dir = (Path(args.output_dir) / "summary_json") if args.output_dir else (base_dir / "outputs" / "summary_json")
     summary_dir.mkdir(parents=True, exist_ok=True)
     out_file = summary_dir / "sqa_controls_and_adaptive_summary.json"
 
@@ -134,22 +139,28 @@ def main():
     with open(causal_file, "r", encoding="utf-8") as cf:
         causal_data = json.load(cf)
     anova_full = causal_data["anova_repeated_measures_full"]
-    mem_share_pct = round(float(anova_full["attribution_shares"]["ss_factor_share_pct"]["Memory_M"]), 2)
-    q_share_pct = round(float(anova_full["attribution_shares"]["ss_factor_share_pct"]["Query_Q"]), 2)
+    shares_dict = anova_full["attribution_shares"]
+    ss_share_blk = shares_dict.get("anova_condition_ss_share_pct") or shares_dict.get("ss_factor_share_pct", {})
+    mem_share_pct = round(float(ss_share_blk["Memory_M"]), 2)
+    q_share_pct = round(float(ss_share_blk["Query_Q"]), 2)
     d_full_cap = round(float(causal_data["point_maps"]["Arm_D_full"]["mAP@50"]), 2)
     clean_pen_pp = synced["clean_pen_pp"]
     edge_ovh_ms = synced["edge_latency_overhead_ms"]
 
+    def_eval_n = int(causal_data.get("n_evaluated_images", 0))
+    n_dyn = int(synced.get("num_dynamic_queries", 300))
+    n_aug = int(synced.get("num_static_anchors", 30))
+
     results = {
         "metadata": {
             "description": "SQA Comprehensive Controls and Adaptive Evasion Boundary",
-            "model": "RT-DETR-R18VD",
-            "resolution": "640x640",
-            "defense_evaluation_cohort_n": 300,
-            "global_benchmark_cohort_n": 1000,
-            "standard_dynamic_queries": 300,
-            "augmented_queries": 30,
-            "total_queries": 330,
+            "model": synced.get("model", "unknown"),
+            "resolution": synced.get("resolution", "640x640"),
+            "defense_evaluation_cohort_n": def_eval_n,
+            "global_benchmark_cohort_n": def_eval_n,
+            "standard_dynamic_queries": n_dyn,
+            "augmented_queries": n_aug,
+            "total_queries": n_dyn + n_aug,
             "provenance_source": provenance
         },
         "baselines": {

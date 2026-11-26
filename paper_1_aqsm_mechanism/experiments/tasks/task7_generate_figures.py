@@ -199,12 +199,15 @@ def plot_causal_swap_figure(json_path: Path, output_pdf: Path, output_png: Path)
     rects1 = ax1.bar(x - width / 2, map50_vals, width, label="mAP@50 (%)", color="#1f77b4", edgecolor="black", alpha=0.85)
     rects2 = ax1.bar(x + width / 2, map95_vals, width, label="mAP@50:95 (%)", color="#aec7e8", edgecolor="black", alpha=0.85)
 
+    n_img_lbl = data.get("n_images") or data.get("n_samples")
+    n_suffix = f"N = {int(n_img_lbl):,}, " if n_img_lbl else ""
     ax1.set_ylabel("Detection Accuracy (%)", fontweight="bold")
-    ax1.set_title("(a) Canonical Intervention Arms (N = 1,000, 640x640)", fontweight="bold", fontsize=10)
+    ax1.set_title(f"(a) Canonical Intervention Arms ({n_suffix}640x640)", fontweight="bold", fontsize=10)
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=8.5)
     ax1.legend(loc="upper right", frameon=True)
-    ax1.set_ylim(0.0, 75.0)
+    y_max_ax1 = max(max(map50_vals, default=50.0) * 1.18, 60.0)
+    ax1.set_ylim(0.0, y_max_ax1)
     ax1.grid(axis="y", linestyle="--", alpha=0.5)
 
     for rect in rects1:
@@ -385,7 +388,13 @@ def plot_attention_telemetry_figure(json_path: Path, output_pdf: Path, output_pn
     ax1.set_title("(a) Cross-Attention Weight Entropy", fontweight="bold", fontsize=10)
     ax1.set_xticks(x)
     ax1.set_xticklabels(cond_labels, fontsize=8.5)
-    ax1.set_ylim(0.65, 0.95)
+    ent_upper_vals = [m + s for m, s in zip(entropy_means, entropy_stds)]
+    ent_lower_vals = [m - s for m, s in zip(entropy_means, entropy_stds)]
+    y1_lo = max(0.0, min(ent_lower_vals, default=0.0) - 0.08)
+    y1_hi = max(ent_upper_vals, default=0.95) + 0.08
+    if y1_hi <= y1_lo:
+        y1_hi = y1_lo + 0.2
+    ax1.set_ylim(y1_lo, y1_hi)
     ax1.grid(axis="y", linestyle="--", alpha=0.5)
 
     for bar in bars1:
@@ -471,7 +480,8 @@ def plot_matched_budget_figure(json_path: Path, output_pdf: Path, output_png: Pa
     ax1.set_title("(a) Perturbation Budget Sweep: mAP@50", fontweight="bold", fontsize=10)
     ax1.set_xticks(eps_numeric)
     ax1.set_xticklabels(x_tick_labels)
-    ax1.set_ylim(0.0, 75.0)
+    max_map50_val = max(aqsm_pts + vanish_pts + taskpgd_pts, default=70.0)
+    ax1.set_ylim(0.0, max(75.0, max_map50_val * 1.15))
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(loc="upper right", frameon=True)
 
@@ -485,7 +495,8 @@ def plot_matched_budget_figure(json_path: Path, output_pdf: Path, output_png: Pa
     ax2.set_title("(b) Perturbation Budget Sweep: mAP@50:95", fontweight="bold", fontsize=10)
     ax2.set_xticks(eps_numeric)
     ax2.set_xticklabels(x_tick_labels)
-    ax2.set_ylim(0.0, 55.0)
+    max_map95_val = max(aqsm_map95 + vanish_map95 + taskpgd_map95, default=50.0)
+    ax2.set_ylim(0.0, max(55.0, max_map95_val * 1.15))
     ax2.grid(True, linestyle="--", alpha=0.5)
     ax2.legend(loc="upper right", frameon=True)
 
@@ -587,64 +598,66 @@ def plot_defense_evaluation_figure(
         "Proposed SQA\n(Grid-30)",
         "Adaptive\n(on SQA)"
     ]
-    if not hardening_json_path or not Path(hardening_json_path).exists():
-        raise FileNotFoundError(
-            f"Thiếu tệp hardening JSON bắt buộc ({hardening_json_path}) để vẽ Subplot (c) SQA — không dùng số liệu hardcode!"
+    sqa_map50 = None
+    if hardening_json_path and Path(hardening_json_path).exists():
+        h_data = load_json(hardening_json_path)
+        if "results" in h_data and h_data["results"]:
+            res_d = h_data["results"]
+            if "aqsm_attack_eps16" in res_d and "controls" in res_d:
+                aqsm_res = res_d["aqsm_attack_eps16"]
+                ctrl_d = res_d["controls"]
+                sqa_map50 = [
+                    float(aqsm_res["default_dynamic_only"]["mAP@50"]),
+                    float(ctrl_d["dynamic_top330"]["mAP@50"]),
+                    float(ctrl_d["random30_static"]["mAP@50"]),
+                    float(aqsm_res["hardened_static_augmented"]["mAP@50"]),
+                    float(ctrl_d["adaptive_evasion_sqa"]["mAP@50"]),
+                ]
+        elif "controls" in h_data and "baselines" in h_data:
+            c2 = h_data["controls"]
+            sqa_map50 = [
+                float(h_data["baselines"]["aqsm_eps16"]["dynamic_300_map50"]),
+                float(c2["dynamic_330_topk"]["map50"]),
+                float(c2["random_30_static"]["map50"]),
+                float(c2["uniform_grid_30_sqa"]["map50"]),
+                float(h_data["adaptive_threat_boundary"]["adaptive_map50"]),
+            ]
+
+    if sqa_map50 is not None:
+        x_sqa = np.arange(len(sqa_conditions))
+        sqa_colors = ["#d62728", "#64748b", "#f59e0b", "#10b981", "#8b5cf6"]
+        bars_sqa = ax3.bar(x_sqa, sqa_map50, width=0.45, color=sqa_colors, edgecolor="black", alpha=0.88)
+
+        ax3.set_ylabel("COCO mAP@50 (%) under AQSM", fontweight="bold")
+        ax3.set_title("(c) SQA Architectural Hardening (Table 12)", fontweight="bold", fontsize=10)
+        ax3.set_xticks(x_sqa)
+        ax3.set_xticklabels(sqa_conditions, fontsize=8.0)
+        ax3.set_ylim(0, max(max(sqa_map50, default=18.0) * 1.25, 24.0))
+        ax3.grid(axis="y", linestyle="--", alpha=0.5)
+
+        # Reference baseline line for unhardened model
+        ax3.axhline(y=sqa_map50[0], color="#d62728", linestyle=":", alpha=0.7, linewidth=1.2)
+
+        for bar in bars_sqa:
+            h = bar.get_height()
+            ax3.annotate(f"{h:.2f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
+                         xytext=(0, 3), textcoords="offset points", ha="center", va="bottom", fontsize=8.0, fontweight="bold")
+
+        # Recovery highlight badge on Proposed SQA bar (dynamically calculated)
+        recovery_delta = sqa_map50[3] - sqa_map50[0]
+        badge_label = f"+{recovery_delta:.2f} pp\nRecovery" if recovery_delta >= 0 else f"{recovery_delta:.2f} pp"
+        sqa_bar = bars_sqa[3]
+        ax3.annotate(
+            badge_label,
+            xy=(sqa_bar.get_x() + sqa_bar.get_width() / 2, sqa_map50[3]),
+            xytext=(0, 15), textcoords="offset points",
+            ha="center", va="bottom", fontsize=8.0, fontweight="bold", color="#065f46",
+            bbox=dict(boxstyle="round,pad=0.25", facecolor="#d1fae5", edgecolor="#10b981", alpha=0.95)
         )
-    h_data = load_json(hardening_json_path)
-    if "results" in h_data:
-        res_d = h_data["results"]
-        aqsm_res = res_d["aqsm_attack_eps16"]
-        ctrl_d = res_d["controls"]
-        sqa_map50 = [
-            float(aqsm_res["default_dynamic_only"]["mAP@50"]),
-            float(ctrl_d["dynamic_top330"]["mAP@50"]),
-            float(ctrl_d["random30_static"]["mAP@50"]),
-            float(aqsm_res["hardened_static_augmented"]["mAP@50"]),
-            float(ctrl_d["adaptive_evasion_sqa"]["mAP@50"]),
-        ]
-    elif "controls" in h_data and "baselines" in h_data:
-        c2 = h_data["controls"]
-        sqa_map50 = [
-            float(h_data["baselines"]["aqsm_eps16"]["dynamic_300_map50"]),
-            float(c2["dynamic_330_topk"]["map50"]),
-            float(c2["random_30_static"]["map50"]),
-            float(c2["uniform_grid_30_sqa"]["map50"]),
-            float(h_data["adaptive_threat_boundary"]["adaptive_map50"]),
-        ]
     else:
-        raise KeyError(f"Cấu trúc JSON hardening không hợp lệ tại: {hardening_json_path}")
-
-    x_sqa = np.arange(len(sqa_conditions))
-    sqa_colors = ["#d62728", "#64748b", "#f59e0b", "#10b981", "#8b5cf6"]
-    bars_sqa = ax3.bar(x_sqa, sqa_map50, width=0.45, color=sqa_colors, edgecolor="black", alpha=0.88)
-
-    ax3.set_ylabel("COCO mAP@50 (%) under AQSM", fontweight="bold")
-    ax3.set_title("(c) SQA Architectural Hardening (Table 12)", fontweight="bold", fontsize=10)
-    ax3.set_xticks(x_sqa)
-    ax3.set_xticklabels(sqa_conditions, fontsize=8.0)
-    ax3.set_ylim(0, 24)
-    ax3.grid(axis="y", linestyle="--", alpha=0.5)
-
-    # Reference baseline line for unhardened model
-    ax3.axhline(y=sqa_map50[0], color="#d62728", linestyle=":", alpha=0.7, linewidth=1.2)
-
-    for bar in bars_sqa:
-        h = bar.get_height()
-        ax3.annotate(f"{h:.2f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
-                     xytext=(0, 3), textcoords="offset points", ha="center", va="bottom", fontsize=8.0, fontweight="bold")
-
-    # Recovery highlight badge on Proposed SQA bar (dynamically calculated)
-    recovery_delta = sqa_map50[3] - sqa_map50[0]
-    badge_label = f"+{recovery_delta:.2f} pp\nRecovery" if recovery_delta >= 0 else f"{recovery_delta:.2f} pp"
-    sqa_bar = bars_sqa[3]
-    ax3.annotate(
-        badge_label,
-        xy=(sqa_bar.get_x() + sqa_bar.get_width() / 2, sqa_map50[3]),
-        xytext=(0, 15), textcoords="offset points",
-        ha="center", va="bottom", fontsize=8.0, fontweight="bold", color="#065f46",
-        bbox=dict(boxstyle="round,pad=0.25", facecolor="#d1fae5", edgecolor="#10b981", alpha=0.95)
-    )
+        ax3.set_title("(c) SQA Architectural Hardening (Table 12)", fontweight="bold", fontsize=10)
+        ax3.text(0.5, 0.5, "SQA Controls Pending\n(Run Task 8 with --run_sqa_ablation)", ha="center", va="center", fontsize=9.0, color="#64748b", transform=ax3.transAxes)
+        ax3.set_axis_off()
 
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
     plt.tight_layout()
@@ -670,17 +683,16 @@ def generate_all_figures_and_tables(
             p_in,
             p_in / "summary_json",
             p_in.parent / "summary_json",
-            p_in.parent,
         ])
-
-    candidate_dirs.extend([
-        get_summary_json_dir(),
-        OUTPUTS_DIR / "summary_json",
-        OUTPUTS_DIR,
-        PAPER_DIR / "outputs" / "summary_json",
-        WORKSPACE_DIR / "paper_1_aqsm_mechanism" / "outputs" / "summary_json",
-        Path(__file__).resolve().parent.parent.parent / "outputs" / "summary_json",
-    ])
+    else:
+        candidate_dirs.extend([
+            get_summary_json_dir(),
+            OUTPUTS_DIR / "summary_json",
+            OUTPUTS_DIR,
+            PAPER_DIR / "outputs" / "summary_json",
+            WORKSPACE_DIR / "paper_1_aqsm_mechanism" / "outputs" / "summary_json",
+            Path(__file__).resolve().parent.parent.parent / "outputs" / "summary_json",
+        ])
 
     # Loại bỏ các đường dẫn trùng lặp
     seen = set()

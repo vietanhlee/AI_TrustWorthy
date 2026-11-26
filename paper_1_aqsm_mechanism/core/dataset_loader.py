@@ -36,10 +36,12 @@ class LazyImageBatchProxy:
         image_paths: Sequence[Path],
         img_size: int = 640,
         device: Optional[torch.device] = None,
+        hf_labels: Optional[Sequence[Dict[str, Any]]] = None,
     ) -> None:
         self.paths = list(image_paths)
         self.img_size = img_size
         self.device = device or torch.device("cpu")
+        self.hf_labels = list(hf_labels) if hf_labels is not None else None
 
     def __len__(self) -> int:
         return len(self.paths)
@@ -50,7 +52,7 @@ class LazyImageBatchProxy:
 
     def to(self, device: torch.device) -> "LazyImageBatchProxy":
         """Thiết lập thiết bị đích khi nạp tensor."""
-        return LazyImageBatchProxy(self.paths, self.img_size, device=device)
+        return LazyImageBatchProxy(self.paths, self.img_size, device=device, hf_labels=self.hf_labels)
 
     def __getitem__(self, item: Union[int, slice, Sequence[int]]) -> torch.Tensor:
         if isinstance(item, slice):
@@ -135,17 +137,25 @@ class OnTheFlyAdvImageBatchProxy:
         attack_name: str,
         eps_num: int = 16,
         wrapper: Any = None,
-        steps: int = 15,
+        steps: Optional[int] = None,
         device: Optional[torch.device] = None,
+        hf_labels: Optional[Sequence[Dict[str, Any]]] = None,
+        alpha: Optional[float] = None,
     ) -> None:
+        from paper_1_aqsm_mechanism.experiments.config import get_pgd_num_steps, get_pgd_step_size
         self.clean_proxy = clean_proxy
         self.attack_name = attack_name.lower()
         self.eps_num = eps_num
         self.eps = float(eps_num) / 255.0
-        self.alpha = (2.0 / 255.0) if eps_num >= 8 else (1.0 / 255.0)
-        self.steps = steps
+        if alpha is not None:
+            self.alpha = float(alpha)
+        else:
+            default_alpha = float(get_pgd_step_size())
+            self.alpha = default_alpha if eps_num >= 8 else min(default_alpha, 1.0 / 255.0)
+        self.steps = int(steps) if steps is not None else int(get_pgd_num_steps())
         self.wrapper = wrapper
         self.device = device or getattr(clean_proxy, "device", torch.device("cpu"))
+        self.hf_labels = list(hf_labels) if hf_labels is not None else getattr(clean_proxy, "hf_labels", None)
         self._attacker = None
 
     def __len__(self) -> int:
@@ -153,7 +163,9 @@ class OnTheFlyAdvImageBatchProxy:
 
     @property
     def shape(self) -> Tuple[int, int, int, int]:
-        return getattr(self.clean_proxy, "shape", (len(self.clean_proxy), 3, 640, 640))
+        from paper_1_aqsm_mechanism.experiments.config import get_img_size
+        s_def = get_img_size()
+        return getattr(self.clean_proxy, "shape", (len(self.clean_proxy), 3, s_def, s_def))
 
     def to(self, device: torch.device) -> "OnTheFlyAdvImageBatchProxy":
         return OnTheFlyAdvImageBatchProxy(
@@ -163,18 +175,33 @@ class OnTheFlyAdvImageBatchProxy:
             wrapper=self.wrapper,
             steps=self.steps,
             device=device,
+            hf_labels=self.hf_labels,
+            alpha=self.alpha,
         )
 
     def _get_attacker(self):
         if self._attacker is None:
             if self.wrapper is None:
                 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
-                from paper_1_aqsm_mechanism.experiments.config import MODEL_NAME
-                self.wrapper = RTDETRModelWrapper(pretrained_model_name=MODEL_NAME, device=self.device)
+                from paper_1_aqsm_mechanism.experiments.config import get_model_name
+                self.wrapper = RTDETRModelWrapper(pretrained_model_name=get_model_name(), device=self.device)
                 self.wrapper.eval()
             from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
             self._attacker = DETRAttackGenerator(self.wrapper, epsilon=self.eps, alpha=self.alpha, num_steps=self.steps)
         return self._attacker
+
+    def _slice_hf_labels(self, item: Union[int, slice, Sequence[int]]) -> Optional[List[Dict[str, Any]]]:
+        """Trích xuất lát cắt hf_labels đồng bộ với chỉ số lô ảnh đang truy cập."""
+        if self.hf_labels is None:
+            return None
+        if isinstance(item, slice):
+            indices = range(*item.indices(len(self.hf_labels)))
+            return [self.hf_labels[i] for i in indices]
+        if isinstance(item, (int, np.integer)):
+            return [self.hf_labels[int(item)]]
+        if isinstance(item, (list, tuple, np.ndarray)):
+            return [self.hf_labels[int(i)] for i in item]
+        return None
 
     def __getitem__(self, item: Union[int, slice, Sequence[int]]) -> torch.Tensor:
         clean_batch = self.clean_proxy[item]
@@ -185,6 +212,8 @@ class OnTheFlyAdvImageBatchProxy:
 
         if hasattr(clean_batch, "to") and clean_batch.device != self.device:
             clean_batch = clean_batch.to(self.device)
+
+        batch_hf_labels = self._slice_hf_labels(item)
 
         with torch.enable_grad():
             attacker = self._get_attacker()
@@ -197,7 +226,12 @@ class OnTheFlyAdvImageBatchProxy:
             elif self.attack_name in ["vanishing", "query_vanishing"]:
                 adv_batch = attacker.generate_vanishing_attack(clean_batch, steps=self.steps, alpha=self.alpha)
             elif self.attack_name in ["taskpgd", "task_pgd"]:
-                adv_batch = attacker.generate_standard_task_pgd(clean_batch, steps=self.steps, alpha=self.alpha)
+                adv_batch = attacker.generate_standard_task_pgd(
+                    clean_batch,
+                    hf_labels=batch_hf_labels,
+                    steps=self.steps,
+                    alpha=self.alpha,
+                )
             elif self.attack_name in ["fabrication", "query_fabrication"]:
                 adv_batch = attacker.generate_fabrication_attack(clean_batch, steps=self.steps, alpha=self.alpha)
             elif self.attack_name in ["encoder_fabrication", "eqf"]:
@@ -368,7 +402,12 @@ class FlexibleCOCODataset:
 
         # Khởi tạo proxy lười hoặc tensor
         if self.lazy_tensors:
-            self.tensors = LazyImageBatchProxy(self.paths, self.img_size, device=self.device)
+            self.tensors = LazyImageBatchProxy(
+                self.paths,
+                self.img_size,
+                device=self.device,
+                hf_labels=self.hf_labels,
+            )
         else:
             print(f"[Dataset Loader] Đang nạp toàn bộ {len(self.paths)} ảnh vào RAM (Eager mode)...")
             tensor_list = []

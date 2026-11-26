@@ -78,7 +78,11 @@ def generate_provenance_manifest(
         q_dynamics = safe_load_json(summary_dir / "query_selection_dynamics.json")
     telemetry = safe_load_json(summary_dir / "deformable_attention_telemetry.json")
     misrouting = safe_load_json(summary_dir / "controlled_misrouting_results.json")
+    if not misrouting:
+        misrouting = safe_load_json(summary_dir / "tautology_control_results.json")
     matched_budget = safe_load_json(summary_dir / "matched_budget_results.json")
+    if not matched_budget:
+        matched_budget = safe_load_json(summary_dir / "matched_budget_sweep.json")
     edge_lat = safe_load_json(summary_dir / "edge_latency_results.json")
     lat_prof = safe_load_json(summary_dir / "latency_profile.json")
     defense = safe_load_json(summary_dir / "defense_esm_evaluation.json")
@@ -105,25 +109,40 @@ def generate_provenance_manifest(
     }
 
     # 3. Định nghĩa các đoàn hệ dữ liệu thực nghiệm (Cohorts)
+    from paper_1_aqsm_mechanism.experiments.config import (
+        RANDOM_SEED,
+        get_epsilon_l_inf,
+        get_img_size,
+        get_pgd_num_steps,
+        get_pgd_step_size,
+    )
+    eff_img_size = int(get_img_size())
+    eps_num_cfg = int(round(float(get_epsilon_l_inf()) * 255.0))
+    pgd_steps_cfg = int(get_pgd_num_steps())
+    alpha_num_cfg = float(get_pgd_step_size()) * 255.0
+    alpha_lbl = f"{int(round(alpha_num_cfg))}/255" if abs(alpha_num_cfg - round(alpha_num_cfg)) < 1e-3 else f"{alpha_num_cfg:.2g}/255"
+    n_cal_def = int(defense.get("n_cal", max(1, int(n_images * 0.3))))
+    n_test_def = int(defense.get("n_test", max(0, n_images - n_cal_def)))
+
     cohort_definitions = {
         "empirical_evaluation_cohort": {
             "description": (
-                f"Tập ảnh thực nghiệm chuẩn COCO val2017 native 640x640 đánh giá toàn diện 9 tasks, "
-                f"N={n_images} images (valid intra-subject paired samples N={n_valid} chứa ground-truth bounding boxes, df=[1, {n_valid-1}])"
+                f"Tập ảnh thực nghiệm chuẩn COCO val2017 native {eff_img_size}x{eff_img_size} đánh giá toàn diện các task, "
+                f"N={n_images} images (valid intra-subject paired samples N={n_valid} chứa ground-truth bounding boxes, df=[1, {max(1, n_valid-1)}])"
             ),
             "n_images": n_images,
             "n_valid_intra_subject": n_valid,
             "dataset": "Microsoft COCO val2017 (instances_val2017.json)",
-            "resolution": "640x640",
-            "threat_budget": "eps=16/255, T=15, alpha=2/255, L_inf norm-bounded",
-            "seed": 42,
+            "resolution": f"{eff_img_size}x{eff_img_size}",
+            "threat_budget": f"eps={eps_num_cfg}/255, T={pgd_steps_cfg}, alpha={alpha_lbl}, L_inf norm-bounded",
+            "seed": RANDOM_SEED,
             "alpha_significance": 0.05,
         },
         "defense_calibration_cohort": {
             "description": "Tập hiệu chuẩn tách biệt (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
-            "n_calibration": 300,
-            "n_test": 700,
-            "percentile_quantile": 0.05,
+            "n_calibration": n_cal_def,
+            "n_test": n_test_def,
+            "percentile_quantile": round(float(defense.get("target_fpr_pct", 5.0)) / 100.0, 4),
         },
     }
 
@@ -252,57 +271,70 @@ def generate_provenance_manifest(
         "Adaptive_Evasion_TPR_lambda_1.0": round(require_stat(adapt_ev["lambda_1.0"]["detected_tpr_pct"], "def.adapt_10"), 2),
     }
 
-    # --- Table 12: Hardening Validation ---
-    sqa_res = hardening.get("results", hardening.get("sqa_hardening", hardening))
-    cl_dyn = sqa_res["clean_baseline"]["default_dynamic_only"]
-    cl_sqa = sqa_res["clean_baseline"]["hardened_static_augmented"]
-    aq_dyn = sqa_res["aqsm_attack_eps16"]["default_dynamic_only"]
-    aq_sqa = sqa_res["aqsm_attack_eps16"]["hardened_static_augmented"]
-    pgd_dyn = sqa_res["taskpgd_attack_eps16"]["default_dynamic_only"]
-    pgd_sqa = sqa_res["taskpgd_attack_eps16"]["hardened_static_augmented"]
-    edge_jetson = sqa_res["edge_latency_jetson_orin_nano_ms"]
-    aq_base_m50 = require_stat(aq_dyn["mAP@50"], "sqa.aq_base_m50")
-    aq_hard_m50 = require_stat(aq_sqa["mAP@50"], "sqa.aq_hard_m50")
-    t12_metrics = {
-        "Clean_Default_mAP50": round(require_stat(cl_dyn["mAP@50"], "sqa.clean_dyn"), 2),
-        "Clean_Hardened_mAP50": round(require_stat(cl_sqa["mAP@50"], "sqa.clean_sqa"), 2),
-        "AQSM_Default_mAP50": round(aq_base_m50, 2),
-        "AQSM_Hardened_mAP50": round(aq_hard_m50, 2),
-        "AQSM_Recovery_pp": round(aq_hard_m50 - aq_base_m50, 2),
-        "TaskPGD_Default_mAP50": round(float(pgd_dyn["mAP@50"]), 2) if "mAP@50" in pgd_dyn else None,
-        "TaskPGD_Hardened_mAP50": round(float(pgd_sqa["mAP@50"]), 2) if "mAP@50" in pgd_sqa else None,
-        "Edge_Latency_Jetson_Orin_Default_ms": round(require_stat(edge_jetson["default_dynamic_only"], "sqa.lat_dyn"), 2),
-        "Edge_Latency_Jetson_Orin_Hardened_ms": round(require_stat(edge_jetson["hardened_static_augmented"], "sqa.lat_sqa"), 2),
-    }
+    # --- Table 12: Hardening Validation (hỗ trợ cả trạng thái pending chưa chạy SQA) ---
+    sqa_res = hardening.get("results") or hardening.get("sqa_hardening") or {}
+    if isinstance(sqa_res, dict) and "clean_baseline" in sqa_res and "aqsm_attack_eps16" in sqa_res:
+        cl_dyn = sqa_res["clean_baseline"]["default_dynamic_only"]
+        cl_sqa = sqa_res["clean_baseline"]["hardened_static_augmented"]
+        aq_dyn = sqa_res["aqsm_attack_eps16"]["default_dynamic_only"]
+        aq_sqa = sqa_res["aqsm_attack_eps16"]["hardened_static_augmented"]
+        pgd_blk = sqa_res.get("taskpgd_attack_eps16", {})
+        pgd_dyn = pgd_blk.get("default_dynamic_only", {})
+        pgd_sqa = pgd_blk.get("hardened_static_augmented", {})
+        edge_jetson = sqa_res.get("edge_latency_jetson_orin_nano_ms", {})
+        aq_base_m50 = require_stat(aq_dyn["mAP@50"], "sqa.aq_base_m50")
+        aq_hard_m50 = require_stat(aq_sqa["mAP@50"], "sqa.aq_hard_m50")
+        t12_metrics = {
+            "Clean_Default_mAP50": round(require_stat(cl_dyn["mAP@50"], "sqa.clean_dyn"), 2),
+            "Clean_Hardened_mAP50": round(require_stat(cl_sqa["mAP@50"], "sqa.clean_sqa"), 2),
+            "AQSM_Default_mAP50": round(aq_base_m50, 2),
+            "AQSM_Hardened_mAP50": round(aq_hard_m50, 2),
+            "AQSM_Recovery_pp": round(aq_hard_m50 - aq_base_m50, 2),
+            "TaskPGD_Default_mAP50": round(float(pgd_dyn["mAP@50"]), 2) if "mAP@50" in pgd_dyn else None,
+            "TaskPGD_Hardened_mAP50": round(float(pgd_sqa["mAP@50"]), 2) if "mAP@50" in pgd_sqa else None,
+            "Edge_Latency_Jetson_Orin_Default_ms": round(float(edge_jetson["default_dynamic_only"]), 2) if "default_dynamic_only" in edge_jetson else None,
+            "Edge_Latency_Jetson_Orin_Hardened_ms": round(float(edge_jetson["hardened_static_augmented"]), 2) if "hardened_static_augmented" in edge_jetson else None,
+        }
+    else:
+        t12_metrics = {
+            "status": str(hardening.get("status", "pending_sqa_controls_run")),
+        }
 
     # --- Table 13: Multi-Seed Stability & Architecture Generalization ---
     ms_recs = multiseed.get("records", {})
-    r18_can = ms_recs.get("rtdetr_r18vd_canonical", {})
-    r18_ms = ms_recs.get("rtdetr_r18vd_multiseed", {})
-    r50_ms = ms_recs.get("rtdetr_r50vd_multiseed", {})
-    r50_can = ms_recs.get("rtdetr_r50vd_canonical", {})
     t13_metrics: Dict[str, Any] = {}
-    if r18_can:
-        t13_metrics["RTDETR_R18_Clean_mAP50"] = round(require_stat(r18_can["clean_map50"], "r18_can.clean"), 2)
-        t13_metrics["RTDETR_R18_Canonical_AQSM_mAP50"] = round(require_stat(r18_can["aqsm_map50"], "r18_can.aqsm"), 2)
-    if r18_ms:
-        t13_metrics["RTDETR_R18_MultiSeed_Mean_AQSM_mAP50"] = round(require_stat(r18_ms["aqsm_map50_mean"], "r18_ms.aqsm_mean"), 2)
-        t13_metrics["RTDETR_R18_MultiSeed_Std_AQSM_mAP50"] = round(require_stat(r18_ms["aqsm_map50_std"], "r18_ms.aqsm_std"), 2)
-        t13_metrics["RTDETR_R18_Hungarian_Drift"] = round(require_stat(r18_ms["hungarian_set_drift_mean"], "r18_ms.drift"), 4)
-        t13_metrics["RTDETR_R18_Anchor_FG_Hit_pct"] = round(require_stat(r18_ms["anchor_fg_hit_pct_mean"], "r18_ms.hit"), 2)
-    if r50_ms:
-        t13_metrics["RTDETR_R50_Clean_mAP50"] = round(require_stat(r50_ms["clean_map50"], "r50_ms.clean"), 2)
-        t13_metrics["RTDETR_R50_MultiSeed_Mean_AQSM_mAP50"] = round(require_stat(r50_ms["aqsm_map50_mean"], "r50_ms.aqsm_mean"), 2)
-        t13_metrics["RTDETR_R50_MultiSeed_Std_AQSM_mAP50"] = round(require_stat(r50_ms["aqsm_map50_std"], "r50_ms.aqsm_std"), 2)
-        t13_metrics["RTDETR_R50_Relative_Drop_pct"] = round(require_stat(r50_ms["relative_drop_pct"], "r50_ms.rel"), 2)
-        t13_metrics["RTDETR_R50_Hungarian_Drift"] = round(require_stat(r50_ms["hungarian_set_drift_mean"], "r50_ms.drift"), 4)
-        t13_metrics["RTDETR_R50_Anchor_FG_Hit_pct"] = round(require_stat(r50_ms["anchor_fg_hit_pct_mean"], "r50_ms.hit"), 2)
-    elif r50_can:
-        t13_metrics["RTDETR_R50_Clean_mAP50"] = round(require_stat(r50_can["clean_map50"], "r50_can.clean"), 2)
-        t13_metrics["RTDETR_R50_AQSM_mAP50"] = round(require_stat(r50_can["aqsm_map50"], "r50_can.aqsm"), 2)
-        t13_metrics["RTDETR_R50_Relative_Drop_pct"] = round(require_stat(r50_can["relative_drop_pct"], "r50_can.rel"), 2)
-        t13_metrics["RTDETR_R50_Hungarian_Drift"] = round(require_stat(r50_can["hungarian_set_drift"], "r50_can.drift"), 4)
-        t13_metrics["RTDETR_R50_Anchor_FG_Hit_pct"] = round(require_stat(r50_can["anchor_fg_hit_pct"], "r50_can.hit"), 2)
+    for rec_key, rec in ms_recs.items():
+        if not isinstance(rec, dict):
+            continue
+        prefix_clean = rec_key.upper()
+        if rec_key.endswith("_multiseed"):
+            base_k = rec_key[:-len("_multiseed")].upper()
+            if rec.get("clean_map50") is not None:
+                t13_metrics[f"{base_k}_Clean_mAP50"] = round(float(rec["clean_map50"]), 2)
+            if rec.get("aqsm_map50_mean") is not None:
+                t13_metrics[f"{base_k}_MultiSeed_Mean_AQSM_mAP50"] = round(float(rec["aqsm_map50_mean"]), 2)
+            if rec.get("aqsm_map50_std") is not None:
+                t13_metrics[f"{base_k}_MultiSeed_Std_AQSM_mAP50"] = round(float(rec["aqsm_map50_std"]), 2)
+            if rec.get("relative_drop_pct") is not None:
+                t13_metrics[f"{base_k}_Relative_Drop_pct"] = round(float(rec["relative_drop_pct"]), 2)
+            if rec.get("hungarian_set_drift_mean") is not None:
+                t13_metrics[f"{base_k}_Hungarian_Drift"] = round(float(rec["hungarian_set_drift_mean"]), 4)
+            if rec.get("anchor_fg_hit_pct_mean") is not None:
+                t13_metrics[f"{base_k}_Anchor_FG_Hit_pct"] = round(float(rec["anchor_fg_hit_pct_mean"]), 2)
+        elif rec_key.endswith("_canonical"):
+            base_k = rec_key[:-len("_canonical")].upper()
+            if rec.get("clean_map50") is not None:
+                t13_metrics[f"{base_k}_Canonical_Clean_mAP50"] = round(float(rec["clean_map50"]), 2)
+            if rec.get("aqsm_map50") is not None:
+                t13_metrics[f"{base_k}_Canonical_AQSM_mAP50"] = round(float(rec["aqsm_map50"]), 2)
+            if rec.get("relative_drop_pct") is not None:
+                t13_metrics[f"{base_k}_Canonical_Relative_Drop_pct"] = round(float(rec["relative_drop_pct"]), 2)
+            if rec.get("hungarian_set_drift") is not None:
+                t13_metrics[f"{base_k}_Canonical_Hungarian_Drift"] = round(float(rec["hungarian_set_drift"]), 4)
+            if rec.get("anchor_fg_hit_pct") is not None:
+                t13_metrics[f"{base_k}_Canonical_Anchor_FG_Hit_pct"] = round(float(rec["anchor_fg_hit_pct"]), 2)
+        else:
+            t13_metrics[f"{prefix_clean}_record"] = rec
 
     tables = {
         "tab:tab1_ablation": {
@@ -423,7 +455,7 @@ def generate_provenance_manifest(
             "caption": "Empirical detection performance of Encoder Selection Monitor (ESM) and adaptive evasion boundary",
             "active_cohort": "empirical_evaluation_cohort",
             "n_evaluated_images": n_images,
-            "n_test_images": 700,
+            "n_test_images": n_test_def,
             "source_artifacts": [
                 "outputs/summary_json/defense_esm_evaluation.json",
             ],
@@ -445,9 +477,11 @@ def generate_provenance_manifest(
             "active_cohort": "empirical_evaluation_cohort",
             "n_evaluated_images": n_images,
             "source_artifacts": [
-                "outputs/summary_json/multimodel_and_seed_stability_summary.json",
-                "outputs/summary_json/r50_cross_architecture_summary.json",
-                "outputs/summary_json/r50_set_distance_and_coverage.json",
+                p_rel for p_rel, p_name in [
+                    ("outputs/summary_json/multimodel_and_seed_stability_summary.json", "multimodel_and_seed_stability_summary.json"),
+                    ("outputs/summary_json/r50_cross_architecture_summary.json", "r50_cross_architecture_summary.json"),
+                    ("outputs/summary_json/r50_set_distance_and_coverage.json", "r50_set_distance_and_coverage.json"),
+                ] if p_name == "multimodel_and_seed_stability_summary.json" or (summary_dir / p_name).exists()
             ],
             "metrics": t13_metrics,
         },

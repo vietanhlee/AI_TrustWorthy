@@ -42,7 +42,25 @@ from paper_1_aqsm_mechanism.experiments.config import (
     OUTPUTS_DIR,
     PAPER_DIR,
     SUMMARY_JSON_DIR,
+    get_img_size,
+    get_outputs_dir,
+    get_pgd_num_steps,
+    get_summary_json_dir,
+    update_experiment_paths,
 )
+
+
+def _fmt_p(p_val: Any) -> str:
+    """Định dạng p-value chuẩn học thuật từ dữ liệu thực tế."""
+    if p_val is None:
+        return "N/A"
+    try:
+        p = float(p_val)
+    except (TypeError, ValueError):
+        return "N/A"
+    if p < 0.001:
+        return "p < 0.001"
+    return f"p = {p:.4f}"
 
 
 def get_stat(d: Any, default: float = 0.0) -> float:
@@ -155,36 +173,53 @@ def generate_table1(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     aqsm_sweep = require_val(matched, ["sweep_results", "aqsm", "eps_16"], "matched.sweep_results.aqsm.eps_16")
     aqsm_map = float(require_val(aqsm_sweep, ["mAP@50"], "aqsm_sweep.mAP@50"))
     aqsm_drop = float(require_val(aqsm_sweep, ["relative_drop_pct"], "aqsm_sweep.relative_drop_pct"))
+    n_eval_t1 = int(matched.get("n_images", dynamics.get("n_images", 0)))
+    n_str_t1 = f"$N = {n_eval_t1:,}$ images, " if n_eval_t1 > 0 else ""
+
+    ablation_json = safe_load_json([
+        summary_dir / "tripartite_ablation_results.json",
+        summary_dir / "aqsm_ablation_results.json",
+        get_summary_json_dir() / "tripartite_ablation_results.json",
+    ], default_dict={})
+    variants = ablation_json.get("variants", {})
 
     headers = ["AQSM Formulation / Loss Variant", "mAP@50 [Rel. Drop]", "Top-300 Overlap", "Evicted Top-15 FG", "Dominant Failure Mode"]
     rows = [
         ["Clean Baseline (No Attack)", f"{clean_map:.2f}% [---]", "100.0%", "0.0%", "Nominal inference"],
-        ["Margin-Ranking Loss only (L_rank)", "24.15% [-63.1%]", "38.5%", "62.4%", "Partial proposal reordering"],
-        ["Foreground Suppression Loss only (L_suppr)", "32.80% [-49.9%]", "52.1%", "44.2%", "Foreground confidence suppression"],
-        ["Distal Background Elevation only (L_elev)", "19.45% [-70.3%]", "31.8%", "74.8%", "Background cutoff elevation"],
-        ["L_suppr + L_rank", "14.20% [-78.3%]", "22.4%", "86.5%", "Compound foreground suppression"],
-        ["L_suppr + L_elev", "11.20% [-82.9%]", "20.8%", "91.5%", "Suppression-elevation dual pressure"],
-        ["L_rank + L_elev", "6.85% [-89.5%]", "15.6%", "94.2%", "Dual-boundary selection compression"],
-        ["Full Tripartite AQSM", f"{aqsm_map:.2f}% [-{aqsm_drop:.1f}%]", f"{aqsm_ov:.1f}%", f"{aqsm_ev:.1f}%", "Compound Eviction & Misrouting"],
     ]
+    tex_mid_rows = []
+    ablation_specs = [
+        ("L_rank", r"Margin-Ranking Loss only ($\mathcal{L}_{\mathrm{rank}}$)", "Margin-Ranking Loss only (L_rank)", "Partial proposal reordering"),
+        ("L_suppr", r"Foreground Suppression Loss only ($\mathcal{L}_{\mathrm{suppr}}$)", "Foreground Suppression Loss only (L_suppr)", "Foreground confidence suppression"),
+        ("L_elev", r"Distal Background Elevation only ($\mathcal{L}_{\mathrm{elev}}$)", "Distal Background Elevation only (L_elev)", "Background cutoff elevation"),
+        ("L_suppr+L_rank", r"$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{rank}}$", "L_suppr + L_rank", "Compound foreground suppression"),
+        ("L_suppr+L_elev", r"$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{elev}}$", "L_suppr + L_elev", "Suppression-elevation dual pressure"),
+        ("L_rank+L_elev", r"$\mathcal{L}_{\mathrm{rank}} + \mathcal{L}_{\mathrm{elev}}$", "L_rank + L_elev", "Dual-boundary selection compression"),
+    ]
+    for vkey, tex_lbl, md_lbl, mode_note in ablation_specs:
+        v = variants.get(vkey)
+        if isinstance(v, dict) and "mAP@50" in v:
+            vm = float(v["mAP@50"])
+            vd = float(v.get("relative_drop_pct", (clean_map - vm) / max(clean_map, 1e-6) * 100.0))
+            vo = float(v.get("top300_overlap_pct", 0.0))
+            ve = float(v.get("evicted_top15_fg_pct", 0.0))
+            rows.append([md_lbl, f"{vm:.2f}% [-{vd:.1f}%]", f"{vo:.1f}%", f"{ve:.1f}%", str(v.get("failure_mode", mode_note))])
+            tex_mid_rows.append(f"{tex_lbl} & {vm:.2f}\\% [$-${vd:.1f}\\%] & {vo:.1f}\\% & {ve:.1f}\\% & {v.get('failure_mode', mode_note)} \\\\")
 
+    rows.append(["Full Tripartite AQSM", f"{aqsm_map:.2f}% [-{aqsm_drop:.1f}%]", f"{aqsm_ov:.1f}%", f"{aqsm_ev:.1f}%", "Compound Eviction & Misrouting"])
+    tex_mid_block = ("\n\\midrule\n" + "\n".join(tex_mid_rows)) if tex_mid_rows else ""
+
+    eff_res_t1 = int(get_img_size())
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Component-wise ablation of the Tripartite AQSM Objective on COCO val2017 ($N = 1,000$ images, $640 \times 640$, $\epsilon = 16/255, T = 15$). Evaluates mAP@50, Top-300 proposal overlap with clean baseline, and Ground-Truth foreground eviction rate.}
+\caption{Component-wise ablation of the Tripartite AQSM Objective on COCO val2017 (""" + n_str_t1 + rf"""${eff_res_t1} \times {eff_res_t1}$). Evaluates mAP@50, Top-300 proposal overlap with clean baseline, and Ground-Truth foreground eviction rate.""" + r"""}
 \label{tab:tab1_ablation}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 \textbf{AQSM Formulation / Loss Variant} & \textbf{mAP@50 [Rel. Drop]} & \textbf{Top-300 Overlap} & \textbf{Evicted Top-15 FG} & \textbf{Dominant Failure Mode} \\
 \midrule
-Clean Baseline (No Attack) & """ + f"{clean_map:.2f}\\% [---]" + r""" & 100.0\% & 0.0\% & Nominal inference \\
-\midrule
-Margin-Ranking Loss only ($\mathcal{L}_{\mathrm{rank}}$) & 24.15\% [$-$63.1\%] & 38.5\% & 62.4\% & Partial proposal reordering \\
-Foreground Suppression Loss only ($\mathcal{L}_{\mathrm{suppr}}$) & 32.80\% [$-$49.9\%] & 52.1\% & 44.2\% & Foreground confidence suppression \\
-Distal Background Elevation only ($\mathcal{L}_{\mathrm{elev}}$) & 19.45\% [$-$70.3\%] & 31.8\% & 74.8\% & Background cutoff elevation \\
-$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{rank}}$ & 14.20\% [$-$78.3\%] & 22.4\% & 86.5\% & Compound foreground suppression \\
-$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{elev}}$ & 11.20\% [$-$82.9\%] & 20.8\% & 91.5\% & Suppression-elevation dual pressure \\
-$\mathcal{L}_{\mathrm{rank}} + \mathcal{L}_{\mathrm{elev}}$ & 6.85\% [$-$89.5\%] & 15.6\% & 94.2\% & Dual-boundary selection compression \\
+Clean Baseline (No Attack) & """ + f"{clean_map:.2f}\\% [---]" + r""" & 100.0\% & 0.0\% & Nominal inference \\""" + tex_mid_block + r"""
 \midrule
 \textbf{Full Tripartite AQSM} & \textbf{""" + f"{aqsm_map:.2f}\\% [$-${aqsm_drop:.1f}\\%]" + r"""} & \textbf{""" + f"{aqsm_ov:.1f}\\%" + r"""} & \textbf{""" + f"{aqsm_ev:.1f}\\%" + r"""} & \textbf{Compound Eviction \& Misrouting} \\
 \bottomrule
@@ -229,32 +264,97 @@ def generate_table2(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     pgd_m95 = float(require_val(pgd_16, ["mAP@50:95"], "pgd_16.mAP@50:95"))
     pgd_m95_drop = (clean_m95 - pgd_m95) / max(clean_m95, 1e-6) * 100.0 if clean_m95 > 0.0 else 0.0
 
+    n_eval_t2 = int(matched.get("n_images", 0))
+    model_t2 = str(matched.get("model", "RT-DETR"))
+    esm_ref = safe_load_json([summary_dir / "defense_esm_evaluation.json", get_summary_json_dir() / "defense_esm_evaluation.json"], default_dict={})
+    box_mon = esm_ref.get("box_count_monitor", {})
+    clean_box_s = box_mon.get("clean_box_stats", {})
+    box_atks = box_mon.get("attacks", {})
+
+    def _fmt_boxes(stats_dict: Dict[str, Any]) -> str:
+        if isinstance(stats_dict, dict) and "mean" in stats_dict:
+            return f"{float(stats_dict['mean']):.2f} ± {float(stats_dict.get('std', 0.0)):.2f}"
+        return "---"
+
+    def _fmt_boxes_tex(stats_dict: Dict[str, Any]) -> str:
+        if isinstance(stats_dict, dict) and "mean" in stats_dict:
+            return f"${float(stats_dict['mean']):.2f} \\pm {float(stats_dict.get('std', 0.0)):.2f}$"
+        return "---"
+
+    def _fmt_asr(blk: Dict[str, Any], field: str, default: str = "---") -> str:
+        if isinstance(blk, dict) and field in blk and blk[field] is not None:
+            v = blk[field]
+            if isinstance(v, dict) and "rate" in v:
+                ci = v.get("ci95")
+                if ci and len(ci) == 2:
+                    return f"{float(v['rate']):.1f}% [{float(ci[0]):.1f}, {float(ci[1]):.1f}]"
+                return f"{float(v['rate']):.1f}%"
+            return f"{float(v):.1f}%"
+        return default
+
+    def _fmt_asr_tex(blk: Dict[str, Any], field: str, default: str = "---") -> str:
+        return _fmt_asr(blk, field, default).replace("%", "\\%")
+
+    clean_boxes_md = _fmt_boxes(clean_box_s)
+    aq_boxes_md = _fmt_boxes(box_atks.get("aqsm", {}).get("box_stats", {}))
+    van_boxes_md = _fmt_boxes(box_atks.get("vanishing", {}).get("box_stats", {}))
+    pgd_boxes_md = _fmt_boxes(box_atks.get("taskpgd", {}).get("box_stats", {}))
+
+    clean_boxes_tex = _fmt_boxes_tex(clean_box_s)
+    aq_boxes_tex = _fmt_boxes_tex(box_atks.get("aqsm", {}).get("box_stats", {}))
+    van_boxes_tex = _fmt_boxes_tex(box_atks.get("vanishing", {}).get("box_stats", {}))
+    pgd_boxes_tex = _fmt_boxes_tex(box_atks.get("taskpgd", {}).get("box_stats", {}))
+
     headers = ["Threat Tier & Condition", "mAP@50 [Rel. Drop]", "mAP@50:95 [Rel.]", "Active Boxes", "ASR_obj [CI 95%]", "ASR_silence [CI 95%]", "ASR_starve [CI 95%]"]
     rows = [
-        ["Nominal Clean Baseline", f"{clean_m50:.2f}% [Ref.]", f"{clean_m95:.2f}% [Ref.]", "4.52 ± 3.10", "0.0% [Reference]", "0.0% [Reference]", "17.5% [15.3, 19.9]"],
-        ["Gaussian Noise (sigma = 16/255)", "58.12% [-11.3%]", "40.15% [-17.9%]", "4.25 ± 2.65", "11.2% [8.5, 14.2]", "0.8% [0.2, 2.1]", "6.4% [4.1, 9.5]"],
-        ["Uniform Noise (± 16/255)", "60.85% [-7.1%]", "42.40% [-13.3%]", "4.38 ± 2.80", "7.8% [5.4, 10.6]", "0.4% [0.1, 1.5]", "4.2% [2.4, 6.8]"],
-        ["Tier C: AQSM (eps = 16/255)", f"{aq_m50:.2f}% [-{aq_m50_drop:.1f}%]", f"{aq_m95:.2f}% [-{aq_m95_drop:.1f}%]", "7.15 ± 4.30", "98.5% [97.1, 99.5]", "12.8% [9.5, 16.8]", "80.4% [77.9, 82.8]"],
-        ["Tier B: Query Vanishing (eps = 16/255)", f"{van_m50:.2f}% [-{van_m50_drop:.1f}%]", f"{van_m95:.2f}% [-{van_m95_drop:.1f}%]", "0.18 ± 0.52", "97.8% [95.5, 99.1]", "52.4% [46.8, 58.1]", "51.4% [48.3, 54.6]"],
-        ["Tier B: Standard Task PGD (eps = 16/255)", f"{pgd_m50:.2f}% [-{pgd_m50_drop:.1f}%]", f"{pgd_m95:.2f}% [-{pgd_m95_drop:.1f}%]", "29.40 ± 8.70", "96.2% [93.1, 98.4]", "0.0% [0.0, 1.0]", "12.8% [11.0, 14.9]"],
+        ["Nominal Clean Baseline", f"{clean_m50:.2f}% [Ref.]", f"{clean_m95:.2f}% [Ref.]", clean_boxes_md, "0.0% [Reference]", "0.0% [Reference]", _fmt_asr(clean, "asr_starve")],
+        ["Tier C: AQSM (eps = 16/255)", f"{aq_m50:.2f}% [-{aq_m50_drop:.1f}%]", f"{aq_m95:.2f}% [-{aq_m95_drop:.1f}%]", aq_boxes_md, _fmt_asr(aq_16, "asr_obj"), _fmt_asr(aq_16, "asr_silence"), _fmt_asr(aq_16, "asr_starve")],
+        ["Tier B: Query Vanishing (eps = 16/255)", f"{van_m50:.2f}% [-{van_m50_drop:.1f}%]", f"{van_m95:.2f}% [-{van_m95_drop:.1f}%]", van_boxes_md, _fmt_asr(van_16, "asr_obj"), _fmt_asr(van_16, "asr_silence"), _fmt_asr(van_16, "asr_starve")],
+        ["Tier B: Standard Task PGD (eps = 16/255)", f"{pgd_m50:.2f}% [-{pgd_m50_drop:.1f}%]", f"{pgd_m95:.2f}% [-{pgd_m95_drop:.1f}%]", pgd_boxes_md, _fmt_asr(pgd_16, "asr_obj"), _fmt_asr(pgd_16, "asr_silence"), _fmt_asr(pgd_16, "asr_starve")],
+    ]
+    for ctrl_key, ctrl_label in [("gaussian_noise", "Gaussian Noise (sigma = 16/255)"), ("uniform_noise", "Uniform Noise (± 16/255)")]:
+        cb = matched.get("controls", {}).get(ctrl_key) or sw.get(ctrl_key, {}).get("eps_16")
+        if isinstance(cb, dict) and "mAP@50" in cb:
+            cm50 = float(cb["mAP@50"])
+            cm95 = float(cb.get("mAP@50:95", 0.0))
+            cd50 = float(cb.get("relative_drop_pct", (clean_m50 - cm50) / max(clean_m50, 1e-6) * 100.0))
+            cd95 = (clean_m95 - cm95) / max(clean_m95, 1e-6) * 100.0 if clean_m95 > 0.0 else 0.0
+            rows.insert(1, [ctrl_label, f"{cm50:.2f}% [-{cd50:.1f}%]", f"{cm95:.2f}% [-{cd95:.1f}%]", _fmt_boxes(cb.get("box_stats", {})), _fmt_asr(cb, "asr_obj"), _fmt_asr(cb, "asr_silence"), _fmt_asr(cb, "asr_starve")])
+
+    n_str_t2 = f"$N = {n_eval_t2:,}$ images, " if n_eval_t2 > 0 else ""
+    eff_res_t2 = int(get_img_size())
+    tex_noise_rows_t2: List[str] = []
+    for ctrl_key, ctrl_tex_label in [("gaussian_noise", "Gaussian Noise ($\\sigma = 16/255$)"), ("uniform_noise", "Uniform Noise ($\\pm 16/255$)")]:
+        cb = matched.get("controls", {}).get(ctrl_key) or sw.get(ctrl_key, {}).get("eps_16")
+        if isinstance(cb, dict) and "mAP@50" in cb:
+            cm50 = float(cb["mAP@50"])
+            cm95 = float(cb.get("mAP@50:95", 0.0))
+            cd50 = float(cb.get("relative_drop_pct", (clean_m50 - cm50) / max(clean_m50, 1e-6) * 100.0))
+            cd95 = (clean_m95 - cm95) / max(clean_m95, 1e-6) * 100.0 if clean_m95 > 0.0 else 0.0
+            cbox_tex = _fmt_boxes_tex(cb.get("box_stats", {}))
+            tex_noise_rows_t2.append(
+                f"{ctrl_tex_label} & {cm50:.2f}\\% [$-${cd50:.1f}\\%] & {cm95:.2f}\\% [$-${cd95:.1f}\\%] & {cbox_tex} & {_fmt_asr_tex(cb, 'asr_obj')} & {_fmt_asr_tex(cb, 'asr_silence')} & {_fmt_asr_tex(cb, 'asr_starve')} \\\\"
+            )
+
+    tex_rows_t2 = [
+        f"Nominal Clean Baseline & {clean_m50:.2f}\\% [Ref.] & {clean_m95:.2f}\\% [Ref.] & {clean_boxes_tex} & 0.0\\% [Reference] & 0.0\\% [Reference] & {_fmt_asr_tex(clean, 'asr_starve')} \\\\",
+        *tex_noise_rows_t2,
+        "\\midrule",
+        f"Tier C: AQSM ($\\epsilon = 16/255$) & \\textbf{{{aq_m50:.2f}\\% [$-${aq_m50_drop:.1f}\\%]}} & \\textbf{{{aq_m95:.2f}\\% [$-${aq_m95_drop:.1f}\\%]}} & {aq_boxes_tex} & {_fmt_asr_tex(aq_16, 'asr_obj')} & {_fmt_asr_tex(aq_16, 'asr_silence')} & {_fmt_asr_tex(aq_16, 'asr_starve')} \\\\",
+        f"Tier B: Query Vanishing ($\\epsilon = 16/255$) & {van_m50:.2f}\\% [$-${van_m50_drop:.1f}\\%] & {van_m95:.2f}\\% [$-${van_m95_drop:.1f}\\%] & {van_boxes_tex} & {_fmt_asr_tex(van_16, 'asr_obj')} & {_fmt_asr_tex(van_16, 'asr_silence')} & {_fmt_asr_tex(van_16, 'asr_starve')} \\\\",
+        f"Tier B: Standard Task PGD ($\\epsilon = 16/255$) & {pgd_m50:.2f}\\% [$-${pgd_m50_drop:.1f}\\%] & {pgd_m95:.2f}\\% [$-${pgd_m95_drop:.1f}\\%] & {pgd_boxes_tex} & {_fmt_asr_tex(pgd_16, 'asr_obj')} & {_fmt_asr_tex(pgd_16, 'asr_silence')} & {_fmt_asr_tex(pgd_16, 'asr_starve')} \\\\",
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 1,000$ images, 80 semantic categories) on RT-DETR-R18VD at native $640 \times 640$ resolution ($S = 8,400$) across controls, environmental shifts, Standard Task PGD, and adversarial threat tiers. Decouples Ground-Truth Object Silencing ($\text{ASR}_{\text{obj}}$) from Whole-Scene Extinction ($\text{ASR}_{\text{silence}}$) and reports 95\% Bootstrap Confidence Intervals ($B = 2,000$). For proposal starvation ($\text{ASR}_{\text{starve}}$, measuring $D \le 15$), the unperturbed clean baseline exhibits a raw rate of $17.5\%$ (95\% CI: $[15.3, 19.9]$) on natural scenes lacking prominent foreground contrast; under AQSM this rate surges to $80.4\%$ ($+62.9$ pp), whereas under Task PGD proposal starvation remains low at $12.8\%$ ($[11.0, 14.9]$) due to sharp high-confidence background activations.}
+\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, """ + n_str_t2 + r"""80 semantic categories) on \texttt{""" + model_t2.replace("_", r"\_") + r"""} at native $""" + f"{eff_res_t2} \\times {eff_res_t2}" + r"""$ resolution across controls and adversarial threat tiers.}
 \label{tab:tab2_main_benchmark}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Threat Tier \& Condition} & \textbf{mAP@50 [Rel. Drop]} & \textbf{mAP@50:95 [Rel.]} & \textbf{Active Boxes} & \textbf{$\text{ASR}_{\text{obj}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{silence}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{starve}}$ [CI 95\%]} \\
 \midrule
-Nominal Clean Baseline & """ + f"{clean_m50:.2f}\\% [Ref.]" + r""" & """ + f"{clean_m95:.2f}\\% [Ref.]" + r""" & $4.52 \pm 3.10$ & 0.0\% [Reference] & 0.0\% [Reference] & 17.5\% [15.3, 19.9] \\
-Gaussian Noise ($\sigma = 16/255$) & 58.12\% [$-$11.3\%] & 40.15\% [$-$17.9\%] & $4.25 \pm 2.65$ & 11.2\% [8.5, 14.2] & 0.8\% [0.2, 2.1] & 6.4\% [4.1, 9.5] \\
-Uniform Noise ($\pm 16/255$) & 60.85\% [$-$7.1\%] & 42.40\% [$-$13.3\%] & $4.38 \pm 2.80$ & 7.8\% [5.4, 10.6] & 0.4\% [0.1, 1.5] & 4.2\% [2.4, 6.8] \\
-\midrule
-Tier C: AQSM ($\epsilon = 16/255$) & \textbf{""" + f"{aq_m50:.2f}\\% [$-${aq_m50_drop:.1f}\\%]" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\% [$-${aq_m95_drop:.1f}\\%]" + r"""} & $7.15 \pm 4.30$ & \textbf{98.5\% [97.1, 99.5]} & 12.8\% [9.5, 16.8] & \textbf{80.4\% [77.9, 82.8]} \\
-Tier B: Query Vanishing ($\epsilon = 16/255$) & """ + f"{van_m50:.2f}\\% [$-${van_m50_drop:.1f}\\%]" + r""" & """ + f"{van_m95:.2f}\\% [$-${van_m95_drop:.1f}\\%]" + r""" & $0.18 \pm 0.52$ & 97.8\% [95.5, 99.1] & \textbf{52.4\% [46.8, 58.1]} & 51.4\% [48.3, 54.6] \\
-Tier B: Standard Task PGD ($\epsilon = 16/255$) & """ + f"{pgd_m50:.2f}\\% [$-${pgd_m50_drop:.1f}\\%]" + r""" & """ + f"{pgd_m95:.2f}\\% [$-${pgd_m95_drop:.1f}\\%]" + r""" & $29.40 \pm 8.70$ & 96.2\% [93.1, 98.4] & 0.0\% [0.0, 1.0] & 12.8\% [11.0, 14.9] \\
+""" + "\n".join(tex_rows_t2) + r"""
 \bottomrule
 \end{tabular}%
 }
@@ -311,6 +411,9 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     f_m_aqsm = float(require_val(an_aqsm, ["anova_table", "Memory_M", "F"], "aqsm.F_m"))
     f_q_aqsm = float(require_val(an_aqsm, ["anova_table", "Query_Q", "F"], "aqsm.F_q"))
     f_inter_aqsm = float(require_val(an_aqsm, ["anova_table", "Interaction_MxQ", "F"], "aqsm.F_inter"))
+    p_m_aqsm = _fmt_p(an_aqsm["anova_table"]["Memory_M"].get("p_value"))
+    p_q_aqsm = _fmt_p(an_aqsm["anova_table"]["Query_Q"].get("p_value"))
+    p_inter_aqsm = _fmt_p(an_aqsm["anova_table"]["Interaction_MxQ"].get("p_value"))
 
     # ANOVA Vanishing
     an_van = require_val(c_van, ["anova_repeated_measures_full"], "van.anova_repeated_measures_full")
@@ -326,6 +429,9 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     f_m_van = float(require_val(an_van, ["anova_table", "Memory_M", "F"], "van.F_m"))
     f_q_van = float(require_val(an_van, ["anova_table", "Query_Q", "F"], "van.F_q"))
     f_inter_van = float(require_val(an_van, ["anova_table", "Interaction_MxQ", "F"], "van.F_inter"))
+    p_m_van = _fmt_p(an_van["anova_table"]["Memory_M"].get("p_value"))
+    p_q_van = _fmt_p(an_van["anova_table"]["Query_Q"].get("p_value"))
+    p_inter_van = _fmt_p(an_van["anova_table"]["Interaction_MxQ"].get("p_value"))
 
     # ANOVA TaskPGD
     an_pgd = require_val(c_pgd, ["anova_repeated_measures_full"], "pgd.anova_repeated_measures_full")
@@ -341,6 +447,13 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     f_m_pgd = float(require_val(an_pgd, ["anova_table", "Memory_M", "F"], "pgd.F_m"))
     f_q_pgd = float(require_val(an_pgd, ["anova_table", "Query_Q", "F"], "pgd.F_q"))
     f_inter_pgd = float(require_val(an_pgd, ["anova_table", "Interaction_MxQ", "F"], "pgd.F_inter"))
+    p_m_pgd = _fmt_p(an_pgd["anova_table"]["Memory_M"].get("p_value"))
+    p_q_pgd = _fmt_p(an_pgd["anova_table"]["Query_Q"].get("p_value"))
+    p_inter_pgd = _fmt_p(an_pgd["anova_table"]["Interaction_MxQ"].get("p_value"))
+
+    n_eval_t3 = int(c_aqsm.get("n_evaluated_images", 0))
+    n_valid_t3 = int(c_aqsm.get("n_valid_intra_subject_samples", an_aqsm.get("N", 0)))
+    df2_t3 = max(1, n_valid_t3 - 1)
 
     _d_cm = max(clean_map, 1e-6)
     headers = ["Intervention Arm / Factor", "AQSM mAP@50", "PGD Vanishing mAP@50", "Standard Task PGD mAP@50"]
@@ -353,12 +466,12 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
         ["Arm D_index: Clean Mem + Adv Idx", f"{didx_aqsm:.2f}% ({didx_aqsm/_d_cm*100:.1f}%) [-{clean_map-didx_aqsm:.2f} pp]", f"{didx_van:.2f}% ({didx_van/_d_cm*100:.1f}%) [-{clean_map-didx_van:.2f} pp]", f"{didx_pgd:.2f}% ({didx_pgd/_d_cm*100:.1f}%) [-{clean_map-didx_pgd:.2f} pp]"],
         ["ME_M (Memory Main Effect)", f"{me_m_aqsm:.2f} pp (eta_p^2 = {eta_m_aqsm:.3f})", f"{me_m_van:.2f} pp (eta_p^2 = {eta_m_van:.3f})", f"{me_m_pgd:.2f} pp (eta_p^2 = {eta_m_pgd:.3f})"],
         ["ME_Q (Query Main Effect)", f"{me_q_aqsm:.2f} pp (eta_p^2 = {eta_q_aqsm:.3f})", f"{me_q_van:.2f} pp (eta_p^2 = {eta_q_van:.3f})", f"{me_q_pgd:.2f} pp (eta_p^2 = {eta_q_pgd:.3f})"],
-        ["Interaction M x Q", f"+{inter_aqsm:.2f} pp", f"+{inter_van:.2f} pp", f"+{inter_pgd:.2f} pp"],
+        ["Interaction M x Q", f"{inter_aqsm:+.2f} pp", f"{inter_van:+.2f} pp", f"{inter_pgd:+.2f} pp"],
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Factorial interventional failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution ($S = 8,400$, 80 classes; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$ with $\text{df} = [1, 991]$, 2,000 image-level bootstrap resamples for global $\Delta\text{mAP@50}$ 95\% CI; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A """ + f"{clean_map:.2f}\\%" + r"""), and $\Delta$ vs.\ Arm A/B.}
+\caption{Factorial interventional failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution (evaluation cohort $N = """ + f"{n_eval_t3:,}" + r"""$ images, valid intra-subject $N = """ + f"{n_valid_t3:,}" + r"""$ with $\text{df} = [1, """ + f"{df2_t3}" + r"""]$; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A """ + f"{clean_map:.2f}\\%" + r"""), and $\Delta$ vs.\ Arm A/B.}
 \label{tab:tab3_causal_surgery}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccc}
@@ -375,11 +488,11 @@ Arm $\text{D}_{\text{index}}$: Clean Mem + Adv Idx ($M_{\mathrm{clean}} + Q_{\ma
 \midrule
 \textbf{Repeated-Measures ANOVA} & & & \\
 Main Effect Memory ($\text{ME}_M$) & """ + f"${me_m_aqsm:.2f}$ pp [${ci_m_aqsm[0]:.2f}, {ci_m_aqsm[1]:.2f}$]" + r""" & """ + f"${me_m_van:.2f}$ pp [${ci_m_van[0]:.2f}, {ci_m_van[1]:.2f}$]" + r""" & """ + f"${me_m_pgd:.2f}$ pp [${ci_m_pgd[0]:.2f}, {ci_m_pgd[1]:.2f}$]" + r""" \\
-$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_m_aqsm:.3f}" + r"""$ ($F=""" + f"{f_m_aqsm:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_m_van:.3f}" + r"""$ ($F=""" + f"{f_m_van:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_m_pgd:.3f}" + r"""$ ($F=""" + f"{f_m_pgd:.1f}" + r""", p < 0.001$) \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_m_aqsm:.3f}" + r"""$ ($F=""" + f"{f_m_aqsm:.1f}" + r""", """ + p_m_aqsm + r"""$) & $\eta_p^2 = """ + f"{eta_m_van:.3f}" + r"""$ ($F=""" + f"{f_m_van:.1f}" + r""", """ + p_m_van + r"""$) & $\eta_p^2 = """ + f"{eta_m_pgd:.3f}" + r"""$ ($F=""" + f"{f_m_pgd:.1f}" + r""", """ + p_m_pgd + r"""$) \\
 Main Effect Query ($\text{ME}_Q$) & """ + f"${me_q_aqsm:.2f}$ pp [${ci_q_aqsm[0]:.2f}, {ci_q_aqsm[1]:.2f}$]" + r""" & """ + f"${me_q_van:.2f}$ pp [${ci_q_van[0]:.2f}, {ci_q_van[1]:.2f}$]" + r""" & """ + f"${me_q_pgd:.2f}$ pp [${ci_q_pgd[0]:.2f}, {ci_q_pgd[1]:.2f}$]" + r""" \\
-$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_q_aqsm:.3f}" + r"""$ ($F=""" + f"{f_q_aqsm:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_q_van:.3f}" + r"""$ ($F=""" + f"{f_q_van:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_q_pgd:.3f}" + r"""$ ($F=""" + f"{f_q_pgd:.1f}" + r""", p < 0.001$) \\
-Interaction ($M \times Q$) & """ + f"$+{inter_aqsm:.2f}$ pp [$+{ci_inter_aqsm[0]:.2f}, +{ci_inter_aqsm[1]:.2f}$]" + r""" & """ + f"$+{inter_van:.2f}$ pp [$+{ci_inter_van[0]:.2f}, +{ci_inter_van[1]:.2f}$]" + r""" & """ + f"$+{inter_pgd:.2f}$ pp [$+{ci_inter_pgd[0]:.2f}, +{ci_inter_pgd[1]:.2f}$]" + r""" \\
-$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_inter_aqsm:.3f}" + r"""$ ($F=""" + f"{f_inter_aqsm:.1f}" + r""", p < 0.001$) & $\eta_p^2 = """ + f"{eta_inter_van:.3f}" + r"""$ ($F=""" + f"{f_inter_van:.1f}" + r""", p = 0.0053$) & $\eta_p^2 = """ + f"{eta_inter_pgd:.3f}" + r"""$ ($F=""" + f"{f_inter_pgd:.1f}" + r""", p < 0.001$) \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_q_aqsm:.3f}" + r"""$ ($F=""" + f"{f_q_aqsm:.1f}" + r""", """ + p_q_aqsm + r"""$) & $\eta_p^2 = """ + f"{eta_q_van:.3f}" + r"""$ ($F=""" + f"{f_q_van:.1f}" + r""", """ + p_q_van + r"""$) & $\eta_p^2 = """ + f"{eta_q_pgd:.3f}" + r"""$ ($F=""" + f"{f_q_pgd:.1f}" + r""", """ + p_q_pgd + r"""$) \\
+Interaction ($M \times Q$) & """ + f"${inter_aqsm:+.2f}$ pp [${ci_inter_aqsm[0]:+.2f}, {ci_inter_aqsm[1]:+.2f}$]" + r""" & """ + f"${inter_van:+.2f}$ pp [${ci_inter_van[0]:+.2f}, {ci_inter_van[1]:+.2f}$]" + r""" & """ + f"${inter_pgd:+.2f}$ pp [${ci_inter_pgd[0]:+.2f}, {ci_inter_pgd[1]:+.2f}$]" + r""" \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = """ + f"{eta_inter_aqsm:.3f}" + r"""$ ($F=""" + f"{f_inter_aqsm:.1f}" + r""", """ + p_inter_aqsm + r"""$) & $\eta_p^2 = """ + f"{eta_inter_van:.3f}" + r"""$ ($F=""" + f"{f_inter_van:.1f}" + r""", """ + p_inter_van + r"""$) & $\eta_p^2 = """ + f"{eta_inter_pgd:.3f}" + r"""$ ($F=""" + f"{f_inter_pgd:.1f}" + r""", """ + p_inter_pgd + r"""$) \\
 \bottomrule
 \end{tabular}%
 }
@@ -439,39 +552,53 @@ def generate_table4(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     eta_q_pgd = float(require_val(sh_pgd, ["Query_Q"], "pgd.eta_q"))
     eta_inter_pgd = float(require_val(sh_pgd, ["Interaction_MxQ"], "pgd.eta_inter"))
 
+    p_m = _fmt_p(an["Memory_M"].get("p_value"))
+    p_q = _fmt_p(an["Query_Q"].get("p_value"))
+    p_i = _fmt_p(an["Interaction_MxQ"].get("p_value"))
+    p_m_v = _fmt_p(an_van["Memory_M"].get("p_value"))
+    p_q_v = _fmt_p(an_van["Query_Q"].get("p_value"))
+    p_i_v = _fmt_p(an_van["Interaction_MxQ"].get("p_value"))
+    p_m_p = _fmt_p(an_pgd["Memory_M"].get("p_value"))
+    p_q_p = _fmt_p(an_pgd["Query_Q"].get("p_value"))
+    p_i_p = _fmt_p(an_pgd["Interaction_MxQ"].get("p_value"))
+
+    n_eval_t4 = int(c_aqsm.get("n_evaluated_images", 0))
+    n_valid_t4 = int(c_aqsm.get("n_valid_intra_subject_samples", an_full.get("N", 0)))
+    df2_t4 = max(1, n_valid_t4 - 1)
+
     headers = ["Attack Formulation", "Factor", "Sum of Squares", "df", "Mean Square", "F-Statistic", "Partial eta_p^2"]
     rows = [
-        ["AQSM (Probe)", "Memory (M)", f"{ss_m:.1f}", "1", f"{ss_m:.1f}", f"{f_m:.1f}", f"{eta_m:.3f} (p < 0.001)"],
-        ["AQSM (Probe)", "Query Prior (Q)", f"{ss_q:.1f}", "1", f"{ss_q:.1f}", f"{f_q:.1f}", f"{eta_q:.3f} (p < 0.001)"],
-        ["AQSM (Probe)", "Interaction (M x Q)", f"{ss_inter:.1f}", "1", f"{ss_inter:.1f}", f"{f_inter:.1f}", f"{eta_inter:.3f} (p < 0.001)"],
-        ["PGD Vanishing", "Memory (M)", f"{ss_m_van:.1f}", "1", f"{ss_m_van:.1f}", f"{f_m_van:.1f}", f"{eta_m_van:.3f} (p < 0.001)"],
-        ["PGD Vanishing", "Query Prior (Q)", f"{ss_q_van:.1f}", "1", f"{ss_q_van:.1f}", f"{f_q_van:.1f}", f"{eta_q_van:.3f} (p < 0.001)"],
-        ["PGD Vanishing", "Interaction (M x Q)", f"{ss_inter_van:.1f}", "1", f"{ss_inter_van:.1f}", f"{f_inter_van:.1f}", f"{eta_inter_van:.3f} (p = 0.0022)"],
-        ["Standard Task PGD", "Memory (M)", f"{ss_m_pgd:.1f}", "1", f"{ss_m_pgd:.1f}", f"{f_m_pgd:.1f}", f"{eta_m_pgd:.3f} (p < 0.001)"],
-        ["Standard Task PGD", "Query Prior (Q)", f"{ss_q_pgd:.1f}", "1", f"{ss_q_pgd:.1f}", f"{f_q_pgd:.1f}", f"{eta_q_pgd:.3f} (p < 0.001)"],
-        ["Standard Task PGD", "Interaction (M x Q)", f"{ss_inter_pgd:.1f}", "1", f"{ss_inter_pgd:.1f}", f"{f_inter_pgd:.1f}", f"{eta_inter_pgd:.3f} (p < 0.001)"],
+        ["AQSM (Probe)", "Memory (M)", f"{ss_m:.1f}", "1", f"{ss_m:.1f}", f"{f_m:.1f}", f"{eta_m:.3f} ({p_m})"],
+        ["AQSM (Probe)", "Query Prior (Q)", f"{ss_q:.1f}", "1", f"{ss_q:.1f}", f"{f_q:.1f}", f"{eta_q:.3f} ({p_q})"],
+        ["AQSM (Probe)", "Interaction (M x Q)", f"{ss_inter:.1f}", "1", f"{ss_inter:.1f}", f"{f_inter:.1f}", f"{eta_inter:.3f} ({p_i})"],
+        ["PGD Vanishing", "Memory (M)", f"{ss_m_van:.1f}", "1", f"{ss_m_van:.1f}", f"{f_m_van:.1f}", f"{eta_m_van:.3f} ({p_m_v})"],
+        ["PGD Vanishing", "Query Prior (Q)", f"{ss_q_van:.1f}", "1", f"{ss_q_van:.1f}", f"{f_q_van:.1f}", f"{eta_q_van:.3f} ({p_q_v})"],
+        ["PGD Vanishing", "Interaction (M x Q)", f"{ss_inter_van:.1f}", "1", f"{ss_inter_van:.1f}", f"{f_inter_van:.1f}", f"{eta_inter_van:.3f} ({p_i_v})"],
+        ["Standard Task PGD", "Memory (M)", f"{ss_m_pgd:.1f}", "1", f"{ss_m_pgd:.1f}", f"{f_m_pgd:.1f}", f"{eta_m_pgd:.3f} ({p_m_p})"],
+        ["Standard Task PGD", "Query Prior (Q)", f"{ss_q_pgd:.1f}", "1", f"{ss_q_pgd:.1f}", f"{f_q_pgd:.1f}", f"{eta_q_pgd:.3f} ({p_q_p})"],
+        ["Standard Task PGD", "Interaction (M x Q)", f"{ss_inter_pgd:.1f}", "1", f"{ss_inter_pgd:.1f}", f"{f_inter_pgd:.1f}", f"{eta_inter_pgd:.3f} ({p_i_p})"],
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{ANOVA Factorial Decomposition and Interventional-Protocol Attribution across Attack Formulations on COCO val2017 ($640 \times 640$, $S = 8,400$; evaluation cohort $N = 1,000$ images, valid intra-subject $N = 992$, $\text{df}_1 = 1, \text{df}_2 = 991$). Highlights that query prior displacement represents an essential secondary protocol attribution under AQSM ($\eta_p^2 = """ + f"{eta_q:.3f}" + r"""$), in contrast to Query Vanishing where degradation concentrates in memory ($\eta_p^2 = """ + f"{eta_m_van:.3f}" + r"""$).}
+\caption{ANOVA Factorial Decomposition and Interventional-Protocol Attribution across Attack Formulations on COCO val2017 ($640 \times 640$; evaluation cohort $N = """ + f"{n_eval_t4:,}" + r"""$ images, valid intra-subject $N = """ + f"{n_valid_t4:,}" + r"""$, $\text{df}_1 = 1, \text{df}_2 = """ + f"{df2_t4}" + r"""$). Highlights that query prior displacement represents an essential secondary protocol attribution under AQSM ($\eta_p^2 = """ + f"{eta_q:.3f}" + r"""$), in contrast to Query Vanishing where degradation concentrates in memory ($\eta_p^2 = """ + f"{eta_m_van:.3f}" + r"""$).}
 \label{tab:tab4_anova_decomp}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Attack Formulation} & \textbf{Factor} & \textbf{Sum of Squares} & \textbf{df} & \textbf{Mean Square} & \textbf{$F$-Statistic} & \textbf{Partial $\eta_p^2$} \\
 \midrule
-\multirow{3}{*}{AQSM (Probe)} & Memory ($M$) & """ + f"{ss_m:.1f}" + r""" & 1 & """ + f"{ss_m:.1f}" + r""" & """ + f"{f_m:.1f}" + r""" & """ + f"{eta_m:.3f}" + r""" ($p < 0.001$) \\
-& Query Prior ($Q$) & """ + f"{ss_q:.1f}" + r""" & 1 & """ + f"{ss_q:.1f}" + r""" & """ + f"{f_q:.1f}" + r""" & """ + f"{eta_q:.3f}" + r""" ($p < 0.001$) \\
-& Interaction ($M \times Q$) & """ + f"{ss_inter:.1f}" + r""" & 1 & """ + f"{ss_inter:.1f}" + r""" & """ + f"{f_inter:.1f}" + r""" & """ + f"{eta_inter:.3f}" + r""" ($p < 0.001$) \\
+\multirow{3}{*}{AQSM (Probe)} & Memory ($M$) & """ + f"{ss_m:.1f}" + r""" & 1 & """ + f"{ss_m:.1f}" + r""" & """ + f"{f_m:.1f}" + r""" & """ + f"{eta_m:.3f} (${p_m}$)" + r""" \\
+& Query Prior ($Q$) & """ + f"{ss_q:.1f}" + r""" & 1 & """ + f"{ss_q:.1f}" + r""" & """ + f"{f_q:.1f}" + r""" & """ + f"{eta_q:.3f} (${p_q}$)" + r""" \\
+& Interaction ($M \times Q$) & """ + f"{ss_inter:.1f}" + r""" & 1 & """ + f"{ss_inter:.1f}" + r""" & """ + f"{f_inter:.1f}" + r""" & """ + f"{eta_inter:.3f} (${p_i}$)" + r""" \\
 \midrule
-\multirow{3}{*}{PGD Vanishing} & Memory ($M$) & """ + f"{ss_m_van:.1f}" + r""" & 1 & """ + f"{ss_m_van:.1f}" + r""" & """ + f"{f_m_van:.1f}" + r""" & """ + f"{eta_m_van:.3f}" + r""" ($p < 0.001$) \\
-& Query Prior ($Q$) & """ + f"{ss_q_van:.1f}" + r""" & 1 & """ + f"{ss_q_van:.1f}" + r""" & """ + f"{f_q_van:.1f}" + r""" & """ + f"{eta_q_van:.3f}" + r""" ($p < 0.001$) \\
-& Interaction ($M \times Q$) & """ + f"{ss_inter_van:.1f}" + r""" & 1 & """ + f"{ss_inter_van:.1f}" + r""" & """ + f"{f_inter_van:.1f}" + r""" & """ + f"{eta_inter_van:.3f}" + r""" ($p = 0.0053$) \\
+\multirow{3}{*}{PGD Vanishing} & Memory ($M$) & """ + f"{ss_m_van:.1f}" + r""" & 1 & """ + f"{ss_m_van:.1f}" + r""" & """ + f"{f_m_van:.1f}" + r""" & """ + f"{eta_m_van:.3f} (${p_m_v}$)" + r""" \\
+& Query Prior ($Q$) & """ + f"{ss_q_van:.1f}" + r""" & 1 & """ + f"{ss_q_van:.1f}" + r""" & """ + f"{f_q_van:.1f}" + r""" & """ + f"{eta_q_van:.3f} (${p_q_v}$)" + r""" \\
+& Interaction ($M \times Q$) & """ + f"{ss_inter_van:.1f}" + r""" & 1 & """ + f"{ss_inter_van:.1f}" + r""" & """ + f"{f_inter_van:.1f}" + r""" & """ + f"{eta_inter_van:.3f} (${p_i_v}$)" + r""" \\
 \midrule
-\multirow{3}{*}{Standard Task PGD} & Memory ($M$) & """ + f"{ss_m_pgd:.1f}" + r""" & 1 & """ + f"{ss_m_pgd:.1f}" + r""" & """ + f"{f_m_pgd:.1f}" + r""" & """ + f"{eta_m_pgd:.3f}" + r""" ($p < 0.001$) \\
-& Query Prior ($Q$) & """ + f"{ss_q_pgd:.1f}" + r""" & 1 & """ + f"{ss_q_pgd:.1f}" + r""" & """ + f"{f_q_pgd:.1f}" + r""" & """ + f"{eta_q_pgd:.3f}" + r""" ($p < 0.001$) \\
-& Interaction ($M \times Q$) & """ + f"{ss_inter_pgd:.1f}" + r""" & 1 & """ + f"{ss_inter_pgd:.1f}" + r""" & """ + f"{f_inter_pgd:.1f}" + r""" & """ + f"{eta_inter_pgd:.3f}" + r""" ($p < 0.001$) \\
+\multirow{3}{*}{Standard Task PGD} & Memory ($M$) & """ + f"{ss_m_pgd:.1f}" + r""" & 1 & """ + f"{ss_m_pgd:.1f}" + r""" & """ + f"{f_m_pgd:.1f}" + r""" & """ + f"{eta_m_pgd:.3f} (${p_m_p}$)" + r""" \\
+& Query Prior ($Q$) & """ + f"{ss_q_pgd:.1f}" + r""" & 1 & """ + f"{ss_q_pgd:.1f}" + r""" & """ + f"{f_q_pgd:.1f}" + r""" & """ + f"{eta_q_pgd:.3f} (${p_q_p}$)" + r""" \\
+& Interaction ($M \times Q$) & """ + f"{ss_inter_pgd:.1f}" + r""" & 1 & """ + f"{ss_inter_pgd:.1f}" + r""" & """ + f"{f_inter_pgd:.1f}" + r""" & """ + f"{eta_inter_pgd:.3f} (${p_i_p}$)" + r""" \\
 \bottomrule
 \end{tabular}%
 }
@@ -515,27 +642,38 @@ def generate_table5(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     pgd_l2_fg = _req_l2("taskpgd", "Foreground")
     pgd_l2_bg = _req_l2("taskpgd", "Background")
 
+    n_eval_t5 = int(mem_data.get("n_images", 0))
+    n_str_t5 = f"Evaluated on $N = {n_eval_t5:,}$ cohort." if n_eval_t5 > 0 else ""
+    t_steps_t5 = int(mem_data.get("pgd_steps", get_pgd_num_steps()))
+    eff_res_t5 = int(get_img_size())
+
     headers = ["Condition", "Overall Cosine", "Per-Scale Cosine (S3/S4/S5)", "FG Rel. L2", "BG Rel. L2", "FG/BG Ratio", "Cosine Gap (S5 - S4)"]
     rows = [
-        ["Gaussian Noise (sigma = 16/255)", "0.9240", "0.915 / 0.942 / 0.962", "0.3210", "0.3840", "0.8359", "+0.020"],
-        ["PGD Vanishing (T = 15)", f"{van_cos_ov:.4f}", f"{van_cos_s3:.3f} / {van_cos_s4:.3f} / {van_cos_s5:.3f}", f"{van_l2_fg:.4f}", f"{van_l2_bg:.4f}", f"{van_l2_fg/van_l2_bg if van_l2_bg > 0 else 1.0:.4f}", f"+{van_cos_s5 - van_cos_s4:.3f}"],
-        ["AQSM Probe (T = 15)", f"{aq_cos_ov:.4f}", f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}", f"{aq_l2_fg:.4f}", f"{aq_l2_bg:.4f}", f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}", f"+{aq_cos_s5 - aq_cos_s4:.3f}"],
-        ["Standard Task PGD (T = 15)", f"{pgd_cos_ov:.4f}", f"{pgd_cos_s3:.3f} / {pgd_cos_s4:.3f} / {pgd_cos_s5:.3f}", f"{pgd_l2_fg:.4f}", f"{pgd_l2_bg:.4f}", f"{pgd_l2_fg/pgd_l2_bg if pgd_l2_bg > 0 else 1.0:.4f}", f"{pgd_cos_s5 - pgd_cos_s4:.3f}"],
+        [f"PGD Vanishing (T = {t_steps_t5})", f"{van_cos_ov:.4f}", f"{van_cos_s3:.3f} / {van_cos_s4:.3f} / {van_cos_s5:.3f}", f"{van_l2_fg:.4f}", f"{van_l2_bg:.4f}", f"{van_l2_fg/van_l2_bg if van_l2_bg > 0 else 1.0:.4f}", f"{van_cos_s5 - van_cos_s4:+.3f}"],
+        [f"AQSM Probe (T = {t_steps_t5})", f"{aq_cos_ov:.4f}", f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}", f"{aq_l2_fg:.4f}", f"{aq_l2_bg:.4f}", f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}", f"{aq_cos_s5 - aq_cos_s4:+.3f}"],
+        [f"Standard Task PGD (T = {t_steps_t5})", f"{pgd_cos_ov:.4f}", f"{pgd_cos_s3:.3f} / {pgd_cos_s4:.3f} / {pgd_cos_s5:.3f}", f"{pgd_l2_fg:.4f}", f"{pgd_l2_bg:.4f}", f"{pgd_l2_fg/pgd_l2_bg if pgd_l2_bg > 0 else 1.0:.4f}", f"{pgd_cos_s5 - pgd_cos_s4:+.3f}"],
     ]
+    noise_tex_row = ""
+    if "noise" in mem or "gaussian_noise" in mem:
+        nk = "gaussian_noise" if "gaussian_noise" in mem else "noise"
+        nc_ov = _req_cos(nk, "Overall")
+        nc_s3, nc_s4, nc_s5 = _req_cos(nk, "S3"), _req_cos(nk, "S4"), _req_cos(nk, "S5")
+        nl_fg, nl_bg = _req_l2(nk, "Foreground"), _req_l2(nk, "Background")
+        rows.insert(0, ["Gaussian Noise (sigma = 16/255)", f"{nc_ov:.4f}", f"{nc_s3:.3f} / {nc_s4:.3f} / {nc_s5:.3f}", f"{nl_fg:.4f}", f"{nl_bg:.4f}", f"{nl_fg/nl_bg if nl_bg > 0 else 1.0:.4f}", f"{nc_s5 - nc_s4:+.3f}"])
+        noise_tex_row = f"Gaussian Noise ($\\sigma = 16/255$) & {nc_ov:.4f} & {nc_s3:.3f} / {nc_s4:.3f} / {nc_s5:.3f} & {nl_fg:.4f} & {nl_bg:.4f} & {nl_fg/nl_bg if nl_bg > 0 else 1.0:.4f} & {nc_s5 - nc_s4:+.3f} \\\\\n"
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Encoder memory feature perturbation on COCO val2017 at native $640 \times 640$ resolution across feature scales ($S_3 = 80 \times 80, S_4 = 40 \times 40, S_5 = 20 \times 20$) and semantic regions (GT Foreground tokens vs.\ Background tokens). Evaluated on $N = 1,000$ cohort.}
+\caption{Encoder memory feature perturbation on COCO val2017 at native $""" + f"{eff_res_t5} \\times {eff_res_t5}" + r"""$ resolution across feature scales ($S_3, S_4, S_5$) and semantic regions (GT Foreground tokens vs.\ Background tokens). """ + n_str_t5 + r"""}
 \label{tab:tab5_memory_scales}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Condition} & \textbf{Overall Cosine} & \textbf{Per-Scale Cosine ($S_3/S_4/S_5$)} & \textbf{FG Rel. $\ell_2$} & \textbf{BG Rel. $\ell_2$} & \textbf{FG/BG Ratio} & \textbf{Cosine Gap ($S_5 - S_4$)} \\
 \midrule
-Gaussian Noise ($\sigma = 16/255$) & 0.9240 & 0.915 / 0.942 / 0.962 & 0.3210 & 0.3840 & 0.8359 & $+0.020$ \\
-PGD Vanishing ($T = 15$) & """ + f"{van_cos_ov:.4f}" + r""" & """ + f"{van_cos_s3:.3f} / {van_cos_s4:.3f} / {van_cos_s5:.3f}" + r""" & """ + f"{van_l2_fg:.4f}" + r""" & """ + f"{van_l2_bg:.4f}" + r""" & """ + f"{van_l2_fg/van_l2_bg if van_l2_bg > 0 else 1.0:.4f}" + r""" & """ + f"+{van_cos_s5 - van_cos_s4:.3f}" + r""" \\
-AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_cos_ov:.4f}" + r"""} & \textbf{""" + f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}" + r"""} & \textbf{""" + f"{aq_l2_fg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_bg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}" + r"""} & \textbf{+""" + f"{aq_cos_s5 - aq_cos_s4:.3f}" + r"""} \\
-Standard Task PGD ($T = 15$) & """ + f"{pgd_cos_ov:.4f}" + r""" & """ + f"{pgd_cos_s3:.3f} / {pgd_cos_s4:.3f} / {pgd_cos_s5:.3f}" + r""" & """ + f"{pgd_l2_fg:.4f}" + r""" & """ + f"{pgd_l2_bg:.4f}" + r""" & """ + f"{pgd_l2_fg/pgd_l2_bg if pgd_l2_bg > 0 else 1.0:.4f}" + r""" & """ + f"{pgd_cos_s5 - pgd_cos_s4:.3f}" + r""" \\
+""" + noise_tex_row + f"PGD Vanishing ($T = {t_steps_t5}$) & " + f"{van_cos_ov:.4f}" + r""" & """ + f"{van_cos_s3:.3f} / {van_cos_s4:.3f} / {van_cos_s5:.3f}" + r""" & """ + f"{van_l2_fg:.4f}" + r""" & """ + f"{van_l2_bg:.4f}" + r""" & """ + f"{van_l2_fg/van_l2_bg if van_l2_bg > 0 else 1.0:.4f}" + r""" & """ + f"{van_cos_s5 - van_cos_s4:+.3f}" + r""" \\
+""" + f"AQSM Probe ($T = {t_steps_t5}$) & " + r"""\textbf{""" + f"{aq_cos_ov:.4f}" + r"""} & \textbf{""" + f"{aq_cos_s3:.3f} / {aq_cos_s4:.3f} / {aq_cos_s5:.3f}" + r"""} & \textbf{""" + f"{aq_l2_fg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_bg:.4f}" + r"""} & \textbf{""" + f"{aq_l2_fg/aq_l2_bg if aq_l2_bg > 0 else 1.0:.4f}" + r"""} & \textbf{""" + f"{aq_cos_s5 - aq_cos_s4:+.3f}" + r"""} \\
+""" + f"Standard Task PGD ($T = {t_steps_t5}$) & " + f"{pgd_cos_ov:.4f}" + r""" & """ + f"{pgd_cos_s3:.3f} / {pgd_cos_s4:.3f} / {pgd_cos_s5:.3f}" + r""" & """ + f"{pgd_l2_fg:.4f}" + r""" & """ + f"{pgd_l2_bg:.4f}" + r""" & """ + f"{pgd_l2_fg/pgd_l2_bg if pgd_l2_bg > 0 else 1.0:.4f}" + r""" & """ + f"{pgd_cos_s5 - pgd_cos_s4:+.3f}" + r""" \\
 \bottomrule
 \end{tabular}%
 }
@@ -586,21 +724,41 @@ def generate_table6(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     pgd_tau = require_stat(require_val(pgd, ["kendall_tau_all_proposals"], "pgd.kendall"))
     pgd_ev = require_stat(require_val(pgd, ["evicted_top15_fg_pct"], "pgd.evicted_top15"))
 
-    mis_ref = safe_load_json([summary_dir / "controlled_misrouting_results.json", OUTPUTS_DIR / "summary_json" / "controlled_misrouting_results.json"])
-    aq_fghit_t8 = float(require_val(mis_ref, ["table8_summary", "AQSM_Spatial_Misrouting", "fg_hit_pct"], "t8.aqsm.fg_hit_pct"))
+    mis_ref = safe_load_json([
+        summary_dir / "controlled_misrouting_results.json",
+        summary_dir / "tautology_control_results.json",
+    ], default_dict={})
+    aq_fghit_raw = mis_ref.get("table8_summary", {}).get("AQSM_Spatial_Misrouting", {}).get("fg_hit_pct")
+    fghit_note = f", while anchor foreground hit rate drops to ${float(aq_fghit_raw):.2f}\\%$ under AQSM" if aq_fghit_raw is not None else ""
+
+    n_eval_t6 = int(dyn_data.get("n_images", 0))
+    n_str_t6 = f", $N = {n_eval_t6:,}$ images" if n_eval_t6 > 0 else ""
+    t_steps_t6 = int(dyn_data.get("pgd_steps", get_pgd_num_steps()))
+    eff_res_t6 = int(get_img_size())
 
     headers = ["Condition", "Top-300 Overlap", "Spearman rho", "Kendall tau", "Evicted Top-15 FG", "GT Coverage (Center)", "GT Coverage (IoU >= 0.30)"]
     rows = [
         ["Clean Baseline", "100.0% [Ref.]", "1.000", "1.000", "0.0%", f"{clean_cg:.2f}%", f"{clean_iou30:.2f}%"],
-        ["Gaussian Noise (sigma = 16/255)", "82.40%", "0.892", "0.735", "11.20%", "94.50%", "92.10%"],
-        ["PGD Vanishing (T = 15)", f"{van_ov:.2f}%", f"{van_rho:.3f}", f"{van_tau:.3f}", f"{van_ev:.2f}%", f"{van_cg:.2f}%", f"{van_iou30:.2f}%"],
-        ["AQSM Probe (T = 15)", f"{aq_ov:.2f}%", f"{aq_rho:.3f}", f"{aq_tau:.3f}", f"{aq_ev:.2f}%", f"{aq_cg:.2f}%", f"{aq_iou30:.2f}%"],
-        ["Standard Task PGD (T = 15)", f"{pgd_ov:.2f}%", f"{pgd_rho:.3f}", f"{pgd_tau:.3f}", f"{pgd_ev:.2f}%", f"{pgd_cg:.2f}%", f"{pgd_iou30:.2f}%"],
+        [f"PGD Vanishing (T = {t_steps_t6})", f"{van_ov:.2f}%", f"{van_rho:.3f}", f"{van_tau:.3f}", f"{van_ev:.2f}%", f"{van_cg:.2f}%", f"{van_iou30:.2f}%"],
+        [f"AQSM Probe (T = {t_steps_t6})", f"{aq_ov:.2f}%", f"{aq_rho:.3f}", f"{aq_tau:.3f}", f"{aq_ev:.2f}%", f"{aq_cg:.2f}%", f"{aq_iou30:.2f}%"],
+        [f"Standard Task PGD (T = {t_steps_t6})", f"{pgd_ov:.2f}%", f"{pgd_rho:.3f}", f"{pgd_tau:.3f}", f"{pgd_ev:.2f}%", f"{pgd_cg:.2f}%", f"{pgd_iou30:.2f}%"],
     ]
+    noise_tex_t6 = ""
+    if "noise" in dyn or "gaussian_noise" in dyn:
+        nk = "gaussian_noise" if "gaussian_noise" in dyn else "noise"
+        nb = dyn[nk]
+        n_ov = require_stat(nb.get("top300_overlap_pct"), f"{nk}.ov")
+        n_rho = require_stat(nb.get("spearman_rho_all_proposals"), f"{nk}.rho")
+        n_tau = require_stat(nb.get("kendall_tau_all_proposals"), f"{nk}.tau")
+        n_ev = require_stat(nb.get("evicted_top15_fg_pct"), f"{nk}.ev")
+        n_cg = require_stat(nb.get("object_coverage", {}).get("center_in_gt_adv_pct"), f"{nk}.cg")
+        n_iou30 = require_stat(nb.get("object_coverage", {}).get("iou30_adv_pct"), f"{nk}.iou30")
+        rows.insert(1, ["Gaussian Noise (sigma = 16/255)", f"{n_ov:.2f}%", f"{n_rho:.3f}", f"{n_tau:.3f}", f"{n_ev:.2f}%", f"{n_cg:.2f}%", f"{n_iou30:.2f}%"])
+        noise_tex_t6 = f"Gaussian Noise ($\\sigma = 16/255$) & {n_ov:.2f}\\% & {n_rho:.3f} & {n_tau:.3f} & {n_ev:.2f}\\% & {n_cg:.2f}\\% & {n_iou30:.2f}\\% \\\\\n"
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{8,400-to-300 query selection overlap, global rank correlation, foreground eviction, and Ground-Truth object coverage inside top-300 proposals on COCO val2017 ($640 \times 640$, $N = 1,000$ images). GT Coverage denotes the percentage of target objects covered by at least one selected query anchor, while anchor foreground hit rate drops to $""" + f"{aq_fghit_t8:.2f}" + r"""\%$ under AQSM.}
+\caption{Query selection overlap, global rank correlation, foreground eviction, and Ground-Truth object coverage inside selected proposals on COCO val2017 ($""" + f"{eff_res_t6} \\times {eff_res_t6}" + r"""$""" + n_str_t6 + r"""). GT Coverage denotes the percentage of target objects covered by at least one selected query anchor""" + fghit_note + r""".}
 \label{tab:tab6_query_dynamics}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
@@ -608,10 +766,9 @@ def generate_table6(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 \textbf{Condition} & \textbf{Top-300 Overlap} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{Evicted Top-15 FG} & \textbf{GT Coverage (Center)} & \textbf{GT Coverage ($\text{IoU} \ge 0.30$)} \\
 \midrule
 Clean Baseline & 100.0\% [Ref.] & 1.000 & 1.000 & 0.0\% & """ + f"{clean_cg:.2f}\\%" + r""" & """ + f"{clean_iou30:.2f}\\%" + r""" \\
-Gaussian Noise ($\sigma = 16/255$) & 82.40\% & 0.892 & 0.735 & 11.20\% & 94.50\% & 92.10\% \\
-PGD Vanishing ($T = 15$) & """ + f"{van_ov:.2f}\\%" + r""" & """ + f"{van_rho:.3f}" + r""" & """ + f"{van_tau:.3f}" + r""" & """ + f"{van_ev:.2f}\\%" + r""" & """ + f"{van_cg:.2f}\\%" + r""" & """ + f"{van_iou30:.2f}\\%" + r""" \\
-AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_ov:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rho:.3f}" + r"""} & \textbf{""" + f"{aq_tau:.3f}" + r"""} & \textbf{""" + f"{aq_ev:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cg:.2f}\\%" + r"""} & \textbf{""" + f"{aq_iou30:.2f}\\%" + r"""} \\
-Standard Task PGD ($T = 15$) & """ + f"{pgd_ov:.2f}\\%" + r""" & """ + f"{pgd_rho:.3f}" + r""" & """ + f"{pgd_tau:.3f}" + r""" & """ + f"{pgd_ev:.2f}\\%" + r""" & """ + f"{pgd_cg:.2f}\\%" + r""" & """ + f"{pgd_iou30:.2f}\\%" + r""" \\
+""" + noise_tex_t6 + f"PGD Vanishing ($T = {t_steps_t6}$) & " + f"{van_ov:.2f}\\%" + r""" & """ + f"{van_rho:.3f}" + r""" & """ + f"{van_tau:.3f}" + r""" & """ + f"{van_ev:.2f}\\%" + r""" & """ + f"{van_cg:.2f}\\%" + r""" & """ + f"{van_iou30:.2f}\\%" + r""" \\
+""" + f"AQSM Probe ($T = {t_steps_t6}$) & " + r"""\textbf{""" + f"{aq_ov:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rho:.3f}" + r"""} & \textbf{""" + f"{aq_tau:.3f}" + r"""} & \textbf{""" + f"{aq_ev:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cg:.2f}\\%" + r"""} & \textbf{""" + f"{aq_iou30:.2f}\\%" + r"""} \\
+""" + f"Standard Task PGD ($T = {t_steps_t6}$) & " + f"{pgd_ov:.2f}\\%" + r""" & """ + f"{pgd_rho:.3f}" + r""" & """ + f"{pgd_tau:.3f}" + r""" & """ + f"{pgd_ev:.2f}\\%" + r""" & """ + f"{pgd_cg:.2f}\\%" + r""" & """ + f"{pgd_iou30:.2f}\\%" + r""" \\
 \bottomrule
 \end{tabular}%
 }
@@ -682,33 +839,40 @@ def generate_table7(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     pgd_drift = float(require_val(pgd, ["mean_ref_drift"], "tel.pgd.ref_drift"))
     pgd_drift_std = float(require_val(pgd, ["std_ref_drift"], "tel.pgd.std_ref_drift"))
 
-    mis_ref = safe_load_json([summary_dir / "controlled_misrouting_results.json", OUTPUTS_DIR / "summary_json" / "controlled_misrouting_results.json"])
-    aq_hung_t8 = float(require_val(mis_ref, ["table8_summary", "AQSM_Spatial_Misrouting", "hungarian_dist"], "t8.aqsm.hungarian_dist"))
+    mis_ref = safe_load_json([
+        summary_dir / "controlled_misrouting_results.json",
+        summary_dir / "tautology_control_results.json",
+    ], default_dict={})
+    aq_hung_raw = mis_ref.get("table8_summary", {}).get("AQSM_Spatial_Misrouting", {}).get("hungarian_dist")
+    hung_note = rf" (corresponding permutation-invariant Hungarian set distance is $\Delta_{{\mathrm{{Hungarian}}}} = {float(aq_hung_raw):.4f}$)" if aq_hung_raw is not None else ""
     ent_delta = aq_ent - cl_ent
+
+    n_eval_t7 = int(tel.get("n_images", cl.get("n_images", 0)))
+    n_str_t7 = f" on $N = {n_eval_t7:,}$ images" if n_eval_t7 > 0 else ""
+    t_steps_t7 = int(tel.get("pgd_steps", get_pgd_num_steps()))
+    eff_res_t7 = int(get_img_size())
 
     headers = ["Condition", "Norm. Attention Entropy", "Spatial Sampling Hit Rate (FG)", "Reference Drift (Delta p)", "Dropoff Ratio", "Score Margin"]
     rows = [
         ["Clean Baseline", f"{cl_ent:.4f} ± {cl_ent_std:.4f}", f"{cl_hit:.2f}%", f"{cl_drift:.4f}", f"{cl_drop:.2f} ± {cl_drop_std:.2f}", f"{cl_marg:.4f} ± {cl_marg_std:.4f}"],
-        ["Gaussian Noise (sigma = 16/255)", "0.8005 ± 0.0430", "58.40%", "0.0150", "32.10 ± 21.40", "0.7650 ± 0.1250"],
-        ["PGD Vanishing (T = 15)", f"{van_ent:.4f} ± {van_ent_std:.4f}", f"{van_hit:.2f}%", f"{van_drift:.4f} ± {van_drift_std:.4f}", f"{van_drop:.2f} ± {van_drop_std:.2f}", f"{van_marg:.4f} ± {van_marg_std:.4f}"],
-        ["AQSM Probe (T = 15)", f"{aq_ent:.4f} ± {aq_ent_std:.4f}", f"{aq_hit:.2f}%", f"{aq_drift:.4f} ± {aq_drift_std:.4f}", f"{aq_drop:.2f} ± {aq_drop_std:.2f}", f"{aq_marg:.4f} ± {aq_marg_std:.4f}"],
-        ["Standard Task PGD (T = 15)", f"{pgd_ent:.4f} ± {pgd_ent_std:.4f}", f"{pgd_hit:.2f}%", f"{pgd_drift:.4f} ± {pgd_drift_std:.4f}", f"{pgd_drop:.2f} ± {pgd_drop_std:.2f}", f"{pgd_marg:.4f} ± {pgd_marg_std:.4f}"],
+        [f"PGD Vanishing (T = {t_steps_t7})", f"{van_ent:.4f} ± {van_ent_std:.4f}", f"{van_hit:.2f}%", f"{van_drift:.4f} ± {van_drift_std:.4f}", f"{van_drop:.2f} ± {van_drop_std:.2f}", f"{van_marg:.4f} ± {van_marg_std:.4f}"],
+        [f"AQSM Probe (T = {t_steps_t7})", f"{aq_ent:.4f} ± {aq_ent_std:.4f}", f"{aq_hit:.2f}%", f"{aq_drift:.4f} ± {aq_drift_std:.4f}", f"{aq_drop:.2f} ± {aq_drop_std:.2f}", f"{aq_marg:.4f} ± {aq_marg_std:.4f}"],
+        [f"Standard Task PGD (T = {t_steps_t7})", f"{pgd_ent:.4f} ± {pgd_ent_std:.4f}", f"{pgd_hit:.2f}%", f"{pgd_drift:.4f} ± {pgd_drift_std:.4f}", f"{pgd_drop:.2f} ± {pgd_drop_std:.2f}", f"{pgd_marg:.4f} ± {pgd_marg_std:.4f}"],
     ]
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across all 3 decoder layers, 8 heads, 3 scales, $K = 4$ points on $N = 1,000$ images). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = """ + f"{ent_delta:+.4f}" + r"""$, from $""" + f"{cl_ent:.4f} \\to {aq_ent:.4f}" + r"""$; Layer 1: $""" + f"{cl_l1:.4f} \\to {aq_l1:.4f}" + r"""$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $""" + f"{cl_hit:.2f}\\%" + r"""$ to $""" + f"{aq_hit:.2f}\\%" + r"""$. Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = """ + f"{aq_hung_t8:.4f}" + r"""$).}
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($""" + f"{eff_res_t7} \\times {eff_res_t7}" + r"""$, averaged across decoder layers, 8 heads, multi-scale tokens""" + n_str_t7 + r"""). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = """ + f"{ent_delta:+.4f}" + r"""$, from $""" + f"{cl_ent:.4f} \\to {aq_ent:.4f}" + r"""$; Layer 1: $""" + f"{cl_l1:.4f} \\to {aq_l1:.4f}" + r"""$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $""" + f"{cl_hit:.2f}\\%" + r"""$ to $""" + f"{aq_hit:.2f}\\%" + r"""$. Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement""" + hung_note + r""".}
 \label{tab:tab7_attention_telemetry}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Condition} & \textbf{Norm. Attention Entropy} & \textbf{Spatial Sampling Hit Rate (FG)} & \textbf{Reference Drift ($\Delta p$)} & \textbf{Dropoff Ratio} & \textbf{Score Margin} \\
 \midrule
-Clean Baseline & """ + f"{cl_ent:.4f} $\\pm$ {cl_ent_std:.4f}" + r""" & """ + f"{cl_hit:.2f}\\% [61.8, 65.2]" + r""" & 0.0000 & """ + f"{cl_drop:.2f} $\\pm$ {cl_drop_std:.2f}" + r""" & """ + f"{cl_marg:.4f} $\\pm$ {cl_marg_std:.4f}" + r""" \\
-Gaussian Noise ($\sigma = 16/255$) & 0.8005 $\pm$ 0.0430 & 58.40\% [55.8, 61.0] & 0.0150 & 32.10 $\pm$ 21.40 & 0.7650 $\pm$ 0.1250 \\
-PGD Vanishing ($T = 15$) & \textbf{""" + f"{van_ent:.4f} $\\pm$ {van_ent_std:.4f}" + r"""} & """ + f"{van_hit:.2f}\\% [45.8, 51.8]" + r""" & """ + f"{van_drift:.4f} $\\pm$ {van_drift_std:.4f}" + r""" & """ + f"{van_drop:.2f} $\\pm$ {van_drop_std:.2f}" + r""" & """ + f"{van_marg:.4f} $\\pm$ {van_marg_std:.4f}" + r""" \\
-AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_ent:.4f} $\\pm$ {aq_ent_std:.4f}" + r"""} & \textbf{""" + f"{aq_hit:.2f}\\% [41.2, 45.2]" + r"""} & \textbf{""" + f"{aq_drift:.4f} $\\pm$ {aq_drift_std:.4f}" + r"""} & \textbf{""" + f"{aq_drop:.2f} $\\pm$ {aq_drop_std:.2f}" + r"""} & \textbf{""" + f"{aq_marg:.4f} $\\pm$ {aq_marg_std:.4f}" + r"""} \\
-Standard Task PGD ($T = 15$) & """ + f"{pgd_ent:.4f} $\\pm$ {pgd_ent_std:.4f}" + r""" & """ + f"{pgd_hit:.2f}\\% [49.2, 54.9]" + r""" & """ + f"{pgd_drift:.4f} $\\pm$ {pgd_drift_std:.4f}" + r""" & """ + f"{pgd_drop:.2f} $\\pm$ {pgd_drop_std:.2f}" + r""" & """ + f"{pgd_marg:.4f} $\\pm$ {pgd_marg_std:.4f}" + r""" \\
+Clean Baseline & """ + f"{cl_ent:.4f} $\\pm$ {cl_ent_std:.4f}" + r""" & """ + f"{cl_hit:.2f}\\%" + r""" & """ + f"{cl_drift:.4f}" + r""" & """ + f"{cl_drop:.2f} $\\pm$ {cl_drop_std:.2f}" + r""" & """ + f"{cl_marg:.4f} $\\pm$ {cl_marg_std:.4f}" + r""" \\
+PGD Vanishing ($T = 15$) & \textbf{""" + f"{van_ent:.4f} $\\pm$ {van_ent_std:.4f}" + r"""} & """ + f"{van_hit:.2f}\\%" + r""" & """ + f"{van_drift:.4f} $\\pm$ {van_drift_std:.4f}" + r""" & """ + f"{van_drop:.2f} $\\pm$ {van_drop_std:.2f}" + r""" & """ + f"{van_marg:.4f} $\\pm$ {van_marg_std:.4f}" + r""" \\
+AQSM Probe ($T = 15$) & \textbf{""" + f"{aq_ent:.4f} $\\pm$ {aq_ent_std:.4f}" + r"""} & \textbf{""" + f"{aq_hit:.2f}\\%" + r"""} & \textbf{""" + f"{aq_drift:.4f} $\\pm$ {aq_drift_std:.4f}" + r"""} & \textbf{""" + f"{aq_drop:.2f} $\\pm$ {aq_drop_std:.2f}" + r"""} & \textbf{""" + f"{aq_marg:.4f} $\\pm$ {aq_marg_std:.4f}" + r"""} \\
+Standard Task PGD ($T = 15$) & """ + f"{pgd_ent:.4f} $\\pm$ {pgd_ent_std:.4f}" + r""" & """ + f"{pgd_hit:.2f}\\%" + r""" & """ + f"{pgd_drift:.4f} $\\pm$ {pgd_drift_std:.4f}" + r""" & """ + f"{pgd_drop:.2f} $\\pm$ {pgd_drop_std:.2f}" + r""" & """ + f"{pgd_marg:.4f} $\\pm$ {pgd_marg_std:.4f}" + r""" \\
 \bottomrule
 \end{tabular}%
 }
@@ -842,9 +1006,12 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
         ["AQSM Spatial Misrouting", "---", f"{aq_m50:.2f}% ({aq_m50/_d_cl50*100:.1f}%)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{aq_l2:.4f}", f"{aq_hung:.4f}", f"{aq_fghit:.2f}%", f"{aq_cov:.2f}%"],
     ]
 
+    n_eval_t8 = int(mis.get("n_images", 0))
+    n_str_t8 = f", $N = {n_eval_t8:,}$ images" if n_eval_t8 > 0 else ""
+    eff_res_t8 = int(get_img_size())
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($640 \times 640$, $S = 8,400$, $N = 1,000$ images). Evaluates decoder sensitivity to reference coordinates versus query assignment under pristine clean memory $M_{\mathrm{clean}}$ and content embeddings $H_{\mathrm{cand}}^{\mathrm{clean}}$. Distinguishes rank-paired slot displacement ($\text{Slot Disp.}$, $L_2 = """ + f"{rr_l2:.4f}" + r"""$ under pure slot permutation) from permutation-invariant Hungarian matching distance ($\text{Hungarian Dist.}$, $""" + f"{rr_hung:.4f}" + r"""$ for Random Reassignment). Evaluates empirical Ground-Truth Object Coverage ($\text{GT Obj. Cov.}$, $\text{Cov}_{\text{center}}$) alongside Anchor Foreground Hit rate ($\text{Ref FG Hit}$).}
+\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($""" + f"{eff_res_t8} \\times {eff_res_t8}" + r"""$""" + n_str_t8 + r"""). Evaluates decoder sensitivity to reference coordinates versus query assignment under pristine clean memory $M_{\mathrm{clean}}$ and content embeddings $H_{\mathrm{cand}}^{\mathrm{clean}}$. Distinguishes rank-paired slot displacement ($\text{Slot Disp.}$, $L_2 = """ + f"{rr_l2:.4f}" + r"""$ under pure slot permutation) from permutation-invariant Hungarian matching distance ($\text{Hungarian Dist.}$, $""" + f"{rr_hung:.4f}" + r"""$ for Random Reassignment). Evaluates empirical Ground-Truth Object Coverage ($\text{GT Obj. Cov.}$, $\text{Cov}_{\text{center}}$) alongside Anchor Foreground Hit rate ($\text{Ref FG Hit}$).}
 \label{tab:tab8_controlled_misrouting}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
@@ -888,7 +1055,22 @@ def generate_table9(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 
     headers = ["Perturb. Budget (eps)", "Metric / Telemetry Indicator", "Standard Task PGD", "AQSM (Encoder Ranking)", "PGD Vanishing"]
     rows = []
-    for eps_key, eps_label in [("eps_4", "4/255 (0.0157)"), ("eps_8", "8/255 (0.0314)"), ("eps_16", "16/255 (0.0627)")]:
+    available_eps_keys = sorted(
+        [k for k in aq_sw.keys() if k.startswith("eps_") and k in pgd_sw and k in van_sw],
+        key=lambda x: int(x.split("_")[1]) if x.split("_")[1].isdigit() else 0,
+    )
+    if not available_eps_keys:
+        raise KeyError("Không tìm thấy khóa eps_* chung nào giữa aqsm/taskpgd/vanishing trong matched_budget!")
+
+    eps_tex_blocks: List[str] = []
+    eps_caption_vals: List[str] = []
+    for idx_e, eps_key in enumerate(available_eps_keys):
+        eps_num_str = eps_key.split("_")[1]
+        eps_num_i = int(eps_num_str) if eps_num_str.isdigit() else 16
+        eps_f = eps_num_i / 255.0
+        eps_label = f"{eps_num_i}/255 ({eps_f:.4f})"
+        eps_caption_vals.append(f"{eps_num_i}/255")
+
         aq = require_val(aq_sw, [eps_key], f"matched.aqsm.{eps_key}")
         pgd = require_val(pgd_sw, [eps_key], f"matched.taskpgd.{eps_key}")
         van = require_val(van_sw, [eps_key], f"matched.vanishing.{eps_key}")
@@ -896,35 +1078,48 @@ def generate_table9(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
         rows.append([eps_label, "COCO mAP@50 (mAP@50:95)", f"{float(pgd['mAP@50']):.2f}% ({float(pgd['mAP@50:95']):.2f}%)", f"{float(aq['mAP@50']):.2f}% ({float(aq['mAP@50:95']):.2f}%)", f"{float(van['mAP@50']):.2f}% ({float(van['mAP@50:95']):.2f}%)"])
         rows.append(["", "Relative Drop / Retention", f"-{float(pgd['relative_drop_pct']):.2f}% ({100-float(pgd['relative_drop_pct']):.1f}% Ret.)", f"-{float(aq['relative_drop_pct']):.2f}% ({100-float(aq['relative_drop_pct']):.1f}% Ret.)", f"-{float(van['relative_drop_pct']):.2f}% ({100-float(van['relative_drop_pct']):.1f}% Ret.)"])
 
-    aq_16 = require_val(aq_sw, ["eps_16"], "aq.eps_16")
-    pgd_16 = require_val(pgd_sw, ["eps_16"], "pgd.eps_16")
-    van_16 = require_val(van_sw, ["eps_16"], "van.eps_16")
+        is_last = idx_e == (len(available_eps_keys) - 1)
+        if is_last:
+            row1 = (
+                rf"\multirow{{2}}{{*}}{{${eps_num_i}/255$ (${eps_f:.4f}$)}} & COCO mAP@50 (mAP@50:95) & "
+                f"{float(pgd['mAP@50']):.2f}\\% ({float(pgd['mAP@50:95']):.2f}\\%) & "
+                rf"\textbf{{{float(aq['mAP@50']):.2f}\% ({float(aq['mAP@50:95']):.2f}\%)}} & "
+                f"{float(van['mAP@50']):.2f}\\% ({float(van['mAP@50:95']):.2f}\\%) \\\\"
+            )
+            row2 = (
+                f"& Relative Drop / Retention & $-${float(pgd['relative_drop_pct']):.2f}\\% ({100-float(pgd['relative_drop_pct']):.1f}\\% Ret.) & "
+                rf"\textbf{{$-${float(aq['relative_drop_pct']):.2f}\% ({100-float(aq['relative_drop_pct']):.1f}\% Ret.)}} & "
+                f"$-${float(van['relative_drop_pct']):.2f}\\% ({100-float(van['relative_drop_pct']):.1f}\\% Ret.) \\\\"
+            )
+        else:
+            row1 = (
+                rf"\multirow{{2}}{{*}}{{${eps_num_i}/255$ (${eps_f:.4f}$)}} & COCO mAP@50 (mAP@50:95) & "
+                f"{float(pgd['mAP@50']):.2f}\\% ({float(pgd['mAP@50:95']):.2f}\\%) & "
+                f"{float(aq['mAP@50']):.2f}\\% ({float(aq['mAP@50:95']):.2f}\\%) & "
+                f"{float(van['mAP@50']):.2f}\\% ({float(van['mAP@50:95']):.2f}\\%) \\\\"
+            )
+            row2 = (
+                f"& Relative Drop / Retention & $-${float(pgd['relative_drop_pct']):.2f}\\% ({100-float(pgd['relative_drop_pct']):.1f}\\% Ret.) & "
+                f"$-${float(aq['relative_drop_pct']):.2f}\\% ({100-float(aq['relative_drop_pct']):.1f}\\% Ret.) & "
+                f"$-${float(van['relative_drop_pct']):.2f}\\% ({100-float(van['relative_drop_pct']):.1f}\\% Ret.) \\\\"
+            )
+        eps_tex_blocks.append(row1 + "\n" + row2)
 
-    aq_8 = require_val(aq_sw, ["eps_8"], "aq.eps_8")
-    pgd_8 = require_val(pgd_sw, ["eps_8"], "pgd.eps_8")
-    van_8 = require_val(van_sw, ["eps_8"], "van.eps_8")
-
-    aq_4 = require_val(aq_sw, ["eps_4"], "aq.eps_4")
-    pgd_4 = require_val(pgd_sw, ["eps_4"], "pgd.eps_4")
-    van_4 = require_val(van_sw, ["eps_4"], "van.eps_4")
+    n_eval_t9 = int(matched_data.get("n_images", 0))
+    n_str_t9 = f" on $N = {n_eval_t9:,}$ images" if n_eval_t9 > 0 else ""
+    eff_res_t9 = int(get_img_size())
+    eps_cap_str = ", ".join(eps_caption_vals)
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Matched-budget mechanistic comparison on COCO val2017 at native $640 \times 640$ resolution across $\epsilon \in \{4/255, 8/255, 16/255\}$ on $N = 1,000$ images. Demonstrates that Standard Task PGD degrades detection metrics across budgets, while AQSM accentuates encoder query eviction and spatial misrouting as an essential secondary transmission channel alongside encoder memory corruption.}
+\caption{Matched-budget mechanistic comparison on COCO val2017 at native $""" + f"{eff_res_t9} \\times {eff_res_t9}" + r"""$ resolution across $\epsilon \in \{""" + eps_cap_str + r"""\}$""" + n_str_t9 + r""". Demonstrates that Standard Task PGD degrades detection metrics across budgets, while AQSM accentuates encoder query eviction and spatial misrouting as an essential secondary transmission channel alongside encoder memory corruption.}
 \label{tab:tab9_matched_budget}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llccc}
 \toprule
 \textbf{Perturb. Budget ($\epsilon$)} & \textbf{Metric / Telemetry Indicator} & \textbf{Standard Task PGD} & \textbf{AQSM (Encoder Ranking)} & \textbf{PGD Vanishing} \\
 \midrule
-\multirow{2}{*}{$4/255$ ($0.0157$)} & COCO mAP@50 (mAP@50:95) & """ + f"{float(pgd_4['mAP@50']):.2f}\\% ({float(pgd_4['mAP@50:95']):.2f}\\%)" + r""" & """ + f"{float(aq_4['mAP@50']):.2f}\\% ({float(aq_4['mAP@50:95']):.2f}\\%)" + r""" & """ + f"{float(van_4['mAP@50']):.2f}\\% ({float(van_4['mAP@50:95']):.2f}\\%)" + r""" \\
-& Relative Drop / Retention & """ + f"$-${float(pgd_4['relative_drop_pct']):.2f}\\% ({100-float(pgd_4['relative_drop_pct']):.1f}\\% Ret.)" + r""" & """ + f"$-${float(aq_4['relative_drop_pct']):.2f}\\% ({100-float(aq_4['relative_drop_pct']):.1f}\\% Ret.)" + r""" & """ + f"$-${float(van_4['relative_drop_pct']):.2f}\\% ({100-float(van_4['relative_drop_pct']):.1f}\\% Ret.)" + r""" \\
-\midrule
-\multirow{2}{*}{$8/255$ ($0.0314$)} & COCO mAP@50 (mAP@50:95) & """ + f"{float(pgd_8['mAP@50']):.2f}\\% ({float(pgd_8['mAP@50:95']):.2f}\\%)" + r""" & """ + f"{float(aq_8['mAP@50']):.2f}\\% ({float(aq_8['mAP@50:95']):.2f}\\%)" + r""" & """ + f"{float(van_8['mAP@50']):.2f}\\% ({float(van_8['mAP@50:95']):.2f}\\%)" + r""" \\
-& Relative Drop / Retention & """ + f"$-${float(pgd_8['relative_drop_pct']):.2f}\\% ({100-float(pgd_8['relative_drop_pct']):.1f}\\% Ret.)" + r""" & """ + f"$-${float(aq_8['relative_drop_pct']):.2f}\\% ({100-float(aq_8['relative_drop_pct']):.1f}\\% Ret.)" + r""" & """ + f"$-${float(van_8['relative_drop_pct']):.2f}\\% ({100-float(van_8['relative_drop_pct']):.1f}\\% Ret.)" + r""" \\
-\midrule
-\multirow{2}{*}{$16/255$ ($0.0627$)} & COCO mAP@50 (mAP@50:95) & """ + f"{float(pgd_16['mAP@50']):.2f}\\% ({float(pgd_16['mAP@50:95']):.2f}\\%)" + r""" & \textbf{""" + f"{float(aq_16['mAP@50']):.2f}\\% ({float(aq_16['mAP@50:95']):.2f}\\%)" + r"""} & """ + f"{float(van_16['mAP@50']):.2f}\\% ({float(van_16['mAP@50:95']):.2f}\\%)" + r""" \\
-& Relative Drop / Retention & """ + f"$-${float(pgd_16['relative_drop_pct']):.2f}\\% ({100-float(pgd_16['relative_drop_pct']):.1f}\\% Ret.)" + r""" & \textbf{$-$""" + f"{float(aq_16['relative_drop_pct']):.2f}\\% ({100-float(aq_16['relative_drop_pct']):.1f}\\% Ret.)" + r"""} & """ + f"$-${float(van_16['relative_drop_pct']):.2f}\\% ({100-float(van_16['relative_drop_pct']):.1f}\\% Ret.)" + r""" \\
+""" + "\n\\midrule\n".join(eps_tex_blocks) + r"""
 \bottomrule
 \end{tabular}%
 }
@@ -941,7 +1136,7 @@ def generate_table10(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     lat = safe_load_json([
         summary_dir / "edge_latency_results.json",
         summary_dir / "latency_profile.json",
-        OUTPUTS_DIR / "summary_json" / "edge_latency_results.json",
+        get_summary_json_dir() / "edge_latency_results.json",
     ])
 
     stg = require_val(lat, ["stages"], "lat.stages")
@@ -950,33 +1145,79 @@ def generate_table10(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     qs = float(require_val(stg, ["Query_Selection", "mean_ms"], "lat.Query_Selection"))
     dec = float(require_val(stg, ["Deformable_Decoder", "mean_ms"], "lat.Deformable_Decoder"))
     tot = float(require_val(stg, ["End_to_End_Total", "mean_ms"], "lat.End_to_End_Total"))
+    pct_blk = lat.get("percentage_breakdown", {})
+    bb_pct = float(pct_blk.get("Backbone_pct", bb / max(tot, 1e-6) * 100.0))
+    enc_pct = float(pct_blk.get("Hybrid_Encoder_pct", enc / max(tot, 1e-6) * 100.0))
+    qs_pct = float(pct_blk.get("Query_Selection_pct", qs / max(tot, 1e-6) * 100.0))
+    dec_pct = float(pct_blk.get("Deformable_Decoder_pct", dec / max(tot, 1e-6) * 100.0))
 
-    headers = ["Model Architecture", "Operational Condition", "Jetson Orin Nano (ms / FPS)", "Raspberry Pi 5 (ms / FPS)", "Active Detections (tau >= 0.35)", "Measured Latency Stability"]
-    rows = [
-        ["RT-DETR-R18VD", "Clean Baseline", "14.20 ± 0.35 (70.4)", "418.20 ± 12.40 (2.39)", "4.52 ± 3.10", "Stable (NMS-free set prediction)"],
-        ["RT-DETR-R18VD", "Query Vanishing (eps = 16)", "14.21 ± 0.36 (70.4)", "418.80 ± 11.80 (2.39)", "0.18 ± 0.52", "Stable (Delta t = 0.01 ms)"],
-        ["RT-DETR-R18VD", "AQSM Attack (eps = 16)", "14.22 ± 0.38 (70.3)", "418.50 ± 12.10 (2.39)", "7.15 ± 4.30", "Stable (Delta t = 0.02 ms)"],
-        ["RT-DETR-R18VD", "Standard Task PGD (eps = 16)", "14.25 ± 0.40 (70.2)", "419.50 ± 12.80 (2.38)", "29.40 ± 8.70", "Stable (Delta t = 0.05 ms)"],
-        ["YOLOv8-S (Baseline)", "Clean Baseline", "11.50 ± 0.28 (87.0)", "245.30 ± 8.50 (4.08)", "4.65 ± 2.90", "Baseline (NMS quadratic clustering)"],
-        ["YOLOv8-S (Baseline)", "Dense Sponge Attack (eps = 16)", "39.40 ± 2.45 (25.4)", "815.40 ± 34.20 (1.23)", "286.40 ± 36.10", "Vulnerable (+232% to +242% latency surge)"],
+    model_disp = str(lat.get("model", "RT-DETR")).split("/")[-1]
+    dev_type = str(lat.get("device_type", "unknown")).upper()
+    hw_meta = lat.get("hardware_metadata", {})
+    hw_desc = str(hw_meta.get("gpu_name") or hw_meta.get("processor") or dev_type)
+    n_runs = int(lat.get("n_runs", 0))
+
+    adv_comp = lat.get("adversarial_latency_comparison", {})
+    clean_adv_blk = adv_comp.get("Clean_Baseline", {})
+    clean_ref_ms = float(clean_adv_blk.get("mean_ms", tot))
+
+    headers = [
+        "Stage / Operational Condition",
+        "Mean ± Std (ms)",
+        "P95 (ms)",
+        "Throughput (FPS)",
+        "Active Boxes (tau >= 0.35)",
+        "Share / Latency Delta",
     ]
+    rows: List[List[Any]] = [
+        ["Stage 1: Backbone", f"{bb:.3f} ± {float(stg['Backbone'].get('std_ms', 0.0)):.3f}", f"{float(stg['Backbone'].get('p95_ms', bb)):.3f}", "---", "---", f"{bb_pct:.1f}% of E2E"],
+        ["Stage 2: Hybrid Encoder", f"{enc:.3f} ± {float(stg['Hybrid_Encoder'].get('std_ms', 0.0)):.3f}", f"{float(stg['Hybrid_Encoder'].get('p95_ms', enc)):.3f}", "---", "---", f"{enc_pct:.1f}% of E2E"],
+        ["Stage 3: Query Selection", f"{qs:.3f} ± {float(stg['Query_Selection'].get('std_ms', 0.0)):.3f}", f"{float(stg['Query_Selection'].get('p95_ms', qs)):.3f}", "---", "---", f"{qs_pct:.1f}% of E2E"],
+        ["Stage 4: Deformable Decoder", f"{dec:.3f} ± {float(stg['Deformable_Decoder'].get('std_ms', 0.0)):.3f}", f"{float(stg['Deformable_Decoder'].get('p95_ms', dec)):.3f}", "---", "---", f"{dec_pct:.1f}% of E2E"],
+        ["End-to-End Clean Stage Sum", f"{tot:.3f} ± {float(stg['End_to_End_Total'].get('std_ms', 0.0)):.3f}", f"{float(stg['End_to_End_Total'].get('p95_ms', tot)):.3f}", f"{float(lat.get('throughput_fps', 1000.0 / max(tot, 1e-4))):.2f}", "---", "100.0% Reference"],
+    ]
+
+    cond_labels = [
+        ("Clean_Baseline", "Condition: Clean Baseline"),
+        ("AQSM_Attack", "Condition: AQSM Attack (eps=16/255)"),
+        ("Task_PGD", "Condition: Standard Task PGD (eps=16/255)"),
+        ("RT_DETR_Flooding_Sponge", "Condition: Proposal-Flooding Sponge"),
+    ]
+    tex_cond_rows: List[str] = []
+    for c_key, c_disp in cond_labels:
+        cb = adv_comp.get(c_key)
+        if isinstance(cb, dict) and "mean_ms" in cb:
+            c_mean = float(cb["mean_ms"])
+            c_std = float(cb.get("std_ms", 0.0))
+            c_p95 = float(cb.get("p95_ms", c_mean))
+            c_fps = float(cb.get("throughput_fps", 1000.0 / max(c_mean, 1e-4)))
+            c_act = cb.get("active_boxes_tau35", "---")
+            c_act_str = f"{float(c_act):.2f}" if isinstance(c_act, (int, float)) else str(c_act)
+            dt_ms = c_mean - clean_ref_ms
+            dt_pct = (dt_ms / max(clean_ref_ms, 1e-6)) * 100.0
+            note_str = "Baseline" if c_key == "Clean_Baseline" else f"Delta t = {dt_ms:+.3f} ms ({dt_pct:+.2f}%)"
+            rows.append([c_disp, f"{c_mean:.3f} ± {c_std:.3f}", f"{c_p95:.3f}", f"{c_fps:.2f}", c_act_str, note_str])
+            tex_note = "Baseline" if c_key == "Clean_Baseline" else f"$\\Delta t = {dt_ms:+.3f}$ ms ({dt_pct:+.2f}\\%)"
+            tex_cond_rows.append(
+                f"{c_disp} & ${c_mean:.3f} \\pm {c_std:.3f}$ & {c_p95:.3f} & {c_fps:.2f} & {c_act_str} & {tex_note} \\\\"
+            )
+
+    cond_tex_block = ("\n\\midrule\n" + "\n".join(tex_cond_rows)) if tex_cond_rows else ""
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Inference latency, active query counts, and proposal-flooding evaluation on physical edge hardware platforms: NVIDIA Jetson Orin Nano (Ampere GPU, 20W TDP) and Raspberry Pi 5 (Quad-core ARM Cortex-A76 @ 2.4 GHz, 4 threads, FP32 mode) at native $640 \times 640$ resolution. RT-DETR exhibits stable measured inference latency under the evaluated proposal-flooding conditions, consistent with its fixed-query, NMS-free inference architecture, contrasting with anchor-free YOLOv8-S's NMS surge.}
+\caption{Hardware execution latency stage breakdown and proposal-flooding stability on \texttt{""" + model_disp.replace("_", r"\_") + r"""} (Device: \texttt{""" + hw_desc.replace("_", r"\_") + r"""}, """ + f"$N_{{\\mathrm{{runs}}}} = {n_runs}$" + r""", $640 \times 640$). Reports measured inference latency across pipeline stages and adversarial attack conditions.}
 \label{tab:tab10_latency_sponge}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
-\textbf{Model Architecture} & \textbf{Operational Condition} & \textbf{Jetson Orin Nano (ms / FPS)} & \textbf{Raspberry Pi 5 (ms / FPS)} & \textbf{Active Detections ($\tau \ge 0.35$)} & \textbf{Measured Latency Stability} \\
+\textbf{Stage / Operational Condition} & \textbf{Mean $\pm$ Std (ms)} & \textbf{P95 (ms)} & \textbf{Throughput (FPS)} & \textbf{Active Boxes ($\tau \ge 0.35$)} & \textbf{Share / Latency Delta} \\
 \midrule
-RT-DETR-R18VD & Clean Baseline & 14.20 $\pm$ 0.35 (70.4) & 418.20 $\pm$ 12.40 (2.39) & 4.52 $\pm$ 3.10 & Stable (NMS-free set prediction) \\
-RT-DETR-R18VD & Query Vanishing ($\epsilon = 16$) & 14.21 $\pm$ 0.36 (70.4) & 418.80 $\pm$ 11.80 (2.39) & 0.18 $\pm$ 0.52 & Stable ($\Delta t_{\mathrm{GPU}} = 0.01$ ms) \\
-RT-DETR-R18VD & AQSM Attack ($\epsilon = 16$) & 14.22 $\pm$ 0.38 (70.3) & 418.50 $\pm$ 12.10 (2.39) & 7.15 $\pm$ 4.30 & Stable ($\Delta t_{\mathrm{GPU}} = 0.02$ ms) \\
-RT-DETR-R18VD & Standard Task PGD ($\epsilon = 16$) & 14.25 $\pm$ 0.40 (70.2) & 419.50 $\pm$ 12.80 (2.38) & 29.40 $\pm$ 8.70 & Stable ($\Delta t_{\mathrm{GPU}} = 0.05$ ms) \\
-\midrule
-YOLOv8-S (Baseline) & Clean Baseline & 11.50 $\pm$ 0.28 (87.0) & 245.30 $\pm$ 8.50 (4.08) & 4.65 $\pm$ 2.90 & Baseline (NMS quadratic clustering) \\
-YOLOv8-S (Baseline) & Dense Sponge Attack ($\epsilon = 16$) & 39.40 $\pm$ 2.45 (25.4) & 815.40 $\pm$ 34.20 (1.23) & 286.40 $\pm$ 36.10 & Vulnerable ($+232\%$ to $+242\%$ latency surge) \\
+Stage 1: Backbone & """ + f"${bb:.3f} \\pm {float(stg['Backbone'].get('std_ms', 0.0)):.3f}$ & {float(stg['Backbone'].get('p95_ms', bb)):.3f}" + r""" & --- & --- & """ + f"{bb_pct:.1f}\\% of E2E" + r""" \\
+Stage 2: Hybrid Encoder & """ + f"${enc:.3f} \\pm {float(stg['Hybrid_Encoder'].get('std_ms', 0.0)):.3f}$ & {float(stg['Hybrid_Encoder'].get('p95_ms', enc)):.3f}" + r""" & --- & --- & """ + f"{enc_pct:.1f}\\% of E2E" + r""" \\
+Stage 3: Query Selection & """ + f"${qs:.3f} \\pm {float(stg['Query_Selection'].get('std_ms', 0.0)):.3f}$ & {float(stg['Query_Selection'].get('p95_ms', qs)):.3f}" + r""" & --- & --- & """ + f"{qs_pct:.1f}\\% of E2E" + r""" \\
+Stage 4: Deformable Decoder & """ + f"${dec:.3f} \\pm {float(stg['Deformable_Decoder'].get('std_ms', 0.0)):.3f}$ & {float(stg['Deformable_Decoder'].get('p95_ms', dec)):.3f}" + r""" & --- & --- & """ + f"{dec_pct:.1f}\\% of E2E" + r""" \\
+End-to-End Clean Stage Sum & """ + f"${tot:.3f} \\pm {float(stg['End_to_End_Total'].get('std_ms', 0.0)):.3f}$ & {float(stg['End_to_End_Total'].get('p95_ms', tot)):.3f} & {float(lat.get('throughput_fps', 1000.0 / max(tot, 1e-4))):.2f}" + r""" & --- & 100.0\% Reference \\""" + cond_tex_block + r"""
 \bottomrule
 \end{tabular}%
 }
@@ -997,11 +1238,19 @@ def generate_table11(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     ])
     atks = require_val(esm, ["attacks"], "esm.attacks")
     adapt = require_val(esm, ["adaptive_evasion"], "esm.adaptive_evasion")
-    matched_ref = safe_load_json([summary_dir / "matched_budget_sweep.json", OUTPUTS_DIR / "summary_json" / "matched_budget_sweep.json"])
-    cl_m50_ref = float(require_val(matched_ref, ["clean_baseline", "mAP@50"], "matched.clean.mAP@50"))
-    aq_m50_ref = float(require_val(matched_ref, ["sweep_results", "aqsm", "eps_16", "mAP@50"], "matched.aqsm.eps_16"))
-    pgd_m50_ref = float(require_val(matched_ref, ["sweep_results", "taskpgd", "eps_16", "mAP@50"], "matched.taskpgd.eps_16"))
-    van_m50_ref = float(require_val(matched_ref, ["sweep_results", "vanishing", "eps_16", "mAP@50"], "matched.vanishing.eps_16"))
+    matched_ref = safe_load_json([
+        summary_dir / "matched_budget_sweep.json",
+        summary_dir / "matched_budget_results.json",
+    ], default_dict={})
+    cl_raw = matched_ref.get("clean_baseline", {}).get("mAP@50")
+    sw_ref = matched_ref.get("sweep_results", {})
+    aq_raw = sw_ref.get("aqsm", {}).get("eps_16", {}).get("mAP@50")
+    pgd_raw = sw_ref.get("taskpgd", {}).get("eps_16", {}).get("mAP@50")
+    van_raw = sw_ref.get("vanishing", {}).get("eps_16", {}).get("mAP@50")
+    cl_m50_str = f"{float(cl_raw):.2f}%" if cl_raw is not None else "---"
+    aq_m50_str = f"{float(aq_raw):.2f}%" if aq_raw is not None else "---"
+    pgd_m50_str = f"{float(pgd_raw):.2f}%" if pgd_raw is not None else "---"
+    van_m50_str = f"{float(van_raw):.2f}%" if van_raw is not None else "---"
 
     aq_tpr = float(require_val(atks, ["aqsm", "tpr_detection_rate_pct"], "esm.aqsm.tpr"))
     aq_auc = float(require_val(atks, ["aqsm", "auroc"], "esm.aqsm.auroc"))
@@ -1018,6 +1267,10 @@ def generate_table11(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     clean_fpr = float(require_val(esm, ["empirical_clean_fpr_pct"], "esm.clean_fpr"))
     target_fpr = float(require_val(esm, ["target_fpr_pct"], "esm.target_fpr"))
     union_bound = float(esm.get("union_bound_pct", target_fpr * 2.0))
+    clean_anom_raw = esm.get("clean_mean_anomaly_score")
+    clean_anom_str = f"{float(clean_anom_raw):.4f}" if clean_anom_raw is not None else "---"
+    n_test_t11 = int(esm.get("n_test", 0))
+    n_cohort_t11 = int(matched_ref.get("n_images", n_test_t11 + int(esm.get("n_cal", 0))))
 
     def _extract_bypass(lam_key: str) -> float:
         """Trích xuất tỷ lệ bypass vượt qua monitor (raw_monitor_bypass_pct hoặc 100 - TPR)."""
@@ -1033,50 +1286,56 @@ def generate_table11(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
         lam_data = require_val(adapt, [lam_key], f"adapt.{lam_key}")
         return float(require_val(lam_data, ["detected_tpr_pct"], f"adapt.{lam_key}.detected_tpr_pct"))
 
-    tpr_02 = _extract_tpr("lambda_0.2")
-    bypass_02 = _extract_bypass("lambda_0.2")
+    def _extract_post_map(lam_key: str) -> str:
+        lam_data = adapt.get(lam_key, {})
+        val = lam_data.get("post_attack_map50_pct")
+        if val is not None:
+            return f"{float(val):.2f}%"
+        return "N/A"
 
-    tpr_05 = _extract_tpr("lambda_0.5")
-    bypass_05 = _extract_bypass("lambda_0.5")
-
-    tpr_10 = _extract_tpr("lambda_1.0")
-    bypass_10 = _extract_bypass("lambda_1.0")
-
-    tpr_20 = _extract_tpr("lambda_2.0")
-    bypass_20 = _extract_bypass("lambda_2.0")
+    tpr_02, bypass_02, pmap_02 = _extract_tpr("lambda_0.2"), _extract_bypass("lambda_0.2"), _extract_post_map("lambda_0.2")
+    tpr_05, bypass_05, pmap_05 = _extract_tpr("lambda_0.5"), _extract_bypass("lambda_0.5"), _extract_post_map("lambda_0.5")
+    tpr_10, bypass_10, pmap_10 = _extract_tpr("lambda_1.0"), _extract_bypass("lambda_1.0"), _extract_post_map("lambda_1.0")
+    tpr_20, bypass_20, pmap_20 = _extract_tpr("lambda_2.0"), _extract_bypass("lambda_2.0"), _extract_post_map("lambda_2.0")
 
     headers = ["Evaluated Condition", "Detection TPR (%)", "Empirical FPR (%)", "AUROC", "Mean Anomaly Score", "Post-Attack mAP@50 (%)"]
     rows = [
-        ["Clean Test Baseline", "---", f"{clean_fpr:.2f}% [Union Bound {union_bound:.1f}%]", "---", "0.4950", f"{cl_m50_ref:.2f}%"],
-        ["Stationary AQSM (eps = 16/255)", f"{aq_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{aq_auc:.4f}", f"{aq_score:.4f}", f"{aq_m50_ref:.2f}%"],
-        ["Stationary Standard Task PGD (eps = 16/255)", f"{pgd_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{pgd_auc:.4f}", f"{pgd_score:.4f}", f"{pgd_m50_ref:.2f}%"],
-        ["Stationary Query Vanishing (eps = 16/255)", f"{van_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{van_auc:.4f}", f"{van_score:.4f}", f"{van_m50_ref:.2f}%"],
-        ["Adaptive Evasion (lambda = 0.2)", f"{tpr_02:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_02:.2f}%", "3.65%"],
-        ["Adaptive Evasion (lambda = 0.5)", f"{tpr_05:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_05:.2f}%", "4.12%"],
-        ["Adaptive Evasion (lambda = 1.0)", f"{tpr_10:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_10:.2f}%", "5.20%"],
-        ["Adaptive Evasion (lambda = 2.0)", f"{tpr_20:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_20:.2f}%", "6.85%"],
+        ["Clean Test Baseline", "---", f"{clean_fpr:.2f}% [Union Bound {union_bound:.1f}%]", "---", clean_anom_str, cl_m50_str],
+        ["Stationary AQSM (eps = 16/255)", f"{aq_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{aq_auc:.4f}", f"{aq_score:.4f}", aq_m50_str],
+        ["Stationary Standard Task PGD (eps = 16/255)", f"{pgd_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{pgd_auc:.4f}", f"{pgd_score:.4f}", pgd_m50_str],
+        ["Stationary Query Vanishing (eps = 16/255)", f"{van_tpr:.2f}%", f"{clean_fpr:.2f}%", f"{van_auc:.4f}", f"{van_score:.4f}", van_m50_str],
+        ["Adaptive Evasion (lambda = 0.2)", f"{tpr_02:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_02:.2f}%", pmap_02],
+        ["Adaptive Evasion (lambda = 0.5)", f"{tpr_05:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_05:.2f}%", pmap_05],
+        ["Adaptive Evasion (lambda = 1.0)", f"{tpr_10:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_10:.2f}%", pmap_10],
+        ["Adaptive Evasion (lambda = 2.0)", f"{tpr_20:.2f}%", "---", "Degenerate*", f"Bypass: {bypass_20:.2f}%", pmap_20],
     ]
+
+    pmap_vals = [float(adapt[lk]["post_attack_map50_pct"]) for lk in ("lambda_0.2", "lambda_0.5", "lambda_1.0", "lambda_2.0") if adapt.get(lk, {}).get("post_attack_map50_pct") is not None]
+    adapt_cap_note = f"$\\text{{mAP@50}} \\le {max(pmap_vals):.2f}\\%$" if pmap_vals else "severe task degradation"
+
+    clean_vs_note = f" vs.\\ ${float(cl_raw):.2f}\\%$ clean" if cl_raw is not None else ""
+    eff_res_t11 = int(get_img_size())
 
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Empirical detection performance of the Encoder Selection Monitor (ESM) on independent COCO val2017 test images ($N_{\text{test}} = 700$) and white-box Carlini-Tram\`er adaptive evasion boundary at native $640 \times 640$ resolution. Demonstrates that while ESM flags stationary AQSM ($\text{TPR} = """ + f"{aq_tpr:.2f}\\%" + r""", \text{AUROC} = """ + f"{aq_auc:.4f}" + r"""$), a white-box adaptive adversary ($\lambda_{\mathrm{evade}} \ge 0.2$) successfully evades runtime detection ($\text{TPR} \le """ + f"{max(tpr_02, tpr_05, tpr_10, tpr_20):.2f}\\%" + r"""$, bypass rate $\ge """ + f"{min(bypass_02, bypass_05, bypass_10, bypass_20):.2f}\\%" + r"""$) while sustaining destructive task degradation ($\text{mAP@50} \le 6.85\%$ vs.\ $""" + f"{cl_m50_ref:.2f}\\%" + r"""$ clean).}
+\caption{Empirical detection performance of the Encoder Selection Monitor (ESM) on independent COCO val2017 test images ($N_{\text{test}} = """ + f"{n_test_t11:,}" + r"""$) and white-box Carlini-Tram\`er adaptive evasion boundary at native $""" + f"{eff_res_t11} \\times {eff_res_t11}" + r"""$ resolution. Demonstrates that while ESM flags stationary AQSM ($\text{TPR} = """ + f"{aq_tpr:.2f}\\%" + r""", \text{AUROC} = """ + f"{aq_auc:.4f}" + r"""$), a white-box adaptive adversary ($\lambda_{\mathrm{evade}} \ge 0.2$) successfully evades runtime detection ($\text{TPR} \le """ + f"{max(tpr_02, tpr_05, tpr_10, tpr_20):.2f}\\%" + r"""$, bypass rate $\ge """ + f"{min(bypass_02, bypass_05, bypass_10, bypass_20):.2f}\\%" + r"""$) while sustaining """ + adapt_cap_note + clean_vs_note + r""".}
 \label{tab:tab11_defense_results}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccc}
 \toprule
 \textbf{Evaluated Condition} & \textbf{Detection TPR (\%)} & \textbf{Empirical FPR (\%)} & \textbf{AUROC} & \textbf{Mean Anomaly Score} & \textbf{Post-Attack mAP@50 (\%)\textsuperscript{\textdagger}} \\
 \midrule
-Clean Test Baseline & --- & """ + f"{clean_fpr:.2f}\\% [Union Bound {union_bound:.1f}\\%]" + r""" & --- & 0.4950 & """ + f"{cl_m50_ref:.2f}\\%" + r""" \\
-Stationary AQSM ($\epsilon = 16/255$) & \textbf{""" + f"{aq_tpr:.2f}\\%" + r"""} & """ + f"{clean_fpr:.2f}\\%" + r""" & \textbf{""" + f"{aq_auc:.4f}" + r"""} & """ + f"{aq_score:.4f}" + r""" & """ + f"{aq_m50_ref:.2f}\\%" + r""" \\
-Stationary Standard Task PGD ($\epsilon = 16/255$) & """ + f"{pgd_tpr:.2f}\\%" + r""" & """ + f"{clean_fpr:.2f}\\%" + r""" & """ + f"{pgd_auc:.4f}" + r""" & """ + f"{pgd_score:.4f}" + r""" & """ + f"{pgd_m50_ref:.2f}\\%" + r""" \\
-Stationary Query Vanishing ($\epsilon = 16/255$) & """ + f"{van_tpr:.2f}\\%" + r""" & """ + f"{clean_fpr:.2f}\\%" + r""" & """ + f"{van_auc:.4f}" + r""" & """ + f"{van_score:.4f}" + r""" & """ + f"{van_m50_ref:.2f}\\%" + r""" \\
+Clean Test Baseline & --- & """ + f"{clean_fpr:.2f}\\% [Union Bound {union_bound:.1f}\\%]" + r""" & --- & """ + clean_anom_str + r""" & """ + cl_m50_str.replace("%", r"\%") + r""" \\
+Stationary AQSM ($\epsilon = 16/255$) & \textbf{""" + f"{aq_tpr:.2f}\\%" + r"""} & """ + f"{clean_fpr:.2f}\\%" + r""" & \textbf{""" + f"{aq_auc:.4f}" + r"""} & """ + f"{aq_score:.4f}" + r""" & """ + aq_m50_str.replace("%", r"\%") + r""" \\
+Stationary Standard Task PGD ($\epsilon = 16/255$) & """ + f"{pgd_tpr:.2f}\\%" + r""" & """ + f"{clean_fpr:.2f}\\%" + r""" & """ + f"{pgd_auc:.4f}" + r""" & """ + f"{pgd_score:.4f}" + r""" & """ + pgd_m50_str.replace("%", r"\%") + r""" \\
+Stationary Query Vanishing ($\epsilon = 16/255$) & """ + f"{van_tpr:.2f}\\%" + r""" & """ + f"{clean_fpr:.2f}\\%" + r""" & """ + f"{van_auc:.4f}" + r""" & """ + f"{van_score:.4f}" + r""" & """ + van_m50_str.replace("%", r"\%") + r""" \\
 \midrule
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & """ + f"{tpr_02:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_02:.2f}\\%" + r""" & 3.65\% \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{""" + f"{tpr_05:.2f}\\%" + r"""} & --- & Degenerate\textsuperscript{*} & \textbf{""" + f"Bypass: {bypass_05:.2f}\\%" + r"""} & \textbf{4.12\%} \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & """ + f"{tpr_10:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_10:.2f}\\%" + r""" & 5.20\% \\
-\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & """ + f"{tpr_20:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_20:.2f}\\%" + r""" & 6.85\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & """ + f"{tpr_02:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_02:.2f}\\%" + r""" & """ + pmap_02.replace("%", r"\%") + r""" \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{""" + f"{tpr_05:.2f}\\%" + r"""} & --- & Degenerate\textsuperscript{*} & \textbf{""" + f"Bypass: {bypass_05:.2f}\\%" + r"""} & \textbf{""" + pmap_05.replace("%", r"\%") + r"""} \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & """ + f"{tpr_10:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_10:.2f}\\%" + r""" & """ + pmap_10.replace("%", r"\%") + r""" \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & """ + f"{tpr_20:.2f}\\%" + r""" & --- & Degenerate\textsuperscript{*} & """ + f"Bypass: {bypass_20:.2f}\\%" + r""" & """ + pmap_20.replace("%", r"\%") + r""" \\
 \bottomrule
-\multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the full evaluation cohort ($N = 1,000$); adaptive evasion mAP is evaluated on the independent test split ($N_{\text{test}} = 700$).}} \\
+\multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the evaluation cohort ($N = """ + f"{n_cohort_t11:,}" + r"""$); adaptive evasion evaluated on the independent test split ($N_{\text{test}} = """ + f"{n_test_t11:,}" + r"""$).}} \\
 \multicolumn{6}{l}{\footnotesize{*At the fixed deployment threshold $\tau_{\mathrm{fused}}$, adaptive evasion suppresses detection TPR below clean FPR ($""" + f"{clean_fpr:.2f}\\%" + r"""$), achieving a bypass rate $\ge """ + f"{min(bypass_02, bypass_05, bypass_10, bypass_20):.2f}\\%" + r"""$ without establishing a valid monotonic ROC curve.}} \\
 \end{tabular}%
 }
@@ -1124,14 +1383,36 @@ def generate_table12(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     aq_rec = float(require_val(aq_sqa, ["recall_pct"], "aq_sqa.rec"))
     aq_recovery = aq_m50 - aq_base_m50
 
-    pgd_base_m50 = float(pgd_dyn.get("mAP@50", 0.0))
-    pgd_base_m95 = float(pgd_dyn.get("mAP@50:95", 0.0))
-    pgd_base_rec = float(pgd_dyn.get("recall_pct", 0.0))
-    pgd_base_ret = round((pgd_base_m50 / max(clean_dyn_m50, 1e-6)) * 100.0, 1)
-    pgd_m50 = float(pgd_sqa.get("mAP@50", 0.0))
-    pgd_m95 = float(pgd_sqa.get("mAP@50:95", 0.0))
-    pgd_rec = float(pgd_sqa.get("recall_pct", 0.0))
-    pgd_recovery = pgd_m50 - pgd_base_m50
+    lat_blk = sqa["edge_latency_jetson_orin_nano_ms"]
+    lat_dyn_ms = float(lat_blk["default_dynamic_only"])
+    lat_sqa_ms = float(lat_blk["hardened_static_augmented"])
+    lat_ovh_pct = float(lat_blk["overhead_pct"])
+
+    n_dyn_t12 = int(sqa_data.get("num_dynamic_queries", 300))
+    n_stat_t12 = int(sqa_data.get("num_static_anchors", 30))
+    n_tot_t12 = n_dyn_t12 + n_stat_t12
+    model_t12 = str(sqa_data.get("model", "RT-DETR")).split("/")[-1]
+    model_t12_tex = model_t12.replace("_", r"\_")
+
+    has_pgd_sqa = isinstance(pgd_dyn, dict) and ("mAP@50" in pgd_dyn) and isinstance(pgd_sqa, dict) and ("mAP@50" in pgd_sqa)
+    if has_pgd_sqa:
+        pgd_base_m50 = float(pgd_dyn["mAP@50"])
+        pgd_base_m95 = float(pgd_dyn.get("mAP@50:95", 0.0))
+        pgd_base_rec = float(pgd_dyn.get("recall_pct", 0.0))
+        pgd_base_ret = round((pgd_base_m50 / max(clean_dyn_m50, 1e-6)) * 100.0, 1)
+        pgd_m50 = float(pgd_sqa["mAP@50"])
+        pgd_m95 = float(pgd_sqa.get("mAP@50:95", 0.0))
+        pgd_rec = float(pgd_sqa.get("recall_pct", 0.0))
+        pgd_recovery = pgd_m50 - pgd_base_m50
+        pgd_dyn_md = [f"Task PGD: Standard {model_t12} ({n_dyn_t12} dynamic)", f"{pgd_base_m50:.2f}% ({pgd_base_ret:.1f}% Ret.)", f"{pgd_base_m95:.2f}%", f"{pgd_base_rec:.2f}%", f"{lat_dyn_ms:.2f} ms"]
+        pgd_sqa_md = [f"Task PGD: Hardened SQA Prototype ({n_dyn_t12} dyn. + {n_stat_t12} static)", f"{pgd_m50:.2f}% ({pgd_recovery:+.2f} pp)", f"{pgd_m95:.2f}%", f"{pgd_rec:.2f}%", f"{lat_sqa_ms:.2f} ms ({lat_ovh_pct:+.2f}%)"]
+        pgd_dyn_tex = f"\\quad Standard {model_t12_tex} (${n_dyn_t12}$ dynamic) & {pgd_base_m50:.2f}\\% ({pgd_base_ret:.1f}\\% Ret.) & {pgd_base_m95:.2f}\\% & {pgd_base_rec:.2f}\\% & {lat_dyn_ms:.2f} ms \\\\"
+        pgd_sqa_tex = f"\\quad Hardened SQA Prototype (${n_dyn_t12}$ dyn. $+ {n_stat_t12}$ static) & {pgd_m50:.2f}\\% ({pgd_recovery:+.2f} pp) & {pgd_m95:.2f}\\% & {pgd_rec:.2f}\\% & {lat_sqa_ms:.2f} ms ({lat_ovh_pct:+.2f}\\%) \\\\"
+    else:
+        pgd_dyn_md = [f"Task PGD: Standard {model_t12} ({n_dyn_t12} dynamic)", "---", "---", "---", f"{lat_dyn_ms:.2f} ms (Not evaluated)"]
+        pgd_sqa_md = [f"Task PGD: Hardened SQA Prototype ({n_dyn_t12} dyn. + {n_stat_t12} static)", "---", "---", "---", f"{lat_sqa_ms:.2f} ms (Not evaluated)"]
+        pgd_dyn_tex = f"\\quad Standard {model_t12_tex} (${n_dyn_t12}$ dynamic) & --- & --- & --- & {lat_dyn_ms:.2f} ms (Not evaluated) \\\\"
+        pgd_sqa_tex = f"\\quad Hardened SQA Prototype (${n_dyn_t12}$ dyn. $+ {n_stat_t12}$ static) & --- & --- & --- & {lat_sqa_ms:.2f} ms (Not evaluated) \\\\"
 
     # Trích xuất động các nhóm đối chứng và tấn công thích ứng SQA (không fallback hardcode)
     ctrl_d = sqa.get("controls", {}) or sqa_data.get("controls", {}) or sqa_data.get("strategy_ablation", {})
@@ -1154,47 +1435,42 @@ def generate_table12(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     adapt_bypass = float(require_any_key(adapt, ["bypass_pct", "evasion_success_pct"], "adapt.bypass"))
     adapt_delta = adapt_m50 - aq_m50
 
-    lat_blk = sqa["edge_latency_jetson_orin_nano_ms"]
-    lat_dyn_ms = float(lat_blk["default_dynamic_only"])
-    lat_sqa_ms = float(lat_blk["hardened_static_augmented"])
-    lat_ovh_pct = float(lat_blk["overhead_pct"])
-
-    headers = ["Model Architecture / Evaluated Condition", "COCO mAP@50", "COCO mAP@50:95", "Detection Recall", "Edge Latency / Note"]
+    headers = ["Model Architecture / Evaluated Condition", "COCO mAP@50", "COCO mAP@50:95", "Detection Recall", "Measured Latency / Note"]
     rows = [
-        ["Clean: Standard RT-DETR-R18VD (300 dynamic)", f"{clean_dyn_m50:.2f}%", f"{clean_dyn_m95:.2f}%", f"{clean_dyn_rec:.2f}%", f"{lat_dyn_ms:.2f} ms (Ref.)"],
-        ["Clean: Hardened SQA Prototype (300 dyn. + 30 static)", f"{clean_sqa_m50:.2f}% ({clean_pen:.2f} pp)", f"{clean_sqa_m95:.2f}%", f"{clean_sqa_rec:.2f}%", f"{lat_sqa_ms:.2f} ms (+{lat_ovh_pct:.2f}%)"],
-        ["AQSM: Standard RT-DETR-R18VD (300 dynamic)", f"{aq_base_m50:.2f}% ({aq_base_ret:.1f}% Ret.)", f"{aq_base_m95:.2f}%", f"{aq_base_rec:.2f}%", f"{lat_dyn_ms:.2f} ms"],
-        ["AQSM Control 1: Dynamic Top-330 (+30 dynamic queries)", f"{dyn330_m50:.2f}% (+{dyn330_recov:.2f} pp)", f"{dyn330_m95:.2f}%", f"{dyn330_rec:.2f}%", "Eviction unmitigated"],
-        ["AQSM Control 2: Random-30 Static Queries", f"{rand30_m50:.2f}% (+{rand30_recov:.2f} pp)", f"{rand30_m95:.2f}%", f"{rand30_rec:.2f}%", "Partial spatial retention"],
-        ["AQSM Proposed: Uniform Grid-30 SQA Prototype", f"{aq_m50:.2f}% (+{aq_recovery:.2f} pp)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{lat_sqa_ms:.2f} ms (Canvas dispersion)"],
+        [f"Clean: Standard {model_t12} ({n_dyn_t12} dynamic)", f"{clean_dyn_m50:.2f}%", f"{clean_dyn_m95:.2f}%", f"{clean_dyn_rec:.2f}%", f"{lat_dyn_ms:.2f} ms (Ref.)"],
+        [f"Clean: Hardened SQA Prototype ({n_dyn_t12} dyn. + {n_stat_t12} static)", f"{clean_sqa_m50:.2f}% ({clean_pen:+.2f} pp)", f"{clean_sqa_m95:.2f}%", f"{clean_sqa_rec:.2f}%", f"{lat_sqa_ms:.2f} ms ({lat_ovh_pct:+.2f}%)"],
+        [f"AQSM: Standard {model_t12} ({n_dyn_t12} dynamic)", f"{aq_base_m50:.2f}% ({aq_base_ret:.1f}% Ret.)", f"{aq_base_m95:.2f}%", f"{aq_base_rec:.2f}%", f"{lat_dyn_ms:.2f} ms"],
+        [f"AQSM Control 1: Dynamic Top-{n_tot_t12} (+{n_stat_t12} dynamic queries)", f"{dyn330_m50:.2f}% ({dyn330_recov:+.2f} pp)", f"{dyn330_m95:.2f}%", f"{dyn330_rec:.2f}%", "Eviction unmitigated"],
+        [f"AQSM Control 2: Random-{n_stat_t12} Static Queries", f"{rand30_m50:.2f}% ({rand30_recov:+.2f} pp)", f"{rand30_m95:.2f}%", f"{rand30_rec:.2f}%", "Partial spatial retention"],
+        [f"AQSM Proposed: Uniform Grid-{n_stat_t12} SQA Prototype", f"{aq_m50:.2f}% ({aq_recovery:+.2f} pp)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{lat_sqa_ms:.2f} ms (Canvas dispersion)"],
         ["AQSM Adaptive Evasion: White-box Joint Hungarian on SQA", f"{adapt_m50:.2f}% ({adapt_delta:+.2f} pp)", f"{adapt_m95:.2f}%", f"{adapt_rec:.2f}%", f"Evasion bypass {adapt_bypass:.1f}%"],
-        ["Task PGD: Standard RT-DETR-R18VD (300 dynamic)", f"{pgd_base_m50:.2f}% ({pgd_base_ret:.1f}% Ret.)", f"{pgd_base_m95:.2f}%", f"{pgd_base_rec:.2f}%", f"{lat_dyn_ms:.2f} ms"],
-        ["Task PGD: Hardened SQA Prototype (300 dyn. + 30 static)", f"{pgd_m50:.2f}% (+{pgd_recovery:.2f} pp)", f"{pgd_m95:.2f}%", f"{pgd_rec:.2f}%", f"{lat_sqa_ms:.2f} ms (+{lat_ovh_pct:.2f}%)"],
+        pgd_dyn_md,
+        pgd_sqa_md,
     ]
 
+    eff_res_t12 = int(get_img_size())
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Empirical evaluation of Architectural Hardening via Static Query Augmentation ($N_{\mathrm{static}} = 30$), controls, and adaptive evasion boundary on COCO val2017 ($640 \times 640$, defense cohort $N_{\text{def}} = 300$). Demonstrates partial recovery under stationary AQSM ($+""" + f"{aq_recovery:.2f}" + r"""$ pp, $""" + f"{aq_m50:.2f}" + r"""\%$) via canvas spatial dispersion, while exposing vulnerability under white-box adaptive evasion ($""" + f"{adapt_m50:.2f}" + r"""\%$).}
+\caption{Empirical evaluation of Architectural Hardening via Static Query Augmentation ($N_{\mathrm{static}} = """ + f"{n_stat_t12}" + r"""$), controls, and adaptive evasion boundary on COCO val2017 ($""" + f"{eff_res_t12} \\times {eff_res_t12}" + r"""$, model """ + model_t12.replace("_", r"\_") + r"""). Demonstrates partial recovery under stationary AQSM ($""" + f"{aq_recovery:+.2f}" + r"""$ pp, $""" + f"{aq_m50:.2f}" + r"""\%$) via canvas spatial dispersion, while exposing vulnerability under white-box adaptive evasion ($""" + f"{adapt_m50:.2f}" + r"""\%$).}
 \label{tab:tab12_hardening_validation}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Model Architecture / Evaluated Condition} & \textbf{COCO mAP@50} & \textbf{COCO mAP@50:95} & \textbf{Detection Recall} & \textbf{Edge Latency / Note} \\
+\textbf{Model Architecture / Evaluated Condition} & \textbf{COCO mAP@50} & \textbf{COCO mAP@50:95} & \textbf{Detection Recall} & \textbf{Measured Latency / Note} \\
 \midrule
 \textbf{Clean Baseline Inference:} & & & & \\
-\quad Standard RT-DETR-R18VD ($300$ dynamic) & """ + f"{clean_dyn_m50:.2f}\\%" + r""" & """ + f"{clean_dyn_m95:.2f}\\%" + r""" & """ + f"{clean_dyn_rec:.2f}\\%" + r""" & """ + f"{lat_dyn_ms:.2f} ms (Ref.)" + r""" \\
-\quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & """ + f"{clean_sqa_m50:.2f}\\% ({clean_pen:.2f} pp)" + r""" & """ + f"{clean_sqa_m95:.2f}\\%" + r""" & """ + f"{clean_sqa_rec:.2f}\\%" + r""" & """ + f"{lat_sqa_ms:.2f} ms (+{lat_ovh_pct:.2f}\\%)" + r""" \\
+\quad Standard """ + model_t12.replace("_", r"\_") + f" (${n_dyn_t12}$ dynamic)" + r""" & """ + f"{clean_dyn_m50:.2f}\\%" + r""" & """ + f"{clean_dyn_m95:.2f}\\%" + r""" & """ + f"{clean_dyn_rec:.2f}\\%" + r""" & """ + f"{lat_dyn_ms:.2f} ms (Ref.)" + r""" \\
+\quad Hardened SQA Prototype (""" + f"${n_dyn_t12}$ dyn. $+ {n_stat_t12}$ static" + r""") & """ + f"{clean_sqa_m50:.2f}\\% ({clean_pen:+.2f} pp)" + r""" & """ + f"{clean_sqa_m95:.2f}\\%" + r""" & """ + f"{clean_sqa_rec:.2f}\\%" + r""" & """ + f"{lat_sqa_ms:.2f} ms ({lat_ovh_pct:+.2f}\\%)" + r""" \\
 \midrule
 \textbf{Stationary AQSM Attack ($\epsilon = 16/255$):} & & & & \\
-\quad Standard RT-DETR-R18VD ($300$ dynamic) & """ + f"{aq_base_m50:.2f}\\% ({aq_base_ret:.1f}\\% Ret.)" + r""" & """ + f"{aq_base_m95:.2f}\\%" + r""" & """ + f"{aq_base_rec:.2f}\\%" + r""" & """ + f"{lat_dyn_ms:.2f} ms" + r""" \\
-\quad Control 1: Dynamic Top-330 ($+30$ dynamic ranking) & """ + f"{dyn330_m50:.2f}\\% (+{dyn330_recov:.2f} pp)" + r""" & """ + f"{dyn330_m95:.2f}\\%" + r""" & """ + f"{dyn330_rec:.2f}\\%" + r""" & Eviction unmitigated \\
-\quad Control 2: Random-30 Static Anchors & """ + f"{rand30_m50:.2f}\\% (+{rand30_recov:.2f} pp)" + r""" & """ + f"{rand30_m95:.2f}\\%" + r""" & """ + f"{rand30_rec:.2f}\\%" + r""" & Partial spatial retention \\
-\quad \textbf{Proposed SQA: Uniform Grid-30 Prototype} & \textbf{""" + f"{aq_m50:.2f}\\% (+{aq_recovery:.2f} pp)" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rec:.2f}\\%" + r"""} & \textbf{""" + f"{lat_sqa_ms:.2f} ms (Dispersion)" + r"""} \\
+\quad Standard """ + model_t12.replace("_", r"\_") + f" (${n_dyn_t12}$ dynamic)" + r""" & """ + f"{aq_base_m50:.2f}\\% ({aq_base_ret:.1f}\\% Ret.)" + r""" & """ + f"{aq_base_m95:.2f}\\%" + r""" & """ + f"{aq_base_rec:.2f}\\%" + r""" & """ + f"{lat_dyn_ms:.2f} ms" + r""" \\
+\quad Control 1: Dynamic Top-""" + f"{n_tot_t12} ($+{n_stat_t12}$ dynamic ranking)" + r""" & """ + f"{dyn330_m50:.2f}\\% ({dyn330_recov:+.2f} pp)" + r""" & """ + f"{dyn330_m95:.2f}\\%" + r""" & """ + f"{dyn330_rec:.2f}\\%" + r""" & Eviction unmitigated \\
+\quad Control 2: Random-""" + f"{n_stat_t12}" + r""" Static Anchors & """ + f"{rand30_m50:.2f}\\% ({rand30_recov:+.2f} pp)" + r""" & """ + f"{rand30_m95:.2f}\\%" + r""" & """ + f"{rand30_rec:.2f}\\%" + r""" & Partial spatial retention \\
+\quad \textbf{Proposed SQA: Uniform Grid-""" + f"{n_stat_t12}" + r""" Prototype} & \textbf{""" + f"{aq_m50:.2f}\\% ({aq_recovery:+.2f} pp)" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rec:.2f}\\%" + r"""} & \textbf{""" + f"{lat_sqa_ms:.2f} ms (Dispersion)" + r"""} \\
 \quad \textbf{Adaptive Evasion on SQA (White-Box Joint)} & \textbf{""" + f"{adapt_m50:.2f}\\% ({adapt_delta:+.2f} pp)" + r"""} & \textbf{""" + f"{adapt_m95:.2f}\\%" + r"""} & \textbf{""" + f"{adapt_rec:.2f}\\%" + r"""} & \textbf{Bypass: """ + f"{adapt_bypass:.1f}\\%" + r"""} \\
 \midrule
 \textbf{Standard Task PGD Baseline ($\epsilon = 16/255$):} & & & & \\
-\quad Standard RT-DETR-R18VD ($300$ dynamic) & """ + f"{pgd_base_m50:.2f}\\% ({pgd_base_ret:.1f}\\% Ret.)" + r""" & """ + f"{pgd_base_m95:.2f}\\%" + r""" & """ + f"{pgd_base_rec:.2f}\\%" + r""" & """ + f"{lat_dyn_ms:.2f} ms" + r""" \\
-\quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & """ + f"{pgd_m50:.2f}\\% (+{pgd_recovery:.2f} pp)" + r""" & """ + f"{pgd_m95:.2f}\\%" + r""" & """ + f"{pgd_rec:.2f}\\%" + r""" & """ + f"{lat_sqa_ms:.2f} ms (+{lat_ovh_pct:.2f}\\%)" + r""" \\
+""" + pgd_dyn_tex + "\n" + pgd_sqa_tex + r"""
 \bottomrule
 \end{tabular}%
 }
@@ -1217,10 +1493,6 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     if not records:
         raise KeyError("Không có bản ghi nào trong multimodel_and_seed_stability_summary.json")
 
-    r18_ms = records.get("rtdetr_r18vd_multiseed")
-    r50_ms = records.get("rtdetr_r50vd_multiseed")
-    r50_can = records.get("rtdetr_r50vd_canonical")
-
     headers = [
         "Model Architecture",
         "Backbone / Params",
@@ -1234,95 +1506,84 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     tex_rows: List[str] = []
     seed_counts: List[int] = []
 
-    if r18_ms is not None:
-        n_r18_seeds = len(r18_ms.get("seeds", []))
-        if n_r18_seeds > 0:
-            seed_counts.append(n_r18_seeds)
-        r18_proto_md = rf"{n_r18_seeds} seeds ($\mu \pm \sigma$)" if n_r18_seeds > 0 else str(r18_ms.get("protocol", "Multi-Seed"))
-        r18_backbone = str(r18_ms.get("backbone", "ResNet-18 (20M)"))
-        r18_ms_clean = float(r18_ms["clean_map50"])
-        r18_ms_aqsm_m = float(r18_ms["aqsm_map50_mean"])
-        r18_ms_aqsm_s = float(r18_ms["aqsm_map50_std"])
-        r18_ms_rel = float(r18_ms["relative_drop_pct"])
-        r18_ms_drift_m = float(r18_ms["hungarian_set_drift_mean"])
-        r18_ms_drift_s = float(r18_ms["hungarian_set_drift_std"])
-        r18_ms_hit_m = float(r18_ms["anchor_fg_hit_pct_mean"])
-        r18_ms_hit_s = float(r18_ms["anchor_fg_hit_pct_std"])
-        rows.append([
-            "RT-DETR-R18VD (Multi-Seed)",
-            r18_backbone,
-            r18_proto_md,
-            f"{r18_ms_clean:.2f}%",
-            f"{r18_ms_aqsm_m:.2f} \u00b1 {r18_ms_aqsm_s:.2f}% [{r18_ms_rel:+.2f}%]",
-            f"{r18_ms_drift_m:.4f} \u00b1 {r18_ms_drift_s:.4f}",
-            f"{r18_ms_hit_m:.2f} \u00b1 {r18_ms_hit_s:.2f}%",
-        ])
-        r18_tex_bb = r18_ms.get("backbone", "ResNet-18 (20M, 3 dec.)")
-        if r18_tex_bb == "ResNet-18 (20M)":
-            r18_tex_bb = "ResNet-18 (20M, 3 dec.)"
-        tex_rows.append(
-            f"RT-DETR-R18VD (Multi-Seed) & {r18_tex_bb} & {r18_proto_md} & {r18_ms_clean:.2f}\\% & "
-            f"{r18_ms_aqsm_m:.2f} $\\pm$ {r18_ms_aqsm_s:.2f}\\% [$-${abs(r18_ms_rel):.2f}\\%] & "
-            f"{r18_ms_drift_m:.4f} $\\pm$ {r18_ms_drift_s:.4f} & {r18_ms_hit_m:.2f} $\\pm$ {r18_ms_hit_s:.2f}\\% \\\\"
-        )
+    # Thu thập danh sách kiến trúc động (ưu tiên bản multiseed nếu cùng một kiến trúc có cả canonical)
+    arch_prefixes: List[str] = []
+    for k in records.keys():
+        if k.endswith("_multiseed"):
+            pfx = k[:-len("_multiseed")]
+        elif k.endswith("_canonical"):
+            pfx = k[:-len("_canonical")]
+        else:
+            pfx = k
+        if pfx not in arch_prefixes:
+            arch_prefixes.append(pfx)
 
-    if r50_ms is not None:
-        n_r50_seeds = len(r50_ms.get("seeds", []))
-        if n_r50_seeds > 0:
-            seed_counts.append(n_r50_seeds)
-        r50_proto_str = rf"{n_r50_seeds} seeds ($\mu \pm \sigma$)" if n_r50_seeds > 0 else str(r50_ms.get("protocol", "Multi-Seed"))
-        r50_backbone = str(r50_ms.get("backbone", "ResNet-50 (42M, 6 dec.)"))
-        r50_clean = float(r50_ms["clean_map50"])
-        r50_aqsm_m = float(r50_ms["aqsm_map50_mean"])
-        r50_aqsm_s = float(r50_ms["aqsm_map50_std"])
-        r50_rel = float(r50_ms["relative_drop_pct"])
-        r50_drift_m = float(r50_ms["hungarian_set_drift_mean"])
-        r50_drift_s = float(r50_ms["hungarian_set_drift_std"])
-        r50_hit_m = float(r50_ms["anchor_fg_hit_pct_mean"])
-        r50_hit_s = float(r50_ms["anchor_fg_hit_pct_std"])
-        rows.append([
-            "RT-DETR-R50VD (Deep, Multi-Seed)",
-            r50_backbone,
-            r50_proto_str,
-            f"{r50_clean:.2f}%",
-            f"{r50_aqsm_m:.2f} \u00b1 {r50_aqsm_s:.2f}% [{r50_rel:+.2f}%]",
-            f"{r50_drift_m:.4f} \u00b1 {r50_drift_s:.4f}",
-            f"{r50_hit_m:.2f} \u00b1 {r50_hit_s:.2f}%",
-        ])
-        tex_rows.append(
-            f"RT-DETR-R50VD (Deep, Multi-Seed) & {r50_backbone} & {r50_proto_str} & {r50_clean:.2f}\\% & "
-            f"{r50_aqsm_m:.2f} $\\pm$ {r50_aqsm_s:.2f}\\% [$-${abs(r50_rel):.2f}\\%] & "
-            f"{r50_drift_m:.4f} $\\pm$ {r50_drift_s:.4f} & {r50_hit_m:.2f} $\\pm$ {r50_hit_s:.2f}\\% \\\\"
-        )
-    elif r50_can is not None:
-        r50_clean = float(r50_can["clean_map50"])
-        r50_aqsm = float(r50_can["aqsm_map50"])
-        r50_rel = float(r50_can["relative_drop_pct"])
-        r50_drift = float(r50_can["hungarian_set_drift"])
-        r50_hit = float(r50_can["anchor_fg_hit_pct"])
-        r50_protocol = str(r50_can["protocol"])
-        r50_backbone = str(r50_can["backbone"])
-        rows.append([
-            "RT-DETR-R50VD (Deep)",
-            r50_backbone,
-            r50_protocol,
-            f"{r50_clean:.2f}%",
-            f"{r50_aqsm:.2f}% [{r50_rel:+.2f}%]",
-            f"{r50_drift:.4f}",
-            f"{r50_hit:.2f}%",
-        ])
-        tex_rows.append(
-            f"RT-DETR-R50VD (Deep) & {r50_backbone} & {r50_protocol} & {r50_clean:.2f}\\% & "
-            f"{r50_aqsm:.2f}\\% [$-${abs(r50_rel):.2f}\\%] & {r50_drift:.4f} & {r50_hit:.2f}\\% \\\\"
-        )
+    for pfx in arch_prefixes:
+        ms_rec = records.get(f"{pfx}_multiseed")
+        can_rec = records.get(f"{pfx}_canonical")
+        if isinstance(ms_rec, dict) and "aqsm_map50_mean" in ms_rec:
+            n_s = len(ms_rec.get("seeds", []))
+            if n_s > 0:
+                seed_counts.append(n_s)
+            proto_str = rf"{n_s} seeds ($\mu \pm \sigma$)" if n_s > 0 else str(ms_rec.get("protocol", "Multi-Seed"))
+            arch_disp = f"{ms_rec.get('model', pfx.upper())} (Multi-Seed)"
+            bb_str = str(ms_rec.get("backbone", pfx))
+            clean_v = float(ms_rec["clean_map50"])
+            aqsm_m = float(ms_rec["aqsm_map50_mean"])
+            aqsm_s = float(ms_rec["aqsm_map50_std"])
+            rel_v = float(ms_rec["relative_drop_pct"])
+            drift_m = float(ms_rec["hungarian_set_drift_mean"])
+            drift_s = float(ms_rec["hungarian_set_drift_std"])
+            hit_m = float(ms_rec["anchor_fg_hit_pct_mean"])
+            hit_s = float(ms_rec["anchor_fg_hit_pct_std"])
+            rows.append([
+                arch_disp,
+                bb_str,
+                proto_str,
+                f"{clean_v:.2f}%",
+                f"{aqsm_m:.2f} \u00b1 {aqsm_s:.2f}% [{rel_v:+.2f}%]",
+                f"{drift_m:.4f} \u00b1 {drift_s:.4f}",
+                f"{hit_m:.2f} \u00b1 {hit_s:.2f}%",
+            ])
+            arch_disp_tex = arch_disp.replace("_", r"\_")
+            tex_rows.append(
+                f"{arch_disp_tex} & {bb_str} & {proto_str} & {clean_v:.2f}\\% & "
+                f"{aqsm_m:.2f} $\\pm$ {aqsm_s:.2f}\\% [$-${abs(rel_v):.2f}\\%] & "
+                f"{drift_m:.4f} $\\pm$ {drift_s:.4f} & {hit_m:.2f} $\\pm$ {hit_s:.2f}\\% \\\\"
+            )
+        elif isinstance(can_rec, dict) and "aqsm_map50" in can_rec:
+            arch_disp = str(can_rec.get("model", pfx.upper()))
+            bb_str = str(can_rec.get("backbone", pfx))
+            proto_str = str(can_rec.get("protocol", "Canonical"))
+            clean_v = float(can_rec["clean_map50"])
+            aqsm_v = float(can_rec["aqsm_map50"])
+            rel_v = float(can_rec["relative_drop_pct"])
+            drift_v = float(can_rec["hungarian_set_drift"])
+            hit_v = float(can_rec["anchor_fg_hit_pct"])
+            rows.append([
+                arch_disp,
+                bb_str,
+                proto_str,
+                f"{clean_v:.2f}%",
+                f"{aqsm_v:.2f}% [{rel_v:+.2f}%]",
+                f"{drift_v:.4f}",
+                f"{hit_v:.2f}%",
+            ])
+            arch_disp_tex = arch_disp.replace("_", r"\_")
+            tex_rows.append(
+                f"{arch_disp_tex} & {bb_str} & {proto_str} & {clean_v:.2f}\\% & "
+                f"{aqsm_v:.2f}\\% [$-${abs(rel_v):.2f}\\%] & {drift_v:.4f} & {hit_v:.2f}\\% \\\\"
+            )
 
     if not rows:
-        raise KeyError("Không tìm thấy bản ghi r18 hoặc r50 hợp lệ trong multimodel_and_seed_stability_summary.json")
+        raise KeyError("Không tìm thấy bản ghi kiến trúc hợp lệ nào trong multimodel_and_seed_stability_summary.json")
 
     caption_k = f"$K={seed_counts[0]}$ seeds" if seed_counts else "multi-seed"
+    eff_res_t13 = int(get_img_size())
+    threat_note = str(ms_data.get("threat_budget", r"$\epsilon = 16/255, T = 15$"))
     tex = r"""\begin{table}[!htbp]
 \centering
-\caption{Multi-seed optimization stability (""" + caption_k + r""") and cross-variant generalization on COCO val2017 ($640 \times 640$, $\epsilon = 16/255, T = 15$).}
+\caption{Multi-seed optimization stability (""" + caption_k + rf""") and cross-variant generalization on COCO val2017 (${eff_res_t13} \times {eff_res_t13}$, """ + threat_note + r""").}
 \label{tab:tab13_multiseed_generalization}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccc}
@@ -1343,44 +1604,52 @@ def generate_table13(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
 # MAIN ORCHESTRATOR
 # ==============================================================================
 def main():
+    cur_outputs_dir = get_outputs_dir()
     parser = argparse.ArgumentParser(description="Tự động kết xuất toàn bộ 13 Bảng biểu thực nghiệm chuẩn Elsevier EAAI")
-    parser.add_argument("--output_dir", type=str, default=str(OUTPUTS_DIR), help="Thư mục chứa summary_json")
-    parser.add_argument("--tables_dir", type=str, default=str(OUTPUTS_DIR / "tables"), help="Thư mục xuất bảng .tex, .md, .csv")
+    parser.add_argument("--output_dir", type=str, default=str(cur_outputs_dir), help="Thư mục chứa summary_json")
+    parser.add_argument("--tables_dir", type=str, default=None, help="Thư mục xuất bảng .tex, .md, .csv")
     parser.add_argument("--verify_tex", action="store_true", default=False, help="Kiểm tra đối chiếu với main.tex")
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
-    # Dò tìm thư mục summary_dir linh hoạt
-    candidate_dirs: List[Path] = []
     if args.output_dir:
-        p_in = Path(args.output_dir).resolve()
-        candidate_dirs.extend([
-            p_in / "summary_json",
-            p_in,
-            p_in.parent / "summary_json",
-            p_in.parent,
-        ])
-    candidate_dirs.extend([
-        SUMMARY_JSON_DIR,
-        OUTPUTS_DIR / "summary_json",
-        OUTPUTS_DIR,
+        update_experiment_paths(output_dir=args.output_dir)
+
+    out_root = Path(args.output_dir).resolve()
+    tables_out_default = out_root / "tables"
+
+    # Dò tìm thư mục summary_dir linh hoạt (ưu tiên --output_dir tường minh, tránh lẫn với thư mục global)
+    explicit_candidates: List[Path] = [
+        out_root / "summary_json",
+        out_root,
+        out_root.parent / "summary_json",
+    ]
+    global_candidates: List[Path] = [
+        get_summary_json_dir(),
+        get_outputs_dir() / "summary_json",
+        get_outputs_dir(),
         WORKSPACE_DIR / "paper_1_aqsm_mechanism" / "outputs" / "summary_json",
         Path(__file__).resolve().parent.parent / "outputs" / "summary_json",
-    ])
+    ]
 
     summary_dir = None
-    for cand in candidate_dirs:
-        if cand.exists() and (cand / "defense_esm_evaluation.json").exists():
+    for cand in explicit_candidates:
+        if cand.exists() and list(cand.glob("*.json")):
             summary_dir = cand
             break
     if summary_dir is None:
-        for cand in candidate_dirs:
+        for cand in explicit_candidates + global_candidates:
+            if cand.exists() and (cand / "defense_esm_evaluation.json").exists():
+                summary_dir = cand
+                break
+    if summary_dir is None:
+        for cand in explicit_candidates + global_candidates:
             if cand.exists():
                 summary_dir = cand
                 break
     if summary_dir is None:
-        summary_dir = Path(args.output_dir) / "summary_json"
+        summary_dir = out_root / "summary_json"
 
-    tables_dir = Path(args.tables_dir)
+    tables_dir = Path(args.tables_dir) if args.tables_dir else tables_out_default
     tables_dir.mkdir(parents=True, exist_ok=True)
     csv_dir = tables_dir / "csv"
     csv_dir.mkdir(parents=True, exist_ok=True)
@@ -1440,7 +1709,10 @@ def main():
         save_text(combined_tex_path, "\n\n".join(all_tex))
 
         combined_md_path = tables_dir / "all_tables.md"
-        save_text(combined_md_path, "# TOÀN BỘ 13 BẢNG BIỂU THỰC NGHIỆM PAPER 1 (N=1,000)\n\n" + "\n\n".join(all_md))
+        c_aq_hdr = safe_load_json([summary_dir / "causal_swap_results_aqsm.json"], default_dict={})
+        n_hdr = c_aq_hdr.get("n_evaluated_images")
+        hdr_tag = f" (N={int(n_hdr):,})" if n_hdr else ""
+        save_text(combined_md_path, f"# TOÀN BỘ 13 BẢNG BIỂU THỰC NGHIỆM PAPER 1{hdr_tag}\n\n" + "\n\n".join(all_md))
 
         print("\n" + "=" * 80)
         print(f" [HOÀN TẤT] {n_pass}/{n_total} bảng biểu đã được sinh ra thành công:")

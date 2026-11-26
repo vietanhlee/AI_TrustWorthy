@@ -22,7 +22,7 @@ if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 import torch
-from paper_1_aqsm_mechanism.experiments.config import DEFAULT_MULTI_SEEDS
+from paper_1_aqsm_mechanism.experiments.config import DEFAULT_MULTI_SEEDS, get_img_size
 
 
 def main():
@@ -73,16 +73,24 @@ def main():
         print(">>> KÍCH HOẠT CHẾ ĐỘ ON-THE-FLY VRAM STREAMING (0 GB đĩa, giải phóng VRAM theo từng batch)!")
         effective_max_samples = args.max_samples
     else:
-        bytes_per_sample = 3 * 640 * 640 * 4  # 4.9152 MB/ảnh ở chuẩn float32
+        eff_img = int(get_img_size())
+        bytes_per_sample = 3 * eff_img * eff_img * 4  # Float32 delta per image
         num_attacks = 3  # aqsm, vanishing, taskpgd
-        needed_disk_gb = (args.max_samples * bytes_per_sample * num_attacks) / (1024 ** 3)
+        actual_dir_count = 5000
+        if args.folder_image and Path(args.folder_image).is_dir():
+            valid_exts = {".jpg", ".jpeg", ".png", ".bmp"}
+            found_cnt = len([p for p in Path(args.folder_image).iterdir() if p.suffix.lower() in valid_exts])
+            if found_cnt > 0:
+                actual_dir_count = found_cnt
+        est_samples = args.max_samples if (args.max_samples is not None and args.max_samples > 0) else actual_dir_count
+        needed_disk_gb = (est_samples * bytes_per_sample * num_attacks) / (1024 ** 3)
 
         # Để an toàn, chỉ dùng tối đa 75% đĩa trống hiện có (dành 25% cho outputs, zip và OS)
         safe_disk_capacity_gb = free_gb * 0.75
         max_safe_samples = int((safe_disk_capacity_gb * (1024 ** 3)) / (num_attacks * bytes_per_sample))
 
         if needed_disk_gb > safe_disk_capacity_gb:
-            effective_max_samples = max(max_safe_samples, 50)
+            effective_max_samples = min(est_samples, max(max_safe_samples, 1))
             print("=" * 80)
             print(f"⚠️  [CẢNH BÁO DUNG LƯỢNG Ổ CỨNG KAGGLE]")
             print(f" Yêu cầu tiền sinh cache cho {args.max_samples} ảnh -> Cần tối thiểu {needed_disk_gb:.2f} GB đĩa cho {num_attacks} attacks,")

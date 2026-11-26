@@ -322,17 +322,17 @@ def analyze_causal_per_image() -> Dict[str, Any]:
     global_share_q = 100.0 - global_share_m
     agg_gap_pp = abs(global_share_m - nom_share_m)
 
-    ret_b = b_map / clean_map
-    ret_c = c_map / clean_map
-    ret_d = d_map / clean_map
+    ret_b = max(b_map / max(clean_map, 1e-9), 1e-9)
+    ret_c = max(c_map / max(clean_map, 1e-9), 1e-9)
+    ret_d = max(d_map / max(clean_map, 1e-9), 1e-9)
     prod_cd = ret_c * ret_d
     ln_b = float(np.log(ret_b))
     ln_c = float(np.log(ret_c))
     ln_d = float(np.log(ret_d))
     log_sum = ln_c + ln_d
     log_inter = ln_b - log_sum
-    share_m_log = float((ln_c / log_sum) * 100.0)
-    share_q_log = float((ln_d / log_sum) * 100.0)
+    share_m_log = float((ln_c / log_sum) * 100.0) if abs(log_sum) > 1e-12 else 0.0
+    share_q_log = float((ln_d / log_sum) * 100.0) if abs(log_sum) > 1e-12 else 0.0
 
     # Trích xuất động tỷ lệ Task PGD từ JSON tương ứng
     taskpgd_path = SUMMARY_DIR / "causal_swap_results_taskpgd.json"
@@ -348,9 +348,10 @@ def analyze_causal_per_image() -> Dict[str, Any]:
         pgd_denom = abs(pgd_me_m) + abs(pgd_me_q)
         pgd_lin_m = float((abs(pgd_me_m) / pgd_denom) * 100.0) if pgd_denom > 0 else 0.0
         pgd_lin_q = 100.0 - pgd_lin_m
-        ln_pc = float(np.log(p_c / p_a))
-        ln_pd = float(np.log(p_d / p_a))
-        pgd_log_m = float((ln_pc / (ln_pc + ln_pd)) * 100.0)
+        ln_pc = float(np.log(max(p_c / max(p_a, 1e-9), 1e-9)))
+        ln_pd = float(np.log(max(p_d / max(p_a, 1e-9), 1e-9)))
+        pgd_log_sum = ln_pc + ln_pd
+        pgd_log_m = float((ln_pc / pgd_log_sum) * 100.0) if abs(pgd_log_sum) > 1e-12 else 0.0
         pgd_log_q = 100.0 - pgd_log_m
     else:
         pgd_lin_m = pgd_lin_q = pgd_log_m = pgd_log_q = float("nan")
@@ -620,6 +621,16 @@ def analyze_null_baselines() -> Dict[str, Any]:
 
 
 def main():
+    import argparse
+    global RAW_CSV_DIR, SUMMARY_DIR
+    parser = argparse.ArgumentParser(description="Tính toán thống kê phi tham số cấp ảnh độc lập & TOST.")
+    parser.add_argument("--output_dir", type=str, default=None, help="Thư mục outputs chứa raw_csv/ và summary_json/")
+    args, _ = parser.parse_known_args()
+    if args.output_dir is not None:
+        out_p = Path(args.output_dir).resolve()
+        RAW_CSV_DIR = out_p / "raw_csv"
+        SUMMARY_DIR = out_p / "summary_json"
+
     SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
     out_file = SUMMARY_DIR / "refined_statistical_methodology_summary.json"
 
@@ -627,12 +638,25 @@ def main():
     telemetry_res = analyze_attention_per_image()
     null_res = analyze_null_baselines()
 
+    n_valid_pairs = int(causal_res.get("n_valid_images", causal_res.get("n_valid", 0)))
+    model_label = "RT-DETR"
+    causal_json_p = SUMMARY_DIR / "causal_swap_results_aqsm.json"
+    if causal_json_p.exists():
+        try:
+            with open(causal_json_p, "r", encoding="utf-8") as cf:
+                c_meta = json.load(cf)
+                model_label = str(c_meta.get("model", c_meta.get("architecture", model_label)))
+        except Exception:
+            pass
+
+    from paper_1_aqsm_mechanism.experiments.config import get_img_size
+    eff_res = int(get_img_size())
     full_summary = {
         "metadata": {
             "title": "Refined Non-Parametric Statistics, TOST Equivalence, and Attribution Bootstrap CIs",
-            "model": "RT-DETR-R18VD",
-            "resolution": "640x640",
-            "dataset": "COCO val2017 (N=992 valid pairs)",
+            "model": model_label,
+            "resolution": f"{eff_res}x{eff_res}",
+            "dataset": f"COCO val2017 (N={n_valid_pairs} valid pairs)",
         },
         "causal_decomposition": causal_res,
         "attention_telemetry": telemetry_res,

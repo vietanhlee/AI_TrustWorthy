@@ -39,6 +39,7 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_img_size,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
@@ -76,6 +77,7 @@ def profile_pipeline_latency(
     n_runs: int = 300,
     n_warmup: int = 30,
     audit_logger: Any = None,
+    hf_labels: Any = None,
 ) -> Dict[str, Any]:
     """
     Thực hiện profiling chi tiết từng giai đoạn của RT-DETR qua n_runs lần suy luận.
@@ -91,7 +93,7 @@ def profile_pipeline_latency(
     sample_img = sample_img.to(device)
     pixel_mask = torch.ones((bsz, height, width), device=device, dtype=torch.long)
 
-    hw_info = detect_hardware_environment()
+    hw_info = detect_hardware_environment(preferred_device=device.type)
 
     times_backbone: List[float] = []
     times_encoder: List[float] = []
@@ -156,7 +158,12 @@ def profile_pipeline_latency(
             t_enc, (source_flatten, spatial_shapes, spatial_shapes_list, level_start_index) = measure_fn(run_encoder)
 
             def run_selection():
-                if core.training or core.config.anchor_image_size is None:
+                if (
+                    core.training
+                    or core.config.anchor_image_size is None
+                    or getattr(core, "anchors", None) is None
+                    or core.anchors.shape[1] != source_flatten.shape[1]
+                ):
                     anchors, valid_mask = core.generate_anchors(tuple(spatial_shapes_list), device=device, dtype=source_flatten.dtype)
                 else:
                     anchors = core.anchors.to(device=device, dtype=source_flatten.dtype)
@@ -166,9 +173,13 @@ def profile_pipeline_latency(
                 enc_outputs_class = core.enc_score_head(output_memory)
                 enc_outputs_coord_logits = core.enc_bbox_head(output_memory) + anchors
 
-                _, topk_ind = torch.topk(enc_outputs_class.max(-1).values, core.config.num_queries, dim=1)
+                n_q_sel = min(int(core.config.num_queries), enc_outputs_class.shape[1])
+                _, topk_ind = torch.topk(enc_outputs_class.max(-1).values, n_q_sel, dim=1)
                 ref_points_unact = enc_outputs_coord_logits.gather(dim=1, index=topk_ind.unsqueeze(-1).repeat(1, 1, 4))
-                target = output_memory.gather(dim=1, index=topk_ind.unsqueeze(-1).repeat(1, 1, output_memory.shape[-1]))
+                if getattr(core.config, "learn_initial_query", False) and hasattr(core, "weight_embedding"):
+                    target = core.weight_embedding.tile([bsz, 1, 1])
+                else:
+                    target = output_memory.gather(dim=1, index=topk_ind.unsqueeze(-1).repeat(1, 1, output_memory.shape[-1]))
                 return target, source_flatten, ref_points_unact.detach(), spatial_shapes, spatial_shapes_list, level_start_index
             t_sel, (target, src_flat, ref_init, sp_shapes, sp_shapes_list, lvl_start) = measure_fn(run_selection)
 
@@ -225,11 +236,15 @@ def profile_pipeline_latency(
 
     # Benchmark đối chứng 4 điều kiện trên mô hình RT-DETR (Clean, AQSM, Task PGD, Flooding Sponge nhắm RT-DETR)
     print("\n>>> [Latency Contrast] Đo độ trễ & số active boxes (tau>=0.35) dưới các điều kiện tấn công (kể cả RT-DETR Flooding Sponge)...")
+    from paper_1_aqsm_mechanism.experiments.config import get_epsilon_l_inf, get_pgd_num_steps, get_pgd_step_size
     n_adv_runs = min(n_runs, 100)
-    attacker = DETRAttackGenerator(wrapper, epsilon=16.0 / 255.0, alpha=2.0 / 255.0, num_steps=15)
-    adv_aqsm = attacker.generate_query_selection_attack(sample_img, steps=15, bg_seed=RANDOM_SEED)
-    adv_pgd = attacker.generate_standard_task_pgd(sample_img, steps=15)
-    adv_flood = attacker.generate_latency_flooding_attack(sample_img, steps=15, conf_threshold=0.35)
+    eff_eps = get_epsilon_l_inf()
+    eff_alpha = get_pgd_step_size()
+    eff_steps = get_pgd_num_steps()
+    attacker = DETRAttackGenerator(wrapper, epsilon=eff_eps, alpha=eff_alpha, num_steps=eff_steps)
+    adv_aqsm = attacker.generate_query_selection_attack(sample_img, steps=eff_steps, bg_seed=RANDOM_SEED)
+    adv_pgd = attacker.generate_standard_task_pgd(sample_img, hf_labels=hf_labels, steps=eff_steps)
+    adv_flood = attacker.generate_latency_flooding_attack(sample_img, steps=eff_steps, conf_threshold=0.35)
 
     cond_inputs = {
         "Clean_Baseline": sample_img,
@@ -241,7 +256,7 @@ def profile_pipeline_latency(
     for cond_name, c_tensor in cond_inputs.items():
         c_tensor = c_tensor.to(device)
         c_times: List[float] = []
-        active_cnt = 0
+        active_cnt = 0.0
         with torch.no_grad():
             for _ in range(min(10, n_warmup)):
                 _ = model(c_tensor)
@@ -255,7 +270,7 @@ def profile_pipeline_latency(
                 c_times.append(t_c)
                 if r_i == 0 and hasattr(out_c, "logits"):
                     probs_c = torch.sigmoid(out_c.logits).max(dim=-1)[0]
-                    active_cnt = int((probs_c >= 0.35).sum().item())
+                    active_cnt = round(float((probs_c >= 0.35).sum().item()) / float(max(1, probs_c.shape[0])), 2)
         c_stats = _calc_stats(c_times)
         adv_latency_summary[cond_name] = {
             **c_stats,
@@ -329,6 +344,7 @@ def profile_pipeline_latency(
 
     output_dict = {
         "experiment": "Table 10: Hardware Execution Latency Breakdown & Profiling",
+        "model": getattr(wrapper, "pretrained_model_name", None) or "unknown",
         "n_runs": n_runs,
         "device_type": hw_info["device_type"],
         "timing_backend": "cuda_events_pytorch_fp32" if is_cuda else "perf_counter_cpu_pytorch_fp32",
@@ -375,7 +391,8 @@ def main():
     parser.add_argument("--n_runs", type=int, default=None, help="Số lần lặp đo đạc độ trễ (mặc định: lấy theo max_samples hoặc 1000)")
     parser.add_argument("--warmup", type=int, default=30, help="Số lần chạy khởi động trước khi đo (mặc định: 30)")
     args = parser.parse_args()
-    effective_n_runs = args.n_runs if args.n_runs is not None else (args.max_samples or 1000)
+    raw_n_runs = args.n_runs if args.n_runs is not None else args.max_samples
+    effective_n_runs = int(raw_n_runs) if (raw_n_runs is not None and int(raw_n_runs) > 0) else 1000
 
     chosen_model = resolve_model_name(getattr(args, "model", None))
     update_experiment_paths(
@@ -398,13 +415,14 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
         max_samples=1,
     )
     sample_img = dataset.tensors[0:1]
+    sample_hf_labels = dataset.hf_labels[0:1] if getattr(dataset, "hf_labels", None) else None
 
     audit_logger.log_metadata({
         "folder_image": str(args.folder_image),
@@ -423,6 +441,7 @@ def main():
         n_runs=effective_n_runs,
         n_warmup=args.warmup,
         audit_logger=audit_logger,
+        hf_labels=sample_hf_labels,
     )
 
     audit_logger.close()

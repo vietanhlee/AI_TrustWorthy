@@ -16,7 +16,7 @@ from PIL import Image
 import torch
 import torchvision.transforms.functional as TF
 
-from paper_1_aqsm_mechanism.experiments.config import IMG_SIZE
+from paper_1_aqsm_mechanism.experiments.config import get_img_size
 from paper_1_aqsm_mechanism.utils.stats import (
     bootstrap_paired_diff,
     repeated_measures_2x2_anova,
@@ -62,7 +62,7 @@ def box_cxcywh_to_xyxy(boxes: Union[torch.Tensor, np.ndarray]) -> Union[torch.Te
 
 def compute_image_gt_union_area(
     boxes_xyxy: np.ndarray,
-    resolution: int = 640,
+    resolution: Optional[int] = None,
 ) -> float:
     """
     Tính chính xác diện tích hợp hình học (Exact Union Area) của các GT bounding boxes
@@ -71,6 +71,8 @@ def compute_image_gt_union_area(
     Tỷ lệ này đại diện cho Phân phối Thực nghiệm của Null Baseline (Null Area Ratio):
     Xác suất một anchor ngẫu nhiên rơi trúng vùng vật thể thuần túy do may mắn.
     """
+    if resolution is None:
+        resolution = get_img_size()
     if len(boxes_xyxy) == 0:
         return 0.0
 
@@ -100,9 +102,9 @@ def compute_image_uniform_grid_fg_hit(
     if len(boxes_xyxy) == 0:
         return 0.0
 
-    # Lưới 15 x 20 = 300 điểm tâm ô đều phủ kín canvas [0, 1]^2
+    # Lưới điểm tâm ô đều phủ kín canvas [0, 1]^2 (đảm bảo n_rows * n_cols >= num_queries)
     n_rows = max(1, int(round(np.sqrt(num_queries * 0.75))))
-    n_cols = max(1, int(round(num_queries / n_rows)))
+    n_cols = max(1, int(np.ceil(num_queries / n_rows)))
     ys = np.linspace(0.5 / n_rows, 1.0 - 0.5 / n_rows, n_rows)
     xs = np.linspace(0.5 / n_cols, 1.0 - 0.5 / n_cols, n_cols)
     gx, gy = np.meshgrid(xs, ys)
@@ -116,13 +118,15 @@ def compute_image_uniform_grid_fg_hit(
 
 def compute_dataset_gt_union_null_baseline(
     gt_list: Sequence[Dict[str, Any]],
-    resolution: int = 640,
+    resolution: Optional[int] = None,
     num_queries: int = 300,
 ) -> Dict[str, Any]:
     """
     Tính toán phân phối thực nghiệm của Null Baseline (Exact GT Union Area
     và Uniform Canvas Grid Hit Rate) trên toàn bộ tập ảnh COCO thực tế thay vì hằng số cố định.
     """
+    if resolution is None:
+        resolution = get_img_size()
     per_image_union_areas = []
     per_image_uniform_grid_hits = []
     for gt in gt_list:
@@ -173,16 +177,36 @@ def build_coco_category_mapping(
 ) -> Dict[int, int]:
     """
     Xây dựng ánh xạ chuẩn xác từ COCO category_id (không liên tục 1..90)
-    sang chỉ số lớp liên tục 0..79 của RT-DETR.
+    sang chỉ số lớp của mô hình:
+      - Với RT-DETR (80 lớp liên tục 0..79): ánh xạ sang chỉ số liên tục 0..79.
+      - Với DETR / Deformable-DETR chuẩn HuggingFace (91 lớp gồm N/A tại các slot trống):
+        ánh xạ trực tiếp category_id -> category_id (1..90).
     """
     cats_sorted = sorted(coco_categories, key=lambda c: int(c["id"]))
     if len(cats_sorted) != 80:
         raise ValueError(f"COCO categories phải có đúng 80 lớp, nhận được {len(cats_sorted)}")
 
-    mapping: Dict[int, int] = {int(cat["id"]): idx for idx, cat in enumerate(cats_sorted)}
-
     if id2label is not None:
         norm_id2label = {int(k): str(v).strip().lower() for k, v in id2label.items()}
+        max_id = max(norm_id2label.keys()) if norm_id2label else 0
+        # Phát hiện bảng nhãn COCO 91 lớp (DETR / Deformable-DETR của HuggingFace)
+        is_91_class_coco = max_id >= 90 or norm_id2label.get(0, "") in ("n/a", "background", "__background__")
+
+        if is_91_class_coco:
+            mapping: Dict[int, int] = {}
+            for cat in cats_sorted:
+                cid = int(cat["id"])
+                coco_name = str(cat["name"]).strip().lower()
+                model_name = norm_id2label.get(cid, "")
+                model_canonical = _COCO_NAME_ALIASES.get(model_name, model_name)
+                if coco_name != model_name and coco_name != model_canonical:
+                    raise ValueError(
+                        f"Lệch ánh xạ lớp COCO-91 tại category_id {cid}: COCO='{coco_name}', model id2label='{model_name}'"
+                    )
+                mapping[cid] = cid
+            return mapping
+
+        mapping = {int(cat["id"]): idx for idx, cat in enumerate(cats_sorted)}
         for idx, cat in enumerate(cats_sorted):
             coco_name = str(cat["name"]).strip().lower()
             model_name = norm_id2label.get(idx, "")
@@ -191,8 +215,9 @@ def build_coco_category_mapping(
                 raise ValueError(
                     f"Lệch ánh xạ lớp tại index {idx}: COCO='{coco_name}', model id2label='{model_name}'"
                 )
+        return mapping
 
-    return mapping
+    return {int(cat["id"]): idx for idx, cat in enumerate(cats_sorted)}
 
 
 def get_partition_paths(
@@ -225,7 +250,7 @@ def load_coco_val2017_gt_cohort(
     n_test: int = N_TEST_CLEAN_SAMPLES,
     eval_start: int = 0,
     n_eval: int = 300,
-    img_size: int = IMG_SIZE,
+    img_size: Optional[int] = None,
     seed: int = 42,
     id2label: Optional[Dict[Union[int, str], str]] = None,
     load_tensors: bool = True,
@@ -242,6 +267,8 @@ def load_coco_val2017_gt_cohort(
         - `hf_labels`: List[Dict] tương thích `RTDetrForObjectDetection(..., labels=...)` (loại bỏ iscrowd)
         - `cat_id_to_idx`: Dict[int, int]
     """
+    if img_size is None:
+        img_size = get_img_size()
     ann_file = Path(ann_path) if ann_path is not None else get_default_coco_ann_file()
     if not ann_file.exists():
         raise FileNotFoundError(f"Chưa có file COCO Ground Truth: {ann_file}")
@@ -500,6 +527,24 @@ def _evaluate_class_ap_for_subset(
     return aps
 
 
+def _infer_effective_num_classes(
+    preds: Sequence[Dict[str, np.ndarray]],
+    gt_list: Sequence[Dict[str, Any]],
+    base_num_classes: int = 80,
+) -> int:
+    """Suy luận số lớp hiệu dụng để hỗ trợ cả chuẩn 80 lớp và 91 lớp (DETR/Deformable-DETR)."""
+    max_lbl = base_num_classes - 1
+    for gt in gt_list:
+        lbls = gt.get("labels")
+        if lbls is not None and len(lbls) > 0:
+            max_lbl = max(max_lbl, int(np.max(lbls)))
+    for pr in preds:
+        lbls = pr.get("labels")
+        if lbls is not None and len(lbls) > 0:
+            max_lbl = max(max_lbl, int(np.max(lbls)))
+    return max_lbl + 1
+
+
 def evaluate_coco_predictions(
     preds: Sequence[Dict[str, np.ndarray]],
     gt_list: Sequence[Dict[str, Any]],
@@ -509,11 +554,12 @@ def evaluate_coco_predictions(
     """
     Tính COCO mAP@50, mAP@75 và mAP@50:95 (thang %) chuẩn xác trên tập ảnh.
     """
+    eff_num_classes = _infer_effective_num_classes(preds, gt_list, num_classes)
     idx_list = list(range(len(gt_list))) if indices is None else list(indices)
     iou_thresholds = np.linspace(0.50, 0.95, 10)
-    class_ap_mat = np.full((num_classes, len(iou_thresholds)), np.nan, dtype=np.float64)
+    class_ap_mat = np.full((eff_num_classes, len(iou_thresholds)), np.nan, dtype=np.float64)
 
-    for c in range(num_classes):
+    for c in range(eff_num_classes):
         class_ap_mat[c] = _evaluate_class_ap_for_subset(
             preds=preds,
             gt_list=gt_list,
@@ -587,11 +633,12 @@ def precompute_coco_match_cache(
     trên mọi `indices` bất kỳ dùng cache này hoàn toàn tương đương bit-for-bit với
     `evaluate_coco_predictions` nhưng nhanh hơn >100 lần.
     """
+    eff_num_classes = _infer_effective_num_classes(preds, gt_list, num_classes)
     iou_thresholds = np.linspace(0.50, 0.95, 10)
     n_img = len(gt_list)
     per_class: List[Dict[str, Any]] = []
 
-    for c in range(num_classes):
+    for c in range(eff_num_classes):
         n_gt_vec = np.zeros(n_img, dtype=np.int64)
         scores_list: List[np.ndarray] = []
         matches_list: List[np.ndarray] = []
@@ -649,7 +696,7 @@ def precompute_coco_match_cache(
 
     return {
         "n_img": n_img,
-        "num_classes": num_classes,
+        "num_classes": eff_num_classes,
         "iou_thresholds": iou_thresholds,
         "per_class": per_class,
     }

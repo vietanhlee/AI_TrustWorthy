@@ -52,6 +52,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_pgd_num_steps,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
@@ -170,7 +173,7 @@ def run_causal_surgery(
             for b in range(end - start):
                 s_c = set(c_ind[b].cpu().tolist())
                 s_a = set(a_ind[b].cpu().tolist())
-                evicted_ratios.append(float(1.0 - len(s_c & s_a) / 300.0))
+                evicted_ratios.append(float(1.0 - len(s_c & s_a) / float(max(len(s_c), 1))))
 
             tgt_c_idx, ref_c_idx = _gather_priors_by_indices(a_comp, c_ind)
             tgt_a_idx, ref_a_idx = _gather_priors_by_indices(c_comp, a_ind)
@@ -200,7 +203,7 @@ def run_causal_surgery(
                 preds_by_arm[arm].extend(batch_preds)
 
     elapsed = time.time() - t_start
-    print(f">>> Hoàn thành suy luận 6 nhánh trong {elapsed:.2f}s ({elapsed/n_eval:.3f}s/ảnh)")
+    print(f">>> Hoàn thành suy luận 6 nhánh trong {elapsed:.2f}s ({elapsed / max(1, n_eval):.3f}s/ảnh)")
 
     point_maps: Dict[str, Dict[str, float]] = {}
     for arm in arms:
@@ -304,8 +307,12 @@ def run_causal_surgery(
     for p_name, arm1, arm2 in pairs:
         d50_pt = point_maps[arm1]["mAP@50"] - point_maps[arm2]["mAP@50"]
         d95_pt = point_maps[arm1]["mAP@50:95"] - point_maps[arm2]["mAP@50:95"]
-        ci50 = np.percentile(d50_samples[p_name], [2.5, 97.5]).tolist()
-        ci95 = np.percentile(d95_samples[p_name], [2.5, 97.5]).tolist()
+        if len(d50_samples[p_name]) > 0:
+            ci50 = np.percentile(d50_samples[p_name], [2.5, 97.5]).tolist()
+            ci95 = np.percentile(d95_samples[p_name], [2.5, 97.5]).tolist()
+        else:
+            ci50 = [float(d50_pt), float(d50_pt)]
+            ci95 = [float(d95_pt), float(d95_pt)]
         boot_deltas[p_name] = {
             "point_delta_mAP@50": float(d50_pt),
             "ci95_mAP@50": [float(ci50[0]), float(ci50[1])],
@@ -330,6 +337,8 @@ def run_causal_surgery(
     ]
     
     print(f"\n--- Phân tích Thống kê Phi tham số cấp ảnh độc lập (N={n_valid} ảnh hợp lệ) ---")
+    if n_valid == 0:
+        raise ValueError("Không có ảnh hợp lệ nào (non-NaN AP) trong cohort để thực hiện thống kê Task 1!")
     for c_key, a1, a2, desc in contrast_definitions:
         diff_arr = (per_image_aps[a1]["ap50"][valid_mask] - per_image_aps[a2]["ap50"][valid_mask]) * 100.0
         mean_diff = float(np.mean(diff_arr))
@@ -352,13 +361,16 @@ def run_causal_surgery(
             r_rb = 0.0
             
         # Bootstrap BCa 95% Confidence Interval
-        boot_means = []
-        for _ in range(2000):
-            s_idx = rng.randint(0, len(diff_arr), size=len(diff_arr))
-            boot_means.append(np.mean(diff_arr[s_idx]))
-        boot_means = np.sort(boot_means)
-        ci_low = float(boot_means[int(2000 * 0.025)])
-        ci_high = float(boot_means[int(2000 * 0.975)])
+        if len(diff_arr) > 0:
+            boot_means = []
+            for _ in range(2000):
+                s_idx = rng.randint(0, len(diff_arr), size=len(diff_arr))
+                boot_means.append(np.mean(diff_arr[s_idx]))
+            boot_means = np.sort(boot_means)
+            ci_low = float(boot_means[int(2000 * 0.025)])
+            ci_high = float(boot_means[int(2000 * 0.975)])
+        else:
+            ci_low, ci_high = 0.0, 0.0
         
         non_parametric_stats[c_key] = {
             "description": desc,
@@ -389,12 +401,13 @@ def run_causal_surgery(
             "ap95_median": round(float(np.median(val_95)), 2),
         }
 
+    n_q_model = int(getattr(wrapper, "num_queries", 300) or 300)
     arm_definitions = {
-        "Arm_A": "Clean Baseline: Clean Memory M_clean, Clean Query Prior Q_clean (Top-300 clean)",
-        "Arm_B": "Full Joint Attack: Adversarial Memory M_adv, Adversarial Query Prior Q_adv (Top-300 adv)",
-        "Arm_C_full": "Intervention: Adversarial Memory M_adv, Clean Query Prior Q_clean (Top-300 clean content & coordinates)",
+        "Arm_A": f"Clean Baseline: Clean Memory M_clean, Clean Query Prior Q_clean (Top-{n_q_model} clean)",
+        "Arm_B": f"Full Joint Attack: Adversarial Memory M_adv, Adversarial Query Prior Q_adv (Top-{n_q_model} adv)",
+        "Arm_C_full": f"Intervention: Adversarial Memory M_adv, Clean Query Prior Q_clean (Top-{n_q_model} clean content & coordinates)",
         "Arm_C_index": "Intervention: Adversarial Memory M_adv, Query Prior gathered from Adversarial Encoder using Clean Indices I_clean",
-        "Arm_D_full": "Intervention: Clean Memory M_clean, Adversarial Query Prior Q_adv (Top-300 adv content & coordinates)",
+        "Arm_D_full": f"Intervention: Clean Memory M_clean, Adversarial Query Prior Q_adv (Top-{n_q_model} adv content & coordinates)",
         "Arm_D_index": "Intervention: Clean Memory M_clean, Query Prior gathered from Clean Encoder using Adversarial Indices I_adv",
     }
 
@@ -451,7 +464,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -476,20 +489,24 @@ def main():
         "max_samples": args.max_samples,
     })
 
+    eff_eps_num = int(round(get_epsilon_l_inf() * 255.0))
+    eff_steps = get_pgd_num_steps()
     attack_list = [a.strip().lower() for a in args.attacks.split(",") if a.strip()]
-    for atk in attack_list:
+    for step_i, atk in enumerate(attack_list, start=1):
         audit_logger.logger.info("\n=======================================================")
         audit_logger.logger.info(f"=== Đang thực hiện Causal Surgery cho: {atk.upper()} (N={n_actual}) ===")
         audit_logger.logger.info("=======================================================")
 
         adv_imgs, _ = load_cached_adv_images(
             attack=atk,
-            eps_num=16,
+            eps_num=eff_eps_num,
             n_eval=n_actual,
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=args.cache_dir,
             wrapper=wrapper,
+            steps=eff_steps,
+            hf_labels=dataset.hf_labels,
         )
 
         res = run_causal_surgery(
@@ -506,7 +523,7 @@ def main():
         eta_m = res["anova_repeated_measures_full"]["attribution_shares"]["partial_eta_squared"]["Memory_M"]
         audit_logger.log_step(
             step_name="Attack_Completed",
-            step_idx=attack_list.index(atk) + 1,
+            step_idx=step_i,
             total_steps=len(attack_list),
             metrics={"attack": atk, "eta_p2_Q": eta_q, "eta_p2_M": eta_m},
         )

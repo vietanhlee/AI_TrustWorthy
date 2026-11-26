@@ -74,8 +74,9 @@ class EncoderSelectionMonitor:
        margin = s_300 - s_301
     """
 
-    def __init__(self, target_fpr: float = 0.05):
+    def __init__(self, target_fpr: float = 0.05, num_queries: int = 300):
         self.target_fpr = target_fpr
+        self.num_queries = max(1, int(num_queries))
         self.dropoff_mon = SingleFeatureMonitor(target_fpr=target_fpr)
         self.margin_mon = SingleFeatureMonitor(target_fpr=target_fpr)
         self.fused_thresh: float = 0.0
@@ -83,10 +84,13 @@ class EncoderSelectionMonitor:
         self.is_fitted: bool = False
 
     @staticmethod
-    def extract_features_from_logits(enc_logits: torch.Tensor) -> Tuple[np.ndarray, np.ndarray]:
+    def extract_features_from_logits(
+        enc_logits: torch.Tensor,
+        num_queries: int = 300,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Trích xuất (dropoffs, margins) từ enc_outputs_class [B, S, C] hoặc [B, S].
-        Hỗ trợ số lượng candidate S = 8400 ở chuẩn Native 640x640.
+        Tự động thích ứng với số lượng query N_q (300 với RT-DETR, 100 với DETR) và số ứng viên S.
         """
         probs = torch.sigmoid(enc_logits)
         if probs.dim() == 3:
@@ -94,21 +98,22 @@ class EncoderSelectionMonitor:
         else:
             max_probs = probs
 
-        # Sắp xếp giảm dần theo hàng
+        # Sắp xếp giảm dần theo hàng (tự điều chỉnh theo số query N_q và số ứng viên S)
         sorted_probs, _ = torch.sort(max_probs, dim=-1, descending=True)
+        k_idx = min(max(0, int(num_queries) - 1), max(0, sorted_probs.shape[1] - 1))
         s_1 = sorted_probs[:, 0].detach().cpu().numpy()
-        s_300 = sorted_probs[:, 299].detach().cpu().numpy()
-        s_301 = sorted_probs[:, 300].detach().cpu().numpy() if sorted_probs.shape[1] > 300 else np.zeros_like(s_300)
+        s_nq = sorted_probs[:, k_idx].detach().cpu().numpy()
+        s_nq_next = sorted_probs[:, k_idx + 1].detach().cpu().numpy() if sorted_probs.shape[1] > k_idx + 1 else np.zeros_like(s_nq)
 
-        dropoffs = np.maximum(s_1, 1e-6) / np.maximum(s_300, 1e-6)
-        margins = s_300 - s_301
+        dropoffs = np.maximum(s_1, 1e-6) / np.maximum(s_nq, 1e-6)
+        margins = s_nq - s_nq_next
         return dropoffs, margins
 
     def fit(self, enc_logits_list: Sequence[torch.Tensor]) -> None:
         all_dropoffs = []
         all_margins = []
         for lgt in enc_logits_list:
-            d, m = self.extract_features_from_logits(lgt)
+            d, m = self.extract_features_from_logits(lgt, num_queries=self.num_queries)
             all_dropoffs.extend(d.tolist())
             all_margins.extend(m.tolist())
 
@@ -126,7 +131,7 @@ class EncoderSelectionMonitor:
         self.is_fitted = True
 
     def score(self, enc_logits: torch.Tensor) -> np.ndarray:
-        d, m = self.extract_features_from_logits(enc_logits)
+        d, m = self.extract_features_from_logits(enc_logits, num_queries=self.num_queries)
         s_d = self.dropoff_mon.score(d)
         s_m = self.margin_mon.score(m)
         return np.maximum(s_d, s_m)
@@ -211,6 +216,7 @@ def evaluate_defense_cohort(
     adv_tensors_dict: Dict[str, torch.Tensor],
     target_fpr: float = 0.05,
     n_cal: int = 150,
+    batch_size: int = 10,
 ) -> Dict[str, Any]:
     """
     Đánh giá hiệu năng bảo vệ của Encoder Selection Monitor trên tập kiểm thử:
@@ -232,7 +238,7 @@ def evaluate_defense_cohort(
     # Trích xuất logits cho calibration theo lô nhỏ
     print(f"[Defense Eval] Trích xuất logits hiệu chuẩn trên {n_cal} ảnh sạch...")
     cal_logits = []
-    bsz = 10
+    bsz = max(1, int(batch_size))
     with torch.no_grad():
         for i in range(0, n_cal, bsz):
             end_idx = min(i + bsz, n_cal)
@@ -245,7 +251,8 @@ def evaluate_defense_cohort(
             else:
                 cal_logits.append(out.logits.cpu())
 
-    esm = EncoderSelectionMonitor(target_fpr=target_fpr)
+    n_q_model = int(getattr(model_wrapper, "num_queries", 300) or 300)
+    esm = EncoderSelectionMonitor(target_fpr=target_fpr, num_queries=n_q_model)
     esm.fit(cal_logits)
 
     # Đánh giá trên Clean Test (FPR)
@@ -265,12 +272,14 @@ def evaluate_defense_cohort(
                 test_logits.append(out.logits.cpu())
 
     test_logits_cat = torch.cat(test_logits, dim=0)
-    preds_clean = esm.predict(test_logits_cat)
+    clean_scores = esm.score(test_logits_cat)
+    preds_clean = (clean_scores >= esm.fused_thresh).astype(int)
     clean_fpr = float(np.mean(preds_clean)) * 100.0
 
     results: Dict[str, Any] = {
         "target_fpr_pct": target_fpr * 100.0,
         "empirical_clean_fpr_pct": round(clean_fpr, 2),
+        "clean_mean_anomaly_score": round(float(np.mean(clean_scores)), 4),
         "n_cal": n_cal,
         "n_test": n_test,
         "fused_threshold": round(esm.fused_thresh, 4),
@@ -294,13 +303,12 @@ def evaluate_defense_cohort(
                     adv_logits.append(out.logits.cpu())
 
         adv_logits_cat = torch.cat(adv_logits, dim=0)
-        preds_adv = esm.predict(adv_logits_cat)
         scores_adv = esm.score(adv_logits_cat)
+        preds_adv = (scores_adv >= esm.fused_thresh).astype(int)
         tpr = float(np.mean(preds_adv)) * 100.0
 
         # Tính AUROC thực tế qua toàn bộ đường cong phân bố bằng sklearn.metrics.roc_auc_score
         all_labels = np.concatenate([np.zeros(n_test), np.ones(n_test)])
-        clean_scores = esm.score(test_logits_cat)
         all_scores = np.concatenate([clean_scores, scores_adv])
 
         try:
@@ -327,24 +335,30 @@ class ActiveBoxCountMonitor:
     và Standard Task PGD trên cùng ngưỡng hiệu chuẩn FPR danh định.
     """
 
-    def __init__(self, target_fpr: float = 0.05, conf_threshold: float = 0.35):
+    def __init__(self, target_fpr: float = 0.05, conf_threshold: float = 0.35, is_sigmoid: bool = True):
         self.target_fpr = float(target_fpr)
         self.conf_threshold = float(conf_threshold)
+        self.is_sigmoid = bool(is_sigmoid)
         self.twosided_monitor = SingleFeatureMonitor(target_fpr=target_fpr)
         self.upper_thresh: float = 0.0
         self.cal_counts: np.ndarray = np.array([], dtype=np.float64)
         self.is_fitted: bool = False
 
+    def _compute_probs(self, logits: torch.Tensor) -> torch.Tensor:
+        if self.is_sigmoid:
+            return torch.sigmoid(logits)
+        return torch.softmax(logits, dim=-1)[..., :-1]
+
     def count_active_boxes(self, dec_logits_list: Any) -> np.ndarray:
         """Đếm số box vượt ngưỡng conf_threshold trên từng ảnh từ logits [B, N_q, C]."""
         if isinstance(dec_logits_list, torch.Tensor):
-            probs = torch.sigmoid(dec_logits_list)
+            probs = self._compute_probs(dec_logits_list)
             max_probs, _ = probs.max(dim=-1)
             counts = (max_probs >= self.conf_threshold).sum(dim=-1)
             return counts.detach().cpu().numpy().astype(np.float64)
         counts_all: List[np.ndarray] = []
         for batch_t in dec_logits_list:
-            probs = torch.sigmoid(batch_t)
+            probs = self._compute_probs(batch_t)
             max_probs, _ = probs.max(dim=-1)
             counts_all.append((max_probs >= self.conf_threshold).sum(dim=-1).detach().cpu().numpy().astype(np.float64))
         return np.concatenate(counts_all, axis=0) if counts_all else np.array([], dtype=np.float64)

@@ -395,8 +395,19 @@ def audit_zero_stale_markers(tex_content: str) -> List[str]:
 
 
 def main():
+    import argparse
+    global MANIFEST_PATH, LATEX_PATH
+    parser = argparse.ArgumentParser(description="Kiểm định toàn vẹn Data Provenance và số liệu bản thảo.")
+    parser.add_argument("--output_dir", type=str, default=None, help="Thư mục outputs chứa summary_json/")
+    parser.add_argument("--main_tex", type=str, default=None, help="Đường dẫn tới file main.tex")
+    args, _ = parser.parse_known_args()
+    if args.output_dir is not None:
+        MANIFEST_PATH = Path(args.output_dir).resolve() / "summary_json" / "data_provenance_manifest.json"
+    if args.main_tex is not None:
+        LATEX_PATH = Path(args.main_tex).resolve()
+
     print("=" * 80)
-    print(" [PAPER 1 AUDIT] KIỂM ĐỊNH TOÀN DIỆN TÍNH TOÀN VẸN & DATA PROVENANCE N=1000")
+    print(" [PAPER 1 AUDIT] KIỂM ĐỊNH TOÀN DIỆN TÍNH TOÀN VẸN & DATA PROVENANCE")
     print("=" * 80)
 
     if not MANIFEST_PATH.exists():

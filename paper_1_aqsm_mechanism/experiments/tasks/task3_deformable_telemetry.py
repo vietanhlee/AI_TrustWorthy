@@ -28,6 +28,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_pgd_num_steps,
     resolve_model_name,
     update_experiment_paths,
 )
@@ -60,7 +63,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -84,17 +87,21 @@ def main():
         "attacks": args.attacks,
     })
 
+    eff_eps_num = int(round(get_epsilon_l_inf() * 255.0))
+    eff_steps = get_pgd_num_steps()
     attacks_to_eval = [a.strip().lower() for a in args.attacks.split(",") if a.strip()]
     adv_dict: Dict[str, Any] = {}
     for atk in attacks_to_eval:
         adv_imgs, _ = load_cached_adv_images(
             attack=atk,
-            eps_num=16,
+            eps_num=eff_eps_num,
             n_eval=n_total,
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=args.cache_dir,
             wrapper=wrapper,
+            steps=eff_steps,
+            hf_labels=dataset.hf_labels,
         )
         adv_dict[atk] = adv_imgs
 

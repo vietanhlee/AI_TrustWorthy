@@ -61,6 +61,9 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_pgd_num_steps,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
@@ -229,12 +232,14 @@ def run_controlled_misrouting_evaluation(
     if adv_imgs is None:
         adv_imgs, _ = load_cached_adv_images(
             attack="aqsm",
-            eps_num=16,
+            eps_num=int(round(get_epsilon_l_inf() * 255.0)),
             n_eval=n_total,
             clean_imgs=clean_imgs,
             expected_image_ids=image_ids,
             cache_dir=cache_dir,
             wrapper=wrapper,
+            steps=get_pgd_num_steps(),
+            hf_labels=getattr(dataset, "hf_labels", None),
         )
 
     seeds = list(seeds) if seeds else list(DEFAULT_MULTI_SEEDS)
@@ -308,18 +313,19 @@ def run_controlled_misrouting_evaluation(
         # Lưu thêm post-sigmoid residual cho từng ảnh trong lô của các nhánh Shift
         batch_shift_q_diags: Dict[str, Dict[str, List[float]]] = {}
         for s in seeds:
-            rng = np.random.RandomState(s)
             shifted_boxes_np = np.zeros_like(c_ref_np)
             c_errs: List[float] = []
             s_errs: List[float] = []
             fb_cs: List[float] = []
             fb_ss: List[float] = []
             for b in range(cur_bsz):
+                # RNG riêng theo từng (seed, image_index) để kết quả bất biến với batch_size
+                rng_img = np.random.RandomState((int(s) * 100003 + int(start_i + b)) % (2 ** 31 - 1))
                 img_c_errs: List[float] = []
                 img_s_errs: List[float] = []
                 for i in range(n_queries_batch):
                     box_s, q_diag = sample_exact_matched_shift_4d_with_diagnostics(
-                        c_ref_np[b, i], a_ref_np[b, i], rng, scale_factor=1.0
+                        c_ref_np[b, i], a_ref_np[b, i], rng_img, scale_factor=1.0
                     )
                     shifted_boxes_np[b, i] = box_s
                     c_errs.append(q_diag["center_l2_err"])
@@ -553,7 +559,7 @@ def run_controlled_misrouting_evaluation(
                 seed_scalar_summary=seed_ap_scalar,
                 clean_scalar_baseline=clean_m50_val,
                 n_boot=n_boot,
-                seed=42,
+                seed=RANDOM_SEED,
             ),
             "fg_hit_vs_clean": evaluate_multiseed_statistical_evidence(
                 baseline_per_image=clean_fg_vec,
@@ -561,7 +567,7 @@ def run_controlled_misrouting_evaluation(
                 seed_scalar_summary=seed_fg_scalar,
                 clean_scalar_baseline=clean_fg_val,
                 n_boot=n_boot,
-                seed=42,
+                seed=RANDOM_SEED,
             ),
         }
 
@@ -695,7 +701,7 @@ def run_controlled_misrouting_evaluation(
     print("\n>>> Đang tính toán đường Dose-Response Curve (delta in [0.1 .. 1.0])...")
     deltas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
     dose_curve = {}
-    rng_dose = np.random.RandomState(42)
+    rng_dose = np.random.RandomState(RANDOM_SEED)
     n_dose_eval = n_total if n_dose_samples is None else min(n_dose_samples, n_total)
     sub_gt = gt_list[:n_dose_eval]
 
@@ -785,7 +791,7 @@ def run_controlled_misrouting_evaluation(
         gt_boxes_i = gt_boxes_batch[i]
         crowd_i = gt_list[i].get("iscrowd", np.zeros(len(gt_boxes_i), dtype=bool))
         non_crowd_i = gt_boxes_i[~crowd_i] if len(gt_boxes_i) > 0 and len(crowd_i) == len(gt_boxes_i) else gt_boxes_i
-        gt_union_i = compute_image_gt_union_area(non_crowd_i, resolution=640) * 100.0
+        gt_union_i = compute_image_gt_union_area(non_crowd_i, resolution=get_img_size()) * 100.0
         n_q_eff = n_queries_model if n_queries_model is not None else 300
         grid_hit_i = compute_image_uniform_grid_fg_hit(non_crowd_i, num_queries=n_q_eff) * 100.0
 
@@ -866,7 +872,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,

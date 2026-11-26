@@ -104,6 +104,7 @@ def run_mechanism_telemetry_cohort(
     model = wrapper.model
     model.eval()
     n_eval = len(gt_list)
+    n_queries_model = int(getattr(wrapper, "num_queries", getattr(getattr(model, "config", None), "num_queries", 300)) or 300)
 
     print("\n==================================================================")
     print(" [Telemetry Analyzer] Phân tích Deformable Attention & Proposal Dynamics")
@@ -147,27 +148,30 @@ def run_mechanism_telemetry_cohort(
             gt_boxes = gt_list[img_idx].get("boxes_xyxy", [])
 
             n_layers = len(hooks)
-            l1_idx = 0
-            l2_idx = min(1, n_layers - 1)
-            l3_idx = min(2, n_layers - 1)
+            if n_layers > 0:
+                l1_idx = 0
+                l2_idx = min(1, n_layers - 1)
+                l3_idx = min(2, n_layers - 1)
 
-            w_l1 = hooks[l1_idx]["attention_weights"][b].cpu().numpy()
-            w_l2 = hooks[l2_idx]["attention_weights"][b].cpu().numpy()
-            w_l3 = hooks[l3_idx]["attention_weights"][b].cpu().numpy()
+                w_l1 = hooks[l1_idx]["attention_weights"][b].cpu().numpy()
+                w_l2 = hooks[l2_idx]["attention_weights"][b].cpu().numpy()
+                w_l3 = hooks[l3_idx]["attention_weights"][b].cpu().numpy()
 
-            ent_l1 = compute_attention_entropy(w_l1)
-            ent_l2 = compute_attention_entropy(w_l2)
-            ent_l3 = compute_attention_entropy(w_l3)
-            ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)])) if n_layers > 0 else ent_l1
-
-            locs_l3 = hooks[l3_idx]["sampling_locations"][b].cpu().numpy()
-            fg_hit = compute_foreground_spatial_hit_rate(locs_l3, gt_boxes)
+                ent_l1 = compute_attention_entropy(w_l1)
+                ent_l2 = compute_attention_entropy(w_l2)
+                ent_l3 = compute_attention_entropy(w_l3)
+                ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)]))
+                locs_last = hooks[-1]["sampling_locations"][b].cpu().numpy()
+                fg_hit = compute_foreground_spatial_hit_rate(locs_last, gt_boxes)
+            else:
+                ent_l1 = ent_l2 = ent_l3 = ent_all = 0.0
+                fg_hit = 0.0
 
             logits_b = c_comp["enc_outputs_class"][b]
             scores_b = logits_b.sigmoid().max(dim=-1)[0].cpu().numpy()
             sorted_s = np.sort(scores_b)[::-1]
             s_top1 = float(sorted_s[0])
-            s_top300 = float(sorted_s[min(299, len(sorted_s) - 1)])
+            s_top300 = float(sorted_s[min(n_queries_model - 1, len(sorted_s) - 1)])
             dropoff = float(s_top1 / max(s_top300, 1e-6))
             margin = float(s_top1 - s_top300)
 
@@ -205,27 +209,30 @@ def run_mechanism_telemetry_cohort(
                 gt_boxes = gt_list[img_idx].get("boxes_xyxy", [])
 
                 n_layers = len(hooks)
-                l1_idx = 0
-                l2_idx = min(1, n_layers - 1)
-                l3_idx = min(2, n_layers - 1)
+                if n_layers > 0:
+                    l1_idx = 0
+                    l2_idx = min(1, n_layers - 1)
+                    l3_idx = min(2, n_layers - 1)
 
-                w_l1 = hooks[l1_idx]["attention_weights"][b].cpu().numpy()
-                w_l2 = hooks[l2_idx]["attention_weights"][b].cpu().numpy()
-                w_l3 = hooks[l3_idx]["attention_weights"][b].cpu().numpy()
+                    w_l1 = hooks[l1_idx]["attention_weights"][b].cpu().numpy()
+                    w_l2 = hooks[l2_idx]["attention_weights"][b].cpu().numpy()
+                    w_l3 = hooks[l3_idx]["attention_weights"][b].cpu().numpy()
 
-                ent_l1 = compute_attention_entropy(w_l1)
-                ent_l2 = compute_attention_entropy(w_l2)
-                ent_l3 = compute_attention_entropy(w_l3)
-                ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)])) if n_layers > 0 else ent_l1
-
-                locs_l3 = hooks[l3_idx]["sampling_locations"][b].cpu().numpy()
-                fg_hit = compute_foreground_spatial_hit_rate(locs_l3, gt_boxes)
+                    ent_l1 = compute_attention_entropy(w_l1)
+                    ent_l2 = compute_attention_entropy(w_l2)
+                    ent_l3 = compute_attention_entropy(w_l3)
+                    ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)]))
+                    locs_last = hooks[-1]["sampling_locations"][b].cpu().numpy()
+                    fg_hit = compute_foreground_spatial_hit_rate(locs_last, gt_boxes)
+                else:
+                    ent_l1 = ent_l2 = ent_l3 = ent_all = 0.0
+                    fg_hit = 0.0
 
                 logits_b = a_comp["enc_outputs_class"][b]
                 scores_b = logits_b.sigmoid().max(dim=-1)[0].cpu().numpy()
                 sorted_s = np.sort(scores_b)[::-1]
                 s_top1 = float(sorted_s[0])
-                s_top300 = float(sorted_s[min(299, len(sorted_s) - 1)])
+                s_top300 = float(sorted_s[min(n_queries_model - 1, len(sorted_s) - 1)])
                 dropoff = float(s_top1 / max(s_top300, 1e-6))
                 margin = float(s_top1 - s_top300)
 
@@ -309,18 +316,24 @@ def run_mechanism_telemetry_cohort(
     d_ent, d_hit = float("nan"), float("nan")
 
     target_atk = "aqsm" if "aqsm" in adv_imgs_dict else list(adv_imgs_dict.keys())[0] if adv_imgs_dict else None
-    if target_atk is not None:
+    if target_atk is not None and n_eval >= 2:
         diff_ent = np.array(cond_results[target_atk]["entropy_l3"]) - np.array(cond_results["clean"]["entropy_l3"])
         diff_hit = np.array(cond_results[target_atk]["fg_hit_rate"]) - np.array(cond_results["clean"]["fg_hit_rate"])
 
-        t_stat_ent, p_val_ent = stats.ttest_rel(
-            cond_results["clean"]["entropy_l3"],
-            cond_results[target_atk]["entropy_l3"],
-        )
-        t_stat_hit, p_val_hit = stats.ttest_rel(
-            cond_results["clean"]["fg_hit_rate"],
-            cond_results[target_atk]["fg_hit_rate"],
-        )
+        if np.std(diff_ent, ddof=1) > 0:
+            t_stat_ent, p_val_ent = stats.ttest_rel(
+                cond_results["clean"]["entropy_l3"],
+                cond_results[target_atk]["entropy_l3"],
+            )
+        else:
+            t_stat_ent, p_val_ent = 0.0, 1.0
+        if np.std(diff_hit, ddof=1) > 0:
+            t_stat_hit, p_val_hit = stats.ttest_rel(
+                cond_results["clean"]["fg_hit_rate"],
+                cond_results[target_atk]["fg_hit_rate"],
+            )
+        else:
+            t_stat_hit, p_val_hit = 0.0, 1.0
         if np.any(diff_ent != 0):
             w_stat_ent, p_val_w_ent = stats.wilcoxon(diff_ent)
         if np.any(diff_hit != 0):

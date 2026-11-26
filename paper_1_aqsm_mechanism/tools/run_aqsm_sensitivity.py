@@ -44,8 +44,11 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_img_size,
     get_model_tag,
+    get_pgd_step_size,
     resolve_model_name,
+    update_experiment_paths,
 )
 from paper_1_aqsm_mechanism.utils.io_helpers import save_json
 
@@ -176,6 +179,14 @@ def main() -> None:
 
     full_model_name = resolve_model_name(args.model)
     model_tag = get_model_tag(full_model_name)
+    update_experiment_paths(
+        folder_image=args.folder_image,
+        annotations=args.annotations,
+        output_dir=args.output_dir,
+        model=full_model_name,
+        pgd_steps=args.steps,
+        eps_l_inf=float(args.eps_255) / 255.0,
+    )
 
     wrapper = RTDETRModelWrapper(pretrained_model_name=full_model_name, device=device)
     wrapper.eval()
@@ -183,7 +194,7 @@ def main() -> None:
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -193,10 +204,12 @@ def main() -> None:
     gt_list = dataset.gt_list
     n_eval = len(dataset)
 
+    base_alpha = float(get_pgd_step_size())
+    step_alpha = base_alpha if int(args.eps_255) >= 8 else min(base_alpha, 1.0 / 255.0)
     attacker = DETRAttackGenerator(
         wrapper,
         epsilon=float(args.eps_255) / 255.0,
-        alpha=2.0 / 255.0,
+        alpha=step_alpha,
         num_steps=args.steps,
     )
 

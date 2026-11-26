@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from paper_1_aqsm_mechanism.experiments.config import get_outputs_dir
+from paper_1_aqsm_mechanism.experiments.config import get_model_name, get_model_tag, get_num_queries, get_outputs_dir
 
 logger = logging.getLogger("adaptive_calibrator")
 
@@ -35,13 +35,23 @@ class AdaptiveAttackCalibrator:
         self.wrapper = model_wrapper
         self.model = model_wrapper.model
         self.device = model_wrapper.device
+        self.model_name = str(getattr(model_wrapper, "pretrained_model_name", None) or get_model_name())
+        self.model_tag = get_model_tag(self.model_name)
+        self.num_queries = int(getattr(model_wrapper, "num_queries", None) or get_num_queries())
+        self.is_sigmoid = bool(getattr(model_wrapper, "is_sigmoid", True))
 
         if cache_path is None:
-            self.cache_path = get_outputs_dir() / "calibration" / "calibrated_adaptive_params.json"
+            self.cache_path = get_outputs_dir() / "calibration" / f"calibrated_adaptive_params_{self.model_tag}.json"
         else:
             self.cache_path = Path(cache_path)
 
         self.calibrated_params: Optional[Dict[str, Any]] = None
+
+    def _compute_probs(self, logits: torch.Tensor) -> torch.Tensor:
+        """Tính xác suất lớp theo chuẩn sigmoid (RT-DETR) hoặc softmax bỏ no-object (DETR)."""
+        if self.is_sigmoid:
+            return torch.sigmoid(logits)
+        return torch.softmax(logits, dim=-1)[..., :-1]
 
     def fit(
         self,
@@ -53,21 +63,27 @@ class AdaptiveAttackCalibrator:
         Khớp các tham số thống kê trên tập ảnh sạch:
           - Tỷ lệ active queries (ngưỡng 0.35)
           - Phổ điểm top-1 confidence
-          - ESM Dropoff ratio: s_(1) / s_(300)
-          - ESM Margin: s_(300) - s_bg
+          - ESM Dropoff ratio: s_(1) / s_(N_q)
+          - ESM Margin: s_(N_q) - s_bg
         """
         if self.cache_path.exists() and not force_recompute:
             try:
                 with open(self.cache_path, "r", encoding="utf-8") as fp:
-                    self.calibrated_params = json.load(fp)
-                logger.info(f"[ADAPTIVE CALIBRATOR] Đã nạp tham số hiệu chuẩn sẵn có từ: {self.cache_path}")
-                return self.calibrated_params
+                    cached = json.load(fp)
+                cached_model = cached.get("model_name")
+                if cached_model is None or cached_model == self.model_name:
+                    self.calibrated_params = cached
+                    logger.info(f"[ADAPTIVE CALIBRATOR] Đã nạp tham số hiệu chuẩn sẵn có từ: {self.cache_path}")
+                    return self.calibrated_params
             except Exception as e:
                 logger.warning(f"[ADAPTIVE CALIBRATOR] Không thể đọc cache {self.cache_path}: {e}. Đang tính toán lại...")
 
         self.model.eval()
         n_imgs = len(calibration_images)
-        logger.info(f"[ADAPTIVE CALIBRATOR] Khởi chạy hiệu chuẩn trên N={n_imgs} ảnh sạch COCO...")
+        logger.info(
+            f"[ADAPTIVE CALIBRATOR] Khởi chạy hiệu chuẩn trên N={n_imgs} ảnh sạch COCO "
+            f"(model={self.model_name}, num_queries={self.num_queries})..."
+        )
 
         act_ratios = []
         top1_means = []
@@ -83,7 +99,7 @@ class AdaptiveAttackCalibrator:
 
                 out = self.model(pixel_values=batch, return_dict=True)
                 logits = out.logits  # [B, N, C]
-                probs = torch.sigmoid(logits)
+                probs = self._compute_probs(logits)
                 max_p, _ = probs.max(dim=-1)  # [B, N]
 
                 # 1. Tier 0: Active ratio & Top1 mean
@@ -99,18 +115,20 @@ class AdaptiveAttackCalibrator:
                     enc_probs = probs
 
                 max_enc_p, _ = enc_probs.max(dim=-1)  # [B, S]
-                topk_vals, _ = torch.topk(max_enc_p, k=min(300, max_enc_p.shape[1]), dim=-1)
+                n_q = min(self.num_queries, max_enc_p.shape[1])
+                topk_vals, _ = torch.topk(max_enc_p, k=n_q, dim=-1)
 
                 top1_val = topk_vals[:, 0].cpu().numpy()
-                top300_val = topk_vals[:, -1].cpu().numpy()
-                dropoff_batch = top1_val / np.clip(top300_val, 1e-4, 1.0)
+                topq_val = topk_vals[:, -1].cpu().numpy()
+                dropoff_batch = top1_val / np.clip(topq_val, 1e-4, 1.0)
                 dropoffs.extend(dropoff_batch.tolist())
 
-                top300_mean = topk_vals.mean(dim=-1).cpu().numpy()
+                topq_mean = topk_vals.mean(dim=-1).cpu().numpy()
                 all_sum = max_enc_p.sum(dim=-1).cpu().numpy()
                 topk_sum = topk_vals.sum(dim=-1).cpu().numpy()
-                bg_mean = (all_sum - topk_sum) / float(max(1, max_enc_p.shape[1] - 300))
-                margin_batch = top300_mean - bg_mean
+                bg_denom = float(max(1, max_enc_p.shape[1] - n_q))
+                bg_mean = (all_sum - topk_sum) / bg_denom
+                margin_batch = topq_mean - bg_mean
                 margins.extend(margin_batch.tolist())
 
         act_ratios_np = np.array(act_ratios)
@@ -121,6 +139,9 @@ class AdaptiveAttackCalibrator:
         top1_std = float(np.std(top1_means_np, ddof=1)) if top1_means_np.size > 1 else 0.0
 
         cal_params = {
+            "model_name": self.model_name,
+            "model_tag": self.model_tag,
+            "num_queries": self.num_queries,
             "n_calibration_images": n_imgs,
             "clean_act_mean": float(np.mean(act_ratios_np)),
             "clean_act_std": act_std,

@@ -45,7 +45,13 @@ from paper_1_aqsm_mechanism.experiments.config import (
     DEFAULT_MULTI_SEEDS,
     MODEL_NAME,
     configure_cpu_threads,
+    detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_model_tag,
+    get_pgd_num_steps,
+    get_pgd_step_size,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
@@ -78,12 +84,16 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
     device = get_device(args.device)
 
     chosen_model = resolve_model_name(getattr(args, "model", None) or MODEL_NAME)
+    eps_255_val = int(args.eps_255) if getattr(args, "eps_255", None) is not None else int(round(get_epsilon_l_inf() * 255.0))
+    pgd_steps_val = int(args.pgd_steps) if getattr(args, "pgd_steps", None) is not None else int(get_pgd_num_steps())
     update_experiment_paths(
         folder_image=args.folder_image,
         annotations=args.annotations,
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
         model=chosen_model,
+        pgd_steps=pgd_steps_val,
+        eps_l_inf=float(eps_255_val) / 255.0,
     )
 
     seeds = [int(s.strip()) for s in args.seeds.split(",") if s.strip()]
@@ -95,15 +105,17 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
     print(f" Seeds: {seeds} | Max Samples: {args.max_samples} | Device: {device}")
     print("=" * 80)
 
+    hw_info = detect_hardware_environment(preferred_device=device.type)
     wrapper = RTDETRModelWrapper(pretrained_model_name=chosen_model, device=device)
     wrapper.eval()
     model = wrapper.model
-    batch_size = args.batch_size if args.batch_size is not None else 4
+    batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
+    eff_img_size = int(get_img_size())
 
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=eff_img_size,
         id2label=model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -145,11 +157,13 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
     clean_fg_hit_mean = float(np.mean(clean_anchor_hits)) if clean_anchor_hits else 0.0
 
     # 2. Đánh giá AQSM theo từng seed
+    base_alpha = float(get_pgd_step_size())
+    step_alpha = base_alpha if eps_255_val >= 8 else min(base_alpha, 1.0 / 255.0)
     attacker = DETRAttackGenerator(
         wrapper,
-        epsilon=float(args.eps_255) / 255.0,
-        alpha=2.0 / 255.0,
-        num_steps=args.pgd_steps,
+        epsilon=float(eps_255_val) / 255.0,
+        alpha=step_alpha,
+        num_steps=pgd_steps_val,
     )
 
     per_seed_metrics: Dict[int, Dict[str, float]] = {}
@@ -167,7 +181,7 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
             batch_imgs = clean_tensors[start:end].to(device)
             adv_batch = attacker.generate_query_selection_attack(
                 batch_imgs,
-                steps=args.pgd_steps,
+                steps=pgd_steps_val,
                 bg_seed=seed,
             )
             with torch.no_grad():
@@ -249,10 +263,20 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
         hits, baseline_value=clean_fg_hit_mean
     )
 
-    is_r50 = "r50" in chosen_model.lower()
-    arch_prefix = "rtdetr_r50vd" if is_r50 else "rtdetr_r18vd"
-    arch_label = "RT-DETR-R50VD (Deep)" if is_r50 else "RT-DETR-R18VD"
-    backbone_desc = f"ResNet-50 (42M, {wrapper.decoder_layers} dec.)" if is_r50 else f"ResNet-18 (20M, {wrapper.decoder_layers} dec.)"
+    arch_prefix = get_model_tag(chosen_model)
+    lower_m = chosen_model.lower()
+    if "r50" in lower_m:
+        arch_label = "RT-DETR-R50VD (Deep)"
+        backbone_desc = f"ResNet-50 ({wrapper.decoder_layers} dec.)"
+    elif "r101" in lower_m:
+        arch_label = "RT-DETR-R101VD"
+        backbone_desc = f"ResNet-101 ({wrapper.decoder_layers} dec.)"
+    elif "r18" in lower_m:
+        arch_label = "RT-DETR-R18VD"
+        backbone_desc = f"ResNet-18 ({wrapper.decoder_layers} dec.)"
+    else:
+        arch_label = chosen_model.split("/")[-1]
+        backbone_desc = f"{arch_label} ({wrapper.decoder_layers} dec.)"
 
     # Lưu vết per-image CSV đa seed phục vụ kiểm toán độc lập
     raw_csv_dir = get_raw_csv_dir()
@@ -282,6 +306,7 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
 
     summary_dir = get_summary_json_dir()
     out_json = summary_dir / "multimodel_and_seed_stability_summary.json"
+    alpha_255_str = f"{step_alpha * 255.0:.2g}/255"
     if out_json.exists():
         with open(out_json, "r", encoding="utf-8") as fp:
             payload = json.load(fp)
@@ -289,10 +314,13 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
         payload = {
             "title": "Table 12: Multi-Seed Optimization Stability and Cross-Variant Generalization",
             "dataset": f"COCO val2017 (N={n_eval} images)",
-            "resolution": "640x640",
-            "threat_budget": f"eps={args.eps_255}/255, T={args.pgd_steps}, alpha=2/255",
+            "resolution": f"{eff_img_size}x{eff_img_size}",
+            "threat_budget": f"eps={eps_255_val}/255, T={pgd_steps_val}, alpha={alpha_255_str}",
             "records": {},
         }
+    payload["dataset"] = f"COCO val2017 (N={n_eval} images)"
+    payload["resolution"] = f"{eff_img_size}x{eff_img_size}"
+    payload["threat_budget"] = f"eps={eps_255_val}/255, T={pgd_steps_val}, alpha={alpha_255_str}"
 
     records = payload.setdefault("records", {})
     can_seed = 42 if 42 in per_seed_metrics else seeds[0]
@@ -364,8 +392,8 @@ def main() -> None:
         default=",".join(map(str, DEFAULT_MULTI_SEEDS)),
         help="Danh sách random seeds cho lấy mẫu C_bg (phân tách bởi dấu phẩy)",
     )
-    parser.add_argument("--eps_255", type=int, default=16, help="Biên độ nhiễu trên thang 255 (mặc định 16)")
-    parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD (mặc định 15)")
+    parser.add_argument("--eps_255", type=int, default=None, help="Biên độ nhiễu trên thang 255 (mặc định đọc từ cấu hình)")
+    parser.add_argument("--pgd_steps", type=int, default=None, help="Số bước lặp PGD (mặc định đọc từ cấu hình)")
     args = parser.parse_args()
     run_multiseed_stability(args)
 

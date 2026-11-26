@@ -93,7 +93,12 @@ def extract_encoder_components(
             (spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1])
         )
 
-        if core.training or core.config.anchor_image_size is None:
+        if (
+            core.training
+            or core.config.anchor_image_size is None
+            or getattr(core, "anchors", None) is None
+            or core.anchors.shape[1] != source_flatten_t.shape[1]
+        ):
             anchors, valid_mask = core.generate_anchors(
                 tuple(spatial_shapes_list),
                 device=device,
@@ -108,9 +113,10 @@ def extract_encoder_components(
         enc_outputs_class = core.enc_score_head(output_memory)
         enc_outputs_coord_logits = core.enc_bbox_head(output_memory) + anchors
 
+        n_q_select = min(int(core.config.num_queries), enc_outputs_class.shape[1])
         _, topk_ind = torch.topk(
             enc_outputs_class.max(-1).values,
-            core.config.num_queries,
+            n_q_select,
             dim=1,
         )
         reference_points_unact = enc_outputs_coord_logits.gather(
@@ -522,20 +528,25 @@ def analyze_query_selection_batch(
             cov_iou50_c = cov_iou50_a = float("nan")
             cov_iou30_c = cov_iou30_a = float("nan")
 
-        # Phổ điểm đã sắp xếp Top-300
+        # Phổ điểm đã sắp xếp Top-N_q
+        n_q_eff = max(1, len(ic))
         sc_sorted = np.sort(sc)[::-1]
         sa_sorted = np.sort(sa)[::-1]
+        idx_s50 = min(49, len(sc_sorted) - 1)
+        idx_s_nq = min(n_q_eff - 1, len(sc_sorted) - 1)
+        c_margin = float(np.mean(sc_sorted[:n_q_eff]) - np.mean(sc_sorted[n_q_eff:])) if len(sc_sorted) > n_q_eff else 0.0
+        a_margin = float(np.mean(sa_sorted[:n_q_eff]) - np.mean(sa_sorted[n_q_eff:])) if len(sa_sorted) > n_q_eff else 0.0
 
-        # Thống kê gom cụm không gian ANND và Spatial Dispersion cho Top-300 anchors
+        # Thống kê gom cụm không gian ANND và Spatial Dispersion cho Top-N_q anchors
         clean_spatial = compute_spatial_clustering_metrics(anchors_sig[ic])
         adv_spatial = compute_spatial_clustering_metrics(anchors_sig[ia])
 
         records.append({
             "n_gt": int(len(gt_b)),
-            "top300_overlap": float(inter_300 / 300.0),
+            "top300_overlap": float(inter_300 / float(n_q_eff)),
             "top300_jaccard": float(inter_300 / max(union_300, 1)),
-            "top100_overlap": float(len(set_c_100 & set_a_100) / 100.0),
-            "top50_overlap": float(len(set_c_50 & set_a_50) / 50.0),
+            "top100_overlap": float(len(set_c_100 & set_a_100) / float(min(100, n_q_eff))),
+            "top50_overlap": float(len(set_c_50 & set_a_50) / float(min(50, n_q_eff))),
             "n_proposals": int(len(sc)),
             "spearman_all_proposals": float(sp_all) if not np.isnan(sp_all) else 0.0,
             "kendall_all_proposals": float(kt_all) if not np.isnan(kt_all) else 0.0,
@@ -550,7 +561,7 @@ def analyze_query_selection_batch(
             # 1. gt_object_coverage_center (axis=0): Tỷ lệ GT objects có >=1 anchor tâm nằm trong
             "gt_object_coverage_center_clean": cov_center_c,
             "gt_object_coverage_center_adv": cov_center_a,
-            # 2. anchor_foreground_ratio (axis=1): Tỷ lệ trong 300 anchors có tâm nằm trong GT
+            # 2. anchor_foreground_ratio (axis=1): Tỷ lệ trong Top-N_q anchors có tâm nằm trong GT
             "anchor_foreground_ratio_clean": fg_ratio_clean_300,
             "anchor_foreground_ratio_adv": fg_ratio_adv_300,
             # Thước đo gom cụm không gian ANND & Spatial Dispersion
@@ -572,15 +583,15 @@ def analyze_query_selection_batch(
             "cov_iou30_clean": cov_iou30_c,
             "cov_iou30_adv": cov_iou30_a,
             "clean_s1": float(sc_sorted[0]),
-            "clean_s50": float(sc_sorted[49]),
-            "clean_s300": float(sc_sorted[299]),
-            "clean_dropoff": float(sc_sorted[0] / (sc_sorted[299] + 1e-4)),
-            "clean_enc_margin": float(np.mean(sc_sorted[:300]) - np.mean(np.sort(sc)[::-1][300:])),
+            "clean_s50": float(sc_sorted[idx_s50]),
+            "clean_s300": float(sc_sorted[idx_s_nq]),
+            "clean_dropoff": float(sc_sorted[0] / (sc_sorted[idx_s_nq] + 1e-4)),
+            "clean_enc_margin": c_margin,
             "adv_s1": float(sa_sorted[0]),
-            "adv_s50": float(sa_sorted[49]),
-            "adv_s300": float(sa_sorted[299]),
-            "adv_dropoff": float(sa_sorted[0] / (sa_sorted[299] + 1e-4)),
-            "adv_enc_margin": float(np.mean(sa_sorted[:300]) - np.mean(np.sort(sa)[::-1][300:])),
+            "adv_s50": float(sa_sorted[idx_s50]),
+            "adv_s300": float(sa_sorted[idx_s_nq]),
+            "adv_dropoff": float(sa_sorted[0] / (sa_sorted[idx_s_nq] + 1e-4)),
+            "adv_enc_margin": a_margin,
         })
 
     return records
@@ -663,7 +674,6 @@ def _summarize_attention_state(
     """
     n_layers = len(captured_layers)
     bsz = logits_batch.shape[0]
-    log_12 = float(np.log(12.0))
 
     per_image_records: List[Dict[str, Any]] = []
     for b in range(bsz):
@@ -691,11 +701,12 @@ def _summarize_attention_state(
 
             n_q, n_h = w.shape[0], w.shape[1]
             n_pts = w.shape[2] * w.shape[3]
+            log_n_pts = float(np.log(max(n_pts, 2)))
 
-            # 1. Entropy chuẩn hóa trên L*K = 12 điểm của mỗi (query, head)
+            # 1. Entropy chuẩn hóa trên L*K điểm của mỗi (query, head)
             w_flat = w.reshape(n_q, n_h, n_pts)
             w_safe = np.clip(w_flat, 1e-12, 1.0)
-            ent = -np.sum(w_safe * np.log(w_safe), axis=-1) / log_12  # [N_q, H]
+            ent = -np.sum(w_safe * np.log(w_safe), axis=-1) / log_n_pts  # [N_q, H]
             mean_ent = float(np.mean(ent))
             mean_ent_act = float(np.mean(ent[active_q])) if n_active_q > 0 else float("nan")
 
@@ -739,6 +750,10 @@ def _summarize_attention_state(
             else:
                 fg_hit_all = fg_hit_act = ref_in_gt = float("nan")
 
+            s3_mass = float(w_scale[0]) if len(w_scale) > 0 else 0.0
+            s4_mass = float(w_scale[1]) if len(w_scale) > 1 else 0.0
+            s5_mass = float(w_scale[2]) if len(w_scale) > 2 else 0.0
+
             layer_metrics[f"L{l_idx + 1}"] = {
                 "entropy_norm": mean_ent,
                 "entropy_norm_active_q": mean_ent_act,
@@ -748,9 +763,9 @@ def _summarize_attention_state(
                 "fg_spatial_hit_active_q": fg_hit_act,
                 "ref_in_gt_ratio": ref_in_gt,
                 "oob_rate": mean_oob,
-                "scale_mass_s3": float(w_scale[0]),
-                "scale_mass_s4": float(w_scale[1]),
-                "scale_mass_s5": float(w_scale[2]),
+                "scale_mass_s3": s3_mass,
+                "scale_mass_s4": s4_mass,
+                "scale_mass_s5": s5_mass,
             }
 
             all_ent.append(mean_ent)
@@ -759,9 +774,9 @@ def _summarize_attention_state(
             all_fg_hit.append(fg_hit_all)
             all_fg_hit_act.append(fg_hit_act)
             all_oob.append(mean_oob)
-            all_s3.append(float(w_scale[0]))
-            all_s4.append(float(w_scale[1]))
-            all_s5.append(float(w_scale[2]))
+            all_s3.append(s3_mass)
+            all_s4.append(s4_mass)
+            all_s5.append(s5_mass)
 
         per_image_records.append({
             "n_active_queries": n_active_q,
@@ -815,8 +830,8 @@ def analyze_deformable_attention_batch(
         probs_c = _sigmoid_np(logits_c[b]).max(axis=-1)
         fg_q = probs_c >= 0.35
         if int(np.sum(fg_q)) == 0:
-            top10 = np.argsort(-probs_c)[:10]
-            fg_q = np.zeros(300, dtype=bool)
+            top10 = np.argsort(-probs_c)[:min(10, len(probs_c))]
+            fg_q = np.zeros(len(probs_c), dtype=bool)
             fg_q[top10] = True
 
         # Shift của initial reference points (lưu ý: ở AQSM thứ tự 300 slot có thể bị hoán đổi)

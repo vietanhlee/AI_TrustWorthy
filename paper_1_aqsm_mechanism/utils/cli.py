@@ -9,11 +9,12 @@ import argparse
 from typing import Optional
 
 from paper_1_aqsm_mechanism.experiments.config import (
-    ADV_CACHE_DIR,
-    COCO_ANN_FILE,
-    COCO_VAL_DIR,
-    MODEL_NAME,
-    OUTPUTS_DIR,
+    COHORT_SIZE,
+    get_adv_cache_dir,
+    get_coco_ann_file,
+    get_coco_val_dir,
+    get_model_name,
+    get_outputs_dir,
 )
 
 
@@ -37,25 +38,25 @@ def create_base_parser(
     parser.add_argument(
         "--folder_image",
         type=str,
-        default=str(COCO_VAL_DIR),
+        default=str(get_coco_val_dir()),
         help="Đường dẫn thư mục ảnh COCO (mặc định lấy từ cấu hình hệ thống)",
     )
     parser.add_argument(
         "--annotations",
         type=str,
-        default=str(COCO_ANN_FILE),
+        default=str(get_coco_ann_file()),
         help="Đường dẫn file instances_val2017.json",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default=str(OUTPUTS_DIR),
+        default=str(get_outputs_dir()),
         help="Thư mục xuất kết quả thực nghiệm (mặc định: outputs/)",
     )
     parser.add_argument(
         "--cache_dir",
         type=str,
-        default=str(ADV_CACHE_DIR),
+        default=str(get_adv_cache_dir()),
         help="Thư mục chứa bộ nhớ đệm mẫu đối kháng .npz (mặc định: cache/adv_cache_640/)",
     )
     parser.add_argument(
@@ -80,14 +81,14 @@ def create_base_parser(
     parser.add_argument(
         "--model",
         type=str,
-        default=str(MODEL_NAME),
+        default=str(get_model_name()),
         help="Kiến trúc hoặc checkpoint RT-DETR ('r18', 'r50', 'PekingU/rtdetr_r18vd', 'PekingU/rtdetr_r50vd')",
     )
     parser.add_argument(
         "--max_samples",
         type=int,
-        default=1000,
-        help="Số lượng mẫu ảnh tối đa cần đánh giá (mặc định: 1000 ảnh, 5000 cho full COCO)",
+        default=COHORT_SIZE,
+        help=f"Số lượng mẫu ảnh tối đa cần đánh giá (mặc định: {COHORT_SIZE} ảnh, <= 0 để chạy toàn bộ dataset)",
     )
 
     return parser

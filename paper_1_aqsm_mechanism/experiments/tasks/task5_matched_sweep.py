@@ -49,6 +49,7 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_img_size,
     get_raw_csv_dir,
     get_summary_json_dir,
     resolve_model_name,
@@ -67,16 +68,21 @@ def run_matched_budget_sweep(
     batch_size: int = 10,
     cache_dir: Optional[Path] = None,
     audit_logger: Any = None,
+    hf_labels: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Quét ngân sách nhiễu trên tập ảnh kiểm thử và đo đạc mAP theo chuẩn COCO.
     """
+    from paper_1_aqsm_mechanism.experiments.config import get_adv_cache_dir, get_pgd_num_steps, get_pgd_step_size
     model = wrapper.model
     model.eval()
     device = wrapper.device
     n_eval = len(gt_list)
     eps_list = epsilons or SWEEP_EPSILONS
-    cdir = Path(cache_dir) if cache_dir is not None else ADV_CACHE_DIR
+    cdir = Path(cache_dir) if cache_dir is not None else get_adv_cache_dir()
+    resolved_hf_labels = hf_labels if hf_labels is not None else getattr(clean_imgs, "hf_labels", None)
+    eff_pgd_steps = get_pgd_num_steps()
+    eff_step_size = get_pgd_step_size()
 
     print("\n==================================================================")
     print(f" [Matched-Budget Sweep] Quét ngân sách L_inf qua eps={[f'{int(round(e*255))}/255' for e in eps_list]}")
@@ -116,8 +122,8 @@ def run_matched_budget_sweep(
         attacker = DETRAttackGenerator(
             model_wrapper=wrapper,
             epsilon=eps,
-            alpha=PGD_STEP_SIZE if eps_int >= 8 else (1.0 / 255.0),
-            num_steps=PGD_NUM_STEPS if eps_int >= 16 else min(PGD_NUM_STEPS, 10),
+            alpha=eff_step_size if eps_int >= 8 else (1.0 / 255.0),
+            num_steps=eff_pgd_steps if eps_int >= 16 else min(eff_pgd_steps, 10),
         )
 
         for atk in attacks:
@@ -134,6 +140,8 @@ def run_matched_budget_sweep(
                     expected_image_ids=image_ids,
                     cache_dir=cdir,
                     wrapper=wrapper,
+                    steps=attacker.num_steps,
+                    hf_labels=resolved_hf_labels,
                 )
                 print(f"      [Cache Hit] Đã nạp thành công cache cho {atk.upper()} (eps={eps_num})")
             except Exception:
@@ -154,7 +162,8 @@ def run_matched_budget_sweep(
                         elif atk == "vanishing":
                             a_sub = attacker.generate_vanishing_attack(c_sub)
                         else:
-                            a_sub = attacker.generate_standard_task_pgd(c_sub)
+                            b_hf = resolved_hf_labels[start:end] if resolved_hf_labels is not None else None
+                            a_sub = attacker.generate_standard_task_pgd(c_sub, hf_labels=b_hf)
 
                     if hasattr(a_sub, "to"):
                         a_sub = a_sub.to(device)
@@ -276,7 +285,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,
@@ -311,6 +320,7 @@ def main():
         batch_size=batch_size,
         cache_dir=Path(args.cache_dir),
         audit_logger=audit_logger,
+        hf_labels=dataset.hf_labels,
     )
 
     audit_logger.close()

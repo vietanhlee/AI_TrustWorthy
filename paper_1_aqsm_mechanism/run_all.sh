@@ -135,9 +135,7 @@ fi
 if [ "$BATCH_SIZE" -gt 0 ]; then
     EXTRA_ARGS+=(--batch_size "$BATCH_SIZE")
 fi
-if [ "$NUM_IMAGES" -gt 0 ]; then
-    EXTRA_ARGS+=(--max_samples "$NUM_IMAGES")
-fi
+EXTRA_ARGS+=(--max_samples "$NUM_IMAGES")
 if [ -n "$SKIP_CACHE_GEN" ]; then
     EXTRA_ARGS+=(--skip_cache_gen)
 fi
@@ -185,9 +183,10 @@ echo "    -> $OUTPUT_DIR/summary_json/"
 echo "    -> $OUTPUT_DIR/raw_csv/"
 echo "    -> $OUTPUT_DIR/final_experiment_manifest.json"
 echo ""
-echo " 2. Toàn bộ 5 đồ thị xuất bản vector PDF đã được lưu tại:"
+echo " 2. Toàn bộ đồ thị xuất bản vector PDF đã được lưu tại:"
 echo "    -> $FIG_DIR/fig3_score_spectrum_n300.pdf"
 echo "    -> $FIG_DIR/fig4_causal_swap_n300.pdf"
+echo "    -> $FIG_DIR/fig5_multiscale_cosine_and_overlap.pdf"
 echo "    -> $FIG_DIR/fig6_attention_scattering_comparison.pdf"
 echo "    -> $FIG_DIR/fig7_matched_budget_sweep.pdf"
 echo "    -> $FIG_DIR/fig8_defense_evaluation.pdf"

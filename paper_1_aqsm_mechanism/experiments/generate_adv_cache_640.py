@@ -46,7 +46,10 @@ from paper_1_aqsm_mechanism.experiments.config import (
     detect_hardware_environment,
     get_adv_cache_dir,
     get_device,
+    get_img_size,
     get_model_tag,
+    get_pgd_num_steps,
+    get_pgd_step_size,
     resolve_model_name,
     update_experiment_paths,
 )
@@ -76,7 +79,8 @@ def generate_single_attack_cache(
     device = wrapper.device
 
     eps = float(eps_int) / 255.0
-    alpha = (2.0 / 255.0) if eps_int >= 8 else (1.0 / 255.0)
+    base_alpha = float(get_pgd_step_size())
+    alpha = base_alpha if eps_int >= 8 else min(base_alpha, 1.0 / 255.0)
 
     model_tag = get_model_tag(getattr(wrapper, "pretrained_model_name", None))
     out_file = save_dir / f"adv_cache_{model_tag}_{attack_name.lower()}_eps{eps_int}_n{n_total}.npz"
@@ -103,12 +107,13 @@ def generate_single_attack_cache(
     print(f"[CACHE GEN] PGD Steps={steps} | Alpha={alpha:.5f} | Batch Size={batch_size} | Device={device}")
     print("[CACHE GEN] ==================================================================")
 
+    img_h, img_w = int(getattr(dataset, "img_size", 640)), int(getattr(dataset, "img_size", 640))
     # Kiểm tra dung lượng đĩa trước khi khởi tạo
-    needed_bytes = n_total * 3 * 640 * 640 * 4
+    needed_bytes = n_total * 3 * img_h * img_w * 4
     try:
         free_bytes = shutil.disk_usage(save_dir).free
         if free_bytes < needed_bytes:
-            max_possible = int(free_bytes / (3 * 640 * 640 * 4))
+            max_possible = int(free_bytes / (3 * img_h * img_w * 4))
             raise RuntimeError(
                 f"[DISK WARNING] Dung lượng đĩa khả dụng ({free_bytes / 1e9:.2f} GB) "
                 f"không đủ để ghi cache cho {n_total} ảnh ({needed_bytes / 1e9:.2f} GB)! "
@@ -134,7 +139,7 @@ def generate_single_attack_cache(
     t_start = time.time()
     max_linf = 0.0
     all_l2s: List[float] = []
-    delta_shape = (n_total, 3, 640, 640)
+    delta_shape = (n_total, 3, img_h, img_w)
 
     print(f"[CACHE GEN] Khởi tạo tệp bộ nhớ đệm Streaming Direct: {out_file.name}...")
     with zipfile.ZipFile(out_temp_file, mode="w", compression=zipfile.ZIP_STORED, allowZip64=True) as zf:
@@ -158,7 +163,13 @@ def generate_single_attack_cache(
                 elif attack_name.lower() in ["vanishing", "query_vanishing"]:
                     b_adv = attacker.generate_vanishing_attack(b_clean, steps=steps, alpha=alpha)
                 elif attack_name.lower() in ["taskpgd", "task_pgd"]:
-                    b_adv = attacker.generate_standard_task_pgd(b_clean, steps=steps, alpha=alpha)
+                    b_hf_labels = dataset.hf_labels[i : end_idx] if getattr(dataset, "hf_labels", None) is not None else None
+                    b_adv = attacker.generate_standard_task_pgd(
+                        b_clean,
+                        hf_labels=b_hf_labels,
+                        steps=steps,
+                        alpha=alpha,
+                    )
                 elif attack_name.lower() in ["aqsm_mem_constrained", "aqsm_mem", "mem_constrained"]:
                     b_adv = attacker.generate_memory_isolated_query_attack(b_clean, steps=steps, alpha=alpha)
                 elif attack_name.lower() in ["pure_memory", "mem_pure"]:
@@ -192,8 +203,8 @@ def generate_single_attack_cache(
             "epsilon": eps,
             "alpha": alpha,
             "steps": steps,
-            "resolution": "640x640",
-            "num_candidates": 8400,
+            "resolution": f"{img_w}x{img_h}",
+            "num_candidates": int(getattr(wrapper, "num_candidates", (img_h // 8) * (img_w // 8) + (img_h // 16) * (img_w // 16) + (img_h // 32) * (img_w // 32))),
             "dtype": "float32",
             "max_linf": max_linf,
             "mean_l2": mean_l2,
@@ -228,12 +239,12 @@ def generate_single_attack_cache(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sinh Adversarial Cache Native 640x640 cho RT-DETR")
+    parser = argparse.ArgumentParser(description="Sinh Adversarial Cache cho RT-DETR")
     parser.add_argument("--folder_image", type=str, default=str(COCO_VAL_DIR), help="Đường dẫn thư mục ảnh COCO")
     parser.add_argument("--annotations", type=str, default=str(COCO_ANN_FILE), help="Đường dẫn file instances_val2017.json")
     parser.add_argument("--cache_dir", type=str, default=str(ADV_CACHE_DIR), help="Thư mục lưu cache đối kháng")
     parser.add_argument("--model", type=str, default=str(MODEL_NAME), help="Kiến trúc hoặc checkpoint RT-DETR ('r18', 'r50', ...)")
-    parser.add_argument("--steps", type=int, default=15, help="Số bước lặp PGD (mặc định 15)")
+    parser.add_argument("--steps", type=int, default=get_pgd_num_steps(), help="Số bước lặp PGD (mặc định đọc từ cấu hình)")
     parser.add_argument("--batch_size", type=int, default=None, help="Batch size (tự động điều chỉnh nếu None)")
     parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU tính toán")
     parser.add_argument("--device", type=str, default="auto", help="Thiết bị tính toán (cuda / cpu / auto)")
@@ -242,6 +253,7 @@ def main():
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache kể cả khi đã có")
     parser.add_argument("--max_samples", type=int, default=1000, help="Số lượng ảnh tối đa cần sinh cache (mặc định: 1000 ảnh)")
+    parser.add_argument("--img_size", type=int, default=None, help="Kích thước ảnh vuông (mặc định theo cấu hình)")
     args = parser.parse_args()
 
     chosen_model = resolve_model_name(args.model)
@@ -250,7 +262,10 @@ def main():
         annotations=args.annotations,
         cache_dir=args.cache_dir,
         model=chosen_model,
+        pgd_steps=args.steps,
+        img_size=args.img_size,
     )
+    eff_img_size = int(get_img_size())
 
     configure_cpu_threads(args.threads)
     hw_info = detect_hardware_environment(preferred_device=args.device)
@@ -260,7 +275,7 @@ def main():
     batch_size = args.batch_size if args.batch_size is not None else hw_info["recommended_batch_size"]
 
     print("=" * 80)
-    print(" KHỞI TẠO TIẾN TRÌNH SINH CACHE ĐỐI KHÁNG NATIVE 640x640 (S = 8,400)")
+    print(f" KHỞI TẠO TIẾN TRÌNH SINH CACHE ĐỐI KHÁNG ({eff_img_size}x{eff_img_size})")
     print(f" Model        : {chosen_model}")
     print(f" Thư mục ảnh : {args.folder_image}")
     print(f" Annotations  : {args.annotations}")
@@ -277,7 +292,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=eff_img_size,
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,

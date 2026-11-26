@@ -26,6 +26,10 @@ if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
 from paper_1_aqsm_mechanism.core.adv_cache import load_cached_adv_images
+from paper_1_aqsm_mechanism.core.coco_gt import (
+    evaluate_coco_predictions,
+    postprocess_rtdetr_predictions,
+)
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.defense_engine import (
     ActiveBoxCountMonitor,
@@ -46,6 +50,10 @@ from paper_1_aqsm_mechanism.experiments.config import (
     configure_cpu_threads,
     detect_hardware_environment,
     get_device,
+    get_epsilon_l_inf,
+    get_img_size,
+    get_pgd_num_steps,
+    get_pgd_step_size,
     get_summary_json_dir,
     resolve_model_name,
     update_experiment_paths,
@@ -61,6 +69,10 @@ def run_adaptive_evasion_test(
     n_samples: int = 15,
     lambdas: List[float] = [0.2, 0.5, 1.0, 2.0],
     batch_size: int = 4,
+    gt_list: Optional[List[Dict[str, Any]]] = None,
+    steps: Optional[int] = None,
+    eps: Optional[float] = None,
+    alpha: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Thực nghiệm tấn công thích ứng White-Box Adaptive PGD (Carlini-Tramèr):
@@ -75,17 +87,24 @@ def run_adaptive_evasion_test(
     """
     model = wrapper.model
     device = wrapper.device
+    is_sigmoid = bool(getattr(wrapper, "is_sigmoid", True))
+    pp_mode = "hf_multilabel" if is_sigmoid else "detr_softmax"
+    n_q_model = max(1, int(getattr(wrapper, "num_queries", 300) or 300))
     n_eval = min(n_samples, len(clean_imgs))
     target_drop = float(getattr(esm_monitor, "cal_dropoff_median", 35.0))
     target_margin = float(getattr(esm_monitor, "cal_margin_median", 0.05))
+    n_steps = int(steps) if steps is not None else int(get_pgd_num_steps())
+    eps_val = float(eps) if eps is not None else float(get_epsilon_l_inf())
+    step_alpha = float(alpha) if alpha is not None else float(get_pgd_step_size())
 
     results = {}
-    print(f"\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM trên N={n_eval} ảnh (batch_size={batch_size})...")
+    print(f"\n[Adaptive Evasion] Đang đánh giá tấn công thích ứng né tránh ESM trên N={n_eval} ảnh (batch_size={batch_size}, steps={n_steps})...")
 
     for lam in lambdas:
         all_monitor_preds = []
         all_attack_effective = []
         all_conditioned_evasion = []
+        adaptive_preds_eval = []
         t_start = time.time()
         for b_start in range(0, n_eval, batch_size):
             b_end = min(n_eval, b_start + batch_size)
@@ -96,21 +115,20 @@ def run_adaptive_evasion_test(
             # Tính điểm tự tin tối đa trên ảnh sạch làm mốc so sánh
             with torch.no_grad():
                 clean_ref_out = model(sub_clean)
-                clean_ref_probs = torch.sigmoid(clean_ref_out.logits)
+                clean_ref_probs = torch.sigmoid(clean_ref_out.logits) if is_sigmoid else torch.softmax(clean_ref_out.logits, dim=-1)[..., :-1]
                 clean_max_p, _ = clean_ref_probs.max(dim=-1)
                 clean_top_confs = clean_max_p.max(dim=-1).values.cpu().numpy()  # [B]
 
             adv = sub_clean.clone().detach()
-            step_alpha = 2.0 / 255.0
-            eps = 16.0 / 255.0
 
-            # Chu trình PGD 15 bước chuẩn hóa (khớp với Stationary Attack)
-            for _ in range(15):
+            # Chu trình PGD chuẩn hóa theo cấu hình
+            for _ in range(n_steps):
                 adv_var = adv.clone().detach().requires_grad_(True)
                 mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
                 out = model(pixel_values=adv_var, pixel_mask=mask)
-                enc_logits = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
-                probs = torch.sigmoid(enc_logits)
+                has_enc = hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None
+                enc_logits = out.enc_outputs_class if has_enc else out.logits
+                probs = torch.sigmoid(enc_logits) if (has_enc or is_sigmoid) else torch.softmax(enc_logits, dim=-1)[..., :-1]
                 max_probs, _ = probs.max(dim=-1)
 
                 # Task Loss (Dìm điểm các query có xác suất cao)
@@ -119,13 +137,16 @@ def run_adaptive_evasion_test(
                 task_loss = (top_probs ** 2).mean()
 
                 # Evasion Loss (Né tránh đồng thời cả Dropoff và Margin theo đúng nguyên lý Max-OR)
-                topk_vals, _ = torch.topk(max_probs, k=min(301, max_probs.shape[1]), dim=-1)
+                n_cand = max_probs.shape[1]
+                k_top_n = min(n_q_model + 1, n_cand)
+                k_nq_idx = min(n_q_model - 1, k_top_n - 1)
+                topk_vals, _ = torch.topk(max_probs, k=k_top_n, dim=-1)
                 top1_val = topk_vals[:, 0]
-                top300_val = topk_vals[:, 299]
-                top301_val = topk_vals[:, 300] if topk_vals.shape[1] > 300 else torch.zeros_like(top300_val)
+                top_nq_val = topk_vals[:, k_nq_idx]
+                top_nq_next_val = topk_vals[:, k_nq_idx + 1] if topk_vals.shape[1] > k_nq_idx + 1 else torch.zeros_like(top_nq_val)
 
-                diff_dropoff = top1_val / (top300_val.clamp(min=1e-4) + 1e-4)
-                diff_margin = top300_val - top301_val
+                diff_dropoff = top1_val / (top_nq_val.clamp(min=1e-4) + 1e-4)
+                diff_margin = top_nq_val - top_nq_next_val
 
                 loss_drop = F.mse_loss(diff_dropoff, torch.full_like(diff_dropoff, target_drop))
                 loss_margin = F.mse_loss(diff_margin, torch.full_like(diff_margin, target_margin))
@@ -141,7 +162,7 @@ def run_adaptive_evasion_test(
                 with torch.no_grad():
                     grad_sign = adv_var.grad.sign() if adv_var.grad is not None else torch.zeros_like(adv_var)
                     adv = adv - step_alpha * grad_sign
-                    delta = torch.clamp(adv - sub_clean, min=-eps, max=eps)
+                    delta = torch.clamp(adv - sub_clean, min=-eps_val, max=eps_val)
                     adv = torch.clamp(sub_clean + delta, min=0.0, max=1.0).detach()
 
             with torch.no_grad():
@@ -150,8 +171,13 @@ def run_adaptive_evasion_test(
                 preds = esm_monitor.predict(final_logits.cpu())
                 all_monitor_preds.extend(preds)
 
+                if gt_list is not None:
+                    adaptive_preds_eval.extend(
+                        postprocess_rtdetr_predictions(final_out.logits, final_out.pred_boxes, mode=pp_mode)
+                    )
+
                 # Đo đạc tính hiệu quả của đòn tấn công (detection suppression effectiveness)
-                adv_final_probs = torch.sigmoid(final_out.logits)
+                adv_final_probs = torch.sigmoid(final_out.logits) if is_sigmoid else torch.softmax(final_out.logits, dim=-1)[..., :-1]
                 adv_max_p, _ = adv_final_probs.max(dim=-1)
                 adv_top_confs = adv_max_p.max(dim=-1).values.cpu().numpy()
 
@@ -173,6 +199,10 @@ def run_adaptive_evasion_test(
         raw_bypass = 100.0 - tpr_evade
         eff_rate = float(np.mean(all_attack_effective)) * 100.0 if len(all_attack_effective) > 0 else 0.0
         cond_evade = float(np.mean(all_conditioned_evasion)) * 100.0 if len(all_conditioned_evasion) > 0 else 0.0
+        post_map50 = None
+        if gt_list is not None and len(adaptive_preds_eval) > 0:
+            ev_map = evaluate_coco_predictions(adaptive_preds_eval, list(gt_list[:len(adaptive_preds_eval)]))
+            post_map50 = round(float(ev_map.get("mAP@50", 0.0)), 2)
 
         elapsed = time.time() - t_start
         results[f"lambda_{lam}"] = {
@@ -183,9 +213,11 @@ def run_adaptive_evasion_test(
             "raw_monitor_bypass_pct": round(raw_bypass, 2),
             "attack_effective_rate_pct": round(eff_rate, 2),
             "conditioned_evasion_success_pct": round(cond_evade, 2),
+            "post_attack_map50_pct": post_map50,
             "elapsed_seconds": round(elapsed, 2),
         }
-        print(f"   + Lambda = {lam:3.1f} (N={n_eval}) | Detected TPR = {tpr_evade:5.1f}% | Raw Bypass = {raw_bypass:5.1f}% | Conditioned Evasion = {cond_evade:5.1f}% ({elapsed:.1f}s)")
+        map_str = f" | Post-mAP@50 = {post_map50:.2f}%" if post_map50 is not None else ""
+        print(f"   + Lambda = {lam:3.1f} (N={n_eval}) | Detected TPR = {tpr_evade:5.1f}% | Raw Bypass = {raw_bypass:5.1f}% | Conditioned Evasion = {cond_evade:5.1f}%{map_str} ({elapsed:.1f}s)")
 
     return results
 
@@ -224,82 +256,98 @@ def run_defense_evaluation(
             expected_image_ids=image_ids,
             cache_dir=cache_dir,
             wrapper=wrapper,
+            steps=get_pgd_num_steps(),
+            hf_labels=getattr(dataset, "hf_labels", None),
         )
         adv_dict[atk] = adv_imgs
 
-    # Xác định n_cal theo tỷ lệ hoặc tối đa 1000 ảnh
+    # Xác định n_cal theo tỷ lệ hoặc tối đa 1000 ảnh (bảo đảm 1 <= n_cal < n_actual)
     n_total = n_actual
+    if n_total < 2:
+        raise ValueError(f"Task 8 yêu cầu tối thiểu 2 ảnh để chia calibration/test, nhận được n_actual={n_total}")
     n_cal = min(1000, max(50, int(n_actual * cal_ratio)))
     if n_actual <= 100:
-        n_cal = max(10, n_actual // 2)
+        n_cal = max(1, n_actual // 2)
+    n_cal = min(n_cal, n_total - 1)
     n_test = n_total - n_cal
 
-    # Đánh giá TPR @ 5% FPR trên Clean vs Adversarial
-    defense_results = evaluate_defense_cohort(
-        model_wrapper=wrapper,
-        clean_tensors=clean_imgs,
-        adv_tensors_dict=adv_dict,
-        target_fpr=target_fpr,
-        n_cal=n_cal,
-    )
-
-    # Khởi tạo ESM đã fit trên n_cal ảnh đầu để test adaptive evasion
+    # Trích xuất một lượt duy nhất toàn bộ đặc trưng cho ESM, SCM và ActiveBoxCountMonitor
+    bsz = max(1, int(batch_size))
+    is_sigmoid = bool(getattr(wrapper, "is_sigmoid", True))
+    n_q_model = int(getattr(wrapper, "num_queries", 300) or 300)
+    print(f"[Defense Eval] Trích xuất một lượt đặc trưng hiệu chuẩn trên {n_cal} ảnh sạch...")
     cal_logits = []
+    cal_refs = []
+    cal_preds_b = []
+    cal_dec_logits = []
     with torch.no_grad():
-        for i in range(0, n_cal, 10):
-            end_i = min(i + 10, n_cal)
+        for i in range(0, n_cal, bsz):
+            end_i = min(i + bsz, n_cal)
             b = clean_imgs[i : end_i]
             if hasattr(b, "to"):
                 b = b.to(device)
             out = wrapper.model(b)
             lgt = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
-            cal_logits.append(lgt.cpu())
-
-    esm_fitted = EncoderSelectionMonitor(target_fpr=target_fpr)
-    esm_fitted.fit(cal_logits)
-
-    # Đánh giá Spatial-Consistency Monitor (SCM) & Active-Box Count Watchdog Baseline
-    print("\n[Defense Eval] Đánh giá Spatial-Consistency Monitor (SCM) & Box-Count Watchdog...")
-    cal_refs = []
-    cal_preds_b = []
-    cal_dec_logits = []
-    with torch.no_grad():
-        for i in range(0, n_cal, 10):
-            end_i = min(i + 10, n_cal)
-            b = clean_imgs[i : end_i]
-            if hasattr(b, "to"):
-                b = b.to(device)
-            out = wrapper.model(b)
             r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
+            cal_logits.append(lgt.cpu())
             cal_refs.append(r.cpu())
             cal_preds_b.append(out.pred_boxes.cpu())
             cal_dec_logits.append(out.logits.cpu())
 
+    esm_fitted = EncoderSelectionMonitor(target_fpr=target_fpr, num_queries=n_q_model)
+    esm_fitted.fit(cal_logits)
+
+    print("\n[Defense Eval] Đánh giá Spatial-Consistency Monitor (SCM) & Box-Count Watchdog...")
     scm = SpatialConsistencyMonitor(target_fpr=target_fpr)
     scm.fit(cal_refs, cal_preds_b)
 
-    box_monitor = ActiveBoxCountMonitor(target_fpr=target_fpr, conf_threshold=0.35)
+    box_monitor = ActiveBoxCountMonitor(target_fpr=target_fpr, conf_threshold=0.35, is_sigmoid=is_sigmoid)
     box_monitor.fit(cal_dec_logits)
 
-    # Đánh giá SCM trên Clean Test (FPR)
+    # Đánh giá ESM/SCM/Box trên Clean Test (FPR + Ensemble Union Bound)
+    print(f"[Defense Eval] Đánh giá FPR trên {n_test} ảnh sạch độc lập...")
+    test_clean_enc = []
     test_clean_refs = []
     test_clean_preds_b = []
     test_clean_dec_logits = []
     with torch.no_grad():
-        for i in range(0, n_test, 10):
+        for i in range(0, n_test, bsz):
             start_idx = n_cal + i
-            end_idx = min(start_idx + 10, n_total)
+            end_idx = min(start_idx + bsz, n_total)
             b = clean_imgs[start_idx : end_idx]
             if hasattr(b, "to"):
                 b = b.to(device)
             out = wrapper.model(b)
+            lgt = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
             r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
+            test_clean_enc.append(lgt.cpu())
             test_clean_refs.append(r.cpu())
             test_clean_preds_b.append(out.pred_boxes.cpu())
             test_clean_dec_logits.append(out.logits.cpu())
 
+    test_clean_enc_cat = torch.cat(test_clean_enc, dim=0)
+    esm_clean_scores = esm_fitted.score(test_clean_enc_cat)
+    esm_clean_flags = esm_clean_scores >= esm_fitted.fused_thresh
+    esm_clean_fpr = float(np.mean(esm_clean_flags)) * 100.0
+
     scm_clean_scores = scm.score(torch.cat(test_clean_refs, dim=0), torch.cat(test_clean_preds_b, dim=0))
-    scm_clean_fpr = float(np.mean(scm_clean_scores >= scm.fused_thresh)) * 100.0
+    scm_clean_flags = scm_clean_scores >= scm.fused_thresh
+    scm_clean_fpr = float(np.mean(scm_clean_flags)) * 100.0
+    test_clean_dec_cat = torch.cat(test_clean_dec_logits, dim=0)
+    box_clean_counts = box_monitor.count_active_boxes(test_clean_dec_cat)
+    box_clean_flags = box_monitor.twosided_monitor.predict(box_clean_counts) > 0
+    union_clean_fpr = float(np.mean(esm_clean_flags | scm_clean_flags | box_clean_flags)) * 100.0
+
+    defense_results: Dict[str, Any] = {
+        "target_fpr_pct": target_fpr * 100.0,
+        "empirical_clean_fpr_pct": round(esm_clean_fpr, 2),
+        "clean_mean_anomaly_score": round(float(np.mean(esm_clean_scores)), 4),
+        "n_cal": n_cal,
+        "n_test": n_test,
+        "fused_threshold": round(esm_fitted.fused_thresh, 4),
+        "union_bound_pct": round(union_clean_fpr, 2),
+        "attacks": {},
+    }
 
     scm_results = {
         "target_fpr_pct": target_fpr * 100.0,
@@ -311,26 +359,43 @@ def run_defense_evaluation(
     import sklearn.metrics as skm
     test_adv_dec_logits_dict: Dict[str, torch.Tensor] = {}
     for atk_name, adv_full in adv_dict.items():
+        test_adv_enc = []
         test_adv_refs = []
         test_adv_preds_b = []
         test_adv_dec_lgt = []
         with torch.no_grad():
-            for i in range(0, n_test, 10):
+            for i in range(0, n_test, bsz):
                 start_idx = n_cal + i
-                end_idx = min(start_idx + 10, n_total)
+                end_idx = min(start_idx + bsz, n_total)
                 b = adv_full[start_idx : end_idx]
                 if hasattr(b, "to"):
                     b = b.to(device)
                 out = wrapper.model(b)
+                lgt = out.enc_outputs_class if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None else out.logits
                 r = out.init_reference_points if hasattr(out, "init_reference_points") and out.init_reference_points is not None else out.pred_boxes
+                test_adv_enc.append(lgt.cpu())
                 test_adv_refs.append(r.cpu())
                 test_adv_preds_b.append(out.pred_boxes.cpu())
                 test_adv_dec_lgt.append(out.logits.cpu())
 
+        # Đánh giá ESM trên cùng batch đã suy luận
+        scores_adv_esm = esm_fitted.score(torch.cat(test_adv_enc, dim=0))
+        tpr_esm = float(np.mean(scores_adv_esm >= esm_fitted.fused_thresh)) * 100.0
+        all_lbls = np.concatenate([np.zeros(n_test), np.ones(n_test)])
+        try:
+            auroc_esm = float(skm.roc_auc_score(all_lbls, np.concatenate([esm_clean_scores, scores_adv_esm])))
+        except Exception:
+            auroc_esm = 0.5000
+        defense_results["attacks"][atk_name] = {
+            "tpr_detection_rate_pct": round(tpr_esm, 2),
+            "auroc": round(auroc_esm, 4),
+            "mean_anomaly_score": round(float(np.mean(scores_adv_esm)), 4),
+        }
+        print(f"   + [ESM] {atk_name.upper():12s}: TPR = {tpr_esm:5.2f}% | AUROC = {auroc_esm:.4f}")
+
         test_adv_dec_logits_dict[atk_name] = torch.cat(test_adv_dec_lgt, dim=0)
         scores_adv_scm = scm.score(torch.cat(test_adv_refs, dim=0), torch.cat(test_adv_preds_b, dim=0))
         tpr_scm = float(np.mean(scores_adv_scm >= scm.fused_thresh)) * 100.0
-        all_lbls = np.concatenate([np.zeros(n_test), np.ones(n_test)])
         all_scs = np.concatenate([scm_clean_scores, scores_adv_scm])
         try:
             auroc_scm = float(skm.roc_auc_score(all_lbls, all_scs))
@@ -364,14 +429,17 @@ def run_defense_evaluation(
     # Đánh giá tấn công thích ứng White-Box Adaptive Evasion
     avail_test = n_actual - n_cal if (n_actual - n_cal) > 0 else n_actual
     n_adapt = min(n_adaptive, avail_test)
-    test_adaptive_imgs = clean_imgs[n_cal : n_cal + n_adapt]
+    adapt_start = n_cal if (n_actual - n_cal) > 0 else 0
+    test_adaptive_imgs = clean_imgs[adapt_start : adapt_start + n_adapt]
+    adapt_gt = dataset.gt_list[adapt_start : adapt_start + n_adapt] if hasattr(dataset, "gt_list") else None
     adaptive_results = run_adaptive_evasion_test(
         wrapper=wrapper,
         clean_imgs=test_adaptive_imgs,
         esm_monitor=esm_fitted,
         n_samples=len(test_adaptive_imgs),
         lambdas=[0.2, 0.5, 1.0, 2.0],
-        batch_size=4,
+        batch_size=bsz,
+        gt_list=adapt_gt,
     )
     defense_results["adaptive_evasion"] = adaptive_results
 
@@ -391,7 +459,9 @@ def run_defense_evaluation(
                 clean_imgs=clean_imgs,
                 adv_imgs=adv_dict["aqsm"],
                 gt_list=dataset.gt_list,
-                batch_size=batch_size,
+                batch_size=bsz,
+                adv_taskpgd_imgs=adv_dict.get("taskpgd"),
+                adaptive_steps=get_pgd_num_steps(),
             )
         except Exception as e:
             print(f"   [CẢNH BÁO] Không thể chạy live SQA ablation ({e}).")
@@ -462,7 +532,7 @@ def main():
     dataset = FlexibleCOCODataset(
         folder_image=args.folder_image,
         annotations_file=args.annotations,
-        img_size=640,
+        img_size=get_img_size(),
         id2label=wrapper.model.config.id2label,
         lazy_tensors=True,
         device=device,

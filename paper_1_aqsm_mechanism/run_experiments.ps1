@@ -34,6 +34,9 @@ param (
     [int]$Threads = 8,
 
     [Parameter(Mandatory = $false)]
+    [int]$MaxSamples = 1000,
+
+    [Parameter(Mandatory = $false)]
     [string]$Model = "r18",
 
     [Parameter(Mandatory = $false)]
@@ -95,6 +98,7 @@ if ($FigDir -ne "") { $PyArgs += @("--fig_dir", $FigDir) }
 if ($Device -ne "") { $PyArgs += @("--device", $Device) }
 if ($BatchSize -gt 0) { $PyArgs += @("--batch_size", $BatchSize) }
 if ($Threads -gt 0) { $PyArgs += @("--threads", $Threads) }
+if ($MaxSamples -ge 0) { $PyArgs += @("--max_samples", $MaxSamples) }
 if ($Model -ne "") { $PyArgs += @("--model", $Model) }
 if ($Tasks -ne "") { $PyArgs += @("--tasks", $Tasks) }
 if ($SkipCacheGen) { $PyArgs += @("--skip_cache_gen") }

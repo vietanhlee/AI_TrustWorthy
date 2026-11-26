@@ -14,7 +14,7 @@
 #   --device DEV           : Thiết bị tính toán: 'cuda', 'cpu', hoặc 'auto'.
 #   --batch_size INT       : Kích thước lô.
 #   --threads INT          : Số luồng CPU tính toán song song (mặc định: 8).
-#   --tasks LIST           : Danh sách task chạy (mặc định: "0,1,2,3,4,5,6,8,7").
+#   --tasks LIST           : Danh sách task chạy (mặc định: "0,1,2,3,4,5,6,8,7,9").
 #   --num_images INT       : Số lượng ảnh tối đa (mặc định: toàn bộ ảnh).
 #   --max_samples INT      : Alias của --num_images.
 #   --skip_cache_gen       : Bỏ qua Task 0 -> Tự động chạy On-The-Fly VRAM Streaming (0 GB đĩa).

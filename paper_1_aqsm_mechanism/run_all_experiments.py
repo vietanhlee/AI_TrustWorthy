@@ -144,7 +144,7 @@ def _build_task_registry(
 
     # Task 6 args
     def build_task6_args() -> List[str]:
-        n_runs_val = str(args.max_samples) if args.max_samples is not None else "1000"
+        n_runs_val = str(args.max_samples) if (args.max_samples is not None and int(args.max_samples) > 0) else "300"
         t6_args = [
             "--folder_image", str(args.folder_image),
             "--annotations", str(args.annotations),
@@ -307,12 +307,21 @@ def main():
     parser.add_argument("--run_multiseed", action="store_true", default=False, help="Bật Task 10 chạy thực nghiệm AQSM đa seed tự động khi truyền tập --tasks tùy chỉnh")
     parser.add_argument("--seeds", type=str, default=default_seeds_str, help=f"Danh sách random seeds cho Task 4 & Task 10 (mặc định: {default_seeds_str})")
     parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD sinh mẫu đối kháng (mặc định 15)")
+    parser.add_argument("--eps_255", type=float, default=None, help="Ngân sách nhiễu L_inf trên thang 255 (mặc định theo cấu hình)")
+    parser.add_argument("--img_size", type=int, default=None, help="Kích thước ảnh vuông đầu vào (mặc định theo cấu hình)")
     args = parser.parse_args()
 
     if args.num_images is not None:
         args.max_samples = args.num_images
 
     chosen_model = resolve_model_name(args.model)
+    os.environ["EDGE_SEC_MODEL"] = str(chosen_model)
+    os.environ["EDGE_SEC_STEPS"] = str(args.pgd_steps)
+    eps_l_inf_arg = (float(args.eps_255) / 255.0) if args.eps_255 is not None else None
+    if eps_l_inf_arg is not None:
+        os.environ["EDGE_SEC_EPS"] = str(eps_l_inf_arg)
+    if args.img_size is not None and int(args.img_size) > 0:
+        os.environ["EDGE_SEC_IMG_SIZE"] = str(int(args.img_size))
     update_experiment_paths(
         folder_image=args.folder_image,
         annotations=args.annotations,
@@ -320,6 +329,9 @@ def main():
         cache_dir=args.cache_dir,
         fig_dir=args.fig_dir,
         model=chosen_model,
+        pgd_steps=args.pgd_steps,
+        eps_l_inf=eps_l_inf_arg,
+        img_size=args.img_size,
     )
 
     t_global_start = time.time()
@@ -328,7 +340,8 @@ def main():
     folder_p = Path(args.folder_image).resolve()
     valid_exts = {".jpg", ".jpeg", ".png", ".bmp"}
     img_count = len([p for p in folder_p.iterdir() if p.suffix.lower() in valid_exts]) if folder_p.is_dir() else 0
-    effective_count = min(img_count, args.max_samples) if args.max_samples is not None else img_count
+    is_limited = args.max_samples is not None and int(args.max_samples) > 0
+    effective_count = min(img_count, int(args.max_samples)) if is_limited else img_count
 
     print("=" * 85)
     print(" 🚀 HỆ THỐNG ĐIỀU PHỐI THỰC NGHIỆM TOÀN DIỆN (RT-DETR MECHANISM BREAKDOWN)")
@@ -336,8 +349,10 @@ def main():
     print(f" Kiến trúc Model      : {chosen_model}")
     print(f" Thư mục ảnh đầu vào  : {folder_p} (Tìm thấy {img_count} ảnh | Chạy: {effective_count} ảnh)")
     print(f" File Annotations COCO: {Path(args.annotations).resolve()}")
-    if args.max_samples is not None:
+    if is_limited:
         print(f" Cấu hình Max Samples : {args.max_samples} ảnh")
+    else:
+        print(" Cấu hình Max Samples : Toàn bộ dataset")
     print(f" Thư mục đầu ra       : {Path(args.output_dir).resolve()}")
     print(f" Thư mục Cache        : {Path(args.cache_dir).resolve()}")
     print(f" Thư mục Figures      : {Path(args.fig_dir).resolve()}")
@@ -347,7 +362,7 @@ def main():
     else:
         print(f" Cấu hình CPU         : {hw_info['processor']} | Số luồng thiết lập: {args.threads}")
     print(f" Batch Size đề xuất   : {args.batch_size or hw_info['recommended_batch_size']}")
-    print(f" Danh sách Tasks chạy : {args.tasks}")
+    print(f" Danh sách Tasks chạy : {args.tasks} | PGD Steps: {args.pgd_steps}")
     print("=" * 85)
 
     common_args = [
@@ -358,11 +373,10 @@ def main():
         "--threads", str(args.threads),
         "--device", str(args.device),
         "--model", str(chosen_model),
+        "--max_samples", str(args.max_samples if args.max_samples is not None else 0),
     ]
     if args.batch_size is not None:
         common_args.extend(["--batch_size", str(args.batch_size)])
-    if args.max_samples is not None:
-        common_args.extend(["--max_samples", str(args.max_samples)])
 
     base_dir = Path(__file__).resolve().parent
     registry = _build_task_registry(base_dir, args, common_args)
@@ -424,14 +438,16 @@ def main():
             "figures_directory": str(Path(args.fig_dir).resolve()),
             "logs_directory": str(Path(args.output_dir) / "logs"),
             "table_mappings": {
+                "Table 1 & Table 2 & Table 9": "matched_budget_sweep.json / query_selection_dynamics.json",
                 "Table 3 & Table 4": "causal_swap_results_aqsm.json / vanishing / taskpgd",
                 "Table 5": "encoder_memory_analysis.json",
                 "Table 6": "query_selection_dynamics.json",
                 "Table 7": "deformable_attention_telemetry.json",
-                "Table 8": "tautology_control_results.json",
-                "Table 9": "matched_budget_sweep.json",
-                "Table 10": "latency_profile.json",
+                "Table 8": "controlled_misrouting_results.json",
+                "Table 10": "edge_latency_results.json",
                 "Table 11": "defense_esm_evaluation.json",
+                "Table 12": "hardening_evaluation_results.json",
+                "Table 13": "multimodel_and_seed_stability_summary.json",
             },
         },
     }
