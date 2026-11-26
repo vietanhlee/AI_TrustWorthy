@@ -45,6 +45,7 @@ def _get_rtdetr_core_model(model: torch.nn.Module) -> torch.nn.Module:
 def extract_encoder_components(
     model: torch.nn.Module,
     pixel_values: torch.Tensor,
+    enable_grad: bool = False,
 ) -> Dict[str, Any]:
     """
     Chạy phần Backbone + Hybrid Encoder + Encoder Proposal Head của `RTDetrForObjectDetection`,
@@ -53,6 +54,7 @@ def extract_encoder_components(
     Args:
         model: Instance `RTDetrForObjectDetection` (hoặc wrapper chứa `.model`).
         pixel_values: Tensor ảnh [B, 3, H, W] trong [0, 1].
+        enable_grad: Nếu True, giữ nguyên đồ thị gradient phục vụ adaptive white-box attacks.
     """
     core = _get_rtdetr_core_model(model)
 
@@ -60,7 +62,10 @@ def extract_encoder_components(
     bsz, _, height, width = pixel_values.shape
     pixel_mask = torch.ones((bsz, height, width), device=device, dtype=torch.long)
 
-    with torch.no_grad():
+    grad_ctx = torch.enable_grad() if enable_grad else torch.no_grad()
+    _out_t = (lambda t: t) if enable_grad else (lambda t: t.detach())
+
+    with grad_ctx:
         features = core.backbone(pixel_values, pixel_mask)
         proj_feats = [core.encoder_input_proj[level](src) for level, (src, _) in enumerate(features)]
         encoder_outputs = core.encoder(proj_feats, return_dict=True)
@@ -120,19 +125,19 @@ def extract_encoder_components(
                 index=topk_ind.unsqueeze(-1).repeat(1, 1, output_memory.shape[-1]),
             )
 
-        init_reference_points = reference_points_unact.detach()
+        init_reference_points = _out_t(reference_points_unact)
 
     return {
-        "encoder_last_hidden_state": [t.detach() for t in encoder_outputs.last_hidden_state],
+        "encoder_last_hidden_state": [_out_t(t) for t in encoder_outputs.last_hidden_state],
         # Multi-scale spatial tokens S: S = 8,400 at native 640x640 (P3: 6400, P4: 1600, P5: 400); S = 2,100 at 320x320
-        "source_flatten": source_flatten_t.detach(),            # M: [B, S, 256]
-        "output_memory": output_memory.detach(),                # [B, S, 256]
-        "enc_outputs_class": enc_outputs_class.detach(),        # [B, S, 80]
-        "enc_outputs_coord_logits": enc_outputs_coord_logits.detach(),  # [B, S, 4]
-        "anchors": anchors.detach(),                            # [1, S, 4]
+        "source_flatten": _out_t(source_flatten_t),            # M: [B, S, 256]
+        "output_memory": _out_t(output_memory),                # [B, S, 256]
+        "enc_outputs_class": _out_t(enc_outputs_class),        # [B, S, 80]
+        "enc_outputs_coord_logits": _out_t(enc_outputs_coord_logits),  # [B, S, 4]
+        "anchors": _out_t(anchors),                            # [1, S, 4]
         "topk_ind": topk_ind.detach(),                          # I: [B, 300]
-        "target": target.detach(),                              # Q_feat: [B, 300, 256]
-        "init_reference_points": init_reference_points.detach(),  # Q_ref: [B, 300, 4]
+        "target": _out_t(target),                              # Q_feat: [B, 300, 256]
+        "init_reference_points": init_reference_points,         # Q_ref: [B, 300, 4]
         "spatial_shapes": spatial_shapes,
         "spatial_shapes_list": spatial_shapes_list,
         "level_start_index": level_start_index,
@@ -148,13 +153,15 @@ def run_decoder_from_components(
     spatial_shapes_list: List[Tuple[int, int]],
     level_start_index: torch.Tensor,
     output_attentions: bool = False,
+    enable_grad: bool = False,
 ) -> Dict[str, torch.Tensor]:
     """
     Chạy riêng Deformable Decoder từ các thành phần (M, target, init_reference_points) đã tách.
     """
     core = _get_rtdetr_core_model(model)
 
-    with torch.no_grad():
+    grad_ctx = torch.enable_grad() if enable_grad else torch.no_grad()
+    with grad_ctx:
         dec_out = core.decoder(
             inputs_embeds=target,
             encoder_hidden_states=source_flatten,

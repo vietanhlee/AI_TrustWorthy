@@ -524,11 +524,45 @@ def evaluate_coco_predictions(
 
     valid_classes = ~np.isnan(class_ap_mat[:, 0])
     n_active_classes = int(np.sum(valid_classes))
+
+    # Tính Recall@IoU=0.50 (%) theo từng lớp trên tập idx_list
+    tp50_total = 0
+    gt_total = 0
+    for idx in idx_list:
+        gt = gt_list[idx]
+        crowd = gt["iscrowd"] if "iscrowd" in gt else np.zeros(len(gt["labels"]), dtype=bool)
+        reg_boxes = gt["boxes_xyxy"][~crowd]
+        reg_labels = gt["labels"][~crowd]
+        if len(reg_boxes) == 0:
+            continue
+        gt_total += len(reg_boxes)
+        pr = preds[idx]
+        if len(pr["boxes"]) == 0:
+            continue
+        for c_id in np.unique(reg_labels):
+            gt_c = reg_boxes[reg_labels == c_id]
+            pr_mask = pr["labels"] == c_id
+            pr_c = pr["boxes"][pr_mask]
+            if len(pr_c) == 0:
+                continue
+            pr_sc = pr["scores"][pr_mask]
+            pr_c = pr_c[np.argsort(-pr_sc)]
+            ious = compute_iou_matrix(pr_c, gt_c)
+            used_g = np.zeros(len(gt_c), dtype=bool)
+            for p_i in range(len(pr_c)):
+                cand = np.where(~used_g, ious[p_i], -1.0)
+                best_g = int(np.argmax(cand))
+                if float(cand[best_g]) >= 0.50:
+                    used_g[best_g] = True
+                    tp50_total += 1
+    recall_pct = (float(tp50_total) / float(gt_total) * 100.0) if gt_total > 0 else 0.0
+
     if n_active_classes == 0:
         return {
             "mAP@50": 0.0,
             "mAP@75": 0.0,
             "mAP@50:95": 0.0,
+            "recall_pct": recall_pct,
             "active_classes": 0,
         }
 
@@ -537,6 +571,7 @@ def evaluate_coco_predictions(
         "mAP@50": float(ap_per_iou[0]),
         "mAP@75": float(ap_per_iou[5]),
         "mAP@50:95": float(np.mean(ap_per_iou)),
+        "recall_pct": recall_pct,
         "active_classes": n_active_classes,
     }
 

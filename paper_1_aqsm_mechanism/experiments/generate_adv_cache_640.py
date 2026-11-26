@@ -36,6 +36,7 @@ if str(WORKSPACE_DIR) not in sys.path:
 from paper_1_aqsm_mechanism.core.dataset_loader import FlexibleCOCODataset
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
+from paper_1_aqsm_mechanism.core.hardening_prototype import StaticQueryAugmenter
 from paper_1_aqsm_mechanism.experiments.config import (
     ADV_CACHE_DIR,
     COCO_ANN_FILE,
@@ -163,7 +164,9 @@ def generate_single_attack_cache(
                 elif attack_name.lower() in ["pure_memory", "mem_pure"]:
                     b_adv = attacker.generate_pure_memory_attack(b_clean, steps=steps, alpha=alpha)
                 elif attack_name.lower() in ["adaptive_sqa", "sqa_adaptive"]:
-                    b_adv = attacker.generate_adaptive_sqa_attack(b_clean, steps=steps, alpha=alpha)
+                    sqa_dim = int(getattr(wrapper, "d_model", getattr(wrapper.model.config, "d_model", 256)))
+                    sqa_mod = StaticQueryAugmenter(num_static_anchors=30, strategy="uniform_grid", hidden_dim=sqa_dim).to(device)
+                    b_adv = attacker.generate_adaptive_sqa_attack(b_clean, sqa_module=sqa_mod, steps=steps, alpha=alpha)
                 else:
                     raise ValueError(f"Đòn tấn công không được hỗ trợ: {attack_name}")
 

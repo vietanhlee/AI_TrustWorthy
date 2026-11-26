@@ -123,7 +123,12 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
             outputs = model(pixel_values=batch_imgs, return_dict=True)
             comp = extract_encoder_components(model, batch_imgs)
             refs = torch.sigmoid(comp["init_reference_points"]).cpu().numpy()
-        preds = postprocess_rtdetr_predictions(outputs, conf_threshold=0.01)
+        preds = postprocess_rtdetr_predictions(
+            outputs.logits,
+            outputs.pred_boxes,
+            score_thresh=0.01,
+            mode="hf_multilabel",
+        )
         clean_preds.extend(preds)
         clean_refs_all.extend([refs[b] for b in range(end - start)])
 
@@ -169,7 +174,12 @@ def run_multiseed_stability(args) -> Dict[str, Any]:
                 outputs = model(pixel_values=adv_batch, return_dict=True)
                 comp = extract_encoder_components(model, adv_batch)
                 adv_refs = torch.sigmoid(comp["init_reference_points"]).cpu().numpy()
-            preds = postprocess_rtdetr_predictions(outputs, conf_threshold=0.01)
+            preds = postprocess_rtdetr_predictions(
+                outputs.logits,
+                outputs.pred_boxes,
+                score_thresh=0.01,
+                mode="hf_multilabel",
+            )
             adv_preds.extend(preds)
 
             for b in range(end - start):

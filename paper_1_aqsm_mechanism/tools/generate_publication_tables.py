@@ -217,17 +217,17 @@ def generate_table2(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     aq_m50 = float(require_val(aq_16, ["mAP@50"], "aq_16.mAP@50"))
     aq_m50_drop = float(require_val(aq_16, ["relative_drop_pct"], "aq_16.relative_drop_pct"))
     aq_m95 = float(require_val(aq_16, ["mAP@50:95"], "aq_16.mAP@50:95"))
-    aq_m95_drop = (clean_m95 - aq_m95) / clean_m95 * 100.0
+    aq_m95_drop = (clean_m95 - aq_m95) / max(clean_m95, 1e-6) * 100.0 if clean_m95 > 0.0 else 0.0
 
     van_m50 = float(require_val(van_16, ["mAP@50"], "van_16.mAP@50"))
     van_m50_drop = float(require_val(van_16, ["relative_drop_pct"], "van_16.relative_drop_pct"))
     van_m95 = float(require_val(van_16, ["mAP@50:95"], "van_16.mAP@50:95"))
-    van_m95_drop = (clean_m95 - van_m95) / clean_m95 * 100.0
+    van_m95_drop = (clean_m95 - van_m95) / max(clean_m95, 1e-6) * 100.0 if clean_m95 > 0.0 else 0.0
 
     pgd_m50 = float(require_val(pgd_16, ["mAP@50"], "pgd_16.mAP@50"))
     pgd_m50_drop = float(require_val(pgd_16, ["relative_drop_pct"], "pgd_16.relative_drop_pct"))
     pgd_m95 = float(require_val(pgd_16, ["mAP@50:95"], "pgd_16.mAP@50:95"))
-    pgd_m95_drop = (clean_m95 - pgd_m95) / clean_m95 * 100.0
+    pgd_m95_drop = (clean_m95 - pgd_m95) / max(clean_m95, 1e-6) * 100.0 if clean_m95 > 0.0 else 0.0
 
     headers = ["Threat Tier & Condition", "mAP@50 [Rel. Drop]", "mAP@50:95 [Rel.]", "Active Boxes", "ASR_obj [CI 95%]", "ASR_silence [CI 95%]", "ASR_starve [CI 95%]"]
     rows = [
@@ -342,14 +342,15 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     f_q_pgd = float(require_val(an_pgd, ["anova_table", "Query_Q", "F"], "pgd.F_q"))
     f_inter_pgd = float(require_val(an_pgd, ["anova_table", "Interaction_MxQ", "F"], "pgd.F_inter"))
 
+    _d_cm = max(clean_map, 1e-6)
     headers = ["Intervention Arm / Factor", "AQSM mAP@50", "PGD Vanishing mAP@50", "Standard Task PGD mAP@50"]
     rows = [
         ["Arm A: Clean Baseline", f"{clean_map:.2f}% (100.0%)", f"{clean_map:.2f}% (100.0%)", f"{clean_map:.2f}% (100.0%)"],
-        ["Arm B: Full Attack", f"{b_aqsm:.2f}% ({b_aqsm/clean_map*100:.1f}%) [-{clean_map-b_aqsm:.2f} pp]", f"{b_van:.2f}% ({b_van/clean_map*100:.1f}%) [-{clean_map-b_van:.2f} pp]", f"{b_pgd:.2f}% ({b_pgd/clean_map*100:.1f}%) [-{clean_map-b_pgd:.2f} pp]"],
-        ["Arm C_full: Adv Mem + Clean Prior", f"{cfull_aqsm:.2f}% ({cfull_aqsm/clean_map*100:.1f}%) [-{clean_map-cfull_aqsm:.2f} pp]", f"{cfull_van:.2f}% ({cfull_van/clean_map*100:.1f}%) [-{clean_map-cfull_van:.2f} pp]", f"{cfull_pgd:.2f}% ({cfull_pgd/clean_map*100:.1f}%) [-{clean_map-cfull_pgd:.2f} pp]"],
-        ["Arm C_index: Adv Mem + Clean Idx", f"{cidx_aqsm:.2f}% ({cidx_aqsm/clean_map*100:.1f}%) [-{clean_map-cidx_aqsm:.2f} pp]", f"{cidx_van:.2f}% ({cidx_van/clean_map*100:.1f}%) [-{clean_map-cidx_van:.2f} pp]", f"{cidx_pgd:.2f}% ({cidx_pgd/clean_map*100:.1f}%) [-{clean_map-cidx_pgd:.2f} pp]"],
-        ["Arm D_full: Clean Mem + Adv Prior", f"{dfull_aqsm:.2f}% ({dfull_aqsm/clean_map*100:.1f}%) [-{clean_map-dfull_aqsm:.2f} pp]", f"{dfull_van:.2f}% ({dfull_van/clean_map*100:.1f}%) [-{clean_map-dfull_van:.2f} pp]", f"{dfull_pgd:.2f}% ({dfull_pgd/clean_map*100:.1f}%) [-{clean_map-dfull_pgd:.2f} pp]"],
-        ["Arm D_index: Clean Mem + Adv Idx", f"{didx_aqsm:.2f}% ({didx_aqsm/clean_map*100:.1f}%) [-{clean_map-didx_aqsm:.2f} pp]", f"{didx_van:.2f}% ({didx_van/clean_map*100:.1f}%) [-{clean_map-didx_van:.2f} pp]", f"{didx_pgd:.2f}% ({didx_pgd/clean_map*100:.1f}%) [-{clean_map-didx_pgd:.2f} pp]"],
+        ["Arm B: Full Attack", f"{b_aqsm:.2f}% ({b_aqsm/_d_cm*100:.1f}%) [-{clean_map-b_aqsm:.2f} pp]", f"{b_van:.2f}% ({b_van/_d_cm*100:.1f}%) [-{clean_map-b_van:.2f} pp]", f"{b_pgd:.2f}% ({b_pgd/_d_cm*100:.1f}%) [-{clean_map-b_pgd:.2f} pp]"],
+        ["Arm C_full: Adv Mem + Clean Prior", f"{cfull_aqsm:.2f}% ({cfull_aqsm/_d_cm*100:.1f}%) [-{clean_map-cfull_aqsm:.2f} pp]", f"{cfull_van:.2f}% ({cfull_van/_d_cm*100:.1f}%) [-{clean_map-cfull_van:.2f} pp]", f"{cfull_pgd:.2f}% ({cfull_pgd/_d_cm*100:.1f}%) [-{clean_map-cfull_pgd:.2f} pp]"],
+        ["Arm C_index: Adv Mem + Clean Idx", f"{cidx_aqsm:.2f}% ({cidx_aqsm/_d_cm*100:.1f}%) [-{clean_map-cidx_aqsm:.2f} pp]", f"{cidx_van:.2f}% ({cidx_van/_d_cm*100:.1f}%) [-{clean_map-cidx_van:.2f} pp]", f"{cidx_pgd:.2f}% ({cidx_pgd/_d_cm*100:.1f}%) [-{clean_map-cidx_pgd:.2f} pp]"],
+        ["Arm D_full: Clean Mem + Adv Prior", f"{dfull_aqsm:.2f}% ({dfull_aqsm/_d_cm*100:.1f}%) [-{clean_map-dfull_aqsm:.2f} pp]", f"{dfull_van:.2f}% ({dfull_van/_d_cm*100:.1f}%) [-{clean_map-dfull_van:.2f} pp]", f"{dfull_pgd:.2f}% ({dfull_pgd/_d_cm*100:.1f}%) [-{clean_map-dfull_pgd:.2f} pp]"],
+        ["Arm D_index: Clean Mem + Adv Idx", f"{didx_aqsm:.2f}% ({didx_aqsm/_d_cm*100:.1f}%) [-{clean_map-didx_aqsm:.2f} pp]", f"{didx_van:.2f}% ({didx_van/_d_cm*100:.1f}%) [-{clean_map-didx_van:.2f} pp]", f"{didx_pgd:.2f}% ({didx_pgd/_d_cm*100:.1f}%) [-{clean_map-didx_pgd:.2f} pp]"],
         ["ME_M (Memory Main Effect)", f"{me_m_aqsm:.2f} pp (eta_p^2 = {eta_m_aqsm:.3f})", f"{me_m_van:.2f} pp (eta_p^2 = {eta_m_van:.3f})", f"{me_m_pgd:.2f} pp (eta_p^2 = {eta_m_pgd:.3f})"],
         ["ME_Q (Query Main Effect)", f"{me_q_aqsm:.2f} pp (eta_p^2 = {eta_q_aqsm:.3f})", f"{me_q_van:.2f} pp (eta_p^2 = {eta_q_van:.3f})", f"{me_q_pgd:.2f} pp (eta_p^2 = {eta_q_pgd:.3f})"],
         ["Interaction M x Q", f"+{inter_aqsm:.2f} pp", f"+{inter_van:.2f} pp", f"+{inter_pgd:.2f} pp"],
@@ -366,11 +367,11 @@ def generate_table3(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 & mAP@50 (Rel.) / $\Delta$ [95\% CI] & mAP@50 (Rel.) / $\Delta$ [95\% CI] & mAP@50 (Rel.) / $\Delta$ [95\% CI] \\
 \midrule
 Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{clean}}]$) & """ + f"{clean_map:.2f}\\% (100.0\\%) [Ref.]" + r""" & """ + f"{clean_map:.2f}\\% (100.0\\%) [Ref.]" + r""" & """ + f"{clean_map:.2f}\\% (100.0\\%) [Ref.]" + r""" \\
-Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & """ + f"{b_aqsm:.2f}\\% ({b_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-b_aqsm:.2f} pp]" + r""" & """ + f"{b_van:.2f}\\% ({b_van/clean_map*100:.1f}\\%) [$-${clean_map-b_van:.2f} pp]" + r""" & """ + f"{b_pgd:.2f}\\% ({b_pgd/clean_map*100:.1f}\\%) [$-${clean_map-b_pgd:.2f} pp]" + r""" \\
-Arm $\text{C}_{\text{full}}$: Adv Mem + Clean Prior ($M_{\mathrm{adv}} + Q_{\mathrm{clean}}$) & """ + f"{cfull_aqsm:.2f}\\% ({cfull_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-cfull_aqsm:.2f} pp]" + r""" & """ + f"{cfull_van:.2f}\\% ({cfull_van/clean_map*100:.1f}\\%) [$-${clean_map-cfull_van:.2f} pp]" + r""" & """ + f"{cfull_pgd:.2f}\\% ({cfull_pgd/clean_map*100:.1f}\\%) [$-${clean_map-cfull_pgd:.2f} pp]" + r""" \\
-Arm $\text{C}_{\text{index}}$: Adv Mem + Adv Feat at Clean Idx ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{clean}}]$) & """ + f"{cidx_aqsm:.2f}\\% ({cidx_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-cidx_aqsm:.2f} pp]" + r""" & """ + f"{cidx_van:.2f}\\% ({cidx_van/clean_map*100:.1f}\\%) [$-${clean_map-cidx_van:.2f} pp]" + r""" & """ + f"{cidx_pgd:.2f}\\% ({cidx_pgd/clean_map*100:.1f}\\%) [$-${clean_map-cidx_pgd:.2f} pp]" + r""" \\
-Arm $\text{D}_{\text{full}}$: Clean Mem + Adv Prior ($M_{\mathrm{clean}} + Q_{\mathrm{adv}}$) & """ + f"{dfull_aqsm:.2f}\\% ({dfull_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-dfull_aqsm:.2f} pp]" + r""" & """ + f"{dfull_van:.2f}\\% ({dfull_van/clean_map*100:.1f}\\%) [$-${clean_map-dfull_van:.2f} pp]" + r""" & """ + f"{dfull_pgd:.2f}\\% ({dfull_pgd/clean_map*100:.1f}\\%) [$-${clean_map-dfull_pgd:.2f} pp]" + r""" \\
-Arm $\text{D}_{\text{index}}$: Clean Mem + Adv Idx ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{adv}}]$) & """ + f"{didx_aqsm:.2f}\\% ({didx_aqsm/clean_map*100:.1f}\\%) [$-${clean_map-didx_aqsm:.2f} pp]" + r""" & """ + f"{didx_van:.2f}\\% ({didx_van/clean_map*100:.1f}\\%) [$-${clean_map-didx_van:.2f} pp]" + r""" & """ + f"{didx_pgd:.2f}\\% ({didx_pgd/clean_map*100:.1f}\\%) [$-${clean_map-didx_pgd:.2f} pp]" + r""" \\
+Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & """ + f"{b_aqsm:.2f}\\% ({b_aqsm/_d_cm*100:.1f}\\%) [$-${clean_map-b_aqsm:.2f} pp]" + r""" & """ + f"{b_van:.2f}\\% ({b_van/_d_cm*100:.1f}\\%) [$-${clean_map-b_van:.2f} pp]" + r""" & """ + f"{b_pgd:.2f}\\% ({b_pgd/_d_cm*100:.1f}\\%) [$-${clean_map-b_pgd:.2f} pp]" + r""" \\
+Arm $\text{C}_{\text{full}}$: Adv Mem + Clean Prior ($M_{\mathrm{adv}} + Q_{\mathrm{clean}}$) & """ + f"{cfull_aqsm:.2f}\\% ({cfull_aqsm/_d_cm*100:.1f}\\%) [$-${clean_map-cfull_aqsm:.2f} pp]" + r""" & """ + f"{cfull_van:.2f}\\% ({cfull_van/_d_cm*100:.1f}\\%) [$-${clean_map-cfull_van:.2f} pp]" + r""" & """ + f"{cfull_pgd:.2f}\\% ({cfull_pgd/_d_cm*100:.1f}\\%) [$-${clean_map-cfull_pgd:.2f} pp]" + r""" \\
+Arm $\text{C}_{\text{index}}$: Adv Mem + Adv Feat at Clean Idx ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{clean}}]$) & """ + f"{cidx_aqsm:.2f}\\% ({cidx_aqsm/_d_cm*100:.1f}\\%) [$-${clean_map-cidx_aqsm:.2f} pp]" + r""" & """ + f"{cidx_van:.2f}\\% ({cidx_van/_d_cm*100:.1f}\\%) [$-${clean_map-cidx_van:.2f} pp]" + r""" & """ + f"{cidx_pgd:.2f}\\% ({cidx_pgd/_d_cm*100:.1f}\\%) [$-${clean_map-cidx_pgd:.2f} pp]" + r""" \\
+Arm $\text{D}_{\text{full}}$: Clean Mem + Adv Prior ($M_{\mathrm{clean}} + Q_{\mathrm{adv}}$) & """ + f"{dfull_aqsm:.2f}\\% ({dfull_aqsm/_d_cm*100:.1f}\\%) [$-${clean_map-dfull_aqsm:.2f} pp]" + r""" & """ + f"{dfull_van:.2f}\\% ({dfull_van/_d_cm*100:.1f}\\%) [$-${clean_map-dfull_van:.2f} pp]" + r""" & """ + f"{dfull_pgd:.2f}\\% ({dfull_pgd/_d_cm*100:.1f}\\%) [$-${clean_map-dfull_pgd:.2f} pp]" + r""" \\
+Arm $\text{D}_{\text{index}}$: Clean Mem + Adv Idx ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{adv}}]$) & """ + f"{didx_aqsm:.2f}\\% ({didx_aqsm/_d_cm*100:.1f}\\%) [$-${clean_map-didx_aqsm:.2f} pp]" + r""" & """ + f"{didx_van:.2f}\\% ({didx_van/_d_cm*100:.1f}\\%) [$-${clean_map-didx_van:.2f} pp]" + r""" & """ + f"{didx_pgd:.2f}\\% ({didx_pgd/_d_cm*100:.1f}\\%) [$-${clean_map-didx_pgd:.2f} pp]" + r""" \\
 \midrule
 \textbf{Repeated-Measures ANOVA} & & & \\
 Main Effect Memory ($\text{ME}_M$) & """ + f"${me_m_aqsm:.2f}$ pp [${ci_m_aqsm[0]:.2f}, {ci_m_aqsm[1]:.2f}$]" + r""" & """ + f"${me_m_van:.2f}$ pp [${ci_m_van[0]:.2f}, {ci_m_van[1]:.2f}$]" + r""" & """ + f"${me_m_pgd:.2f}$ pp [${ci_m_pgd[0]:.2f}, {ci_m_pgd[1]:.2f}$]" + r""" \\
@@ -807,18 +808,19 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
             float(entry["fg_hit"]),
         )
 
+    _d_cl50 = max(cl_map50, 1e-6)
     rr_seed_tex_lines: List[str] = []
     for s in rr_seed_ids:
         r_vals = _get_seed_row("Random_Reassign", s)
         rr_seed_tex_lines.append(
-            f"Random Reassignment (Seed {s}) & {s} & {r_vals[0]:.2f}\\% ({r_vals[0]/cl_map50*100:.1f}\\%) & {r_vals[1]:.2f}\\% & {r_vals[2]:.2f}\\% & {r_vals[3]:.4f} & {rr_hung:.4f} & {r_vals[6]:.2f}\\% & {rr_cov:.2f}\\% \\\\"
+            f"Random Reassignment (Seed {s}) & {s} & {r_vals[0]:.2f}\\% ({r_vals[0]/_d_cl50*100:.1f}\\%) & {r_vals[1]:.2f}\\% & {r_vals[2]:.2f}\\% & {r_vals[3]:.4f} & {rr_hung:.4f} & {r_vals[6]:.2f}\\% & {rr_cov:.2f}\\% \\\\"
         )
 
     rs_seed_tex_lines: List[str] = []
     for s in rs_seed_ids:
         r_vals = _get_seed_row("Random_Shift", s)
         rs_seed_tex_lines.append(
-            f"Random Shift (Seed {s}) & {s} & {r_vals[0]:.2f}\\% ({r_vals[0]/cl_map50*100:.1f}\\%) & {r_vals[1]:.2f}\\% & {r_vals[2]:.2f}\\% & {r_vals[3]:.4f} & {rs_hung:.4f} & {r_vals[6]:.2f}\\% & {rs_cov:.2f}\\% \\\\"
+            f"Random Shift (Seed {s}) & {s} & {r_vals[0]:.2f}\\% ({r_vals[0]/_d_cl50*100:.1f}\\%) & {r_vals[1]:.2f}\\% & {r_vals[2]:.2f}\\% & {r_vals[3]:.4f} & {rs_hung:.4f} & {r_vals[6]:.2f}\\% & {rs_cov:.2f}\\% \\\\"
         )
 
     drs_m50 = float(require_val(drs, ["mAP@50_mean"], "t8.drs.m50"))
@@ -834,10 +836,10 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
     headers = ["Condition / Strategy", "Seed", "mAP@50 (Rel.)", "mAP@50:95", "Recall", "Slot Disp. (L2)", "Hungarian Dist.", "Ref FG Hit", "GT Obj. Cov."]
     rows = [
         ["Clean Reference Baseline", "---", f"{cl_map50:.2f}% (100.0%)", f"{cl_map95:.2f}%", f"{cl_rec:.2f}%", "0.0000", f"{cl_hung:.4f}", f"{cl_fghit:.2f}%", f"{cl_cov:.2f}%"],
-        ["Random Reassignment (Mean ± Std)", f"{n_seed_cnt} seeds", f"{rr_m50:.2f} ± {rr_m50_std:.2f}% ({rr_m50/cl_map50*100:.1f}%)", f"{rr_m95:.2f} ± {rr_m95_std:.2f}%", f"{rr_rec:.2f} ± {rr_rec_std:.2f}%", f"{rr_l2:.4f}", f"{rr_hung:.4f}", f"{rr_fghit:.2f}%", f"{rr_cov:.2f}%"],
-        ["Random Shift (Matched L2, Mean ± Std)", f"{n_seed_cnt} seeds", f"{rs_m50:.2f} ± {rs_m50_std:.2f}% ({rs_m50/cl_map50*100:.1f}%)", f"{rs_m95:.2f} ± {rs_m95_std:.2f}%", f"{rs_rec:.2f} ± {rs_rec_std:.2f}%", f"{rs_l2:.4f} ± {rs_l2_std:.4f}", f"{rs_hung:.4f}", f"{rs_fghit:.2f}%", f"{rs_cov:.2f}%"],
-        ["Decoupled Random Shift (Shift + Perm)", f"{n_seed_cnt} seeds", f"{drs_m50:.2f} ± {drs_m50_std:.2f}% ({drs_m50/cl_map50*100:.1f}%)", f"{drs_m95:.2f} ± {drs_m95_std:.2f}%", f"{drs_rec:.2f}%", f"{drs_l2:.4f}", f"{drs_hung:.4f}", f"{drs_fghit:.2f}%", f"{drs_cov:.2f}%"],
-        ["AQSM Spatial Misrouting", "---", f"{aq_m50:.2f}% ({aq_m50/cl_map50*100:.1f}%)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{aq_l2:.4f}", f"{aq_hung:.4f}", f"{aq_fghit:.2f}%", f"{aq_cov:.2f}%"],
+        ["Random Reassignment (Mean ± Std)", f"{n_seed_cnt} seeds", f"{rr_m50:.2f} ± {rr_m50_std:.2f}% ({rr_m50/_d_cl50*100:.1f}%)", f"{rr_m95:.2f} ± {rr_m95_std:.2f}%", f"{rr_rec:.2f} ± {rr_rec_std:.2f}%", f"{rr_l2:.4f}", f"{rr_hung:.4f}", f"{rr_fghit:.2f}%", f"{rr_cov:.2f}%"],
+        ["Random Shift (Matched L2, Mean ± Std)", f"{n_seed_cnt} seeds", f"{rs_m50:.2f} ± {rs_m50_std:.2f}% ({rs_m50/_d_cl50*100:.1f}%)", f"{rs_m95:.2f} ± {rs_m95_std:.2f}%", f"{rs_rec:.2f} ± {rs_rec_std:.2f}%", f"{rs_l2:.4f} ± {rs_l2_std:.4f}", f"{rs_hung:.4f}", f"{rs_fghit:.2f}%", f"{rs_cov:.2f}%"],
+        ["Decoupled Random Shift (Shift + Perm)", f"{n_seed_cnt} seeds", f"{drs_m50:.2f} ± {drs_m50_std:.2f}% ({drs_m50/_d_cl50*100:.1f}%)", f"{drs_m95:.2f} ± {drs_m95_std:.2f}%", f"{drs_rec:.2f}%", f"{drs_l2:.4f}", f"{drs_hung:.4f}", f"{drs_fghit:.2f}%", f"{drs_cov:.2f}%"],
+        ["AQSM Spatial Misrouting", "---", f"{aq_m50:.2f}% ({aq_m50/_d_cl50*100:.1f}%)", f"{aq_m95:.2f}%", f"{aq_rec:.2f}%", f"{aq_l2:.4f}", f"{aq_hung:.4f}", f"{aq_fghit:.2f}%", f"{aq_cov:.2f}%"],
     ]
 
     tex = r"""\begin{table}[!htbp]
@@ -851,15 +853,15 @@ def generate_table8(summary_dir: Path) -> Tuple[str, str, List[str], List[List[A
 \midrule
 Clean Reference Baseline & --- & """ + f"{cl_map50:.2f}\\% (100.0\\%)" + r""" & """ + f"{cl_map95:.2f}\\%" + r""" & """ + f"{cl_rec:.2f}\\%" + r""" & 0.0000 & """ + f"{cl_hung:.4f}" + r""" & """ + f"{cl_fghit:.2f}\\%" + r""" & """ + f"{cl_cov:.2f}\\%" + r""" \\
 \midrule
-Random Reassignment (Mean $\pm$ Std) & """ + f"{n_seed_cnt}" + r""" seeds & """ + f"{rr_m50:.2f} $\\pm$ {rr_m50_std:.2f}\\% ({rr_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rr_m95:.2f} $\\pm$ {rr_m95_std:.2f}\\%" + r""" & """ + f"{rr_rec:.2f} $\\pm$ {rr_rec_std:.2f}\\%" + r""" & """ + f"{rr_l2:.4f}" + r""" & """ + f"{rr_hung:.4f}" + r""" & """ + f"{rr_fghit:.2f}\\%" + r""" & """ + f"{rr_cov:.2f}\\%" + r""" \\
+Random Reassignment (Mean $\pm$ Std) & """ + f"{n_seed_cnt}" + r""" seeds & """ + f"{rr_m50:.2f} $\\pm$ {rr_m50_std:.2f}\\% ({rr_m50/_d_cl50*100:.1f}\\%)" + r""" & """ + f"{rr_m95:.2f} $\\pm$ {rr_m95_std:.2f}\\%" + r""" & """ + f"{rr_rec:.2f} $\\pm$ {rr_rec_std:.2f}\\%" + r""" & """ + f"{rr_l2:.4f}" + r""" & """ + f"{rr_hung:.4f}" + r""" & """ + f"{rr_fghit:.2f}\\%" + r""" & """ + f"{rr_cov:.2f}\\%" + r""" \\
 """ + "\n".join(rr_seed_tex_lines) + r"""
 \midrule
-Random Shift (Matched $L_2$, Mean $\pm$ Std) & """ + f"{n_seed_cnt}" + r""" seeds & """ + f"{rs_m50:.2f} $\\pm$ {rs_m50_std:.2f}\\% ({rs_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{rs_m95:.2f} $\\pm$ {rs_m95_std:.2f}\\%" + r""" & """ + f"{rs_rec:.2f} $\\pm$ {rs_rec_std:.2f}\\%" + r""" & """ + f"{rs_l2:.4f} $\\pm$ {rs_l2_std:.4f}" + r""" & """ + f"{rs_hung:.4f}" + r""" & """ + f"{rs_fghit:.2f}\\%" + r""" & """ + f"{rs_cov:.2f}\\%" + r""" \\
+Random Shift (Matched $L_2$, Mean $\pm$ Std) & """ + f"{n_seed_cnt}" + r""" seeds & """ + f"{rs_m50:.2f} $\\pm$ {rs_m50_std:.2f}\\% ({rs_m50/_d_cl50*100:.1f}\\%)" + r""" & """ + f"{rs_m95:.2f} $\\pm$ {rs_m95_std:.2f}\\%" + r""" & """ + f"{rs_rec:.2f} $\\pm$ {rs_rec_std:.2f}\\%" + r""" & """ + f"{rs_l2:.4f} $\\pm$ {rs_l2_std:.4f}" + r""" & """ + f"{rs_hung:.4f}" + r""" & """ + f"{rs_fghit:.2f}\\%" + r""" & """ + f"{rs_cov:.2f}\\%" + r""" \\
 """ + "\n".join(rs_seed_tex_lines) + r"""
 \midrule
-\textit{Decoupled Random Shift (Shift + Perm)} & """ + f"{n_seed_cnt}" + r""" seeds & """ + f"{drs_m50:.2f} $\\pm$ {drs_m50_std:.2f}\\% ({drs_m50/cl_map50*100:.1f}\\%)" + r""" & """ + f"{drs_m95:.2f} $\\pm$ {drs_m95_std:.2f}\\%" + r""" & """ + f"{drs_rec:.2f}\\%" + r""" & """ + f"{drs_l2:.4f}" + r""" & """ + f"{drs_hung:.4f}" + r""" & """ + f"{drs_fghit:.2f}\\%" + r""" & """ + f"{drs_cov:.2f}\\%" + r""" \\
+\textit{Decoupled Random Shift (Shift + Perm)} & """ + f"{n_seed_cnt}" + r""" seeds & """ + f"{drs_m50:.2f} $\\pm$ {drs_m50_std:.2f}\\% ({drs_m50/_d_cl50*100:.1f}\\%)" + r""" & """ + f"{drs_m95:.2f} $\\pm$ {drs_m95_std:.2f}\\%" + r""" & """ + f"{drs_rec:.2f}\\%" + r""" & """ + f"{drs_l2:.4f}" + r""" & """ + f"{drs_hung:.4f}" + r""" & """ + f"{drs_fghit:.2f}\\%" + r""" & """ + f"{drs_cov:.2f}\\%" + r""" \\
 \midrule
-\textbf{AQSM Spatial Misrouting} & --- & \textbf{""" + f"{aq_m50:.2f}\\% ({aq_m50/cl_map50*100:.1f}\\%)" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rec:.2f}\\%" + r"""} & \textbf{""" + f"{aq_l2:.4f}" + r"""} & \textbf{""" + f"{aq_hung:.4f}" + r"""} & \textbf{""" + f"{aq_fghit:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cov:.2f}\\%" + r"""} \\
+\textbf{AQSM Spatial Misrouting} & --- & \textbf{""" + f"{aq_m50:.2f}\\% ({aq_m50/_d_cl50*100:.1f}\\%)" + r"""} & \textbf{""" + f"{aq_m95:.2f}\\%" + r"""} & \textbf{""" + f"{aq_rec:.2f}\\%" + r"""} & \textbf{""" + f"{aq_l2:.4f}" + r"""} & \textbf{""" + f"{aq_hung:.4f}" + r"""} & \textbf{""" + f"{aq_fghit:.2f}\\%" + r"""} & \textbf{""" + f"{aq_cov:.2f}\\%" + r"""} \\
 \bottomrule
 \end{tabular}%
 }
@@ -1116,7 +1118,7 @@ def generate_table12(summary_dir: Path) -> Tuple[str, str, List[str], List[List[
     aq_base_m50 = float(require_val(aq_dyn, ["mAP@50"], "aq_dyn.m50"))
     aq_base_m95 = float(require_val(aq_dyn, ["mAP@50:95"], "aq_dyn.m95"))
     aq_base_rec = float(require_val(aq_dyn, ["recall_pct"], "aq_dyn.rec"))
-    aq_base_ret = float(aq_dyn.get("retention_pct", round((aq_base_m50 / clean_dyn_m50) * 100.0, 1)))
+    aq_base_ret = float(aq_dyn.get("retention_pct", round((aq_base_m50 / max(clean_dyn_m50, 1e-6)) * 100.0, 1)))
     aq_m50 = float(require_val(aq_sqa, ["mAP@50"], "aq_sqa.m50"))
     aq_m95 = float(require_val(aq_sqa, ["mAP@50:95"], "aq_sqa.m95"))
     aq_rec = float(require_val(aq_sqa, ["recall_pct"], "aq_sqa.rec"))

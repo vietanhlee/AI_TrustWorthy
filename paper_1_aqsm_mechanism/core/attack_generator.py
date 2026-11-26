@@ -436,7 +436,7 @@ class DETRAttackGenerator:
             adv_images.requires_grad_(True)
             # Trích xuất components với gradient khả vi
             core_model = getattr(self.wrapper, "model", self.model)
-            c_comp = extract_encoder_components(core_model, adv_images)
+            c_comp = extract_encoder_components(core_model, adv_images, enable_grad=True)
 
             # Ghép queries động và queries tĩnh
             aug_target, aug_ref = sqa_module.augment(c_comp["target"], c_comp["init_reference_points"])
@@ -450,6 +450,7 @@ class DETRAttackGenerator:
                 spatial_shapes=c_comp["spatial_shapes"],
                 spatial_shapes_list=c_comp["spatial_shapes_list"],
                 level_start_index=c_comp["level_start_index"],
+                enable_grad=True,
             )
 
             # Tấn công thích ứng: dìm toàn bộ confidence scores của cả dynamic lẫn static queries
