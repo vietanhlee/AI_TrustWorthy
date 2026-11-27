@@ -4,10 +4,10 @@
 Module: audit_data_provenance.py
 Mục đích: Công cụ kiểm định tính toàn vẹn và truy xuất nguồn gốc dữ liệu (Data Provenance Auditor)
 chuẩn học thuật cho Paper 1:
-  - Đọc data_provenance_manifest.json (phiên bản N=1,000 Native 640x640)
+  - Đọc data_provenance_manifest.json (phiên bản N=300 Native 640x640, R18VD & R50VD)
   - Kiểm tra sự tồn tại và tính hợp lệ của từng file JSON/CSV artifact
-  - So sánh trực tiếp từng số liệu trong main.tex (Table 1 đến Table 12, Text, Abstract) với JSON artifact
-  - Xác minh tính khăng khít và đồng bộ tuyệt đối 100% không có sai lệch
+  - So sánh trực tiếp từng số liệu trong main.tex với JSON artifact
+  - Quét sạch mọi tàn dư preliminary/legacy/N=1,000 trong bản thảo
 """
 
 import json
@@ -27,13 +27,13 @@ def load_json(p: Path) -> Dict[str, Any]:
         return json.load(fp)
 
 
-def audit_artifacts_existence(manifest: Dict[str, Any]) -> List[str]:
+def audit_artifacts_existence(manifest: Dict[str, Any], project_root: Path = BASE_DIR) -> List[str]:
     errors = []
     tables = manifest.get("tables", {})
     for tid, tinfo in tables.items():
         artifacts = tinfo.get("source_artifacts", [])
         for art in artifacts:
-            art_path = BASE_DIR / art
+            art_path = project_root / art
             if not art_path.exists():
                 errors.append(f"[{tid}] Thiếu artifact file: {art}")
             elif art_path.stat().st_size == 0:
@@ -321,16 +321,17 @@ def audit_numerical_values(tex_content: str) -> List[str]:
         r50_ms = rec.get("rtdetr_r50vd_multiseed")
         r50_can = rec.get("rtdetr_r50vd_canonical", {})
 
-        r18_ms_map = r18_ms["aqsm_map50_mean"]
-        r18_ms_std = r18_ms["aqsm_map50_std"]
-        r18_drift_std = r18_ms["hungarian_set_drift_std"]
-        r18_hit_std = r18_ms["anchor_fg_hit_pct_std"]
-
-        ms_checks = [
-            (f"{r18_ms_map:.2f} \\pm {r18_ms_std:.2f}", f"Table 13 Multi-seed R18 ({r18_ms_map:.2f} +- {r18_ms_std:.2f})"),
-            (f"{r18_drift_std:.4f}", f"Table 13 Hungarian drift std ({r18_drift_std:.4f})"),
-            (f"{r18_hit_std:.2f}", f"Table 13 Anchor FG hit std ({r18_hit_std:.2f})"),
-        ]
+        ms_checks = []
+        if isinstance(r18_ms, dict) and "aqsm_map50_mean" in r18_ms:
+            r18_ms_map = r18_ms["aqsm_map50_mean"]
+            r18_ms_std = r18_ms["aqsm_map50_std"]
+            r18_drift_std = r18_ms["hungarian_set_drift_std"]
+            r18_hit_std = r18_ms["anchor_fg_hit_pct_std"]
+            ms_checks.extend([
+                (f"{r18_ms_map:.2f} \\pm {r18_ms_std:.2f}", f"Table 13 Multi-seed R18 ({r18_ms_map:.2f} +- {r18_ms_std:.2f})"),
+                (f"{r18_drift_std:.4f}", f"Table 13 Hungarian drift std ({r18_drift_std:.4f})"),
+                (f"{r18_hit_std:.2f}", f"Table 13 Anchor FG hit std ({r18_hit_std:.2f})"),
+            ])
         if isinstance(r50_ms, dict) and "aqsm_map50_mean" in r50_ms:
             r50_clean = r50_ms["clean_map50"]
             r50_aqsm = r50_ms["aqsm_map50_mean"]
@@ -358,51 +359,59 @@ def audit_numerical_values(tex_content: str) -> List[str]:
 
 
 def audit_zero_stale_markers(tex_content: str) -> List[str]:
-    """Kiểm tra tuyệt đối không còn bất kỳ số liệu preliminary cũ nào tồn tại trong main.tex."""
+    """Kiểm tra tuyệt đối không còn bất kỳ số liệu preliminary/legacy/N=1,000 cũ nào tồn tại trong main.tex."""
     stale_patterns = [
-        (r"2\.50", "Old AQSM mAP@50 (2.50% thay vì 3.07%)"),
-        (r"1\.16\%", "Old Query Vanishing mAP@50 (1.16% thay vì 1.72%)"),
-        (r"6\.25", "Old Arm C_full mAP@50 (6.25% thay vì 7.45%)"),
-        (r"3\.42\b", "Old 300th inflation (3.42x thay vì 2.96x) hoặc Arm C_idx (3.42% thay vì 3.98%)"),
-        (r"25\.11", "Old Arm D_full (25.11% thay vì 26.58%)"),
-        (r"33\.04", "Old Arm D_index (33.04% thay vì 35.44%)"),
-        (r"67\.97", "Old Memory SS share (67.97% thay vì 68.99%)"),
-        (r"26\.81", "Old Query SS share (26.81% thay vì 26.40%)"),
-        (r"0\.806", "Old partial eta^2 Memory (0.806 thay vì 0.795)"),
-        (r"12\.21", "Old Top-300 overlap (12.21% thay vì 16.45%)"),
-        (r"98\.50", "Old Evicted Top-15 FG (98.50% thay vì 96.93%)"),
-        (r"73\.92", "Old Center-in-GT (73.92% thay vì 77.78%)"),
-        (r"0\.7901", "Old Attention entropy AQSM (0.7901 thay vì 0.7944)"),
-        (r"0\.8146", "Old Layer 1 Attention entropy AQSM (0.8146 thay vì 0.8191)"),
-        (r"38\.77", "Old Foreground hit rate AQSM (38.77% thay vì 43.21%)"),
-        (r"21\.55", "Old Random shift mAP (21.55% thay vì 30.97%)"),
-        (r"23\.90", "Old AQSM misrouting mAP (23.90% thay vì 25.12%)"),
-        (r"0\.9161", "Old ESM AUROC (0.9161 thay vì 0.7593)"),
-        (r"64\.57", "Old ESM TPR (64.57% thay vì 37.14%)"),
-        (r"15\.92", "Old SQA recovery (+15.92 pp thay vì +15.35 pp / +15.01 pp)"),
-        (r"0\.1359", "Old 300th proposal score (0.1359 thay vì 0.1007)"),
-        (r"0\.0727", "Old 300th proposal score (0.0727 thay vì 0.1007)"),
-        (r"0\.0213", "Old 300th proposal score clean (0.0213 thay vì 0.0341)"),
-        (r"40\.39", "Old Arm D_full degradation (-40.39 pp thay vì -38.92 pp)"),
+        (r"(?<!\d)65\.50\b", "Old N=1000 Clean R18 mAP@50 (65.50% thay vì 66.93%)"),
+        (r"(?<!\d)3\.07\b", "Old N=1000 AQSM mAP@50 (3.07% thay vì 4.05%)"),
+        (r"(?<!\d)1\.72\\%", "Old N=1000 Query Vanishing mAP@50 (1.72% thay vì 1.32%)"),
+        (r"(?<!\d)7\.45\b", "Old N=1000 Arm C_full (7.45% thay vì 9.31%)"),
+        (r"(?<!\d)26\.58\b", "Old N=1000 Arm D_full (26.58% thay vì 30.37%)"),
+        (r"(?<!\d)35\.44\b", "Old N=1000 Arm D_index (35.44% thay vì 39.11%)"),
+        (r"(?<!\d)61\.78\\%", "Old N=1000 Per-Image Shapley Memory (61.78% thay vì 60.59%)"),
+        (r"(?<!\d)38\.22\\%", "Old N=1000 Per-Image Shapley Query (38.22% thay vì 39.41%)"),
+        (r"(?<!\d)70\.68\b", "Old N=1000 Log Memory Share (70.68% thay vì 71.40%)"),
+        (r"(?<!\d)29\.32\b", "Old N=1000 Log Query Share (29.32% thay vì 28.60%)"),
+        (r"(?<!\d)418\.20\b", "Legacy Pi 5 YOLOv8-S sponge latency (418.20 ms)"),
+        (r"(?<!\d)14\.20\b", "Legacy Jetson Orin Nano latency (14.20 ms)"),
+        (r"(?<!\d)18\.42\b", "Old N=1000 SQA recovery (18.42% thay vì 3.97%)"),
+        (r"(?<!\d)58\.12\b", "Legacy Gaussian noise row (58.12%)"),
+        (r"(?<!\d)60\.85\b", "Legacy Uniform noise row (60.85%)"),
+        (r"(?<!\d)24\.15\b", "Legacy loss ablation Table 1 row (24.15%)"),
+        (r"(?<!\d)30\.97\b", "Old N=1000 Random Shift mAP@50 (30.97% thay vì 32.06%)"),
+        (r"(?<!\d)25\.12\b", "Old N=1000 AQSM Misrouting mAP@50 (25.12% thay vì 27.32%)"),
+        (r"(?<!\d)0\.7593\b", "Old N=1000 ESM AUROC (0.7593 thay vì 0.7881)"),
+        (r"(?<!\d)37\.14\b", "Old N=1000 ESM TPR (37.14% thay vì 47.62%)"),
+        (r"(?<!\d)15\.01\b", "Old N=1000 SQA recovery delta (+15.01 pp)"),
+        (r"(?<!\d)0\.1007\b", "Old N=1000 300th proposal score (0.1007 thay vì 0.1014)"),
+        (r"(?<!\d)0\.0341\b", "Old N=1000 300th proposal score clean (0.0341 thay vì 0.0350)"),
+        (r"N\s*=\s*1,000", "Old cohort size N = 1,000 (hiện tại là N = 300)"),
+        (r"N_?\{?\\text\{?valid\}?\}?\s*=\s*992", "Old valid cohort size 992 (hiện tại là 299)"),
     ]
     errors = []
     lines = tex_content.splitlines()
     for pattern, desc in stale_patterns:
         for idx, line in enumerate(lines):
             if re.search(pattern, line) and not line.strip().startswith("%"):
-                errors.append(f"Dòng {idx+1}: Phát hiện tàn dư preliminary {desc} -> '{line.strip()[:80]}'")
+                errors.append(f"Dòng {idx+1}: Phát hiện tàn dư cũ {desc} -> '{line.strip()[:80]}'")
     return errors
 
 
 def main():
     import argparse
-    global MANIFEST_PATH, LATEX_PATH
+    global MANIFEST_PATH, LATEX_PATH, SUMMARY_DIR
     parser = argparse.ArgumentParser(description="Kiểm định toàn vẹn Data Provenance và số liệu bản thảo.")
     parser.add_argument("--output_dir", type=str, default=None, help="Thư mục outputs chứa summary_json/")
     parser.add_argument("--main_tex", type=str, default=None, help="Đường dẫn tới file main.tex")
     args, _ = parser.parse_known_args()
+    project_root = BASE_DIR
     if args.output_dir is not None:
-        MANIFEST_PATH = Path(args.output_dir).resolve() / "summary_json" / "data_provenance_manifest.json"
+        out_dir = Path(args.output_dir).resolve()
+        SUMMARY_DIR = out_dir / "summary_json"
+        if (out_dir / "data_provenance_manifest.json").exists():
+            MANIFEST_PATH = out_dir / "data_provenance_manifest.json"
+        else:
+            MANIFEST_PATH = SUMMARY_DIR / "data_provenance_manifest.json"
+        project_root = out_dir.parent
     if args.main_tex is not None:
         LATEX_PATH = Path(args.main_tex).resolve()
 
@@ -425,7 +434,7 @@ def main():
     print(f">>> Đã nạp Manifest: {len(manifest.get('tables', {}))} bảng và {len(manifest.get('figures', {}))} hình.")
 
     # 1. Audit artifact tồn tại
-    art_errors = audit_artifacts_existence(manifest)
+    art_errors = audit_artifacts_existence(manifest, project_root=project_root)
     if art_errors:
         print("\n[LỖI ARTIFACT]:")
         for e in art_errors:
@@ -457,11 +466,11 @@ def main():
     else:
         print(">>> [CẢNH BÁO] Chưa tìm thấy khai báo S = 8,400 trong main.tex!")
 
-    # 4. Kiểm tra ghi nhận Cỡ mẫu N=1000
-    if "N = 1,000" in tex_content or "N=1,000" in tex_content or "N = 1000" in tex_content:
-        print(">>> 4. Bản thảo main.tex ghi nhận minh bạch và chính xác cỡ mẫu thực nghiệm N = 1,000 (N_valid = 992, df=[1, 991]).")
+    # 4. Kiểm tra ghi nhận Cỡ mẫu N=300
+    if "N = 300" in tex_content or "N=300" in tex_content or "$N = 300$" in tex_content:
+        print(">>> 4. Bản thảo main.tex ghi nhận minh bạch và chính xác cỡ mẫu thực nghiệm N = 300 (N_valid = 299, df=[1, 298]).")
     else:
-        print(">>> [CẢNH BÁO] main.tex chưa ghi rõ cỡ mẫu N = 1,000!")
+        print(">>> [CẢNH BÁO] main.tex chưa ghi rõ cỡ mẫu N = 300!")
 
     print("\n" + "=" * 80)
     if not art_errors and not num_errors and not stale_errors:

@@ -766,6 +766,51 @@ def evaluate_coco_from_match_cache(
     }
 
 
+def compute_pooled_coco_bootstrap_ci(
+    preds: Sequence[Dict[str, np.ndarray]],
+    gt_list: Sequence[Dict[str, Any]],
+    n_boot: int = 500,
+    seed: int = 42,
+    num_classes: int = 80,
+) -> Dict[str, Any]:
+    """
+    Tính khoảng tin cậy 95% Bootstrap theo ảnh (Image-level Bootstrap CI) cho Pooled COCO mAP@50
+    và mAP@50:95 bằng cách sử dụng match cache tiền tính toán để đạt tốc độ cao mà vẫn khớp bit-for-bit.
+    """
+    n_img = len(gt_list)
+    if n_img == 0:
+        return {
+            "n_images": 0,
+            "n_boot": 0,
+            "mAP@50": 0.0,
+            "mAP@50_ci95": [0.0, 0.0],
+            "mAP@50:95": 0.0,
+            "mAP@50:95_ci95": [0.0, 0.0],
+        }
+    cache = precompute_coco_match_cache(preds, gt_list, num_classes=num_classes)
+    point = evaluate_coco_from_match_cache(cache)
+    rng = np.random.RandomState(int(seed))
+    boot_m50 = np.empty(max(1, int(n_boot)), dtype=np.float64)
+    boot_m95 = np.empty(max(1, int(n_boot)), dtype=np.float64)
+    for b_idx in range(max(1, int(n_boot))):
+        sample_idx = rng.randint(0, n_img, size=n_img)
+        ev_b = evaluate_coco_from_match_cache(cache, indices=sample_idx)
+        boot_m50[b_idx] = ev_b["mAP@50"]
+        boot_m95[b_idx] = ev_b["mAP@50:95"]
+
+    ci50 = [round(float(np.percentile(boot_m50, 2.5)), 2), round(float(np.percentile(boot_m50, 97.5)), 2)]
+    ci95 = [round(float(np.percentile(boot_m95, 2.5)), 2), round(float(np.percentile(boot_m95, 97.5)), 2)]
+    return {
+        "n_images": int(n_img),
+        "n_boot": int(max(1, int(n_boot))),
+        "mAP@50": round(float(point["mAP@50"]), 2),
+        "mAP@50_ci95": ci50,
+        "mAP@50_boot_std": round(float(np.std(boot_m50, ddof=1)) if len(boot_m50) > 1 else 0.0, 2),
+        "mAP@50:95": round(float(point["mAP@50:95"]), 2),
+        "mAP@50:95_ci95": ci95,
+    }
+
+
 def compute_per_image_coco_aps(
     preds: Sequence[Dict[str, np.ndarray]],
     gt_list: Sequence[Dict[str, Any]],

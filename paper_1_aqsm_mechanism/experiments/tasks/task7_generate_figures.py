@@ -328,8 +328,8 @@ def plot_multiscale_and_overlap_figure(
     ax2.set_title("(b) Query Overlap & Proposal Coverage Dynamics", fontweight="bold", fontsize=10)
     ax2.set_xticks(x2)
     ax2.set_xticklabels(metrics, fontsize=8.5)
-    ax2.set_ylim(0.0, 115.0)
-    ax2.legend(loc="upper right", frameon=True, fontsize=8.5)
+    ax2.set_ylim(0.0, 122.0)
+    ax2.legend(loc="upper center", ncol=2, frameon=True, fontsize=8.5)
     ax2.grid(axis="y", linestyle="--", alpha=0.5)
 
     for bar in bar_c:
@@ -391,16 +391,16 @@ def plot_attention_telemetry_figure(json_path: Path, output_pdf: Path, output_pn
     ent_upper_vals = [m + s for m, s in zip(entropy_means, entropy_stds)]
     ent_lower_vals = [m - s for m, s in zip(entropy_means, entropy_stds)]
     y1_lo = max(0.0, min(ent_lower_vals, default=0.0) - 0.08)
-    y1_hi = max(ent_upper_vals, default=0.95) + 0.08
+    y1_hi = max(ent_upper_vals, default=0.95) + 0.10
     if y1_hi <= y1_lo:
         y1_hi = y1_lo + 0.2
     ax1.set_ylim(y1_lo, y1_hi)
     ax1.grid(axis="y", linestyle="--", alpha=0.5)
 
-    for bar in bars1:
+    for bar, err_s in zip(bars1, entropy_stds):
         h = bar.get_height()
-        ax1.annotate(f"{h:.4f}", xy=(bar.get_x() + bar.get_width() / 2, h),
-                     xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=8)
+        ax1.annotate(f"{h:.4f}", xy=(bar.get_x() + bar.get_width() / 2, h + err_s),
+                     xytext=(0, 4), textcoords="offset points", ha="center", va="bottom", fontsize=8)
 
     # Subplot (b): Spatial FG Hit Rate
     bars2 = ax2.bar(x, hit_means, yerr=hit_stds, capsize=4, width=0.5,
@@ -409,13 +409,13 @@ def plot_attention_telemetry_figure(json_path: Path, output_pdf: Path, output_pn
     ax2.set_title("(b) Sampling Location Spatial Alignment", fontweight="bold", fontsize=10)
     ax2.set_xticks(x)
     ax2.set_xticklabels(cond_labels, fontsize=8.5)
-    ax2.set_ylim(0.0, 100.0)
+    ax2.set_ylim(0.0, 108.0)
     ax2.grid(axis="y", linestyle="--", alpha=0.5)
 
-    for bar in bars2:
+    for bar, err_s in zip(bars2, hit_stds):
         h = bar.get_height()
-        ax2.annotate(f"{h:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
-                     xytext=(0, 5), textcoords="offset points", ha="center", va="bottom", fontsize=8)
+        ax2.annotate(f"{h:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, h + err_s),
+                     xytext=(0, 4), textcoords="offset points", ha="center", va="bottom", fontsize=8)
 
     output_pdf.parent.mkdir(parents=True, exist_ok=True)
     plt.tight_layout()

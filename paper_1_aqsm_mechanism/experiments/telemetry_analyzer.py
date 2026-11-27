@@ -19,12 +19,16 @@ Lưu trữ đầy đủ per-image raw CSV và summary JSON phục vụ audit kho
 
 import gc
 import math
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
 from scipy import stats
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import cdist
 from tqdm import tqdm
+
+from paper_1_aqsm_mechanism.tools.compute_nonparametric_statistics import compute_paired_tost_equivalence
 
 from paper_1_aqsm_mechanism.core.detr_wrapper import RTDETRModelWrapper
 from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
@@ -36,6 +40,33 @@ from paper_1_aqsm_mechanism.experiments.config import (
     get_summary_json_dir,
 )
 from paper_1_aqsm_mechanism.utils.io_helpers import save_json, write_csv_rows
+
+
+def compute_attention_distribution_details(weights: np.ndarray, eps: float = 1e-9) -> Dict[str, Any]:
+    """
+    Trích xuất thống kê chi tiết cấp Head và Multi-Scale từ tensor trọng số Deformable Attention
+    `weights` shape `[n_queries, n_heads, n_levels, n_points]`:
+      - head_entropies: [n_heads] entropy chuẩn hóa trên từng attention head riêng biệt.
+      - mean_marginal_weights: [n_heads, n_levels * n_points] trọng số trung bình trên từng head.
+      - top1_weight: trọng số tập trung cực đại trung bình.
+      - scale_mass: [n_levels] phân bổ trọng số trung bình lên S3/S4/S5.
+    """
+    p = np.clip(weights, eps, 1.0)
+    n_q, n_h, n_lvl, n_pts_lvl = p.shape
+    n_pts = int(n_lvl * n_pts_lvl)
+    p_flat = p.reshape(n_q, n_h, n_pts)
+    max_ent = math.log(n_pts) if n_pts > 1 else 1.0
+    ent_qh = -np.sum(p_flat * np.log(p_flat), axis=-1) / max_ent  # [n_q, n_h]
+    head_ent = np.mean(ent_qh, axis=0)  # [n_h]
+    marginal_w = np.mean(p_flat, axis=0)  # [n_h, n_pts]
+    top1_w = float(np.mean(np.max(p_flat, axis=-1)))
+    scale_mass = np.sum(p, axis=(0, 1, 3)) / float(max(1, n_q * n_h))
+    return {
+        "head_entropies": head_ent,
+        "marginal_weights": marginal_w,
+        "top1_weight": top1_w,
+        "scale_mass": scale_mass,
+    }
 
 
 def compute_attention_entropy(weights: np.ndarray, eps: float = 1e-9) -> float:
@@ -82,11 +113,30 @@ def compute_reference_coordinate_drift(
     adv_refs: np.ndarray,
 ) -> float:
     """
-    Tính độ dời Euclidean L2 trung bình giữa clean và adv reference coordinates [cx, cy].
+    Tính độ dời Euclidean L2 trung bình theo cặp thứ hạng (rank-paired)
+    giữa clean và adv reference coordinates [cx, cy] (tức Δ_p, nhạy với hoán vị slot).
     """
     diff = clean_refs[:, :2] - adv_refs[:, :2]
-    drift = np.sqrt(np.sum(diff ** 2, axis=-1))  # [300]
+    drift = np.sqrt(np.sum(diff ** 2, axis=-1))  # [N_q]
     return float(np.mean(drift))
+
+
+def compute_hungarian_reference_drift(
+    clean_refs: np.ndarray,
+    adv_refs: np.ndarray,
+) -> float:
+    """
+    Tính khoảng cách tập hợp bất biến hoán vị (Hungarian Optimal Matching Distance, Δ_Hungarian)
+    giữa hai tập tọa độ reference [cx, cy] trên [0, 1]^2, tách biệt hoàn toàn dịch chuyển không gian
+    khỏi hiệu ứng hoán đổi chỉ số slot thuần túy.
+    """
+    c_xy = np.asarray(clean_refs[:, :2], dtype=np.float64)
+    a_xy = np.asarray(adv_refs[:, :2], dtype=np.float64)
+    if len(c_xy) == 0 or len(a_xy) == 0:
+        return 0.0
+    cost_mat = cdist(c_xy, a_xy, metric="euclidean")
+    r_ind, c_ind = linear_sum_assignment(cost_mat)
+    return float(np.mean(cost_mat[r_ind, c_ind]))
 
 
 def run_mechanism_telemetry_cohort(
@@ -125,11 +175,20 @@ def run_mechanism_telemetry_cohort(
             "top1_score": [],
             "top300_score": [],
             "ref_drift": [],
+            "hungarian_ref_drift": [],
+            "top1_attn_weight": [],
+            "head_entropy_max_abs_delta": [],
+            "head_attn_tv_shift": [],
+            "scale_mass_s3": [],
+            "scale_mass_s4": [],
+            "scale_mass_s5": [],
         }
         for c in all_conditions
     }
 
     clean_refs_all: List[np.ndarray] = []
+    clean_head_ent_all: List[Optional[np.ndarray]] = []
+    clean_head_marg_all: List[Optional[np.ndarray]] = []
 
     print(">>> Thu thập dữ liệu đối chứng Clean...")
     for start in tqdm(range(0, n_eval, batch_size), desc="Clean Telemetry"):
@@ -163,9 +222,22 @@ def run_mechanism_telemetry_cohort(
                 ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)]))
                 locs_last = hooks[-1]["sampling_locations"][b].cpu().numpy()
                 fg_hit = compute_foreground_spatial_hit_rate(locs_last, gt_boxes)
+
+                head_details = [compute_attention_distribution_details(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)]
+                c_head_ent_l = np.stack([d["head_entropies"] for d in head_details], axis=0)  # [L, H]
+                c_head_marg_l = np.stack([d["marginal_weights"] for d in head_details], axis=0)  # [L, H, L*K]
+                c_top1_w = float(np.mean([d["top1_weight"] for d in head_details]))
+                c_sm = np.mean(np.stack([d["scale_mass"] for d in head_details], axis=0), axis=0)
             else:
                 ent_l1 = ent_l2 = ent_l3 = ent_all = 0.0
                 fg_hit = 0.0
+                c_head_ent_l = None
+                c_head_marg_l = None
+                c_top1_w = 0.0
+                c_sm = np.zeros(3, dtype=np.float64)
+
+            clean_head_ent_all.append(c_head_ent_l)
+            clean_head_marg_all.append(c_head_marg_l)
 
             logits_b = c_comp["enc_outputs_class"][b]
             scores_b = logits_b.sigmoid().max(dim=-1)[0].cpu().numpy()
@@ -188,6 +260,13 @@ def run_mechanism_telemetry_cohort(
             cond_results["clean"]["top1_score"].append(s_top1)
             cond_results["clean"]["top300_score"].append(s_top300)
             cond_results["clean"]["ref_drift"].append(0.0)
+            cond_results["clean"]["hungarian_ref_drift"].append(0.0)
+            cond_results["clean"]["top1_attn_weight"].append(c_top1_w)
+            cond_results["clean"]["head_entropy_max_abs_delta"].append(0.0)
+            cond_results["clean"]["head_attn_tv_shift"].append(0.0)
+            cond_results["clean"]["scale_mass_s3"].append(float(c_sm[0]) if len(c_sm) > 0 else 0.0)
+            cond_results["clean"]["scale_mass_s4"].append(float(c_sm[1]) if len(c_sm) > 1 else 0.0)
+            cond_results["clean"]["scale_mass_s5"].append(float(c_sm[2]) if len(c_sm) > 2 else 0.0)
 
     for cond in adv_imgs_dict:
         print(f">>> Thu thập dữ liệu cho đòn tấn công: {cond.upper()}...")
@@ -224,9 +303,29 @@ def run_mechanism_telemetry_cohort(
                     ent_all = float(np.mean([compute_attention_entropy(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)]))
                     locs_last = hooks[-1]["sampling_locations"][b].cpu().numpy()
                     fg_hit = compute_foreground_spatial_hit_rate(locs_last, gt_boxes)
+
+                    a_details = [compute_attention_distribution_details(hooks[li]["attention_weights"][b].cpu().numpy()) for li in range(n_layers)]
+                    a_head_ent_l = np.stack([d["head_entropies"] for d in a_details], axis=0)
+                    a_head_marg_l = np.stack([d["marginal_weights"] for d in a_details], axis=0)
+                    a_top1_w = float(np.mean([d["top1_weight"] for d in a_details]))
+                    a_sm = np.mean(np.stack([d["scale_mass"] for d in a_details], axis=0), axis=0)
+                    c_he = clean_head_ent_all[img_idx]
+                    c_hm = clean_head_marg_all[img_idx]
+                    if c_he is not None and c_he.shape == a_head_ent_l.shape:
+                        head_ent_max_delta = float(np.max(np.abs(np.mean(a_head_ent_l - c_he, axis=0))))
+                    else:
+                        head_ent_max_delta = 0.0
+                    if c_hm is not None and c_hm.shape == a_head_marg_l.shape:
+                        head_tv = float(0.5 * np.mean(np.sum(np.abs(a_head_marg_l - c_hm), axis=-1)))
+                    else:
+                        head_tv = 0.0
                 else:
                     ent_l1 = ent_l2 = ent_l3 = ent_all = 0.0
                     fg_hit = 0.0
+                    a_top1_w = 0.0
+                    head_ent_max_delta = 0.0
+                    head_tv = 0.0
+                    a_sm = np.zeros(3, dtype=np.float64)
 
                 logits_b = a_comp["enc_outputs_class"][b]
                 scores_b = logits_b.sigmoid().max(dim=-1)[0].cpu().numpy()
@@ -238,6 +337,7 @@ def run_mechanism_telemetry_cohort(
 
                 adv_ref_b = a_comp["init_reference_points"][b].sigmoid()[:, :2].cpu().numpy()
                 drift = compute_reference_coordinate_drift(clean_refs_all[img_idx], adv_ref_b)
+                h_drift = compute_hungarian_reference_drift(clean_refs_all[img_idx], adv_ref_b)
 
                 cond_results[cond]["entropy_l1"].append(ent_l1)
                 cond_results[cond]["entropy_l2"].append(ent_l2)
@@ -249,6 +349,13 @@ def run_mechanism_telemetry_cohort(
                 cond_results[cond]["top1_score"].append(s_top1)
                 cond_results[cond]["top300_score"].append(s_top300)
                 cond_results[cond]["ref_drift"].append(drift)
+                cond_results[cond]["hungarian_ref_drift"].append(h_drift)
+                cond_results[cond]["top1_attn_weight"].append(a_top1_w)
+                cond_results[cond]["head_entropy_max_abs_delta"].append(head_ent_max_delta)
+                cond_results[cond]["head_attn_tv_shift"].append(head_tv)
+                cond_results[cond]["scale_mass_s3"].append(float(a_sm[0]) if len(a_sm) > 0 else 0.0)
+                cond_results[cond]["scale_mass_s4"].append(float(a_sm[1]) if len(a_sm) > 1 else 0.0)
+                cond_results[cond]["scale_mass_s5"].append(float(a_sm[2]) if len(a_sm) > 2 else 0.0)
 
     raw_csv_dir = get_raw_csv_dir()
     raw_csv_dir.mkdir(parents=True, exist_ok=True)
@@ -264,6 +371,7 @@ def run_mechanism_telemetry_cohort(
             f"{cond}_dropoff",
             f"{cond}_margin",
             f"{cond}_ref_drift",
+            f"{cond}_hungarian_ref_drift",
         ])
 
     csv_rows: List[List[Any]] = []
@@ -280,6 +388,7 @@ def run_mechanism_telemetry_cohort(
                 f"{cond_results[cond]['dropoff_ratio'][i]:.2f}",
                 f"{cond_results[cond]['score_margin'][i]:.4f}",
                 f"{cond_results[cond]['ref_drift'][i]:.4f}",
+                f"{cond_results[cond]['hungarian_ref_drift'][i]:.4f}",
             ])
         csv_rows.append(row)
 
@@ -379,7 +488,31 @@ def run_mechanism_telemetry_cohort(
             "mean_ref_drift": float(np.mean(cond_results[cond]["ref_drift"])),
             "std_ref_drift": std_drift,
             "sem_ref_drift": float(std_drift / sqrt_n),
+            "mean_hungarian_ref_drift": float(np.mean(cond_results[cond]["hungarian_ref_drift"])),
+            "std_hungarian_ref_drift": float(np.std(cond_results[cond]["hungarian_ref_drift"], ddof=ddof_c)) if n_c > 0 else 0.0,
+            "mean_top1_attn_weight": float(np.mean(cond_results[cond]["top1_attn_weight"])),
+            "mean_head_entropy_max_abs_delta": float(np.mean(cond_results[cond]["head_entropy_max_abs_delta"])),
+            "mean_head_attn_tv_shift": float(np.mean(cond_results[cond]["head_attn_tv_shift"])),
+            "mean_scale_mass_s3": float(np.mean(cond_results[cond]["scale_mass_s3"])),
+            "mean_scale_mass_s4": float(np.mean(cond_results[cond]["scale_mass_s4"])),
+            "mean_scale_mass_s5": float(np.mean(cond_results[cond]["scale_mass_s5"])),
         }
+
+    ent_tost_02 = None
+    ent_tost_05 = None
+    if target_atk is not None and n_eval >= 2:
+        ent_tost_02 = compute_paired_tost_equivalence(
+            cond_results[target_atk]["entropy_all_layers"],
+            cond_results["clean"]["entropy_all_layers"],
+            bound=0.02,
+            alpha=0.05,
+        )
+        ent_tost_05 = compute_paired_tost_equivalence(
+            cond_results[target_atk]["entropy_all_layers"],
+            cond_results["clean"]["entropy_all_layers"],
+            bound=0.05,
+            alpha=0.05,
+        )
 
     cohort_stats["hypothesis_tests"] = {
         "target_attack": target_atk,
@@ -389,6 +522,8 @@ def run_mechanism_telemetry_cohort(
         "entropy_wilcoxon_p": float(p_val_w_ent),
         "entropy_cohen_d": float(d_ent),
         "entropy_invariant_at_alpha_05": bool(p_val_ent > 0.05) if not np.isnan(p_val_ent) else True,
+        "entropy_equivalence_tost_bound_0.02": ent_tost_02,
+        "entropy_equivalence_tost_bound_0.05": ent_tost_05,
         "fg_hit_degradation_t_stat": float(t_stat_hit),
         "fg_hit_degradation_p_value": float(p_val_hit),
         "fg_hit_wilcoxon_w": float(w_stat_hit),

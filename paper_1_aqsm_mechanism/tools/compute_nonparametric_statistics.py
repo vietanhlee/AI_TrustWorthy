@@ -14,11 +14,16 @@ cho Paper 1 (RT-DETR / AQSM Mechanism):
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+WORKSPACE_DIR = Path(__file__).resolve().parent.parent.parent
+if str(WORKSPACE_DIR) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_DIR))
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 RAW_CSV_DIR = BASE_DIR / "outputs" / "raw_csv"
@@ -413,7 +418,7 @@ def analyze_causal_per_image() -> Dict[str, Any]:
     print(f"\n    Độ mạnh thống kê (Statistical Power) với N={n_valid} ảnh ở alpha=0.01:")
     print(f"    - Khả năng phát hiện Small Effect (Cohen's d = 0.20): Power = {power_d02:.4f} (> 99.9%)")
     print(f"    - Khả năng phát hiện Medium Effect (Cohen's d = 0.50): Power = {power_d05:.4f} (> 99.99%)")
-    print(f"    => Cỡ mẫu N=1,000 (N={n_valid} valid) là hoàn toàn đủ độ mạnh thống kê để đưa ra kết luận dứt khoát.")
+    print(f"    => Cỡ mẫu N={n_valid} valid images đủ độ mạnh thống kê cho kiểm định cặp.")
 
     results_out["power_analysis"] = {
         "n_valid": n_valid,

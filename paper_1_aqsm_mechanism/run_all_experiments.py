@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
@@ -152,6 +152,8 @@ def _build_task_registry(
             "--threads", str(args.threads),
             "--device", str(args.device),
             "--n_runs", n_runs_val,
+            "--latency_images", str(getattr(args, "latency_images", 20)),
+            "--cnn_baseline", str(getattr(args, "cnn_baseline", "retinanet")),
         ]
         if getattr(args, "model", None) is not None:
             t6_args.extend(["--model", str(args.model)])
@@ -193,6 +195,13 @@ def _build_task_registry(
         if getattr(args, "seeds", None):
             t10_args.extend(["--seeds", str(args.seeds)])
         return t10_args
+
+    # Task 11 args (Loss Ablation, Gaussian Control, Encoder Attention [27] & Pooled Bootstrap CI)
+    def build_task11_args() -> List[str]:
+        t11_args = list(common_args)
+        t11_args.extend(["--pgd_steps", str(args.pgd_steps)])
+        t11_args.extend(["--n_boot", str(getattr(args, "n_boot", 500))])
+        return t11_args
 
     return {
         0: {
@@ -273,6 +282,13 @@ def _build_task_registry(
             "args_builder": build_task10_args,
             "log_file": logs_dir / "task10_multiseed_stability.log",
         },
+        11: {
+            "name": "Task 11 (Ablation & Baselines)",
+            "title": "Task 11: Tripartite Loss Ablation, Gaussian Noise, Attention [27] & Pooled CI",
+            "script": tasks_dir / "task11_ablation_and_baselines.py",
+            "args_builder": build_task11_args,
+            "log_file": logs_dir / "task11_ablation_and_baselines.log",
+        },
     }
 
 
@@ -298,7 +314,10 @@ def main():
     parser.add_argument("--threads", type=int, default=8, help="Số luồng CPU tối đa cho PyTorch")
 
     # 4. Tham số lựa chọn task
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,10,7,9", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,8,10,7,9)")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,10,11,7,9", help="Danh sách các tasks cần chạy (phân tách bởi dấu phẩy, mặc định: 0,1,2,3,4,5,6,8,10,11,7,9)")
+    parser.add_argument("--latency_images", type=int, default=20, help="Số ảnh COCO đa dạng dùng cho profiling xen kẽ ở Task 6 (mặc định: 20)")
+    parser.add_argument("--cnn_baseline", type=str, default="retinanet", choices=["none", "retinanet", "fasterrcnn"], help="Detector CNN+NMS đối chứng ở Task 6 (mặc định: retinanet)")
+    parser.add_argument("--n_boot", type=int, default=500, help="Số lần bootstrap CI trên pooled mAP ở Task 11 (mặc định: 500)")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã tồn tại")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache từ đầu kể cả khi đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh thêm cache eps 4 và 8 cho Task 5")
@@ -448,6 +467,7 @@ def main():
                 "Table 11": "defense_esm_evaluation.json",
                 "Table 12": "hardening_evaluation_results.json",
                 "Table 13": "multimodel_and_seed_stability_summary.json",
+                "Task 11 Ablation & Baselines": "tripartite_ablation_results.json / ablation_and_baselines_summary.json",
             },
         },
     }

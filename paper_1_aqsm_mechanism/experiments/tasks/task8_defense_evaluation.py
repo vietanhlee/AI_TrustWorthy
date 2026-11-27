@@ -15,7 +15,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -60,6 +60,283 @@ from paper_1_aqsm_mechanism.experiments.config import (
 )
 from paper_1_aqsm_mechanism.utils.cli import create_base_parser
 from paper_1_aqsm_mechanism.utils.io_helpers import save_json
+
+
+def _compute_scm_differentiable_penalty(
+    init_ref_boxes: torch.Tensor,
+    pred_boxes: torch.Tensor,
+    disp_bounds: Tuple[float, float],
+    drift_bounds: Tuple[float, float],
+) -> torch.Tensor:
+    """Tính hàm phạt khả vi giữ spatial dispersion và reference drift trong biên ảnh sạch đã hiệu chuẩn."""
+    ref_sig = (
+        torch.sigmoid(init_ref_boxes)
+        if (init_ref_boxes.max() > 1.5 or init_ref_boxes.min() < -0.5)
+        else torch.clamp(init_ref_boxes, 0.0, 1.0)
+    )
+    pred_sig = (
+        torch.sigmoid(pred_boxes)
+        if (pred_boxes.max() > 1.5 or pred_boxes.min() < -0.5)
+        else torch.clamp(pred_boxes, 0.0, 1.0)
+    )
+    mean_center = ref_sig[..., :2].mean(dim=1, keepdim=True)
+    disp = torch.sqrt(torch.sum((ref_sig[..., :2] - mean_center) ** 2, dim=-1) + 1e-8).mean(dim=1)
+    drift = torch.sqrt(torch.sum((pred_sig[..., :2] - ref_sig[..., :2]) ** 2, dim=-1) + 1e-8).mean(dim=1)
+
+    d_lo, d_hi = disp_bounds
+    r_lo, r_hi = drift_bounds
+    pen_disp = F.relu(d_lo - disp) + F.relu(disp - d_hi)
+    pen_drift = F.relu(r_lo - drift) + F.relu(drift - r_hi)
+    return ((pen_disp / max(abs(d_hi - d_lo), 1e-3)) ** 2 + (pen_drift / max(abs(r_hi - r_lo), 1e-3)) ** 2).mean()
+
+
+def run_adaptive_monitor_suite_test(
+    wrapper: RTDETRModelWrapper,
+    clean_imgs: Any,
+    target_mode: str,
+    esm_monitor: Optional[EncoderSelectionMonitor] = None,
+    scm_monitor: Optional[SpatialConsistencyMonitor] = None,
+    box_monitor: Optional[ActiveBoxCountMonitor] = None,
+    n_samples: int = 50,
+    lambdas: Sequence[float] = (0.5, 1.0, 2.0),
+    batch_size: int = 4,
+    gt_list: Optional[List[Dict[str, Any]]] = None,
+    hf_labels: Optional[List[Dict[str, torch.Tensor]]] = None,
+    steps: Optional[int] = None,
+    eps: Optional[float] = None,
+    alpha: Optional[float] = None,
+) -> Dict[str, Any]:
+    """
+    Thực nghiệm White-Box Adaptive Evasion thực thụ nhắm vào:
+      - target_mode == 'scm': Né tránh SpatialConsistencyMonitor.
+      - target_mode == 'bcm': Né tránh ActiveBoxCountMonitor (soft-clamping cardinality penalty).
+      - target_mode == 'ensemble': Né tránh đồng thời cả 3 kênh (ESM + SCM + BCM Max-OR Union).
+
+    Báo cáo đầy đủ TPR bị phát hiện thật, Raw Bypass (%), Attack Effectiveness (%) và
+    Joint Conditioned Evasion Success (%) (= không bị phát hiện VÀ đồng thời làm sụp đổ phát hiện)
+    cũng như Post-Attack mAP@50 (%).
+    """
+    model = wrapper.model
+    device = wrapper.device
+    is_sigmoid = bool(getattr(wrapper, "is_sigmoid", True))
+    pp_mode = "hf_multilabel" if is_sigmoid else "detr_softmax"
+    n_q_model = max(1, int(getattr(wrapper, "num_queries", 300) or 300))
+    n_eval = min(n_samples, len(clean_imgs))
+    n_steps = int(steps) if steps is not None else int(get_pgd_num_steps())
+    eps_val = float(eps) if eps is not None else float(get_epsilon_l_inf())
+    step_alpha = float(alpha) if alpha is not None else float(get_pgd_step_size())
+
+    # Chuẩn bị ngưỡng hiệu chuẩn từ chính các monitor đã fit
+    target_drop = float(getattr(esm_monitor, "cal_dropoff_median", 35.0)) if esm_monitor else 35.0
+    target_margin = float(getattr(esm_monitor, "cal_margin_median", 0.05)) if esm_monitor else 0.05
+    disp_bounds = (
+        (float(scm_monitor.disp_mon.lower_thresh), float(scm_monitor.disp_mon.upper_thresh))
+        if scm_monitor is not None and scm_monitor.is_fitted
+        else (0.15, 0.35)
+    )
+    drift_bounds = (
+        (float(scm_monitor.drift_mon.lower_thresh), float(scm_monitor.drift_mon.upper_thresh))
+        if scm_monitor is not None and scm_monitor.is_fitted
+        else (0.005, 0.08)
+    )
+    if box_monitor is not None and box_monitor.is_fitted:
+        bcm_low = float(box_monitor.twosided_monitor.lower_thresh)
+        bcm_high = float(box_monitor.twosided_monitor.upper_thresh)
+        bcm_target = float(np.median(box_monitor.cal_counts)) if box_monitor.cal_counts.size > 0 else 8.0
+    else:
+        bcm_low, bcm_high, bcm_target = 2.0, 20.0, 8.0
+
+    results: Dict[str, Any] = {}
+    print(f"\n[Adaptive {target_mode.upper()} Evasion] Đánh giá trên N={n_eval} ảnh (batch_size={batch_size}, steps={n_steps})...")
+
+    for lam in lambdas:
+        all_detected: List[int] = []
+        all_effective: List[int] = []
+        all_joint: List[int] = []
+        adaptive_preds_eval: List[Dict[str, Any]] = []
+        active_box_counts: List[float] = []
+        t_start = time.time()
+
+        for b_start in range(0, n_eval, batch_size):
+            b_end = min(n_eval, b_start + batch_size)
+            sub_clean = clean_imgs[b_start:b_end]
+            if hasattr(sub_clean, "to"):
+                sub_clean = sub_clean.to(device)
+
+            with torch.no_grad():
+                clean_ref_out = model(sub_clean)
+                c_probs = torch.sigmoid(clean_ref_out.logits) if is_sigmoid else torch.softmax(clean_ref_out.logits, dim=-1)[..., :-1]
+                clean_max_p, _ = c_probs.max(dim=-1)
+                clean_top_confs = clean_max_p.max(dim=-1).values.cpu().numpy()
+                k_fg = min(15, clean_max_p.shape[1])
+                clean_top_idx = torch.topk(clean_max_p, k=k_fg, dim=-1).indices  # [B, k_fg]
+                has_enc_c = hasattr(clean_ref_out, "enc_outputs_class") and clean_ref_out.enc_outputs_class is not None
+                clean_enc_p = (
+                    torch.sigmoid(clean_ref_out.enc_outputs_class).max(dim=-1).values
+                    if has_enc_c
+                    else clean_max_p
+                )
+                clean_enc_top_idx = torch.topk(clean_enc_p, k=min(15, clean_enc_p.shape[1]), dim=-1).indices
+
+            sub_hf = None
+            if hf_labels is not None:
+                sub_hf = [
+                    {
+                        "class_labels": hf_labels[idx]["class_labels"].to(device),
+                        "boxes": hf_labels[idx]["boxes"].to(device),
+                    }
+                    for idx in range(b_start, b_end)
+                    if idx < len(hf_labels) and len(hf_labels[idx]["boxes"]) > 0
+                ]
+                if len(sub_hf) != (b_end - b_start):
+                    sub_hf = None
+
+            adv = sub_clean.clone().detach()
+            for _ in range(n_steps):
+                adv_var = adv.clone().detach().requires_grad_(True)
+                mask = torch.ones((adv_var.shape[0], adv_var.shape[2], adv_var.shape[3]), device=device, dtype=torch.long)
+                if sub_hf is not None and target_mode == "bcm":
+                    out = model(pixel_values=adv_var, pixel_mask=mask, labels=sub_hf, return_dict=True)
+                else:
+                    out = model(pixel_values=adv_var, pixel_mask=mask, return_dict=True)
+
+                dec_probs = torch.sigmoid(out.logits) if is_sigmoid else torch.softmax(out.logits, dim=-1)[..., :-1]
+                dec_max_p, _ = dec_probs.max(dim=-1)  # [B, N_q]
+
+                # 1. Task failure loss (giữ phá hủy object thật)
+                if sub_hf is not None and getattr(out, "loss", None) is not None and target_mode == "bcm":
+                    task_loss = -out.loss  # maximize detection loss via gradient descent step (-alpha * grad)
+                    # Wait: step below is adv = adv - step_alpha * grad_sign, so minimize (-loss) maximizes Task loss!
+                else:
+                    # Dìm các clean foreground slots đã biết ở cả encoder và decoder
+                    sel_dec = torch.gather(dec_max_p, 1, clean_top_idx)
+                    task_loss = (sel_dec ** 2).mean()
+                    if hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None:
+                        enc_max_p = torch.sigmoid(out.enc_outputs_class).max(dim=-1).values
+                        sel_enc = torch.gather(enc_max_p, 1, clean_enc_top_idx)
+                        task_loss = task_loss + (sel_enc ** 2).mean()
+
+                # 2. Evasion loss tương ứng theo target_mode
+                evasion_loss = torch.zeros((), device=device)
+
+                if target_mode in ("esm", "ensemble") and esm_monitor is not None:
+                    has_enc = hasattr(out, "enc_outputs_class") and out.enc_outputs_class is not None
+                    enc_logits = out.enc_outputs_class if has_enc else out.logits
+                    probs_e = torch.sigmoid(enc_logits) if (has_enc or is_sigmoid) else torch.softmax(enc_logits, dim=-1)[..., :-1]
+                    max_p_e, _ = probs_e.max(dim=-1)
+                    k_top_n = min(n_q_model + 1, max_p_e.shape[1])
+                    k_nq_idx = min(n_q_model - 1, k_top_n - 1)
+                    topk_vals, _ = torch.topk(max_p_e, k=k_top_n, dim=-1)
+                    diff_drop = topk_vals[:, 0] / (topk_vals[:, k_nq_idx].clamp(min=1e-4) + 1e-4)
+                    next_v = topk_vals[:, k_nq_idx + 1] if topk_vals.shape[1] > k_nq_idx + 1 else torch.zeros_like(topk_vals[:, k_nq_idx])
+                    diff_marg = topk_vals[:, k_nq_idx] - next_v
+                    evasion_loss = evasion_loss + F.mse_loss(diff_drop, torch.full_like(diff_drop, target_drop)) + 10.0 * F.mse_loss(diff_marg, torch.full_like(diff_marg, target_margin))
+
+                if target_mode in ("scm", "ensemble"):
+                    ref_b = out.init_reference_points if (hasattr(out, "init_reference_points") and out.init_reference_points is not None) else out.pred_boxes
+                    evasion_loss = evasion_loss + _compute_scm_differentiable_penalty(ref_b, out.pred_boxes, disp_bounds, drift_bounds)
+
+                if target_mode in ("bcm", "ensemble"):
+                    # Soft cardinality penalty kẹp số active boxes quanh sạch trong [bcm_low, bcm_high]
+                    soft_cnt = torch.sigmoid(25.0 * (dec_max_p - 0.35)).sum(dim=-1)
+                    pen_lo = F.relu((bcm_low + 0.5) - soft_cnt)
+                    pen_hi = F.relu(soft_cnt - (bcm_high - 0.5))
+                    pen_mid = ((soft_cnt - bcm_target) / max(bcm_high - bcm_low, 2.0)) ** 2
+                    evasion_loss = evasion_loss + (pen_lo ** 2 + pen_hi ** 2 + 0.25 * pen_mid).mean()
+
+                total_loss = task_loss + float(lam) * evasion_loss
+
+                model.zero_grad()
+                if adv_var.grad is not None:
+                    adv_var.grad.zero_()
+                total_loss.backward()
+
+                with torch.no_grad():
+                    grad_sign = adv_var.grad.sign() if adv_var.grad is not None else torch.zeros_like(adv_var)
+                    adv = adv - step_alpha * grad_sign
+                    delta = torch.clamp(adv - sub_clean, min=-eps_val, max=eps_val)
+                    adv = torch.clamp(sub_clean + delta, min=0.0, max=1.0).detach()
+
+            with torch.no_grad():
+                final_out = model(adv)
+                b_len = adv.shape[0]
+                det_flags = np.zeros(b_len, dtype=bool)
+                if target_mode in ("esm", "ensemble") and esm_monitor is not None:
+                    f_lgt = final_out.enc_outputs_class if (hasattr(final_out, "enc_outputs_class") and final_out.enc_outputs_class is not None) else final_out.logits
+                    det_flags |= (esm_monitor.predict(f_lgt.cpu()) == 1)
+                if target_mode in ("scm", "ensemble") and scm_monitor is not None:
+                    f_ref = final_out.init_reference_points if (hasattr(final_out, "init_reference_points") and final_out.init_reference_points is not None) else final_out.pred_boxes
+                    det_flags |= (scm_monitor.predict(f_ref.cpu(), final_out.pred_boxes.cpu()) == 1)
+                if target_mode in ("bcm", "ensemble") and box_monitor is not None:
+                    b_cnts = box_monitor.count_active_boxes(final_out.logits.cpu())
+                    active_box_counts.extend(b_cnts.tolist())
+                    det_flags |= (box_monitor.twosided_monitor.predict(b_cnts) == 1)
+
+                if gt_list is not None:
+                    adaptive_preds_eval.extend(
+                        postprocess_rtdetr_predictions(final_out.logits, final_out.pred_boxes, mode=pp_mode)
+                    )
+
+                adv_p = torch.sigmoid(final_out.logits) if is_sigmoid else torch.softmax(final_out.logits, dim=-1)[..., :-1]
+                adv_max_p, _ = adv_p.max(dim=-1)
+                adv_top_confs = adv_max_p.max(dim=-1).values.cpu().numpy()
+
+                for b_i in range(b_len):
+                    is_det = bool(det_flags[b_i])
+                    if target_mode == "bcm" and gt_list is not None and len(adaptive_preds_eval) > 0:
+                        # Với BCM, kẻ tấn công có thể giữ ~8 dummy boxes >= 0.35 ở vùng nền, nên đo effectiveness bằng per-image AP collapse (< 50% clean AP hoặc conf < 0.35)
+                        img_idx = b_start + b_i
+                        gt_b = gt_list[img_idx].get("boxes_xyxy", np.zeros((0, 4), dtype=np.float32)) if img_idx < len(gt_list) else np.zeros((0, 4), dtype=np.float32)
+                        pr_b = adaptive_preds_eval[-b_len + b_i]
+                        # Kiểm tra xem mọi box active còn trúng IoU>=0.5 với bất kỳ GT nào không
+                        act_mask = pr_b["scores"] >= 0.35
+                        if len(gt_b) > 0 and np.any(act_mask):
+                            from paper_1_aqsm_mechanism.core.mechanism_analyzer import _box_iou_np
+                            max_iou = float(np.max(_box_iou_np(pr_b["boxes"][act_mask], gt_b)))
+                            is_eff = bool(max_iou < 0.50 or adv_top_confs[b_i] < clean_top_confs[b_i] * 0.5)
+                        else:
+                            is_eff = bool(adv_top_confs[b_i] < 0.35 or len(gt_b) == 0)
+                    else:
+                        is_eff = bool(adv_top_confs[b_i] < 0.35 or adv_top_confs[b_i] < clean_top_confs[b_i] * 0.5)
+
+                    all_detected.append(int(is_det))
+                    all_effective.append(int(is_eff))
+                    all_joint.append(int((not is_det) and is_eff))
+
+            del adv, sub_clean
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        tpr_det = float(np.mean(all_detected)) * 100.0 if all_detected else 0.0
+        raw_bypass = 100.0 - tpr_det
+        eff_rate = float(np.mean(all_effective)) * 100.0 if all_effective else 0.0
+        joint_rate = float(np.mean(all_joint)) * 100.0 if all_joint else 0.0
+        post_map50 = None
+        if gt_list is not None and adaptive_preds_eval:
+            ev_map = evaluate_coco_predictions(adaptive_preds_eval, list(gt_list[:len(adaptive_preds_eval)]))
+            post_map50 = round(float(ev_map.get("mAP@50", 0.0)), 2)
+
+        elapsed = time.time() - t_start
+        rec_l: Dict[str, Any] = {
+            "evasion_weight_lambda": float(lam),
+            "target_monitor": target_mode,
+            "n_evaluated_samples": int(n_eval),
+            "detected_tpr_pct": round(tpr_det, 2),
+            "raw_monitor_bypass_pct": round(raw_bypass, 2),
+            "attack_effective_rate_pct": round(eff_rate, 2),
+            "joint_evasion_success_pct": round(joint_rate, 2),
+            "post_attack_map50_pct": post_map50,
+            "elapsed_seconds": round(elapsed, 2),
+        }
+        if active_box_counts:
+            rec_l["mean_active_boxes"] = round(float(np.mean(active_box_counts)), 2)
+        results[f"lambda_{lam}"] = rec_l
+        m_str = f" | Post-mAP@50={post_map50:.2f}%" if post_map50 is not None else ""
+        print(
+            f"   + [{target_mode.upper()}] lam={lam}: TPR={tpr_det:.1f}% | Bypass={raw_bypass:.1f}% | Joint={joint_rate:.1f}%{m_str} ({elapsed:.1f}s)"
+        )
+
+    return results
 
 
 def run_adaptive_evasion_test(
@@ -443,6 +720,44 @@ def run_defense_evaluation(
     )
     defense_results["adaptive_evasion"] = adaptive_results
 
+    # Bổ sung thực nghiệm White-Box Adaptive Evasion thật cho SCM, ActiveBoxCountMonitor (BCM) & Joint Ensemble
+    adapt_hf = dataset.hf_labels[adapt_start : adapt_start + n_adapt] if getattr(dataset, "hf_labels", None) is not None else None
+    defense_results["adaptive_scm_evasion"] = run_adaptive_monitor_suite_test(
+        wrapper=wrapper,
+        clean_imgs=test_adaptive_imgs,
+        target_mode="scm",
+        scm_monitor=scm,
+        n_samples=len(test_adaptive_imgs),
+        lambdas=[0.5, 1.0, 2.0],
+        batch_size=bsz,
+        gt_list=adapt_gt,
+        hf_labels=adapt_hf,
+    )
+    defense_results["adaptive_bcm_evasion"] = run_adaptive_monitor_suite_test(
+        wrapper=wrapper,
+        clean_imgs=test_adaptive_imgs,
+        target_mode="bcm",
+        box_monitor=box_monitor,
+        n_samples=len(test_adaptive_imgs),
+        lambdas=[0.5, 1.0, 2.0],
+        batch_size=bsz,
+        gt_list=adapt_gt,
+        hf_labels=adapt_hf,
+    )
+    defense_results["adaptive_ensemble_evasion"] = run_adaptive_monitor_suite_test(
+        wrapper=wrapper,
+        clean_imgs=test_adaptive_imgs,
+        target_mode="ensemble",
+        esm_monitor=esm_fitted,
+        scm_monitor=scm,
+        box_monitor=box_monitor,
+        n_samples=len(test_adaptive_imgs),
+        lambdas=[1.0, 2.0],
+        batch_size=bsz,
+        gt_list=adapt_gt,
+        hf_labels=adapt_hf,
+    )
+
     # Đánh giá kiến trúc gia cố SQA (Section 6.4 - Table 12)
     print("\n[Defense Eval] Đánh giá Đề xuất Gia cố Kiến trúc SQA (Section 6.4 - Table 12)...")
     sdir_sqa = get_summary_json_dir()
@@ -462,6 +777,7 @@ def run_defense_evaluation(
                 batch_size=bsz,
                 adv_taskpgd_imgs=adv_dict.get("taskpgd"),
                 adaptive_steps=get_pgd_num_steps(),
+                n_adaptive_samples=n_adapt,
             )
         except Exception as e:
             print(f"   [CẢNH BÁO] Không thể chạy live SQA ablation ({e}).")

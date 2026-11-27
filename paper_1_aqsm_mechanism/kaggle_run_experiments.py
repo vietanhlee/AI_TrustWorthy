@@ -34,7 +34,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size tối ưu cho GPU (mặc định 16)")
     parser.add_argument("--max_samples", type=int, default=1000, help="Số lượng ảnh thực nghiệm (mặc định 1000 ảnh chuẩn)")
     parser.add_argument("--num_images", type=int, default=None, help="Alias tương đương --max_samples")
-    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,10,7,9", help="Danh sách tasks cần chạy (mặc định gồm cả Task 10 đa seed)")
+    parser.add_argument("--tasks", type=str, default="0,1,2,3,4,5,6,8,10,11,7,9", help="Danh sách tasks cần chạy (mặc định gồm cả Task 10 đa seed và Task 11 ablation/baselines)")
     parser.add_argument("--skip_cache_gen", action="store_true", default=False, help="Bỏ qua Task 0 nếu cache đã có")
     parser.add_argument("--force_recompute", action="store_true", default=False, help="Bắt buộc sinh lại cache từ đầu kể cả khi đã có")
     parser.add_argument("--include_sweep", action="store_true", default=False, help="Sinh kèm sweep eps 4 và 8 cho Task 5")
@@ -42,6 +42,10 @@ def main():
     parser.add_argument("--run_multiseed", action="store_true", default=False, help="Bật Task 10 chạy thực nghiệm AQSM đa seed khi truyền tập --tasks tùy chỉnh")
     parser.add_argument("--seeds", type=str, default=default_seeds_str, help=f"Danh sách random seeds cho Task 4 & Task 10 (mặc định: {default_seeds_str})")
     parser.add_argument("--pgd_steps", type=int, default=15, help="Số bước lặp PGD sinh mẫu đối kháng (mặc định 15)")
+    parser.add_argument("--latency_images", type=int, default=20, help="Số ảnh COCO đa dạng dùng cho profiling xen kẽ ở Task 6 (mặc định 20)")
+    parser.add_argument("--cnn_baseline", type=str, default="retinanet", choices=["none", "retinanet", "fasterrcnn"], help="Detector CNN+NMS đối chứng ở Task 6 (mặc định retinanet)")
+    parser.add_argument("--n_boot", type=int, default=500, help="Số lần bootstrap CI trên pooled mAP ở Task 11 (mặc định 500)")
+    parser.add_argument("--cross_models", type=str, default=None, help="Tuỳ chọn: danh sách model cho run_multimodel_benchmark.py (vd: 'r18,r50,rtdetrv2_r18,deformable_detr_twostage,detr_r50')")
     args = parser.parse_args()
 
     if args.num_images is not None:
@@ -144,6 +148,9 @@ def main():
         cmd.extend(["--seeds", str(args.seeds)])
     if args.pgd_steps is not None:
         cmd.extend(["--pgd_steps", str(args.pgd_steps)])
+    cmd.extend(["--latency_images", str(args.latency_images)])
+    cmd.extend(["--cnn_baseline", str(args.cnn_baseline)])
+    cmd.extend(["--n_boot", str(args.n_boot)])
 
     start_time = time.time()
     print(f"\n>>> Đang thực thi lệnh: {' '.join(cmd)}\n")
@@ -152,6 +159,27 @@ def main():
     if result.returncode != 0:
         print(f"\n[LỖI] Thực nghiệm thất bại với mã thoát: {result.returncode}")
         sys.exit(result.returncode)
+
+    if args.cross_models:
+        mm_cmd = [
+            sys.executable,
+            str(paper_dir / "tools" / "run_multimodel_benchmark.py"),
+            "--models", str(args.cross_models),
+            "--max_samples", str(effective_max_samples if effective_max_samples is not None else 1000),
+            "--batch_size", str(args.batch_size),
+            "--device", device,
+            "--output_dir", str(output_dir),
+            "--pgd_steps", str(args.pgd_steps),
+        ]
+        if args.folder_image:
+            mm_cmd.extend(["--folder_image", str(args.folder_image)])
+        if args.annotations:
+            mm_cmd.extend(["--annotations", str(args.annotations)])
+        print(f"\n>>> Đang chạy Cross-Architecture Benchmark: {' '.join(mm_cmd)}\n")
+        mm_res = subprocess.run(mm_cmd, cwd=str(WORKSPACE_DIR))
+        if mm_res.returncode != 0:
+            print(f"\n[LỖI] Cross-Architecture Benchmark thất bại với mã thoát: {mm_res.returncode}")
+            sys.exit(mm_res.returncode)
 
     elapsed = time.time() - start_time
     print(f"\n>>> Toàn bộ thực nghiệm hoàn thành xuất sắc trong: {elapsed:.2f}s ({elapsed/60:.2f} phút)!")

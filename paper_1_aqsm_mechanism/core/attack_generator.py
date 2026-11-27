@@ -187,6 +187,7 @@ class DETRAttackGenerator:
         alpha: Optional[float] = None,
         margin: Optional[float] = None,
         margin_logit: float = 1.0,
+        lambda_suppr: float = 1.0,
         lambda_rank: float = 1.0,
         lambda_elev: float = 0.5,
         fg_selection_mode: str = "clean_prediction_proxy",
@@ -280,7 +281,11 @@ class DETRAttackGenerator:
             max_bg_probs, _ = bg_probs_gathered.max(dim=-1)  # [B, k_bg]
             loss_bg_boost = -max_bg_probs.mean()
 
-            total_loss = loss_suppress + lambda_rank * loss_rank + lambda_elev * loss_bg_boost
+            total_loss = (
+                float(lambda_suppr) * loss_suppress
+                + float(lambda_rank) * loss_rank
+                + float(lambda_elev) * loss_bg_boost
+            )
 
             self.model.zero_grad()
             if adv_images.grad is not None:
@@ -491,8 +496,13 @@ class DETRAttackGenerator:
             core_model = getattr(self.wrapper, "model", self.model)
             c_comp = extract_encoder_components(core_model, adv_images, enable_grad=True)
 
-            # Ghép queries động và queries tĩnh
-            aug_target, aug_ref = sqa_module.augment(c_comp["target"], c_comp["init_reference_points"])
+            # Ghép queries động và queries tĩnh (truyền output_memory và anchors nếu content_mode='encoder_sample')
+            aug_target, aug_ref = sqa_module.augment(
+                c_comp["target"],
+                c_comp["init_reference_points"],
+                output_memory=c_comp.get("output_memory"),
+                encoder_anchors=c_comp.get("anchors"),
+            )
 
             # Chạy decoder qua toàn bộ queries
             dec_out = run_decoder_from_components(
@@ -570,18 +580,159 @@ class DETRAttackGenerator:
         self,
         images: torch.Tensor,
         noise_type: str = "gaussian",
+        sigma: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> torch.Tensor:
         """
         Nhóm đối chứng (Random Noise Control): Thêm nhiễu ngẫu nhiên không có gradient.
+        Hỗ trợ chỉ định độ lệch chuẩn sigma (mặc định self.epsilon / 2.0) và random seed tất định.
         """
         device = images.device
+        gen = None
+        if seed is not None:
+            gen = torch.Generator(device=device)
+            gen.manual_seed(int(seed))
+
+        eff_sigma = float(sigma) if sigma is not None else float(self.epsilon / 2.0)
         if noise_type == "gaussian":
-            noise = torch.randn_like(images, device=device) * (self.epsilon / 2.0)
+            noise = torch.randn(images.shape, device=device, dtype=images.dtype, generator=gen) * eff_sigma
             noise = torch.clamp(noise, -self.epsilon, self.epsilon)
         else:
-            noise = (torch.rand_like(images, device=device) * 2.0 - 1.0) * self.epsilon
+            rand_u = torch.rand(images.shape, device=device, dtype=images.dtype, generator=gen)
+            noise = (rand_u * 2.0 - 1.0) * self.epsilon
 
         return torch.clamp(images + noise, 0.0, 1.0)
+
+    @torch.enable_grad()
+    def generate_encoder_attention_attack(
+        self,
+        images: torch.Tensor,
+        steps: Optional[int] = None,
+        alpha: Optional[float] = None,
+        lambda_attn_entropy: float = 1.0,
+        lambda_attn_shift: float = 1.0,
+        lambda_mem_disrupt: float = 0.5,
+    ) -> torch.Tensor:
+        """
+        Encoder Self-Attention Disruption Attack (Đối chứng thực nghiệm theo hướng tiếp cận
+        phá hủy Self-Attention của Encoder trong Transformer Detector - cf. Jayasundara et al. [27]):
+        - Cực đại hóa Shannon entropy trên bản đồ self-attention của Hybrid Encoder (AIFI / Encoder layers)
+          để làm phẳng phân bố chú ý nội tại (entropy maximization / uniform KL), ĐỒNG THỜI
+          tối đa hóa sai lệch biểu diễn chú ý và độ lệch cosine của encoder memory.
+        - Nếu kiến trúc không trả về encoder_attentions khi `output_attentions=True`, tự động dùng
+          phân tán entropy không gian trên encoder hidden states làm surrogate tương đương.
+        """
+        self.model.eval()
+        orig = images.clone().detach().to(self.device)
+        adv_images = orig.clone().detach()
+        n_steps = steps if steps is not None else self.num_steps
+        step_alpha = alpha if alpha is not None else self.alpha
+
+        # Trích xuất bản đồ self-attention & hidden states sạch của Encoder làm tham chiếu
+        with torch.no_grad():
+            try:
+                clean_out = self.model(
+                    pixel_values=orig,
+                    output_attentions=True,
+                    output_hidden_states=True,
+                    return_dict=True,
+                )
+            except TypeError:
+                clean_out = self.model(pixel_values=orig, return_dict=True)
+
+            raw_clean_enc_attn = getattr(clean_out, "encoder_attentions", None)
+            clean_enc_attn = (
+                [a.detach() for a in raw_clean_enc_attn if a is not None]
+                if raw_clean_enc_attn is not None
+                else []
+            )
+            raw_clean_enc_hs = getattr(clean_out, "encoder_last_hidden_state", None)
+            if isinstance(raw_clean_enc_hs, (list, tuple)):
+                clean_enc_hs = [h.detach() for h in raw_clean_enc_hs if h is not None]
+            elif raw_clean_enc_hs is not None:
+                clean_enc_hs = [raw_clean_enc_hs.detach()]
+            else:
+                clean_enc_hs = []
+
+        for _ in range(n_steps):
+            adv_images.requires_grad_(True)
+            try:
+                out = self.model(
+                    pixel_values=adv_images,
+                    output_attentions=True,
+                    output_hidden_states=True,
+                    return_dict=True,
+                )
+            except TypeError:
+                out = self.model(pixel_values=adv_images, return_dict=True)
+
+            total_obj = torch.zeros((), device=self.device)
+            raw_adv_attn = getattr(out, "encoder_attentions", None)
+            adv_attn = (
+                [a for a in raw_adv_attn if a is not None]
+                if raw_adv_attn is not None
+                else []
+            )
+
+            # 1. Phá hủy phân bố Encoder Self-Attention (Entropy maximization + KL/MSE khỏi clean attention)
+            if adv_attn:
+                ent_terms = []
+                shift_terms = []
+                for idx, a_adv in enumerate(adv_attn):
+                    a_safe = a_adv.clamp(min=1e-8)
+                    ent = -(a_safe * torch.log(a_safe)).sum(dim=-1).mean()
+                    ent_terms.append(ent)
+                    if idx < len(clean_enc_attn) and clean_enc_attn[idx].shape == a_adv.shape:
+                        shift_terms.append(F.mse_loss(a_adv, clean_enc_attn[idx]))
+                # Maximize entropy (+ent) and maximize shift from clean attention (+shift) via gradient ascent (+step_alpha)
+                loss_ent = torch.stack(ent_terms).mean()
+                total_obj = total_obj + float(lambda_attn_entropy) * loss_ent
+                if shift_terms:
+                    total_obj = total_obj + float(lambda_attn_shift) * torch.stack(shift_terms).mean()
+            else:
+                # Fallback cho mô hình mock/kiến trúc không xuất encoder_attentions: phá hủy cấu trúc self-correlation trên memory
+                raw_adv_hs = getattr(out, "encoder_last_hidden_state", None)
+                adv_hs_fb = (
+                    list(raw_adv_hs) if isinstance(raw_adv_hs, (list, tuple))
+                    else ([raw_adv_hs] if raw_adv_hs is not None else [])
+                )
+                for h_adv in adv_hs_fb:
+                    h_flat = h_adv.flatten(2).transpose(1, 2) if h_adv.ndim == 4 else h_adv
+                    attn_proxy = torch.softmax(torch.bmm(F.normalize(h_flat, dim=-1), F.normalize(h_flat, dim=-1).transpose(1, 2)), dim=-1)
+                    ent_p = -(attn_proxy.clamp(min=1e-8) * torch.log(attn_proxy.clamp(min=1e-8))).sum(dim=-1).mean()
+                    total_obj = total_obj + float(lambda_attn_entropy) * ent_p
+
+            # 2. Phá hủy độ tương đồng biểu diễn Encoder Memory đi kèm
+            raw_adv_hs = getattr(out, "encoder_last_hidden_state", None)
+            if isinstance(raw_adv_hs, (list, tuple)):
+                adv_enc_hs = [h for h in raw_adv_hs if h is not None]
+            elif raw_adv_hs is not None:
+                adv_enc_hs = [raw_adv_hs]
+            else:
+                adv_enc_hs = []
+
+            if adv_enc_hs and clean_enc_hs:
+                mem_disrupt_terms = []
+                for h_adv, h_cln in zip(adv_enc_hs, clean_enc_hs):
+                    h_a_f = h_adv.flatten(2) if h_adv.ndim >= 3 else h_adv
+                    h_c_f = h_cln.flatten(2) if h_cln.ndim >= 3 else h_cln
+                    cos_sim = F.cosine_similarity(h_a_f, h_c_f, dim=-1).mean()
+                    mem_disrupt_terms.append(1.0 - cos_sim)
+                total_obj = total_obj + float(lambda_mem_disrupt) * torch.stack(mem_disrupt_terms).mean()
+
+            self.model.zero_grad()
+            if adv_images.grad is not None:
+                adv_images.grad.zero_()
+            total_obj.backward()
+
+            with torch.no_grad():
+                grad_sign = adv_images.grad.sign() if adv_images.grad is not None else torch.zeros_like(adv_images)
+                # Gradient ascent cực đại hóa entropy và độ lệch attention
+                adv_images = adv_images + step_alpha * grad_sign
+                delta = torch.clamp(adv_images - orig, min=-self.epsilon, max=self.epsilon)
+                adv_images = torch.clamp(orig + delta, min=0.0, max=1.0).detach()
+
+        return adv_images
 
     def generate_random_patch(
         self,

@@ -27,7 +27,10 @@ import torch.nn as nn
 class StaticQueryAugmenter(nn.Module):
     """
     Module tiêm Anchor Tĩnh (Static Query Augmentation - SQA) cho RT-DETR.
-    Hỗ trợ đa dạng chiến lược khởi tạo anchor (uniform grid, k-means, random)
+    Hỗ trợ đa dạng chiến lược khởi tạo anchor (uniform grid, k-means, random),
+    chế độ không gian tọa độ (`logit_calibrated` sử dụng inverse-sigmoid logit
+    để tránh co cụm về tâm khung ảnh vs `raw_uncalibrated` bản prototype cũ),
+    chế độ trích xuất content (`encoder_sample` vs `gaussian_noise`),
     và số lượng anchor tĩnh linh hoạt N_static in [10, 20, 30, 50].
     """
     def __init__(
@@ -36,11 +39,19 @@ class StaticQueryAugmenter(nn.Module):
         strategy: str = "uniform_grid",
         hidden_dim: int = 256,
         seed: int = 42,
+        coordinate_space: str = "logit_calibrated",
+        content_mode: str = "gaussian_noise",
     ):
         super().__init__()
         self.num_static_anchors = num_static_anchors
         self.strategy = strategy.lower()
         self.hidden_dim = hidden_dim
+        if coordinate_space not in ("logit_calibrated", "raw_uncalibrated"):
+            raise ValueError(f"coordinate_space không hợp lệ: {coordinate_space}")
+        if content_mode not in ("gaussian_noise", "encoder_sample"):
+            raise ValueError(f"content_mode không hợp lệ: {content_mode}")
+        self.coordinate_space = coordinate_space
+        self.content_mode = content_mode
 
         if self.strategy == "kmeans":
             static_boxes = self._generate_kmeans_anchors(num_static_anchors, seed=seed)
@@ -50,8 +61,11 @@ class StaticQueryAugmenter(nn.Module):
             static_boxes = self._generate_uniform_grid_anchors(num_static_anchors)
 
         self.register_buffer("static_reference_boxes", static_boxes)
+        # Hiệu chuẩn inverse-sigmoid để sau tầng sigmoid() đầu tiên của decoder tọa độ khớp chính xác [cx, cy, w, h] mục tiêu
+        static_logits = torch.logit(static_boxes.clamp(1e-4, 1.0 - 1e-4))
+        self.register_buffer("static_reference_logits", static_logits)
 
-        # Content embedding tĩnh có thể học hoặc khởi tạo chuẩn Gaussian
+        # Content embedding tĩnh (khởi tạo chuẩn Gaussian fallback / khi content_mode='gaussian_noise')
         torch.manual_seed(seed)
         self.static_content_embeddings = nn.Parameter(
             torch.randn(num_static_anchors, hidden_dim) * 0.02
@@ -120,21 +134,45 @@ class StaticQueryAugmenter(nn.Module):
     def augment(
         self,
         dynamic_content: torch.Tensor,
-        dynamic_boxes: torch.Tensor
+        dynamic_boxes: torch.Tensor,
+        output_memory: Optional[torch.Tensor] = None,
+        encoder_anchors: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Ghép 300 dynamic queries với N_static static queries -> (300 + N_static) queries.
-        dynamic_content: [B, 300, 256]
-        dynamic_boxes:   [B, 300, 4]
-        Returns:
-            augmented_content: [B, 300 + N_static, 256]
-            augmented_boxes:   [B, 300 + N_static, 4]
+        Ghép N_q dynamic queries với N_static static queries -> (N_q + N_static) queries.
+        - Khi `coordinate_space == 'logit_calibrated'`: dùng `static_reference_logits` (inverse-sigmoid)
+          để decoder nhận chính xác tọa độ phủ đều toàn khung ảnh thay vì bị nén về tâm bởi sigmoid.
+        - Khi `content_mode == 'encoder_sample'` và có `output_memory` [B, S, D]: nội suy mềm RBF theo
+          khoảng cách không gian giữa các static anchor và encoder anchors, truyền đặc trưng ngữ nghĩa thật vào decoder.
         """
         bsz = dynamic_content.shape[0]
         device = dynamic_content.device
 
-        static_boxes = self.static_reference_boxes.to(device).unsqueeze(0).expand(bsz, -1, -1)
-        static_content = self.static_content_embeddings.to(device).unsqueeze(0).expand(bsz, -1, -1)
+        box_tensor = (
+            self.static_reference_logits
+            if self.coordinate_space == "logit_calibrated"
+            else self.static_reference_boxes
+        )
+        static_boxes = box_tensor.to(device=device, dtype=dynamic_boxes.dtype).unsqueeze(0).expand(bsz, -1, -1)
+
+        if self.content_mode == "encoder_sample" and output_memory is not None:
+            # Trích xuất đặc trưng content trực tiếp từ encoder output_memory tại vị trí lưới tĩnh
+            n_static = self.num_static_anchors
+            if encoder_anchors is not None:
+                anc_xy = torch.sigmoid(encoder_anchors[..., :2]).to(device=device, dtype=output_memory.dtype)
+                if anc_xy.shape[0] == 1 and bsz > 1:
+                    anc_xy = anc_xy.expand(bsz, -1, -1)
+                st_xy = self.static_reference_boxes[:, :2].to(device=device, dtype=output_memory.dtype).unsqueeze(0).expand(bsz, -1, -1)
+                # Phân bố trọng số khoảng cách Gaussian sắc nét trên 8,400 vị trí để giữ khả vi
+                dists_sq = torch.cdist(st_xy, anc_xy, p=2.0) ** 2  # [B, N_static, S]
+                weights = torch.softmax(-dists_sq / 0.002, dim=-1)  # [B, N_static, S]
+                static_content = torch.bmm(weights, output_memory.to(device=device))  # [B, N_static, D]
+            else:
+                s_len = output_memory.shape[1]
+                stride_idx = torch.linspace(0, max(0, s_len - 1), steps=n_static, device=device).long()
+                static_content = output_memory[:, stride_idx, :]
+        else:
+            static_content = self.static_content_embeddings.to(device=device, dtype=dynamic_content.dtype).unsqueeze(0).expand(bsz, -1, -1)
 
         aug_content = torch.cat([dynamic_content, static_content], dim=1)
         aug_boxes = torch.cat([dynamic_boxes, static_boxes], dim=1)
@@ -146,13 +184,14 @@ def run_sqa_decoder_forward(
     model_or_wrapper: Any,
     pixel_values: torch.Tensor,
     sqa_augmenter: StaticQueryAugmenter,
+    enable_grad: bool = False,
 ) -> Dict[str, torch.Tensor]:
     """
     Thực hiện forward pass thực tế qua RT-DETR với cơ chế gia cố SQA:
-    1. Trích xuất các thành phần Encoder: target, source_flatten, init_reference_points.
-    2. Ghép 300 dynamic queries với N_static queries tĩnh từ sqa_augmenter.
-    3. Chạy Deformable Decoder từ các thành phần đã ghép -> Cho ra logits [B, 300+N_static, C]
-       và pred_boxes [B, 300+N_static, 4].
+    1. Trích xuất các thành phần Encoder: target, source_flatten, init_reference_points, output_memory, anchors.
+    2. Ghép N_q dynamic queries với N_static queries tĩnh từ sqa_augmenter.
+    3. Chạy Deformable Decoder từ các thành phần đã ghép -> Cho ra logits [B, N_q+N_static, C]
+       và pred_boxes [B, N_q+N_static, 4].
     """
     from paper_1_aqsm_mechanism.core.mechanism_analyzer import (
         _get_rtdetr_core_model,
@@ -160,9 +199,14 @@ def run_sqa_decoder_forward(
         run_decoder_from_components,
     )
     core = _get_rtdetr_core_model(model_or_wrapper)
-    comp = extract_encoder_components(core, pixel_values)
+    comp = extract_encoder_components(core, pixel_values, enable_grad=enable_grad)
 
-    aug_target, aug_ref = sqa_augmenter.augment(comp["target"], comp["init_reference_points"])
+    aug_target, aug_ref = sqa_augmenter.augment(
+        comp["target"],
+        comp["init_reference_points"],
+        output_memory=comp.get("output_memory"),
+        encoder_anchors=comp.get("anchors"),
+    )
 
     dec_out = run_decoder_from_components(
         model=core,
@@ -172,6 +216,7 @@ def run_sqa_decoder_forward(
         spatial_shapes=comp["spatial_shapes"],
         spatial_shapes_list=comp["spatial_shapes_list"],
         level_start_index=comp["level_start_index"],
+        enable_grad=enable_grad,
     )
     return dec_out
 
@@ -336,6 +381,7 @@ def evaluate_sqa_hardening(
 
         taskpgd_dyn = pgd_emp.get("default_dynamic_only", {})
         taskpgd_sqa = pgd_emp.get("hardened_static_augmented", {})
+        calib_cmp_emp = empirical_ablation.get("calibration_comparison", {})
         jetson_latency_ms = float(lat_emp.get("default_dynamic_only", 0.0))
         jetson_sqa_ms = float(lat_emp.get("hardened_static_augmented", 0.0))
         provenance_source = "live_gpu_inference_ablation"
@@ -395,6 +441,7 @@ def evaluate_sqa_hardening(
         lat_prev = base_res.get("edge_latency_jetson_orin_nano_ms", {})
         jetson_latency_ms = float(lat_prev.get("default_dynamic_only", 0.0))
         jetson_sqa_ms = float(lat_prev.get("hardened_static_augmented", 0.0))
+        calib_cmp_emp = base_data.get("results", {}).get("calibration_comparison", {})
         provenance_source = f"loaded_from_provenance_json ({summary_file.name})"
         resolved_model = model_name or s_meta.get("model", base_data.get("model", "unknown"))
     elif base_data:
@@ -480,6 +527,7 @@ def evaluate_sqa_hardening(
                 "real_time_deadline_ms": 20.0,
                 "satisfies_real_time": jetson_sqa_ms < 20.0,
             },
+            "calibration_comparison": calib_cmp_emp,
         },
     }
     return results
@@ -567,6 +615,45 @@ def evaluate_sqa_empirical_ablation(
             "aqsm_recovered_map50_95": round(float(ev_a["mAP@50:95"]), 2),
             "aqsm_recovered_recall_pct": round(float(ev_a.get("recall_pct", 0.0)), 2),
             "recovery_delta_map50": round(float(ev_a["mAP@50"]) - float(adv_eval["mAP@50"]), 2),
+        }
+
+    # 2b-cal. So sánh trực tiếp Prototype cũ (raw_uncalibrated + noise) vs Bản đã sửa (logit_calibrated + encoder_sample)
+    calibration_comparison: Dict[str, Any] = {}
+    calib_specs = [
+        ("raw_uncalibrated_noise", "raw_uncalibrated", "gaussian_noise"),
+        ("logit_calibrated_noise", "logit_calibrated", "gaussian_noise"),
+        ("logit_calibrated_encoder_sample", "logit_calibrated", "encoder_sample"),
+    ]
+    for c_key, c_space, c_mode in calib_specs:
+        print(f"   [SQA Ablation] Kiểm định cấu hình SQA hiệu chuẩn: {c_key}...")
+        sqa_cmp = StaticQueryAugmenter(
+            num_static_anchors=num_static_anchors,
+            strategy="uniform_grid",
+            hidden_dim=model_wrapper.d_model,
+            coordinate_space=c_space,
+            content_mode=c_mode,
+        ).to(device)
+        cmp_clean_preds, cmp_adv_preds = [], []
+        for i in range(0, n_samples, batch_size):
+            end_i = min(i + batch_size, n_samples)
+            b_c = clean_imgs[i:end_i].to(device)
+            b_a = adv_imgs[i:end_i].to(device)
+            with torch.no_grad():
+                dec_c = run_sqa_decoder_forward(model_wrapper, b_c, sqa_cmp)
+                dec_a = run_sqa_decoder_forward(model_wrapper, b_a, sqa_cmp)
+                cmp_clean_preds.extend(postprocess_rtdetr_predictions(dec_c["logits"], dec_c["pred_boxes"], mode=pp_mode))
+                cmp_adv_preds.extend(postprocess_rtdetr_predictions(dec_a["logits"], dec_a["pred_boxes"], mode=pp_mode))
+        ev_cmp_c = evaluate_coco_predictions(cmp_clean_preds, gt_list)
+        ev_cmp_a = evaluate_coco_predictions(cmp_adv_preds, gt_list)
+        calibration_comparison[c_key] = {
+            "coordinate_space": c_space,
+            "content_mode": c_mode,
+            "clean_map50": round(float(ev_cmp_c["mAP@50"]), 2),
+            "clean_map50_95": round(float(ev_cmp_c["mAP@50:95"]), 2),
+            "aqsm_recovered_map50": round(float(ev_cmp_a["mAP@50"]), 2),
+            "aqsm_recovered_map50_95": round(float(ev_cmp_a["mAP@50:95"]), 2),
+            "recall_pct": round(float(ev_cmp_a.get("recall_pct", 0.0)), 2),
+            "recovery_delta_map50": round(float(ev_cmp_a["mAP@50"]) - float(adv_eval["mAP@50"]), 2),
         }
 
     # 2b. Control 1: Dynamic Top-(N_q + N_static)
@@ -660,6 +747,33 @@ def evaluate_sqa_empirical_ablation(
     retention_adapt = (float(adapt_eval["mAP@50"]) / max(float(clean_eval["mAP@50"]), 1e-4)) * 100.0
     bypass_adapt = max(0.0, 100.0 - retention_adapt)
 
+    # 4b. Adaptive Carlini-Tramèr trên cấu hình Calibrated + Encoder-Sampled SQA (nếu n_adapt_test > 0)
+    sqa_cal_enc = StaticQueryAugmenter(
+        num_static_anchors=num_static_anchors,
+        strategy="uniform_grid",
+        hidden_dim=model_wrapper.d_model,
+        coordinate_space="logit_calibrated",
+        content_mode="encoder_sample",
+    ).to(device)
+    cal_adapt_preds = []
+    for i in range(0, n_adapt_test, batch_size):
+        end_i = min(i + batch_size, n_adapt_test)
+        b_c = clean_imgs[i:end_i].to(device)
+        adv_cal = attacker.generate_adaptive_sqa_attack(b_c, sqa_module=sqa_cal_enc, steps=adaptive_steps)
+        with torch.no_grad():
+            dec_cal = run_sqa_decoder_forward(model_wrapper, adv_cal, sqa_cal_enc)
+            cal_adapt_preds.extend(postprocess_rtdetr_predictions(dec_cal["logits"], dec_cal["pred_boxes"], mode=pp_mode))
+    cal_adapt_eval = evaluate_coco_predictions(cal_adapt_preds, gt_list[:n_adapt_test]) if cal_adapt_preds else {"mAP@50": 0.0, "mAP@50:95": 0.0, "recall_pct": 0.0}
+    cal_ret_adapt = (float(cal_adapt_eval["mAP@50"]) / max(float(clean_eval["mAP@50"]), 1e-4)) * 100.0
+    calibration_comparison["calibrated_encoder_sampled_adaptive"] = {
+        "n_samples_tested": n_adapt_test,
+        "adaptive_post_sqa_map50": round(float(cal_adapt_eval["mAP@50"]), 2),
+        "adaptive_post_sqa_map50_95": round(float(cal_adapt_eval["mAP@50:95"]), 2),
+        "adaptive_recall_pct": round(float(cal_adapt_eval.get("recall_pct", 0.0)), 2),
+        "retention_under_adaptive_pct": round(cal_ret_adapt, 2),
+        "bypass_pct": round(max(0.0, 100.0 - cal_ret_adapt), 2),
+    }
+
     # 5. Đo độ trễ thực tế nếu được bật
     measured_lat = {}
     if measure_latency and n_samples > 0:
@@ -684,6 +798,7 @@ def evaluate_sqa_empirical_ablation(
             "aqsm_recall_pct": round(float(adv_eval.get("recall_pct", 0.0)), 2),
         },
         "strategy_ablation": strategy_results,
+        "calibration_comparison": calibration_comparison,
         "controls": {
             "dynamic_top330": {
                 "mAP@50": round(float(ev_dyn330["mAP@50"]), 2),

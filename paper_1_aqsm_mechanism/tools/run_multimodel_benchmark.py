@@ -33,6 +33,7 @@ if str(WORKSPACE_DIR) not in sys.path:
 
 from paper_1_aqsm_mechanism.core.attack_generator import DETRAttackGenerator
 from paper_1_aqsm_mechanism.core.coco_gt import (
+    compute_pooled_coco_bootstrap_ci,
     evaluate_coco_predictions,
     postprocess_rtdetr_predictions,
 )
@@ -99,6 +100,202 @@ def _compute_batch_eviction_and_cosine(
     return evict_list, cos_val
 
 
+def _benchmark_cnn_nms_model(
+    cnn_alias: str,
+    folder_image: str,
+    annotations: str,
+    max_samples: int,
+    batch_size: int,
+    device: torch.device,
+    eps_255: int = 16,
+    pgd_steps: int = 15,
+) -> Dict[str, Any]:
+    """
+    Benchmark phát hiện đối tượng thực nghiệm trên họ CNN+NMS (Torchvision RetinaNet/FasterRCNN)
+    dưới Clean Baseline, Gaussian Noise (sigma=eps) và White-Box Task PGD L_inf.
+    """
+    import torchvision.models.detection as tv_det
+
+    key = cnn_alias.strip().lower()
+    if "fasterrcnn" in key:
+        weights_enum = tv_det.FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+        cnn_model = tv_det.fasterrcnn_resnet50_fpn_v2(weights=weights_enum).to(device).eval()
+        full_name = "torchvision/fasterrcnn_resnet50_fpn_v2"
+        model_tag = "fasterrcnn_nms"
+    else:
+        weights_enum = tv_det.RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT
+        cnn_model = tv_det.retinanet_resnet50_fpn_v2(weights=weights_enum).to(device).eval()
+        full_name = "torchvision/retinanet_resnet50_fpn_v2"
+        model_tag = "retinanet_nms"
+
+    cats_91 = weights_enum.meta.get("categories", [])
+    id2label = {idx: name for idx, name in enumerate(cats_91)} if cats_91 else None
+    img_size = int(get_img_size())
+
+    dataset = FlexibleCOCODataset(
+        folder_image=folder_image,
+        annotations_file=annotations,
+        img_size=img_size,
+        id2label=id2label,
+        lazy_tensors=True,
+        device=device,
+        max_samples=max_samples,
+    )
+    clean_proxy = dataset.tensors
+    gt_list = dataset.gt_list
+    n_eval = len(dataset)
+
+    def _run_eval_pass(model_obj: torch.nn.Module, tensors_source: Any, desc_str: str) -> tuple:
+        preds: list = []
+        lats = []
+        model_obj.eval()
+        with torch.no_grad():
+            for i in tqdm(range(0, n_eval, batch_size), desc=desc_str):
+                end_idx = min(i + batch_size, n_eval)
+                b_imgs = tensors_source[i:end_idx].to(device)
+                if device.type == "cuda":
+                    torch.cuda.synchronize()
+                t0 = time.time()
+                outs = model_obj([b_imgs[k] for k in range(b_imgs.shape[0])])
+                if device.type == "cuda":
+                    torch.cuda.synchronize()
+                lats.append(((time.time() - t0) / max(1, b_imgs.shape[0])) * 1000.0)
+                for o in outs:
+                    bx = (o["boxes"].detach().cpu().numpy() / float(img_size)).clip(0.0, 1.0)
+                    sc = o["scores"].detach().cpu().numpy().astype(np.float64)
+                    lb = o["labels"].detach().cpu().numpy().astype(np.int64)
+                    preds.append({"boxes": bx.astype(np.float64), "scores": sc, "labels": lb})
+        return preds, float(np.mean(lats)) if lats else 0.0
+
+    # 1. Clean Baseline
+    clean_preds, clean_lat = _run_eval_pass(cnn_model, clean_proxy, f"{model_tag}_clean")
+    clean_eval = evaluate_coco_predictions(clean_preds, gt_list, num_classes=91)
+    clean_ci = compute_pooled_coco_bootstrap_ci(clean_preds, gt_list, n_boot=300, num_classes=91)
+
+    # 2. Gaussian Noise Control
+    eps_val = float(eps_255) / 255.0
+    rng_g = torch.Generator(device="cpu").manual_seed(42)
+    gauss_preds_list = []
+    cnn_model.eval()
+    with torch.no_grad():
+        for i in tqdm(range(0, n_eval, batch_size), desc=f"{model_tag}_gaussian"):
+            end_idx = min(i + batch_size, n_eval)
+            b_imgs = clean_proxy[i:end_idx].to(device)
+            noise = torch.randn(b_imgs.shape, generator=rng_g, dtype=b_imgs.dtype).to(device) * eps_val
+            b_noisy = torch.clamp(b_imgs + torch.clamp(noise, -eps_val, eps_val), 0.0, 1.0)
+            outs = cnn_model([b_noisy[k] for k in range(b_noisy.shape[0])])
+            for o in outs:
+                bx = (o["boxes"].detach().cpu().numpy() / float(img_size)).clip(0.0, 1.0)
+                gauss_preds_list.append({
+                    "boxes": bx.astype(np.float64),
+                    "scores": o["scores"].detach().cpu().numpy().astype(np.float64),
+                    "labels": o["labels"].detach().cpu().numpy().astype(np.int64),
+                })
+    gauss_eval = evaluate_coco_predictions(gauss_preds_list, gt_list, num_classes=91)
+
+    # 3. White-Box Task PGD on CNN+NMS
+    step_alpha = float(get_pgd_step_size())
+    pgd_preds = []
+    pgd_lats = []
+    for i in tqdm(range(0, n_eval, batch_size), desc=f"{model_tag}_taskpgd"):
+        end_idx = min(i + batch_size, n_eval)
+        b_orig = clean_proxy[i:end_idx].to(device)
+        b_adv = b_orig.clone().detach()
+
+        valid_pairs = []
+        for local_k, img_idx in enumerate(range(i, end_idx)):
+            gt_b = gt_list[img_idx]
+            crowd = gt_b.get("iscrowd", np.zeros(len(gt_b["labels"]), dtype=bool))
+            reg_boxes = gt_b["boxes_xyxy"][~crowd] * float(img_size)
+            reg_labels = gt_b["labels"][~crowd]
+            if len(reg_boxes) > 0:
+                valid_pairs.append((
+                    local_k,
+                    {
+                        "boxes": torch.from_numpy(reg_boxes).to(device=device, dtype=torch.float32),
+                        "labels": torch.from_numpy(reg_labels).to(device=device, dtype=torch.int64),
+                    },
+                ))
+
+        if valid_pairs:
+            cnn_model.train()
+            for mod in cnn_model.modules():
+                if isinstance(mod, torch.nn.BatchNorm2d) or "FrozenBatchNorm2d" in type(mod).__name__:
+                    mod.eval()
+            for _ in range(pgd_steps):
+                b_adv.requires_grad_(True)
+                img_inputs = [b_adv[lk] for lk, _ in valid_pairs]
+                tgt_inputs = [tgt for _, tgt in valid_pairs]
+                loss_dict = cnn_model(img_inputs, tgt_inputs)
+                loss_tot = sum(loss_dict.values()) if isinstance(loss_dict, dict) else loss_dict
+                cnn_model.zero_grad()
+                if b_adv.grad is not None:
+                    b_adv.grad.zero_()
+                loss_tot.backward()
+                with torch.no_grad():
+                    gs = b_adv.grad.sign() if b_adv.grad is not None else torch.zeros_like(b_adv)
+                    b_adv = b_adv + step_alpha * gs
+                    delta = torch.clamp(b_adv - b_orig, min=-eps_val, max=eps_val)
+                    b_adv = torch.clamp(b_orig + delta, min=0.0, max=1.0).detach()
+
+        cnn_model.eval()
+        with torch.no_grad():
+            if device.type == "cuda":
+                torch.cuda.synchronize()
+            t0 = time.time()
+            outs = cnn_model([b_adv[k] for k in range(b_adv.shape[0])])
+            if device.type == "cuda":
+                torch.cuda.synchronize()
+            pgd_lats.append(((time.time() - t0) / max(1, b_adv.shape[0])) * 1000.0)
+            for o in outs:
+                bx = (o["boxes"].detach().cpu().numpy() / float(img_size)).clip(0.0, 1.0)
+                pgd_preds.append({
+                    "boxes": bx.astype(np.float64),
+                    "scores": o["scores"].detach().cpu().numpy().astype(np.float64),
+                    "labels": o["labels"].detach().cpu().numpy().astype(np.int64),
+                })
+
+    pgd_eval = evaluate_coco_predictions(pgd_preds, gt_list, num_classes=91)
+    pgd_ci = compute_pooled_coco_bootstrap_ci(pgd_preds, gt_list, n_boot=300, num_classes=91)
+
+    del cnn_model
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
+
+    return {
+        "model_name": full_name,
+        "model_tag": model_tag,
+        "family": "cnn_nms",
+        "has_dynamic_selection": False,
+        "postprocess_mode": "torchvision_nms",
+        "n_samples": n_eval,
+        "decoder_layers": 0,
+        "hidden_dim": 256,
+        "clean": {
+            "mAP@50": round(float(clean_eval["mAP@50"]), 2),
+            "mAP@50_ci95": clean_ci["mAP@50_ci95"],
+            "mAP@50:95": round(float(clean_eval["mAP@50:95"]), 2),
+            "recall_pct": round(float(clean_eval["recall_pct"]), 2),
+            "mean_latency_ms": round(clean_lat, 2),
+        },
+        "gaussian_noise": {
+            "mAP@50": round(float(gauss_eval["mAP@50"]), 2),
+            "mAP@50:95": round(float(gauss_eval["mAP@50:95"]), 2),
+        },
+        "aqsm": None,
+        "task_pgd": {
+            "mAP@50": round(float(pgd_eval["mAP@50"]), 2),
+            "mAP@50_ci95": pgd_ci["mAP@50_ci95"],
+            "mAP@50:95": round(float(pgd_eval["mAP@50:95"]), 2),
+            "recall_pct": round(float(pgd_eval["recall_pct"]), 2),
+            "mean_latency_ms": round(float(np.mean(pgd_lats)) if pgd_lats else 0.0, 2),
+            "mean_evicted_pct": None,
+            "mean_memory_cosine": None,
+        },
+    }
+
+
 def benchmark_single_model(
     model_name_or_alias: str,
     folder_image: str,
@@ -111,6 +308,17 @@ def benchmark_single_model(
 ) -> Dict[str, Any]:
     """Đánh giá toàn diện một mô hình trên Clean, AQSM (nếu có dynamic selection) và Task PGD."""
     key = str(model_name_or_alias).strip().lower()
+    if key in ("retinanet", "retinanet_nms", "fasterrcnn", "fasterrcnn_nms"):
+        return _benchmark_cnn_nms_model(
+            cnn_alias=key,
+            folder_image=folder_image,
+            annotations=annotations,
+            max_samples=max_samples,
+            batch_size=batch_size,
+            device=device,
+            eps_255=eps_255,
+            pgd_steps=pgd_steps,
+        )
     alias_hint = model_name_or_alias if key in CROSS_DETECTOR_SPECS else resolve_model_name(model_name_or_alias)
 
     # 1. Nạp CrossDetectorWrapper
@@ -183,8 +391,10 @@ def benchmark_single_model(
         )
 
     clean_eval = evaluate_coco_predictions(clean_preds, gt_list)
+    clean_ci = compute_pooled_coco_bootstrap_ci(clean_preds, gt_list, n_boot=300)
     results["clean"] = {
         "mAP@50": round(float(clean_eval["mAP@50"]), 2),
+        "mAP@50_ci95": clean_ci["mAP@50_ci95"],
         "mAP@50:95": round(float(clean_eval["mAP@50:95"]), 2),
         "recall_pct": round(float(clean_eval["recall_pct"]), 2),
         "mean_latency_ms": round(float(np.mean(latencies_ms)), 2),
@@ -215,8 +425,10 @@ def benchmark_single_model(
             )
 
         aqsm_eval = evaluate_coco_predictions(aqsm_preds, gt_list)
+        aqsm_ci = compute_pooled_coco_bootstrap_ci(aqsm_preds, gt_list, n_boot=300)
         results["aqsm"] = {
             "mAP@50": round(float(aqsm_eval["mAP@50"]), 2),
+            "mAP@50_ci95": aqsm_ci["mAP@50_ci95"],
             "mAP@50:95": round(float(aqsm_eval["mAP@50:95"]), 2),
             "recall_pct": round(float(aqsm_eval["recall_pct"]), 2),
             "mean_evicted_pct": round(float(np.mean(aqsm_evictions) * 100.0), 2) if aqsm_evictions else None,
@@ -253,8 +465,10 @@ def benchmark_single_model(
         )
 
     pgd_eval = evaluate_coco_predictions(pgd_preds, gt_list)
+    pgd_ci = compute_pooled_coco_bootstrap_ci(pgd_preds, gt_list, n_boot=300)
     results["task_pgd"] = {
         "mAP@50": round(float(pgd_eval["mAP@50"]), 2),
+        "mAP@50_ci95": pgd_ci["mAP@50_ci95"],
         "mAP@50:95": round(float(pgd_eval["mAP@50:95"]), 2),
         "recall_pct": round(float(pgd_eval["recall_pct"]), 2),
         "mean_evicted_pct": round(float(np.mean(pgd_evictions) * 100.0), 2) if pgd_evictions else None,
@@ -289,6 +503,10 @@ def _format_arch_display_name(tag: str) -> str:
         return "Deformable-DETR (1-Stage)"
     if "detr-resnet-50" in t or "detr_r50" in t:
         return "DETR-R50 (Static)"
+    if "retinanet" in t:
+        return "RetinaNet-R50-FPN (CNN+NMS)"
+    if "fasterrcnn" in t:
+        return "FasterRCNN-R50-FPN (CNN+NMS)"
     return tag.upper()
 
 

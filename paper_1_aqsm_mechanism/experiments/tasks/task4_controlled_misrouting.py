@@ -250,6 +250,8 @@ def run_controlled_misrouting_evaluation(
     for s in seeds:
         conditions.append(f"Random_Shift_seed{s}")
     for s in seeds:
+        conditions.append(f"Center_Only_Shift_seed{s}")
+    for s in seeds:
         conditions.append(f"Decoupled_Random_Shift_seed{s}")
 
     preds_by_cond: Dict[str, List[Dict[str, Any]]] = {c: [] for c in conditions}
@@ -314,6 +316,7 @@ def run_controlled_misrouting_evaluation(
         batch_shift_q_diags: Dict[str, Dict[str, List[float]]] = {}
         for s in seeds:
             shifted_boxes_np = np.zeros_like(c_ref_np)
+            center_only_boxes_np = np.zeros_like(c_ref_np)
             c_errs: List[float] = []
             s_errs: List[float] = []
             fb_cs: List[float] = []
@@ -328,6 +331,10 @@ def run_controlled_misrouting_evaluation(
                         c_ref_np[b, i], a_ref_np[b, i], rng_img, scale_factor=1.0
                     )
                     shifted_boxes_np[b, i] = box_s
+                    # Center-Only Shift: chỉ dịch tâm (cx, cy) trong [0.02, 0.98]^2, giữ nguyên kích thước (w, h) sạch để tránh box suy biến
+                    d_center = float(np.linalg.norm(a_ref_np[b, i, :2] - c_ref_np[b, i, :2]))
+                    c_only, _, _ = _sample_exact_2d_with_diagnostics(c_ref_np[b, i, :2], d_center, rng_img, box_lo=0.02, box_hi=0.98)
+                    center_only_boxes_np[b, i] = np.concatenate([c_only, c_ref_np[b, i, 2:]])
                     c_errs.append(q_diag["center_l2_err"])
                     s_errs.append(q_diag["size_l2_err"])
                     fb_cs.append(1.0 if q_diag["fallback_center"] else 0.0)
@@ -339,9 +346,13 @@ def run_controlled_misrouting_evaluation(
 
             shifted_boxes_safe = np.clip(shifted_boxes_np, 1e-5, 1.0 - 1e-5)
             shift_logits = torch.from_numpy(np.log(shifted_boxes_safe / (1.0 - shifted_boxes_safe))).to(device).float()
+            center_only_safe = np.clip(center_only_boxes_np, 1e-5, 1.0 - 1e-5)
+            center_only_logits = torch.from_numpy(np.log(center_only_safe / (1.0 - center_only_safe))).to(device).float()
             shift_cond = f"Random_Shift_seed{s}"
+            center_only_cond = f"Center_Only_Shift_seed{s}"
             decoupled_cond = f"Decoupled_Random_Shift_seed{s}"
             b_ref_tensors[shift_cond] = shift_logits
+            b_ref_tensors[center_only_cond] = center_only_logits
 
             # Decoupled Random Shift: kết hợp đồng thời Random Shift và Permutation across slots
             decoupled_boxes_safe = shifted_boxes_safe[:, perms_by_seed[s], :]
@@ -510,6 +521,11 @@ def run_controlled_misrouting_evaluation(
     decoupled_recall = _agg_seed_list("Decoupled_Random_Shift", "recall")
     decoupled_fghit = _agg_seed_list("Decoupled_Random_Shift", "fg_hit")
 
+    center_only_map50 = _agg_seed_list("Center_Only_Shift", "mAP@50")
+    center_only_map95 = _agg_seed_list("Center_Only_Shift", "mAP@50:95")
+    center_only_recall = _agg_seed_list("Center_Only_Shift", "recall")
+    center_only_fghit = _agg_seed_list("Center_Only_Shift", "fg_hit")
+
     clean_ap50 = per_image_aps["Clean_Baseline"]
     boot_ci_reassign = bootstrap_paired_diff(
         np.mean([per_image_aps[f"Random_Reassign_seed{s}"] for s in seeds], axis=0),
@@ -573,6 +589,7 @@ def run_controlled_misrouting_evaluation(
 
     ev_reassign = _build_cond_multiseed_evidence("Random_Reassign")
     ev_shift = _build_cond_multiseed_evidence("Random_Shift")
+    ev_center_only = _build_cond_multiseed_evidence("Center_Only_Shift")
     ev_decoupled = _build_cond_multiseed_evidence("Decoupled_Random_Shift")
 
     def _tier1_fields(ev_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -648,6 +665,22 @@ def run_controlled_misrouting_evaluation(
             "delta_map50_ci95": [round(boot_ci_shift["ci_95"][0], 2), round(boot_ci_shift["ci_95"][1], 2)],
             "wilcoxon_p": boot_ci_shift["wilcoxon_p"],
             "multiseed_statistical_evidence": ev_shift,
+        },
+        "Center_Only_Random_Shift": {
+            "description": "Isotropic Center-Only (cx, cy) Shift matching AQSM center L2 while keeping clean (w, h) intact",
+            "mAP@50_mean": round(float(np.mean(center_only_map50)), 2),
+            "mAP@50_std": round(float(np.std(center_only_map50, ddof=1)) if len(center_only_map50) > 1 else 0.0, 2),
+            **_tier1_fields(ev_center_only),
+            "mAP@50:95_mean": round(float(np.mean(center_only_map95)), 2),
+            "recall_pct_mean": round(float(np.mean(center_only_recall)), 2),
+            "fg_hit_pct_mean": round(float(np.mean(center_only_fghit)), 2),
+            "delta_l2": round(float(np.mean(_agg_seed_list("Center_Only_Shift", "delta_l2"))), 4),
+            "delta_center_l2": round(float(np.mean(_agg_seed_list("Center_Only_Shift", "delta_center_l2"))), 4),
+            "delta_size_l2": round(float(np.mean(_agg_seed_list("Center_Only_Shift", "delta_size_l2"))), 4),
+            "hungarian_dist": round(float(np.mean(_agg_seed_list("Center_Only_Shift", "hungarian_dist"))), 4),
+            "gt_object_cov_pct": round(float(np.mean(_agg_seed_list("Center_Only_Shift", "gt_object_cov_pct"))), 2),
+            "annd_mean": round(float(np.mean(_agg_seed_list("Center_Only_Shift", "annd"))), 4),
+            "multiseed_statistical_evidence": ev_center_only,
         },
         "Decoupled_Random_Shift": {
             "description": "Matched Center/Size Random Shift combined with Random Slot Permutation across queries",
