@@ -280,8 +280,8 @@ def generate_html():
                                 <span class="lang-en">20-Image Interleaved Latency vs. RetinaNet+NMS:</span>
                                 <span class="lang-vi">Độ Trễ Xen Kẽ 20 Ảnh vs. RetinaNet+NMS:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events across 20 interleaved scenes on Tesla T4 (FP32), RT-DETR exhibits invariant execution under Clean, AQSM, Task PGD, and 154-box sponge stress ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), running $3.8\times$ faster than RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms with capped batched NMS).</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events xen kẽ ngẫu nhiên trên 20 ảnh thực trên Tesla T4 (FP32), RT-DETR duy trì độ trễ bất biến qua Clean, AQSM, Task PGD và sponge 154 hộp ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh gấp $3.8\times$ so với RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms với NMS giới hạn ứng viên).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events across 20 interleaved scenes on Tesla T4 (FP32), RT-DETR exhibits flat latency under Clean, AQSM, Task PGD, and 154-box sponge stress ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), running $3.8\times$ faster than RetinaNet-R50-FPN-v2 under capped batched NMS ($139.73 \to 140.36$ ms).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events xen kẽ ngẫu nhiên trên 20 ảnh thực trên Tesla T4 (FP32), RT-DETR giữ độ trễ ổn định qua Clean, AQSM, Task PGD và sponge 154 hộp ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh gấp $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng GPU batched NMS có giới hạn ứng viên ($139.73 \to 140.36$ ms).</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
@@ -309,13 +309,13 @@ def generate_html():
                             Real-Time Detection Transformers (RT-DETR) replace Non-Maximum Suppression (NMS) with bipartite matching and dynamic top-$K$ query selection over multi-scale hybrid encoder pyramids. Because candidate selection operates directly on encoder features, white-box encoder perturbations simultaneously corrupt encoder memory ($M$) and query routing ($Q$). We investigate this failure mechanism across RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$), and a unified six-model cross-architecture suite ($N = 300$) on COCO val2017 ($640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ $\epsilon = 16/255$).
                         </p>
                         <p class="lang-en">
-                            Our diagnostic suite establishes four principal findings: (1) Under $2 \times 2$ tensor-swap patching ($N_{\mathrm{valid}} = 299$ R18VD / $200$ R50VD), memory corruption accounts for $60.59\%\text{--}71.40\%$ of degradation on R18VD and $68.22\%\text{--}74.92\%$ on R50VD, corroborated in feasible pixel space where memory-isolated query attacks retain $59.07\%$ / $68.67\%$ mAP@50 versus $0.00\%$ under pure memory disruption. (2) Normalized deformable cross-attention entropy stays invariant within $\pm 0.02$ TOST bounds ($p = 3.46 \times 10^{-5}$ R18VD; $p = 6.80 \times 10^{-6}$ R50VD) while reference drift collapses sampling hit rate and center-only random shifts reproduce matched-$L_2$ collapse. (3) Interleaved 20-scene CUDA profiling confirms invariant RT-DETR latency ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), $3.8\times$ faster than capped-NMS RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms). (4) Adaptive white-box evasion bypasses standalone ESM/SCM/BCM watchdogs ($84\%\text{--}99\%$) while an Ensemble caps joint evasion at $0.00\%\text{--}0.48\%$, logit-calibrated encoder-sampled SQA stays null ($4.03\%$ / $10.27\%$), and dynamic selection vulnerability transfers to RT-DETRv2-R18VD ($4.01\%$) and two-stage Deformable DETR ($3.99\%$).
+                            Our diagnostic suite indicates four scoped observations on deterministic COCO val2017 subsets: (1) Under $2 \times 2$ tensor-swap patching ($N_{\mathrm{valid}} = 299$ R18VD / $200$ R50VD), encoder memory corruption accounts for $60.59\%\text{--}71.40\%$ protocol attribution on R18VD and $68.22\%\text{--}74.92\%$ on R50VD across additive and log scales, corroborated in feasible pixel space where memory-isolated query attacks retain $59.07\%$ / $68.67\%$ subset mAP@50 versus $0.00\%$ under pure memory disruption. (2) Mean normalized deformable cross-attention entropy stays within the $\pm 0.02$ TOST equivalence margin ($p = 3.46 \times 10^{-5}$ R18VD; $p = 6.80 \times 10^{-6}$ R50VD) while reference drift lowers GT-box sampling hit rate and center-only random shifts reproduce matched-$L_2$ degradation. (3) Interleaved 20-scene FP32 Tesla T4 profiling shows no measurable latency overhead for RT-DETR ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), running $3.8\times$ faster than capped-NMS RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms). (4) Adaptive white-box evasion bypasses standalone ESM/SCM/BCM watchdogs ($84\%\text{--}99\%$) while an ensemble restricts joint evasion ($0.00\%\text{--}0.48\%$) under strict simultaneous-success definitions, logit-calibrated encoder-sampled SQA stays null ($4.03\%$ / $10.27\%$), and dynamic-selection degradation transfers to evaluated RT-DETRv2-R18VD ($4.01\%$) and two-stage Deformable DETR ($3.99\%$) checkpoints.
                         </p>
                         <p class="lang-vi">
-                            Real-Time Detection Transformer (RT-DETR) thay thế hậu xử lý NMS bằng bipartite matching và chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng của encoder. Do tầng chọn đề xuất nằm trực tiếp trên đầu ra encoder, nhiễu loạn white-box đồng thời phá hoại bộ nhớ ($M$) và định tuyến truy vấn ($Q$). Chúng tôi phân tích cơ chế sụp đổ trên RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$) và bộ chuẩn 6 kiến trúc ($N = 300$) trên tập COCO val2017 ($640 \times 640$, $S = 8.400$ tokens, $\epsilon = 16/255$).
+                            Real-Time Detection Transformer (RT-DETR) thay thế hậu xử lý NMS bằng bipartite matching và chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng của encoder. Do tầng chọn đề xuất nằm trực tiếp trên đầu ra encoder, nhiễu loạn white-box đồng thời làm suy giảm bộ nhớ ($M$) và định tuyến truy vấn ($Q$). Chúng tôi phân tích cơ chế này trên các tập con tất định COCO val2017 của RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$) và bộ chuẩn 6 kiến trúc ($N = 300$) tại độ phân giải $640 \times 640$ ($S = 8.400$ tokens, 15 bước PGD $\epsilon = 16/255$).
                         </p>
                         <p class="lang-vi">
-                            Nghiên cứu xác lập bốn phát hiện cốt lõi: (1) Dưới giao thức hoán đổi tensor $2 \times 2$, tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ trên R18VD và $68.22\%\text{--}74.92\%$ trên R50VD, được xác chứng trong không gian ảnh khả thi khi tấn công cô lập query vẫn giữ được $59.07\%$ / $68.67\%$ mAP@50 so với $0.00\%$ khi phá bộ nhớ thuần. (2) Entropy attention duy trì bất biến trong biên $\pm 0.02$ TOST ($p = 3.46 \times 10^{-5}$ / $6.80 \times 10^{-6}$), trong khi dịch chuyển riêng tâm tọa độ tái lập sụp đổ $L_2$. (3) Đo đạc CUDA xen kẽ 20 ảnh cho thấy độ trễ RT-DETR ổn định ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh hơn $3.8\times$ so với RetinaNet-R50-FPN-v2. (4) Đối thủ thích nghi vượt qua từng giám sát đơn lẻ ($84\%\text{--}99\%$) nhưng Ensemble kìm giữ tỷ lệ qua mặt đồng thời còn $0.00\%\text{--}0.48\%$, SQA chuẩn hóa logit vẫn không phục hồi ($4.03\%$ / $10.27\%$), và lỗ hổng này lặp lại trên RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$).
+                            Nghiên cứu ghi nhận bốn quan sát theo phạm vi thực nghiệm: (1) Dưới giao thức hoán đổi tensor $2 \times 2$, tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ trên R18VD và $68.22\%\text{--}74.92\%$ trên R50VD theo từng thang đo, được củng cố trong không gian ảnh khả thi khi tấn công cô lập query vẫn giữ được $59.07\%$ / $68.67\%$ subset mAP@50 so với $0.00\%$ khi phá bộ nhớ thuần. (2) Entropy attention trung bình nằm trong biên tương đương $\pm 0.02$ TOST ($p = 3.46 \times 10^{-5}$ / $6.80 \times 10^{-6}$), trong khi dịch chuyển riêng tâm tọa độ tái lập sụp đổ $L_2$. (3) Đo đạc CUDA xen kẽ 20 ảnh trên Tesla T4 cho thấy RT-DETR không tăng độ trễ đáng kể ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh gấp $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng NMS giới hạn ứng viên. (4) Đối thủ thích nghi vượt qua từng giám sát đơn lẻ ($84\%\text{--}99\%$) trong khi Ensemble kìm giữ tỷ lệ qua mặt đồng thời còn $0.00\%\text{--}0.48\%$ theo tiêu chí gộp cụ thể, SQA chuẩn hóa logit không đủ phục hồi trên R18VD/R50VD ($4.03\%$ / $10.27\%$), và suy giảm chọn lọc động cũng xuất hiện trên các checkpoint RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$).
                         </p>
                     </div>
                 </details>
@@ -897,10 +897,10 @@ def generate_html():
                             <span class="lang-vi">Kiểm Định TOST: Tương Đương Lấy Mẫu Đều</span>
                         </h4>
                         <p class="text-xs text-slate-500 leading-relaxed lang-en">
-                            Formal Two One-Sided Tests (TOST) confirm equivalence of post-AQSM anchor foreground placement ($45.37\%$) to uniform grid chance ($45.02\%$, $\Delta = +0.20$ pp, $p_{\mathrm{TOST}} = 0.0481 < 0.05$ under $\pm 2.0$ pp bound on $N=300$).
+                            Formal Two One-Sided Tests (TOST) place post-AQSM anchor GT-box hit ($45.37\%$) within $\pm 2.0$ pp of uniform grid chance ($45.02\%$, $\Delta = +0.20$ pp, $p_{\mathrm{TOST}} = 0.0481 < 0.05$ on $N=300$).
                         </p>
                         <p class="text-xs text-slate-500 leading-relaxed lang-vi">
-                            Thủ tục kiểm định tương đương hai phía (TOST) khẳng định tỷ lệ anchor trúng foreground sau AQSM ($45.37\%$) tương đương về mặt thống kê với xác suất lưới đều trên khung hình ($45.02\%$, $\Delta = +0.20$ pp, $p_{\mathrm{TOST}} = 0.0481 < 0.05$ với biên $\pm 2.0$ pp trên $N=300$).
+                            Kiểm định tương đương hai phía (TOST) cho thấy tỷ lệ anchor trúng GT sau AQSM ($45.37\%$) nằm trong biên $\pm 2.0$ pp của xác suất lưới đều ($45.02\%$, $\Delta = +0.20$ pp, $p_{\mathrm{TOST}} = 0.0481 < 0.05$ trên $N=300$).
                         </p>
                     </div>
                     <div class="mt-3 pt-2 border-t border-slate-100 text-[11px] font-mono text-indigo-600 font-semibold">
@@ -1076,14 +1076,14 @@ def generate_html():
                         <span class="lang-vi">Mở Rộng Ngưỡng Nhiễu &amp; Đo Đạc Độ Trễ Phần Cứng Thực Tế</span>
                     </span>
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3 font-heading">
-                        <span class="lang-en">Matched-Budget Sweep &amp; Fixed-Query Sponge Invariance</span>
-                        <span class="lang-vi">Khảo Sát Đồng Ngân Sách ($\epsilon$) &amp; Tính Bất Biến Bẫy Trễ Sponge</span>
+                        <span class="lang-en">Matched-Budget Sweep &amp; Fixed-Query Sponge Stress Test</span>
+                        <span class="lang-vi">Khảo Sát Đồng Ngân Sách ($\epsilon$) &amp; Kiểm Thử Sponge Fixed-Query</span>
                     </h2>
                     <p class="text-sm text-slate-600 lang-en">
-                        Comparing Task PGD vs AQSM across $\epsilon \in \{4, 8, 16\}/255$ (Figure 7 &amp; Table 9), combined with CUDA-event PyTorch FP32 profiling on NVIDIA Tesla T4 verifying invariant decoding under proposal flooding sponge stress (Table 10).
+                        Comparing Task PGD vs AQSM across $\epsilon \in \{4, 8, 16\}/255$ (Figure 7 &amp; Table 9), paired with 20-scene FP32 Tesla T4 latency profiling under flooding stress and a capped batched-NMS RetinaNet reference (Table 10).
                     </p>
                     <p class="text-sm text-slate-600 lang-vi">
-                        Đối chiếu Task PGD và AQSM trên các mức nhiễu $\epsilon \in \{4, 8, 16\}/255$ (Hình 7 &amp; Bảng 9), kết hợp đo đạc CUDA-event PyTorch FP32 trên NVIDIA Tesla T4 xác nhận tính bất biến của bộ giải mã dưới bẫy trễ proposal flooding sponge (Bảng 10).
+                        Đối chiếu Task PGD và AQSM trên các mức nhiễu $\epsilon \in \{4, 8, 16\}/255$ (Hình 7 &amp; Bảng 9), kết hợp đo đạc độ trễ FP32 trên Tesla T4 qua 20 ảnh xen kẽ cùng mốc RetinaNet dùng batched NMS có giới hạn ứng viên (Bảng 10).
                     </p>
                 </div>
 
@@ -1168,7 +1168,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">36.50 / 37.57</td>
                                     <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">27.42 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono">19.90 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = -0.13$ ms)</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Flat on T4 ($\Delta t = -0.13$ ms)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R18VD</td>
@@ -1177,7 +1177,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">36.51 / 37.57</td>
                                     <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">27.42 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono">44.80 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = -0.13$ ms)</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Flat on T4 ($\Delta t = -0.13$ ms)</td>
                                 </tr>
                                 <tr class="hover:bg-emerald-50/40 transition bg-emerald-50/20">
                                     <td class="py-2.5 px-4 font-bold text-emerald-950">RT-DETR-R18VD</td>
@@ -1186,7 +1186,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">36.23 / 37.49</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">27.50 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">154.20 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">Immune ($19.4\times$ boxes, $-0.23$ ms delta)</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">No slowdown ($19.4\times$ boxes, $-0.23$ ms delta)</td>
                                 </tr>
 
                                 <!-- R50VD -->
@@ -1206,7 +1206,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">74.49 / 76.41</td>
                                     <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">13.38 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono">15.75 / 35.25</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = +0.25$ ms)</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Flat on T4 ($\Delta t = +0.25$ ms)</td>
                                 </tr>
                                 <tr class="hover:bg-emerald-50/40 transition bg-emerald-50/20">
                                     <td class="py-2.5 px-4 font-bold text-emerald-950">RT-DETR-R50VD</td>
@@ -1215,7 +1215,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">74.61 / 76.17</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">13.40 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">116.00 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">Immune ($15.3\times$ boxes, $+0.16$ ms delta)</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">No slowdown ($15.3\times$ boxes, $+0.16$ ms delta)</td>
                                 </tr>
 
                                 <!-- RetinaNet-R50-FPN-v2 -->
@@ -1575,7 +1575,7 @@ def generate_html():
                                     <th class="py-3 px-3 text-right">COCO mAP@50</th>
                                     <th class="py-3 px-3 text-right">mAP@50:95</th>
                                     <th class="py-3 px-3 text-right">Recall</th>
-                                    <th class="py-3 px-3 text-center">Orin Nano Est.</th>
+                                    <th class="py-3 px-3 text-center">Script Lat. Est.</th>
                                     <th class="py-3 px-4"><span class="lang-en">Mechanistic Finding</span><span class="lang-vi">Phát Hiện Cơ Chế</span></th>
                                 </tr>
                             </thead>
@@ -1632,7 +1632,7 @@ def generate_html():
                                     <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">2.18%</td>
                                     <td class="py-2.5 px-3 text-right font-mono">17.95%</td>
                                     <td class="py-2.5 px-3 text-center font-mono">34.61 ms</td>
-                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null (−0.05 pp); proves corrupted $M_{\mathrm{adv}}$ bottleneck</td>
+                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null (−0.05 pp); consistent with $M_{\mathrm{adv}}$ bottleneck</td>
                                 </tr>
                                 <tr class="hover:bg-amber-50/40 transition">
                                     <td class="py-2.5 px-4 text-slate-700 pl-6">Adaptive Evasion (Calib. Noise / Enc.-Sample, N=210)</td>
