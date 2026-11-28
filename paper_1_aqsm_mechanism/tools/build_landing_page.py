@@ -240,13 +240,19 @@ def generate_html():
                     </span>
                 </div>
 
-                <div class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
+                <div class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4 space-y-2">
                     <p class="lang-en">
-                        Real-Time Detection Transformers (RT-DETR) eliminate Non-Maximum Suppression (NMS) via bipartite matching and dynamic top-$K$ query selection atop a multi-scale hybrid encoder. Because proposal selection operates directly on encoder feature pyramids, white-box encoder perturbations simultaneously corrupt memory representations and query routing. We present an empirical diagnostic study across <strong>RT-DETR-R18VD</strong> ($N = 300$, 3 decoder layers), <strong>RT-DETR-R50VD</strong> ($N = 200$, 6 decoder layers), and a unified <strong>6-architecture benchmark</strong> ($N = 300$) on COCO val2017 (native $640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ $\epsilon = 16/255$), using Adversarial Query Selection Manipulation (AQSM) alongside pixel-space controls, Jayasundara et al. encoder attention disruption, Query Vanishing, and Standard Task PGD baselines.
+                        We investigate how white-box perturbations targeting the encoder query-selection head affect multi-scale encoder memory ($M$) and dynamic top-$K$ query routing ($Q$) in Real-Time Detection Transformers (RT-DETR). Using Adversarial Query Selection Manipulation (AQSM) as an encoder-interface probe alongside decoder baselines and pixel-space controls, we evaluate <strong>RT-DETR-R18VD</strong> ($N = 300$, 3 decoder layers), <strong>RT-DETR-R50VD</strong> ($N = 200$, 6 decoder layers), and a unified <strong>6-checkpoint benchmark</strong> ($N = 300$) on sequential COCO val2017 subsets ($640 \times 640$, $S = 8,400$ tokens, single-restart 15-step $\ell_\infty$ PGD stress budget $\epsilon = 16/255$).
                     </p>
                     <p class="lang-vi">
-                        Mô hình Real-Time Detection Transformer (RT-DETR) loại bỏ thuật toán Non-Maximum Suppression (NMS) bằng phép so khớp hai phía (bipartite matching) và cơ chế chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng đa tầng. Do tầng lựa chọn đề xuất hoạt động trực tiếp trên đặc trưng Encoder, các nhiễu loạn đối kháng white-box đồng thời làm sai lệch cả biểu diễn bộ nhớ lẫn định tuyến vị trí truy vấn. Chúng tôi thực hiện nghiên cứu chẩn đoán thực nghiệm trên <strong>RT-DETR-R18VD</strong> ($N = 300$, 3 tầng decoder), <strong>RT-DETR-R50VD</strong> ($N = 200$, 6 tầng decoder) và bộ chuẩn <strong>6 kiến trúc</strong> ($N = 300$) trên tập COCO val2017 ($640 \times 640$, $S = 8.400$ tokens, $\epsilon = 16/255$), kết hợp AQSM với các nhóm đối chứng không gian điểm ảnh, Jayasundara et al., Query Vanishing và Task PGD.
+                        Nghiên cứu khảo sát cách nhiễu loạn đối kháng white-box nhắm vào đầu chọn lọc truy vấn của Encoder tác động lên bộ nhớ đa tầng ($M$) và định tuyến truy vấn động top-$K$ ($Q$) trong Real-Time Detection Transformers (RT-DETR). Sử dụng AQSM như phép dò giao diện Encoder cùng các baseline decoder và đối chứng không gian điểm ảnh, chúng tôi đánh giá <strong>RT-DETR-R18VD</strong> ($N = 300$), <strong>RT-DETR-R50VD</strong> ($N = 200$) và bộ chuẩn <strong>6 checkpoint</strong> ($N = 300$) trên các tập con COCO val2017 ($640 \times 640$, $S = 8.400$ tokens, 15 bước PGD $\epsilon = 16/255$).
                     </p>
+                    <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] font-mono text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                        <span><strong>C1</strong> (R18 Main, N=300, 2,168 GT): 66.93%→4.05%</span>
+                        <span><strong>C2</strong> (R18 Refreshed, N=300): 3.85% (T11) / 4.08% (T8)</span>
+                        <span><strong>C3</strong> (R50 Diag, N=200, 1,460 GT): 74.45%→10.15%</span>
+                        <span><strong>C4</strong> (6-Arch, N=300): R18 5.13% / R50 72.95%→8.89%</span>
+                    </div>
                 </div>
 
                 <!-- 4 Core Findings Grid -->
@@ -255,44 +261,44 @@ def generate_html():
                         <span class="w-5 h-5 rounded-md bg-rose-100 text-rose-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">1</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">Interventional &amp; Pixel-Space Failure Decomposition:</span>
-                                <span class="lang-vi">Phân Rã Kênh Gây Sụp Đổ &amp; Đối Chứng Điểm Ảnh:</span>
+                                <span class="lang-en">Protocol-Dependent Interventional &amp; Pixel-Space Attribution:</span>
+                                <span class="lang-vi">Phân Rã Theo Giao Thức &amp; Đối Chứng Điểm Ảnh:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">AQSM collapses mAP@50 from $66.93\%$ to $4.05\%$ on R18VD ($N=300$; 5-seed $4.00 \pm 0.74\%$) and $74.45\% \to 10.15\%$ on R50VD ($N=200$; 5-seed $8.53 \pm 0.88\%$). Memory corruption accounts for $60.59\%\text{--}71.40\%$ attribution on R18VD and $68.22\%\text{--}74.92\%$ on R50VD. Crucially, pixel-space controls corroborate this without OOD swaps: Memory-Isolated Query preserves $59.07\%$ R18VD / $68.67\%$ R50VD vs. $0.00\%$ under Pure-Memory disruption.</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">AQSM làm sụp đổ mAP@50 từ $66.93\%$ xuống $4.05\%$ trên R18VD ($N=300$; 5-seed $4.00 \pm 0.74\%$) và $74.45\% \to 10.15\%$ trên R50VD ($N=200$; 5-seed $8.53 \pm 0.88\%$). Tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ trên R18VD và $68.22\%\text{--}74.92\%$ trên R50VD. Đối chứng không gian ảnh xác nhận không cần tráo tensor OOD: Memory-Isolated Query giữ $59.07\%$ / $68.67\%$ trong khi phá bộ nhớ thuần sụp đổ về $0.00\%$.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">AQSM reduces subset mAP@50 from $66.93\%$ to $4.05\%$ [C1] ($4.00 \pm 0.74\%$ 5-seed) on R18VD and $74.45\% \to 10.15\%$ [C3] ($8.53 \pm 0.88\%$) on R50VD. Under $2 \times 2$ tensor swaps, memory corruption carries $60.59\%\text{--}71.40\%$ operational attribution on R18VD ($68.22\%\text{--}74.92\%$ on R50VD). Attenuated pixel-space controls stay consistent with this pattern: Memory-Isolated Query retains $59.07\%$ / $68.67\%$ (cos $0.850$ / $0.858$), whereas Pure-Memory disruption collapses subset mAP to $0.00\%$.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">AQSM làm giảm subset mAP@50 từ $66.93\%$ xuống $4.05\%$ [C1] ($4.00 \pm 0.74\%$ 5-seed) trên R18VD và $74.45\% \to 10.15\%$ [C3] trên R50VD. Trong giao thức hoán đổi tensor $2 \times 2$, tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ tỷ trọng phụ thuộc giao thức trên R18VD ($68.22\%\text{--}74.92\%$ R50VD). Đối chứng điểm ảnh cho kết quả đồng hướng: Memory-Isolated Query giữ $59.07\%$ / $68.67\%$ còn phá bộ nhớ thuần về $0.00\%$.</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
                         <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">2</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">TOST Attention Invariance vs. Center-Only Misrouting:</span>
-                                <span class="lang-vi">Kiểm Định TOST Chú Ý vs. Định Tuyến Tâm Tọa Độ:</span>
+                                <span class="lang-en">TOST Mean Entropy Equivalence vs. Center-Only Misrouting:</span>
+                                <span class="lang-vi">Tương Đương Entropy Trung Bình (TOST) vs. Sai Tâm Tọa Độ:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Normalized attention entropy remains statistically equivalent within $\pm 0.02$ TOST bounds ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), while reference drift ($\Delta p = 0.4672$ / $0.4459$) cuts sampling hit ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Center-only random shifts ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduce 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$).</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Entropy attention duy trì tương đương thống kê trong biên $\pm 0.02$ TOST ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), nhưng độ trôi tọa độ ($\Delta p = 0.4672$ / $0.4459$) cắt giảm tỷ lệ trúng ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Dịch chuyển riêng tâm ($33.47\%$ / $46.79\%$) tái lập sụp đổ 4D ($33.92\%$ / $48.43\%$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Mean normalized attention entropy stays within $\pm 0.02$ TOST bounds ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), while reference drift ($\Delta p = 0.4672$ / $0.4459$) cuts sampling hit ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Center-only random shifts ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduce 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), providing evidence against box clamping as the main driver.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Entropy attention chuẩn hóa trung bình nằm trong biên $\pm 0.02$ TOST ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), nhưng độ trôi tọa độ ($\Delta p = 0.4672$ / $0.4459$) làm tụt tỷ lệ trúng ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Dịch chuyển riêng tâm ($33.47\%$ / $46.79\%$) tái lập sụp đổ 4D ($33.92\%$ / $48.43\%$).</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
                         <span class="w-5 h-5 rounded-md bg-sky-100 text-sky-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">3</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">20-Image Interleaved Latency vs. RetinaNet+NMS:</span>
-                                <span class="lang-vi">Độ Trễ Xen Kẽ 20 Ảnh vs. RetinaNet+NMS:</span>
+                                <span class="lang-en">20-Scene T4 FP32 Stress Latency vs. Capped-NMS RetinaNet:</span>
+                                <span class="lang-vi">Độ Trễ T4 FP32 (20 Ảnh Xen Kẽ) vs. RetinaNet+NMS:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events across 20 interleaved scenes on Tesla T4 (FP32), RT-DETR exhibits flat latency under Clean, AQSM, Task PGD, and 154-box sponge stress ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), running $3.8\times$ faster than RetinaNet-R50-FPN-v2 under capped batched NMS ($139.73 \to 140.36$ ms).</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events xen kẽ ngẫu nhiên trên 20 ảnh thực trên Tesla T4 (FP32), RT-DETR giữ độ trễ ổn định qua Clean, AQSM, Task PGD và sponge 154 hộp ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh gấp $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng GPU batched NMS có giới hạn ứng viên ($139.73 \to 140.36$ ms).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events across 20 interleaved scenes on Tesla T4 (FP32), RT-DETR exhibits no measurable latency increase under flooding sponge stress ($\Delta = -0.23$ ms, 95% CI $[-0.50, +0.03]$ ms on R18VD; $\Delta = +0.16$ ms, 95% CI $[-0.11, +0.43]$ ms on R50VD), running $3.8\times$ faster than capped batched-NMS RetinaNet-R50-FPN-v2 in this specific GPU setup.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events trên 20 ảnh xen kẽ trên Tesla T4 (FP32), RT-DETR không ghi nhận mức tăng độ trễ đáng kể dưới tấn công sponge ($\Delta = -0.23$ ms, KTC 95% $[-0.50, +0.03]$ ms R18VD; $\Delta = +0.16$ ms, $[-0.11, +0.43]$ ms R50VD), nhanh hơn $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng batched NMS có giới hạn ứng viên.</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
                         <span class="w-5 h-5 rounded-md bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">4</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">Ensemble Hardening Bounds, Calibrated SQA &amp; 6-Arch Sweep:</span>
-                                <span class="lang-vi">Ranh Giới Ensemble, SQA Chuẩn Hóa &amp; Tổng Quát 6 Kiến Trúc:</span>
+                                <span class="lang-en">Monitor Adaptation, Null Zero-Shot SQA &amp; 6-Checkpoint Scope:</span>
+                                <span class="lang-vi">Giới Hạn Giám Sát, SQA Zero-Shot &amp; Thử Nghiệm 6 Checkpoint:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Standalone ESM ($46.67\%$ TPR), SCM, and BCM suffer $84\%\text{--}99\%$ adaptive bypass, whereas their Ensemble caps joint evasion at $0.00\%\text{--}0.48\%$. Even after logit calibration and encoder sampling, zero-shot SQA remains null ($4.03\%$ R18VD / $10.27\%$ R50VD). Dynamic-selection failure generalizes across RT-DETRv2 ($4.01\%$) and Deformable DETR ($3.99\%$) on $N = 300$.</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Các giám sát đơn lẻ ESM ($46.67\%$ TPR), SCM, BCM bị qua mặt $84\%\text{--}99\%$, nhưng Ensemble giữ qua mặt đồng thời ở mức $0.00\%\text{--}0.48\%$. Ngay cả khi chuẩn hóa logit và lấy mẫu encoder, SQA zero-shot vẫn không phục hồi ($4.03\%$ / $10.27\%$). Lỗ hổng chọn lọc động lặp lại trên RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Adaptive evasion bypasses standalone ESM ($46.67\%$ TPR), SCM, and BCM ($84\%\text{--}99\%$), while strict simultaneous-success joint evasion ($0.00\%\text{--}0.48\%$ on Ensemble) remains threshold- and weight-sensitive. Logit-calibrated encoder-sampled zero-shot SQA alone proves insufficient ($4.03\%$ R18VD / $10.27\%$ R50VD), while single-checkpoint dynamic-selection drops appear on RT-DETRv2 ($4.01\%$) and Deformable DETR ($3.99\%$) [C4].</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Tấn công thích nghi vượt qua từng giám sát đơn lẻ ($84\%\text{--}99\%$), còn tỷ lệ qua mặt đồng thời trên Ensemble ($0.00\%\text{--}0.48\%$) phụ thuộc trực tiếp ngưỡng hiệu lực từng ảnh và trọng số mục tiêu. SQA zero-shot chuẩn hóa logit không đủ phục hồi trên hai RT-DETR ($4.03\%$ / $10.27\%$), và suy giảm chọn lọc động cũng xuất hiện trên hai checkpoint RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$) [C4].</span>
                         </div>
                     </div>
                 </div>
@@ -306,16 +312,16 @@ def generate_html():
                     </summary>
                     <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed space-y-2 bg-slate-50/50 p-3.5 rounded-xl font-serif">
                         <p class="lang-en">
-                            Real-Time Detection Transformers (RT-DETR) replace Non-Maximum Suppression (NMS) with bipartite matching and dynamic top-$K$ query selection over multi-scale hybrid encoder pyramids. Because candidate selection operates directly on encoder features, white-box encoder perturbations simultaneously corrupt encoder memory ($M$) and query routing ($Q$). We investigate this failure mechanism across RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$), and a unified six-model cross-architecture suite ($N = 300$) on COCO val2017 ($640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ $\epsilon = 16/255$).
+                            We investigate how white-box perturbations targeting the encoder query-selection head affect multi-scale encoder memory and dynamic top-$K$ query routing in Real-Time Detection Transformers (RT-DETR). Using Adversarial Query Selection Manipulation (AQSM) as an encoder-interface probe alongside decoder baselines and pixel-space controls within a $2 \times 2$ factorial tensor-swap protocol, we evaluate <strong>RT-DETR-R18VD</strong> ($N = 300$), <strong>RT-DETR-R50VD</strong> ($N = 200$), and six detector architectures ($N = 300$) on sequential deterministic COCO val2017 subsets ($640 \times 640$, $S = 8,400$ tokens).
                         </p>
                         <p class="lang-en">
-                            Our diagnostic suite indicates four scoped observations on deterministic COCO val2017 subsets: (1) Under $2 \times 2$ tensor-swap patching ($N_{\mathrm{valid}} = 299$ R18VD / $200$ R50VD), encoder memory corruption accounts for $60.59\%\text{--}71.40\%$ protocol attribution on R18VD and $68.22\%\text{--}74.92\%$ on R50VD across additive and log scales, corroborated in feasible pixel space where memory-isolated query attacks retain $59.07\%$ / $68.67\%$ subset mAP@50 versus $0.00\%$ under pure memory disruption. (2) Mean normalized deformable cross-attention entropy stays within the $\pm 0.02$ TOST equivalence margin ($p = 3.46 \times 10^{-5}$ R18VD; $p = 6.80 \times 10^{-6}$ R50VD) while reference drift lowers GT-box sampling hit rate and center-only random shifts reproduce matched-$L_2$ degradation. (3) Interleaved 20-scene FP32 Tesla T4 profiling shows no measurable latency overhead for RT-DETR ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), running $3.8\times$ faster than capped-NMS RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms). (4) Adaptive white-box evasion bypasses standalone ESM/SCM/BCM watchdogs ($84\%\text{--}99\%$) while an ensemble restricts joint evasion ($0.00\%\text{--}0.48\%$) under strict simultaneous-success definitions, logit-calibrated encoder-sampled SQA stays null ($4.03\%$ / $10.27\%$), and dynamic-selection degradation transfers to evaluated RT-DETRv2-R18VD ($4.01\%$) and two-stage Deformable DETR ($3.99\%$) checkpoints.
+                            Across additive and log scales, activation patching and attenuated pixel-space controls suggest that encoder memory distortion accounts for a larger share of the observed subset accuracy loss ($60.6\%\text{--}71.4\%$ protocol attribution on R18VD; $68.2\%\text{--}74.9\%$ on R50VD) than query-slot misrouting. Meanwhile, mean normalized deformable cross-attention entropy remains within the $\pm 0.02$ TOST equivalence margin ($p_{\mathrm{TOST}} \le 3.46 \times 10^{-5}$), whereas reference-coordinate drift cuts foreground sampling hit rate and center-only random shifts reproduce matched-$L_2$ degradation. These estimates depend on the intervention protocol and remain bounded to the evaluated checkpoints, sequential subsets, and 15-step $\ell_\infty$ PGD stress budget ($\epsilon = 16/255$); latency profiling, runtime monitor evasion, and zero-shot Static Query Augmentation results are detailed in the body.
                         </p>
                         <p class="lang-vi">
-                            Real-Time Detection Transformer (RT-DETR) thay thế hậu xử lý NMS bằng bipartite matching và chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng của encoder. Do tầng chọn đề xuất nằm trực tiếp trên đầu ra encoder, nhiễu loạn white-box đồng thời làm suy giảm bộ nhớ ($M$) và định tuyến truy vấn ($Q$). Chúng tôi phân tích cơ chế này trên các tập con tất định COCO val2017 của RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$) và bộ chuẩn 6 kiến trúc ($N = 300$) tại độ phân giải $640 \times 640$ ($S = 8.400$ tokens, 15 bước PGD $\epsilon = 16/255$).
+                            Chúng tôi khảo sát cách các nhiễu loạn white-box nhắm vào đầu chọn lọc truy vấn ảnh hưởng đến bộ nhớ encoder đa tầng và định tuyến truy vấn top-$K$ trong RT-DETR. Sử dụng AQSM như phép dò giao diện cùng các baseline decoder và đối chứng không gian ảnh trong giao thức hoán đổi tensor $2 \times 2$, chúng tôi đánh giá <strong>RT-DETR-R18VD</strong> ($N = 300$), <strong>RT-DETR-R50VD</strong> ($N = 200$) và 6 kiến trúc ($N = 300$) trên các tập con tất định COCO val2017 ($640 \times 640$, $S = 8.400$ tokens).
                         </p>
                         <p class="lang-vi">
-                            Nghiên cứu ghi nhận bốn quan sát theo phạm vi thực nghiệm: (1) Dưới giao thức hoán đổi tensor $2 \times 2$, tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ trên R18VD và $68.22\%\text{--}74.92\%$ trên R50VD theo từng thang đo, được củng cố trong không gian ảnh khả thi khi tấn công cô lập query vẫn giữ được $59.07\%$ / $68.67\%$ subset mAP@50 so với $0.00\%$ khi phá bộ nhớ thuần. (2) Entropy attention trung bình nằm trong biên tương đương $\pm 0.02$ TOST ($p = 3.46 \times 10^{-5}$ / $6.80 \times 10^{-6}$), trong khi dịch chuyển riêng tâm tọa độ tái lập sụp đổ $L_2$. (3) Đo đạc CUDA xen kẽ 20 ảnh trên Tesla T4 cho thấy RT-DETR không tăng độ trễ đáng kể ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh gấp $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng NMS giới hạn ứng viên. (4) Đối thủ thích nghi vượt qua từng giám sát đơn lẻ ($84\%\text{--}99\%$) trong khi Ensemble kìm giữ tỷ lệ qua mặt đồng thời còn $0.00\%\text{--}0.48\%$ theo tiêu chí gộp cụ thể, SQA chuẩn hóa logit không đủ phục hồi trên R18VD/R50VD ($4.03\%$ / $10.27\%$), và suy giảm chọn lọc động cũng xuất hiện trên các checkpoint RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$).
+                            Qua các thang đo cộng và log, can thiệp activation patching và đối chứng không gian ảnh cho thấy biến dạng bộ nhớ encoder chiếm tỷ phần lớn hơn trong suy giảm độ chính xác tập con ($60.6\%\text{--}71.4\%$ trên R18VD; $68.2\%\text{--}74.9\%$ trên R50VD) so với sai lệch định tuyến truy vấn. Entropy trung bình nằm trong biên tương đương $\pm 0.02$ TOST ($p_{\mathrm{TOST}} \le 3.46 \times 10^{-5}$), trong khi trôi tọa độ làm giảm tỷ lệ trúng và dịch chuyển riêng tâm tái lập sụp đổ $L_2$. Các ước lượng này phụ thuộc giao thức can thiệp và giới hạn trong các checkpoint, tập con lấy tuần tự, và ngân sách PGD 15 bước ($\epsilon = 16/255$).
                         </p>
                     </div>
                 </details>
@@ -877,10 +883,10 @@ def generate_html():
                             <span class="lang-vi">Định Tuyến Sai Tâm Tọa Độ</span>
                         </h4>
                         <p class="text-xs text-slate-500 leading-relaxed lang-en">
-                            Reference coordinates shift sharply ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), pulling sampling hit down to $45.44\%$ ($-18.1$ pp). Pure <strong>Center-Only Random Shift</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduces 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), ruling out box clamping artifacts.
+                            Reference coordinates shift sharply ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), pulling sampling hit down to $45.44\%$ ($-18.1$ pp). Pure <strong>Center-Only Random Shift</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduces 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), providing evidence against box clamping as the main driver.
                         </p>
                         <p class="text-xs text-slate-500 leading-relaxed lang-vi">
-                            Tọa độ tham chiếu trôi mạnh ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), kéo tỷ lệ lấy mẫu trúng xuống $45.44\%$ ($-18.1$ pp). Thử nghiệm <strong>Dịch chuyển Chỉ riêng Tâm</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) tái lập suy giảm 4D ($33.92\%$ / $48.43\%$), loại trừ giả tạo co bóp kích thước hộp.
+                            Tọa độ tham chiếu trôi mạnh ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), kéo tỷ lệ lấy mẫu trúng xuống $45.44\%$ ($-18.1$ pp). Thử nghiệm <strong>Dịch chuyển Chỉ riêng Tâm</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) tái lập suy giảm 4D ($33.92\%$ / $48.43\%$), cung cấp bằng chứng phản bác việc kẹp biên hộp là nguyên nhân chính.
                         </p>
                     </div>
                     <div class="mt-3 pt-2 border-t border-slate-100 text-[11px] font-mono text-rose-600 font-semibold">
@@ -1147,7 +1153,7 @@ def generate_html():
                                     <th class="py-3 px-4 text-right"><span class="lang-en">Median / p95 (ms)</span><span class="lang-vi">Trung vị / p95</span></th>
                                     <th class="py-3 px-4 text-right"><span class="lang-en">Throughput (FPS)</span><span class="lang-vi">Tốc độ (FPS)</span></th>
                                     <th class="py-3 px-4 text-right"><span class="lang-en">Mean Active Boxes</span><span class="lang-vi">Số Hộp Trung Bình</span></th>
-                                    <th class="py-3 px-4"><span class="lang-en">Latency Invariance Status</span><span class="lang-vi">Trạng Thái Độ Trễ</span></th>
+                                    <th class="py-3 px-4"><span class="lang-en">Measured T4 Latency Delta</span><span class="lang-vi">Chênh Lệch Độ Trễ T4</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-medium text-[11px]">
@@ -1186,7 +1192,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">36.23 / 37.49</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">27.50 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">154.20 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">No slowdown ($19.4\times$ boxes, $-0.23$ ms delta)</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">No slowdown ($19.4\times$ boxes; 95% CI $[-0.50, +0.03]$ ms)</td>
                                 </tr>
 
                                 <!-- R50VD -->
@@ -1215,7 +1221,7 @@ def generate_html():
                                     <td class="py-2.5 px-4 text-right font-mono">74.61 / 76.17</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">13.40 FPS</td>
                                     <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">116.00 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">No slowdown ($15.3\times$ boxes, $+0.16$ ms delta)</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">No slowdown ($15.3\times$ boxes; 95% CI $[-0.11, +0.43]$ ms)</td>
                                 </tr>
 
                                 <!-- RetinaNet-R50-FPN-v2 -->
@@ -1524,10 +1530,10 @@ def generate_html():
                                 <span class="lang-vi">Qua Mặt Đơn Lẻ vs. Tổ Hợp Ensemble</span>
                             </div>
                             <p class="text-slate-600 lang-en mb-2">
-                                Adaptive white-box evasion bypasses standalone ESM (<strong>95.24%–97.62%</strong>), SCM (<strong>94.76%–95.71%</strong>; mAP $0.76\%\text{--}1.73\%$), and BCM (<strong>84.29%–92.86%</strong>), whereas attacking their Ensemble caps joint evasion at <strong>0.00%–0.48%</strong> ($9.51\%\text{--}10.00\%$ mAP).
+                                Adaptive white-box evasion bypasses standalone ESM (<strong>95.24%–97.62%</strong>), SCM (<strong>94.76%–95.71%</strong>; mAP $0.76\%\text{--}1.73\%$), and BCM (<strong>84.29%–92.86%</strong>). On Ensemble, raw bypass remains $88.10\%$, while strict <em>joint evasion</em> (requiring simultaneous monitor silence and per-image $\mathrm{max\_IoU}_{\tau=0.35} < 0.50$ or $>50\%$ top-conf drop) falls to <strong>0.00%–0.48%</strong> ($9.51\%\text{--}10.00\%$ mAP) under $T=15$ PGD.
                             </p>
                             <p class="text-slate-600 lang-vi mb-2">
-                                Tấn công thích nghi qua mặt dễ dàng ESM (<strong>95.24%–97.62%</strong>), SCM (<strong>94.76%–95.71%</strong>; mAP $0.76\%\text{--}1.73\%$) và BCM (<strong>84.29%–92.86%</strong>) đơn lẻ, nhưng Ensemble giữ qua mặt đồng thời còn <strong>0.00%–0.48%</strong>.
+                                Tấn công thích nghi vượt qua ESM (<strong>95.24%–97.62%</strong>), SCM (<strong>94.76%–95.71%</strong>; mAP $0.76\%\text{--}1.73\%$) và BCM (<strong>84.29%–92.86%</strong>) đơn lẻ. Trên Ensemble, qua mặt monitor thô vẫn là $88.10\%$, nhưng <em>qua mặt đồng thời</em> (yêu cầu đồng thời không báo động và tấn công đạt ngưỡng trên từng ảnh) giảm về <strong>0.00%–0.48%</strong>.
                             </p>
                         </div>
                         <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Adaptive Ensemble Joint: 0.00–0.48%</span>
@@ -1541,10 +1547,10 @@ def generate_html():
                                 <span class="lang-vi">Kết Quả Null SQA Sau Chuẩn Hóa Logit</span>
                             </div>
                             <p class="text-sky-900 lang-en mb-2">
-                                Even after inverse-sigmoid logit calibration and encoder feature sampling, zero-shot SQA remains null: $4.08\% \to 4.03\%$ ($-0.05$ pp) on R18VD and $10.15\% \to 10.27\%$ ($+0.12$ pp) on R50VD, falling to $2.65\%$ / $6.66\%$ under full held-out adaptive attacks ($N_{\mathrm{test}} = 210 / 140$).
+                                Zero-shot SQA remains insufficient across both variants: Logit-Calibrated + Noise (plotted in panel c) shifts $4.08\% \to 4.01\%$ on R18VD, while Encoder-Sampled SQA yields $4.03\%$ ($-0.05$ pp) on R18VD [C2] and $10.27\%$ ($+0.12$ pp) on R50VD [C3], dropping to $2.65\%$ / $6.66\%$ under adaptive evasion.
                             </p>
                             <p class="text-sky-900 lang-vi mb-2">
-                                Ngay cả sau khi chuẩn hóa tọa độ <code>logit</code> và lấy mẫu đặc trưng từ Encoder, SQA zero-shot vẫn không phục hồi: $4.08\% \to 4.03\%$ ($-0.05$ pp) trên R18VD và $10.15\% \to 10.27\%$ ($+0.12$ pp) trên R50VD, tụt về $2.65\%$ / $6.66\%$ khi bị tấn công thích nghi toàn tập kiểm thử ($N_{\mathrm{test}} = 210 / 140$).
+                                SQA zero-shot vẫn không đủ phục hồi trên cả hai biến thể: cấu hình Logit+Noise (vẽ ở hình c) chuyển $4.08\% \to 4.01\%$ trên R18VD, còn lấy mẫu Encoder đạt $4.03\%$ ($-0.05$ pp) trên R18VD [C2] và $10.27\%$ ($+0.12$ pp) trên R50VD [C3], tụt về $2.65\%$ / $6.66\%$ dưới tấn công thích nghi.
                             </p>
                         </div>
                         <span class="text-[10px] font-mono text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded border border-sky-300 w-fit">Table 12 &bull; Calibrated SQA + Enc Sample</span>
@@ -1679,7 +1685,7 @@ def generate_html():
                                     <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">5.81%</td>
                                     <td class="py-2.5 px-3 text-right font-mono">28.12%</td>
                                     <td class="py-2.5 px-3 text-center font-mono">71.37 ms</td>
-                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null recovery (+0.12 pp); $M_{\mathrm{adv}}$ dominates</td>
+                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null recovery (+0.12 pp); consistent with $M_{\mathrm{adv}}$ limit</td>
                                 </tr>
                                 <tr class="hover:bg-amber-50/40 transition">
                                     <td class="py-2.5 px-4 text-slate-700 pl-6">Adaptive Evasion (Calib. Noise / Enc.-Sample, N=140)</td>
