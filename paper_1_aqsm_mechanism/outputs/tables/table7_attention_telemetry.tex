@@ -1,0 +1,17 @@
+\begin{table}[!htbp]
+\centering
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across decoder layers, 8 heads, multi-scale tokens). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0087$, from $0.8032 \to 0.7945$; Layer 1: $0.8287 \to 0.8190$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.53\%$ to $45.44\%$. Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2411$).}
+\label{tab:tab7_attention_telemetry}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Condition} & \textbf{Norm. Attention Entropy} & \textbf{Spatial Sampling Hit Rate (FG)} & \textbf{Reference Drift ($\Delta p$)} & \textbf{Dropoff Ratio} & \textbf{Score Margin} \\
+\midrule
+Clean Baseline & 0.8032 $\pm$ 0.0461 & 63.53\% & 0.0000 & 34.73 $\pm$ 22.80 & 0.7923 $\pm$ 0.1337 \\
+PGD Vanishing ($T = 15$) & \textbf{0.8340 $\pm$ 0.0284} & 51.43\% & 0.4264 $\pm$ 0.0525 & 17.67 $\pm$ 12.35 & 0.3254 $\pm$ 0.1687 \\
+AQSM Probe ($T = 15$) & \textbf{0.7945 $\pm$ 0.0316} & \textbf{45.44\%} & \textbf{0.4672 $\pm$ 0.0689} & \textbf{11.21 $\pm$ 7.98} & \textbf{0.6749 $\pm$ 0.1224} \\
+Standard Task PGD ($T = 15$) & 0.7853 $\pm$ 0.0351 & 47.42\% & 0.4534 $\pm$ 0.0537 & 14.43 $\pm$ 8.41 & 0.8526 $\pm$ 0.0381 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

@@ -1,0 +1,28 @@
+\begin{table}[!htbp]
+\centering
+\caption{Factorial interventional failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution (evaluation cohort $N = 300$ images, valid intra-subject $N = 299$ with $\text{df} = [1, 298]$; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 66.93\%), and $\Delta$ vs.\ Arm A/B.}
+\label{tab:tab3_causal_surgery}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Intervention Arm / Factor} & \textbf{AQSM} & \textbf{PGD Vanishing} & \textbf{Standard Task PGD} \\
+& mAP@50 (Rel.) / $\Delta$ [95\% CI] & mAP@50 (Rel.) / $\Delta$ [95\% CI] & mAP@50 (Rel.) / $\Delta$ [95\% CI] \\
+\midrule
+Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{clean}}]$) & 66.93\% (100.0\%) [Ref.] & 66.93\% (100.0\%) [Ref.] & 66.93\% (100.0\%) [Ref.] \\
+Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & 4.05\% (6.0\%) [$-$62.88 pp] & 1.32\% (2.0\%) [$-$65.61 pp] & 0.35\% (0.5\%) [$-$66.58 pp] \\
+Arm $\text{C}_{\text{full}}$: Adv Mem + Clean Prior ($M_{\mathrm{adv}} + Q_{\mathrm{clean}}$) & 9.31\% (13.9\%) [$-$57.62 pp] & 5.23\% (7.8\%) [$-$61.70 pp] & 2.16\% (3.2\%) [$-$64.77 pp] \\
+Arm $\text{C}_{\text{index}}$: Adv Mem + Adv Feat at Clean Idx ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{clean}}]$) & 4.86\% (7.3\%) [$-$62.07 pp] & 1.95\% (2.9\%) [$-$64.98 pp] & 1.08\% (1.6\%) [$-$65.84 pp] \\
+Arm $\text{D}_{\text{full}}$: Clean Mem + Adv Prior ($M_{\mathrm{clean}} + Q_{\mathrm{adv}}$) & 30.37\% (45.4\%) [$-$36.55 pp] & 42.92\% (64.1\%) [$-$24.00 pp] & 26.78\% (40.0\%) [$-$40.14 pp] \\
+Arm $\text{D}_{\text{index}}$: Clean Mem + Adv Idx ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{adv}}]$) & 39.11\% (58.4\%) [$-$27.82 pp] & 52.94\% (79.1\%) [$-$13.99 pp] & 42.52\% (63.5\%) [$-$24.41 pp] \\
+\midrule
+\textbf{Repeated-Measures ANOVA} & & & \\
+Main Effect Memory ($\text{ME}_M$) & $-42.95$ pp [$-45.49, -40.37$] & $-54.60$ pp [$-57.55, -51.84$] & $-60.72$ pp [$-63.37, -58.05$] \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.784$ ($F=1084.1, N/A$) & $\eta_p^2 = 0.830$ ($F=1452.8, N/A$) & $\eta_p^2 = 0.877$ ($F=2131.2, N/A$) \\
+Main Effect Query ($\text{ME}_Q$) & $-27.94$ pp [$-29.88, -25.99$] & $-19.19$ pp [$-20.85, -17.52$] & $-19.90$ pp [$-21.42, -18.43$] \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.709$ ($F=725.2, N/A$) & $\eta_p^2 = 0.622$ ($F=490.1, N/A$) & $\eta_p^2 = 0.692$ ($F=668.7, N/A$) \\
+Interaction ($M \times Q$) & $+10.06$ pp [$+7.77, +12.27$] & $+2.82$ pp [$+0.81, +4.74$] & $+13.61$ pp [$+12.03, +15.27$] \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.203$ ($F=75.9, N/A$) & $\eta_p^2 = 0.025$ ($F=7.6, N/A$) & $\eta_p^2 = 0.478$ ($F=272.6, N/A$) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

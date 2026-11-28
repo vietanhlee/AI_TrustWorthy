@@ -1,0 +1,2 @@
+Model Architecture,Backbone / Params,Evaluation Seed / Protocol,Clean mAP@50,AQSM mAP@50 [Rel. Drop],Delta_Hungarian Set Drift,Anchor FG Hit
+RT-DETR-R18VD (Multi-Seed),ResNet-18 (3 dec.),5 seeds ($\mu \pm \sigma$),66.93%,4.00 ± 0.74% [-94.02%],0.2345 ± 0.0037,47.12 ± 0.48%

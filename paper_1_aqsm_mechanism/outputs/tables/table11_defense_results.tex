@@ -1,0 +1,24 @@
+\begin{table}[!htbp]
+\centering
+\caption{Empirical detection performance of the Encoder Selection Monitor (ESM) on independent COCO val2017 test images ($N_{\text{test}} = 210$) and white-box Carlini-Tram\`er adaptive evasion boundary at native $640 \times 640$ resolution. Demonstrates that while ESM flags stationary AQSM ($\text{TPR} = 46.67\%, \text{AUROC} = 0.7743$), a white-box adaptive adversary ($\lambda_{\mathrm{evade}} \ge 0.2$) successfully evades runtime detection ($\text{TPR} \le 4.76\%$, bypass rate $\ge 95.24\%$) while sustaining $\text{mAP@50} \le 12.45\%$ vs.\ $66.93\%$ clean.}
+\label{tab:tab11_defense_results}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Evaluated Condition} & \textbf{Detection TPR (\%)} & \textbf{Empirical FPR (\%)} & \textbf{AUROC} & \textbf{Mean Anomaly Score} & \textbf{Post-Attack mAP@50 (\%)\textsuperscript{\textdagger}} \\
+\midrule
+Clean Test Baseline & --- & 10.00\% [Union Bound 22.4\%] & --- & 0.6813 & 66.93\% \\
+Stationary AQSM ($\epsilon = 16/255$) & \textbf{46.67\%} & 10.00\% & \textbf{0.7743} & 0.8818 & 4.05\% \\
+Stationary Standard Task PGD ($\epsilon = 16/255$) & 12.86\% & 10.00\% & 0.6505 & 0.8021 & 0.35\% \\
+Stationary Query Vanishing ($\epsilon = 16/255$) & 15.71\% & 10.00\% & 0.6098 & 0.7722 & 1.32\% \\
+\midrule
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & 4.76\% & --- & Degenerate\textsuperscript{*} & Bypass: 95.24\% & 9.77\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{2.38\%} & --- & Degenerate\textsuperscript{*} & \textbf{Bypass: 97.62\%} & \textbf{10.97\%} \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & 2.86\% & --- & Degenerate\textsuperscript{*} & Bypass: 97.14\% & 12.45\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & 2.38\% & --- & Degenerate\textsuperscript{*} & Bypass: 97.62\% & 12.08\% \\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the evaluation cohort ($N = 300$); adaptive evasion evaluated on the independent test split ($N_{\text{test}} = 210$).}} \\
+\multicolumn{6}{l}{\footnotesize{*At the fixed deployment threshold $\tau_{\mathrm{fused}}$, adaptive evasion suppresses detection TPR below clean FPR ($10.00\%$), achieving a bypass rate $\ge 95.24\%$ without establishing a valid monotonic ROC curve.}} \\
+\end{tabular}%
+}
+\end{table}

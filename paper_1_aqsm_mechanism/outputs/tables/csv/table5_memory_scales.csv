@@ -1,0 +1,4 @@
+Condition,Overall Cosine,Per-Scale Cosine (S3/S4/S5),FG Rel. L2,BG Rel. L2,FG/BG Ratio,Cosine Gap (S5 - S4)
+PGD Vanishing (T = 15),0.6888,0.704 / 0.639 / 0.646,0.7732,0.7955,0.9720,+0.008
+AQSM Probe (T = 15),0.6140,0.630 / 0.551 / 0.612,0.8358,0.9084,0.9201,+0.061
+Standard Task PGD (T = 15),0.6031,0.628 / 0.512 / 0.562,0.8996,0.9739,0.9237,+0.049

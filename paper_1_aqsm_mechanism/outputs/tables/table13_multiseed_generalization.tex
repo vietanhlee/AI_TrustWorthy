@@ -1,0 +1,14 @@
+\begin{table}[!htbp]
+\centering
+\caption{Multi-seed optimization stability ($K=5$ seeds) and cross-variant generalization on COCO val2017 ($640 \times 640$, eps=16/255, T=15, alpha=2/255).}
+\label{tab:tab13_multiseed_generalization}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Model Architecture} & \textbf{Backbone / Params} & \textbf{Evaluation Seed / Protocol} & \textbf{Clean mAP@50} & \textbf{AQSM mAP@50 [Rel. Drop]} & \textbf{$\Delta_{\mathrm{Hungarian}}$ Set Drift} & \textbf{Anchor FG Hit} \\
+\midrule
+RT-DETR-R18VD (Multi-Seed) & ResNet-18 (3 dec.) & 5 seeds ($\mu \pm \sigma$) & 66.93\% & 4.00 $\pm$ 0.74\% [$-$94.02\%] & 0.2345 $\pm$ 0.0037 & 47.12 $\pm$ 0.48\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

@@ -1,0 +1,156 @@
+{
+  "experiment": "Table 10: Hardware Execution Latency Breakdown & Profiling",
+  "model": "PekingU/rtdetr_r50vd",
+  "n_runs": 200,
+  "device_type": "cuda",
+  "timing_backend": "cuda_events_pytorch_fp32",
+  "hardware_metadata": {
+    "peak_vram_allocated_mb": 2824.89,
+    "vram_reserved_mb": 1891.63,
+    "gpu_name": "Tesla T4",
+    "cuda_capability": "7.5"
+  },
+  "throughput_fps": 13.28,
+  "stages": {
+    "Backbone": {
+      "mean_ms": 38.576,
+      "std_ms": 0.609,
+      "median_ms": 38.66,
+      "p95_ms": 39.358,
+      "p99_ms": 39.664,
+      "min_ms": 35.797,
+      "max_ms": 40.337
+    },
+    "Hybrid_Encoder": {
+      "mean_ms": 22.124,
+      "std_ms": 0.474,
+      "median_ms": 22.167,
+      "p95_ms": 22.756,
+      "p99_ms": 23.456,
+      "min_ms": 21.012,
+      "max_ms": 24.189
+    },
+    "Query_Selection": {
+      "mean_ms": 1.763,
+      "std_ms": 0.084,
+      "median_ms": 1.755,
+      "p95_ms": 1.835,
+      "p99_ms": 1.925,
+      "min_ms": 1.643,
+      "max_ms": 2.761
+    },
+    "Deformable_Decoder": {
+      "mean_ms": 12.471,
+      "std_ms": 0.925,
+      "median_ms": 12.295,
+      "p95_ms": 13.563,
+      "p99_ms": 16.286,
+      "min_ms": 11.246,
+      "max_ms": 20.888
+    },
+    "End_to_End_Total": {
+      "mean_ms": 75.313,
+      "std_ms": 1.421,
+      "median_ms": 75.268,
+      "p95_ms": 77.151,
+      "p99_ms": 79.754,
+      "min_ms": 72.107,
+      "max_ms": 83.437
+    }
+  },
+  "adversarial_latency_comparison": {
+    "Clean_Baseline": {
+      "mean_ms": 74.475,
+      "std_ms": 0.928,
+      "median_ms": 74.492,
+      "p95_ms": 76.124,
+      "p99_ms": 76.847,
+      "min_ms": 72.224,
+      "max_ms": 77.379,
+      "throughput_fps": 13.43,
+      "active_boxes_tau35": 7.6,
+      "n_runs": 100,
+      "n_distinct_images": 20,
+      "interleaved": true
+    },
+    "AQSM_Attack": {
+      "mean_ms": 74.722,
+      "std_ms": 1.186,
+      "median_ms": 74.49,
+      "p95_ms": 76.414,
+      "p99_ms": 78.496,
+      "min_ms": 73.129,
+      "max_ms": 82.143,
+      "throughput_fps": 13.38,
+      "active_boxes_tau35": 15.75,
+      "n_runs": 100,
+      "n_distinct_images": 20,
+      "interleaved": true
+    },
+    "Task_PGD": {
+      "mean_ms": 74.722,
+      "std_ms": 1.439,
+      "median_ms": 74.59,
+      "p95_ms": 76.189,
+      "p99_ms": 80.151,
+      "min_ms": 72.702,
+      "max_ms": 85.438,
+      "throughput_fps": 13.38,
+      "active_boxes_tau35": 35.25,
+      "n_runs": 100,
+      "n_distinct_images": 20,
+      "interleaved": true
+    },
+    "RT_DETR_Flooding_Sponge": {
+      "mean_ms": 74.632,
+      "std_ms": 1.008,
+      "median_ms": 74.609,
+      "p95_ms": 76.17,
+      "p99_ms": 77.516,
+      "min_ms": 72.363,
+      "max_ms": 78.023,
+      "throughput_fps": 13.4,
+      "active_boxes_tau35": 116.0,
+      "n_runs": 100,
+      "n_distinct_images": 20,
+      "interleaved": true
+    }
+  },
+  "cnn_nms_sponge_baseline": {
+    "status": "evaluated",
+    "model": "RetinaNet-R50-FPN-v2 (NMS)",
+    "pretrained_weights": true,
+    "interleaved": true,
+    "n_distinct_images": 20,
+    "clean": {
+      "mean_ms": 141.776,
+      "std_ms": 1.276,
+      "median_ms": 141.708,
+      "p95_ms": 144.165,
+      "throughput_fps": 7.05,
+      "mean_post_nms_boxes_05": 101.3,
+      "n_runs": 100
+    },
+    "sponge": {
+      "mean_ms": 142.178,
+      "std_ms": 1.319,
+      "median_ms": 141.86,
+      "p95_ms": 144.444,
+      "throughput_fps": 7.03,
+      "mean_post_nms_boxes_05": 182.3,
+      "n_runs": 100
+    },
+    "delta_ms": 0.402,
+    "delta_pct": 0.28
+  },
+  "n_distinct_images_profiled": 20,
+  "interleaved_protocol": true,
+  "percentage_breakdown": {
+    "Backbone_pct": 51.22,
+    "Hybrid_Encoder_pct": 29.38,
+    "Query_Selection_pct": 2.34,
+    "Deformable_Decoder_pct": 16.56
+  },
+  "timing_invariance_note": "RT-DETR exhibits stable measured inference latency under the evaluated proposal-flooding conditions, consistent with its fixed-query, NMS-free inference architecture (without ruling out hardware or system-level runtime variability).",
+  "timestamp": "2026-11-27 14:32:43"
+}

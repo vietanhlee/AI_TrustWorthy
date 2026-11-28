@@ -128,7 +128,7 @@
                     <span class="lang-en">Edge &amp; Latency</span><span class="lang-vi">Phần cứng &amp; Độ trễ</span>
                 </a>
                 <a href="#generalization" class="hover:text-sky-600 transition-colors">
-                    <span class="lang-en">R18 vs R50 &amp; Seeds</span><span class="lang-vi">R18 vs R50 &amp; Đa Seed</span>
+                    <span class="lang-en">Cross-Arch &amp; Seeds</span><span class="lang-vi">Đa Kiến trúc &amp; Seed</span>
                 </a>
                 <a href="#defense" class="hover:text-sky-600 transition-colors">
                     <span class="lang-en">Defenses &amp; SQA</span><span class="lang-vi">Phòng thủ &amp; SQA</span>
@@ -207,8 +207,8 @@
                 </a>
                 <a href="#generalization" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-sm">
                     <i class="fa-solid fa-table-cells text-base text-indigo-600"></i>
-                    <span class="lang-en">Table 13 Benchmark</span>
-                    <span class="lang-vi">Đối chiếu Bảng 13</span>
+                    <span class="lang-en">Tables 13 &amp; 14</span>
+                    <span class="lang-vi">Bảng 13 &amp; 14</span>
                 </a>
             </div>
         </section>
@@ -227,17 +227,17 @@
                         </h2>
                     </div>
                     <span class="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-0.5 rounded-full border border-slate-200 font-mono">
-                        <span class="lang-en">MS COCO val2017 &bull; N=300 &bull; R18VD &amp; R50VD</span>
-                        <span class="lang-vi">MS COCO val2017 &bull; N=300 &bull; R18VD &amp; R50VD</span>
+                        <span class="lang-en">COCO val2017 &bull; R18 (N=300) &amp; R50 (N=200) &bull; 6-Arch (N=300)</span>
+                        <span class="lang-vi">COCO val2017 &bull; R18 (N=300) &amp; R50 (N=200) &bull; 6-Arch (N=300)</span>
                     </span>
                 </div>
 
                 <div class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-4">
                     <p class="lang-en">
-                        Real-Time Detection Transformers (RT-DETR) eliminate Non-Maximum Suppression (NMS) via bipartite matching and dynamic top-$K$ query selection atop a multi-scale hybrid encoder. Because proposal selection operates directly on encoder feature pyramids, white-box encoder perturbations simultaneously corrupt memory representations and query routing. We present a symmetric empirical diagnostic study across both <strong>RT-DETR-R18VD</strong> (3 decoder layers) and <strong>RT-DETR-R50VD</strong> (6 decoder layers) on COCO val2017 ($N = 300$, native $640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ budget $\epsilon = 16/255$), using Adversarial Query Selection Manipulation (AQSM) as an encoder-restricted probe within a $2 \times 2$ factorial tensor-swap protocol alongside Query Vanishing and Standard Task PGD baselines.
+                        Real-Time Detection Transformers (RT-DETR) eliminate Non-Maximum Suppression (NMS) via bipartite matching and dynamic top-$K$ query selection atop a multi-scale hybrid encoder. Because proposal selection operates directly on encoder feature pyramids, white-box encoder perturbations simultaneously corrupt memory representations and query routing. We present an empirical diagnostic study across <strong>RT-DETR-R18VD</strong> ($N = 300$, 3 decoder layers), <strong>RT-DETR-R50VD</strong> ($N = 200$, 6 decoder layers), and a unified <strong>6-architecture benchmark</strong> ($N = 300$) on COCO val2017 (native $640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ $\epsilon = 16/255$), using Adversarial Query Selection Manipulation (AQSM) alongside pixel-space controls, Jayasundara et al. encoder attention disruption, Query Vanishing, and Standard Task PGD baselines.
                     </p>
                     <p class="lang-vi">
-                        Mô hình Real-Time Detection Transformer (RT-DETR) loại bỏ thuật toán Non-Maximum Suppression (NMS) bằng phép so khớp hai phía (bipartite matching) và cơ chế chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng đa tầng. Do tầng lựa chọn đề xuất hoạt động trực tiếp trên đặc trưng Encoder, các nhiễu loạn đối kháng white-box đồng thời làm sai lệch cả biểu diễn bộ nhớ lẫn định tuyến vị trí truy vấn. Chúng tôi thực hiện nghiên cứu chẩn đoán thực nghiệm đối xứng trên cả <strong>RT-DETR-R18VD</strong> (3 tầng decoder) và <strong>RT-DETR-R50VD</strong> (6 tầng decoder) trên tập COCO val2017 ($N = 300$, độ phân giải gốc $640 \times 640$, $S = 8.400$ tokens, ngưỡng nhiễu $\epsilon = 16/255$), triển khai AQSM như một công cụ chẩn đoán giới hạn tại Encoder trong giao thức can thiệp hoán đổi tensor $2 \times 2$ cùng các mốc chuẩn Query Vanishing và Task PGD.
+                        Mô hình Real-Time Detection Transformer (RT-DETR) loại bỏ thuật toán Non-Maximum Suppression (NMS) bằng phép so khớp hai phía (bipartite matching) và cơ chế chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng đa tầng. Do tầng lựa chọn đề xuất hoạt động trực tiếp trên đặc trưng Encoder, các nhiễu loạn đối kháng white-box đồng thời làm sai lệch cả biểu diễn bộ nhớ lẫn định tuyến vị trí truy vấn. Chúng tôi thực hiện nghiên cứu chẩn đoán thực nghiệm trên <strong>RT-DETR-R18VD</strong> ($N = 300$, 3 tầng decoder), <strong>RT-DETR-R50VD</strong> ($N = 200$, 6 tầng decoder) và bộ chuẩn <strong>6 kiến trúc</strong> ($N = 300$) trên tập COCO val2017 ($640 \times 640$, $S = 8.400$ tokens, $\epsilon = 16/255$), kết hợp AQSM với các nhóm đối chứng không gian điểm ảnh, Jayasundara et al., Query Vanishing và Task PGD.
                     </p>
                 </div>
 
@@ -247,44 +247,44 @@
                         <span class="w-5 h-5 rounded-md bg-rose-100 text-rose-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">1</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">Protocol-Level Failure Decomposition:</span>
-                                <span class="lang-vi">Phân Rã Kênh Gây Sụp Đổ:</span>
+                                <span class="lang-en">Interventional &amp; Pixel-Space Failure Decomposition:</span>
+                                <span class="lang-vi">Phân Rã Kênh Gây Sụp Đổ &amp; Đối Chứng Điểm Ảnh:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">AQSM collapses mAP@50 from $66.93\%$ to $4.05\%$ on R18VD (5-seed $4.00 \pm 0.74\%$) and $72.95\% \to 9.14\%$ on R50VD (5-seed $10.19 \pm 1.10\%$). Memory corruption receives $60.59\%$ per-image Shapley share on R18VD ($66.75\%$ pooled mAP, $71.40\%$ log-scale), shifting to $68.16\%$ on 6-layer R50VD; query eviction is an essential secondary channel ($39.41\%$ / $31.84\%$).</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">AQSM làm sụp đổ mAP@50 từ $66.93\%$ xuống $4.05\%$ trên R18VD (5-seed $4.00 \pm 0.74\%$) và từ $72.95\%$ xuống $9.14\%$ trên R50VD (5-seed $10.19 \pm 1.10\%$). Tổn hại bộ nhớ nhận $60.59\%$ tỷ trọng Shapley trên R18VD ($66.75\%$ pooled mAP, $71.40\%$ log-scale) và tăng lên $68.16\%$ trên R50VD 6 tầng; trục xuất query là kênh thứ cấp thiết yếu ($39.41\%$ / $31.84\%$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">AQSM collapses mAP@50 from $66.93\%$ to $4.05\%$ on R18VD ($N=300$; 5-seed $4.00 \pm 0.74\%$) and $74.45\% \to 10.15\%$ on R50VD ($N=200$; 5-seed $8.53 \pm 0.88\%$). Memory corruption accounts for $60.59\%\text{--}71.40\%$ attribution on R18VD and $68.22\%\text{--}74.92\%$ on R50VD. Crucially, pixel-space controls corroborate this without OOD swaps: Memory-Isolated Query preserves $59.07\%$ R18VD / $68.67\%$ R50VD vs. $0.00\%$ under Pure-Memory disruption.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">AQSM làm sụp đổ mAP@50 từ $66.93\%$ xuống $4.05\%$ trên R18VD ($N=300$; 5-seed $4.00 \pm 0.74\%$) và $74.45\% \to 10.15\%$ trên R50VD ($N=200$; 5-seed $8.53 \pm 0.88\%$). Tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ trên R18VD và $68.22\%\text{--}74.92\%$ trên R50VD. Đối chứng không gian ảnh xác nhận không cần tráo tensor OOD: Memory-Isolated Query giữ $59.07\%$ / $68.67\%$ trong khi phá bộ nhớ thuần sụp đổ về $0.00\%$.</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
                         <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">2</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">Attention Localization vs Spatial Misrouting:</span>
-                                <span class="lang-vi">Tiêu Điểm Chú Ý vs Định Tuyến Sai Lệch:</span>
+                                <span class="lang-en">TOST Attention Invariance vs. Center-Only Misrouting:</span>
+                                <span class="lang-vi">Kiểm Định TOST Chú Ý vs. Định Tuyến Tâm Tọa Độ:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Normalized deformable attention entropy remains stable $\approx 0.80$ ($0.803 \to 0.794$ R18VD; $0.816 \to 0.807$ R50VD), refuting attention scattering. Instead, reference coordinates drift into background clutter ($\Delta p = 0.475$ R18VD; $0.450$ R50VD), driving anchor FG hit rate down ($66.0\% \to 45.4\%$, TOST equivalent to uniform sampling $p = 0.048$).</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Entropy attention chuẩn hóa duy trì mức hẹp $\approx 0.80$ ($0.803 \to 0.794$ R18VD; $0.816 \to 0.807$ R50VD), bác bỏ giả thuyết tán xạ chú ý. Ngược lại, tọa độ tham chiếu trôi dạt vào vùng nền nhiễu ($\Delta p = 0.475$ R18VD; $0.450$ R50VD), kéo tỷ lệ trúng FG ($66.0\% \to 45.4\%$, kiểm định TOST tương đương lấy mẫu đều $p = 0.048$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Normalized attention entropy remains statistically equivalent within $\pm 0.02$ TOST bounds ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), while reference drift ($\Delta p = 0.4672$ / $0.4459$) cuts sampling hit ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Center-only random shifts ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduce 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Entropy attention duy trì tương đương thống kê trong biên $\pm 0.02$ TOST ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), nhưng độ trôi tọa độ ($\Delta p = 0.4672$ / $0.4459$) cắt giảm tỷ lệ trúng ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Dịch chuyển riêng tâm ($33.47\%$ / $46.79\%$) tái lập sụp đổ 4D ($33.92\%$ / $48.43\%$).</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
                         <span class="w-5 h-5 rounded-md bg-sky-100 text-sky-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">3</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">Fixed-Query Hardware Latency Stability:</span>
-                                <span class="lang-vi">Độ Trễ Phần Cứng Đơn Định Cố Định Query:</span>
+                                <span class="lang-en">20-Image Interleaved Latency vs. RetinaNet+NMS:</span>
+                                <span class="lang-vi">Độ Trễ Xen Kẽ 20 Ảnh vs. RetinaNet+NMS:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events on NVIDIA Tesla T4 (FP32), RT-DETR exhibits invariant latency across Clean, AQSM, Task PGD, and a 207-box proposal flooding sponge stress test ($39.02 \to 38.66$ ms R18VD; $74.89 \to 72.76$ ms R50VD), confirming structural immunity to NMS latency spikes.</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events trên NVIDIA Tesla T4 (FP32), RT-DETR giữ vững độ trễ suy luận bất biến qua các điều kiện Clean, AQSM, Task PGD và thử nghiệm bẫy trễ proposal sponge 207 hộp ($39.02 \to 38.66$ ms R18VD; $74.89 \to 72.76$ ms R50VD), khẳng định miễn nhiễm cấu trúc trước bẫy trễ NMS.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events across 20 interleaved scenes on Tesla T4 (FP32), RT-DETR exhibits invariant execution under Clean, AQSM, Task PGD, and 154-box sponge stress ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), running $3.8\times$ faster than RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms with capped batched NMS).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events xen kẽ ngẫu nhiên trên 20 ảnh thực trên Tesla T4 (FP32), RT-DETR duy trì độ trễ bất biến qua Clean, AQSM, Task PGD và sponge 154 hộp ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh gấp $3.8\times$ so với RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms với NMS giới hạn ứng viên).</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
                         <span class="w-5 h-5 rounded-md bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5 font-bold">4</span>
                         <div>
                             <strong class="text-slate-900 block font-semibold mb-0.5">
-                                <span class="lang-en">Defense Limits &amp; Negative SQA Result:</span>
-                                <span class="lang-vi">Ranh Giới Phòng Thủ &amp; Bài Học Từ SQA:</span>
+                                <span class="lang-en">Ensemble Hardening Bounds, Calibrated SQA &amp; 6-Arch Sweep:</span>
+                                <span class="lang-vi">Ranh Giới Ensemble, SQA Chuẩn Hóa &amp; Tổng Quát 6 Kiến Trúc:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Runtime monitor ESM (AUROC $0.7881$ R18VD / $0.6914$ R50VD) suffers $94.76\%\text{--}97.14\%$ raw bypass under white-box adaptive evasion. Zero-shot Static Query Augmentation (SQA) yields an informative empirical null result ($4.05\% \to 3.97\%$ R18VD; $9.14\% \to 9.25\%$ R50VD), proving unhardened static queries cannot rescue severely corrupted encoder memory ($M_{\mathrm{adv}}$).</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Bộ giám sát ESM (AUROC $0.7881$ R18VD / $0.6914$ R50VD) bị đối thủ thích nghi qua mặt $94.76\%\text{--}97.14\%$. Kỹ thuật Tăng cường Truy vấn Tĩnh (SQA) zero-shot đem lại kết quả null mang tính chẩn đoán ($4.05\% \to 3.97\%$ R18VD; $9.14\% \to 9.25\%$ R50VD), chứng minh query tĩnh chưa gia cố không thể khôi phục bộ nhớ encoder đã bị tàn phá nặng ($M_{\mathrm{adv}}$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Standalone ESM ($46.67\%$ TPR), SCM, and BCM suffer $84\%\text{--}99\%$ adaptive bypass, whereas their Ensemble caps joint evasion at $0.00\%\text{--}0.48\%$. Even after logit calibration and encoder sampling, zero-shot SQA remains null ($4.03\%$ R18VD / $10.27\%$ R50VD). Dynamic-selection failure generalizes across RT-DETRv2 ($4.01\%$) and Deformable DETR ($3.99\%$) on $N = 300$.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Các giám sát đơn lẻ ESM ($46.67\%$ TPR), SCM, BCM bị qua mặt $84\%\text{--}99\%$, nhưng Ensemble giữ qua mặt đồng thời ở mức $0.00\%\text{--}0.48\%$. Ngay cả khi chuẩn hóa logit và lấy mẫu encoder, SQA zero-shot vẫn không phục hồi ($4.03\%$ / $10.27\%$). Lỗ hổng chọn lọc động lặp lại trên RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$).</span>
                         </div>
                     </div>
                 </div>
@@ -298,16 +298,16 @@
                     </summary>
                     <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed space-y-2 bg-slate-50/50 p-3.5 rounded-xl font-serif">
                         <p class="lang-en">
-                            Real-Time Detection Transformers (RT-DETR) eliminate Non-Maximum Suppression (NMS) via bipartite matching and dynamic top-$K$ query selection atop a multi-scale hybrid encoder. Because proposal selection operates directly on encoder feature pyramids, white-box encoder perturbations simultaneously corrupt memory representations and query routing. We present a symmetric empirical diagnostic study across both RT-DETR-R18VD (3 decoder layers) and RT-DETR-R50VD (6 decoder layers) on COCO val2017 ($N = 300$, native $640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ budget $\epsilon = 16/255$), using Adversarial Query Selection Manipulation (AQSM) as an encoder-restricted probe within a $2 \times 2$ factorial tensor-swap protocol alongside Query Vanishing and Standard Task PGD baselines.
+                            Real-Time Detection Transformers (RT-DETR) replace Non-Maximum Suppression (NMS) with bipartite matching and dynamic top-$K$ query selection over multi-scale hybrid encoder pyramids. Because candidate selection operates directly on encoder features, white-box encoder perturbations simultaneously corrupt encoder memory ($M$) and query routing ($Q$). We investigate this failure mechanism across RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$), and a unified six-model cross-architecture suite ($N = 300$) on COCO val2017 ($640 \times 640$, $S = 8,400$ tokens, $\ell_\infty$ $\epsilon = 16/255$).
                         </p>
                         <p class="lang-en">
-                            Our measurements establish four main observations: (1) Protocol-Level Failure Decomposition: AQSM collapses COCO mAP@50 from $66.93\%$ to $4.05\%$ on R18VD ($-93.96\%$; 5-seed fresh generation $4.00 \pm 0.74\%$) and from $72.95\%$ to $9.14\%$ on R50VD ($-87.47\%$; 5-seed $10.19 \pm 1.10\%$). Under our $2 \times 2$ tensor-swap protocol ($N_{\mathrm{valid}} = 299$), encoder memory corruption receives $60.59\%$ ($95\%$ BCa CI $[58.33\%, 62.84\%]$) per-image Shapley attribution on $AP_i$ ($66.75\%$ pooled COCO mAP; $71.40\%$ log-retention scale) vs. $39.41\%$ for query prior disruption on R18VD, shifting further toward memory on 6-layer R50VD ($68.16\%$ per-image / $72.19\%$ pooled / $75.20\%$ log-retention). (2) Attention Localization vs. Spatial Misrouting: Across decoder layers, normalized deformable attention entropy stays within a narrow band near $\approx 0.80$ ($0.8032 \to 0.7938$ on R18VD; $0.8156 \to 0.8071$ on R50VD), whereas large reference coordinate drift drops anchor foreground hit rate ($66.00\% \to 45.37\%$ R18VD; $67.02\% \to 49.67\%$ R50VD) and deformable sampling hit rate ($63.53\% \to 44.17\%$ R18VD), approaching uniform spatial chance ($45.02\%$ uniform grid / $44.75\%$ GT union) across AQSM, Vanishing, and Task PGD. (3) Measured Execution Latency Stability: Timed via CUDA events on NVIDIA Tesla T4 (PyTorch FP32), RT-DETR exhibits invariant latency across Clean, AQSM, Task PGD, and a 207-box proposal-flooding sponge attack ($39.02 \to 38.66$ ms on R18VD; $74.89 \to 72.76$ ms on R50VD), consistent with fixed-query $N_q = 300$ NMS-free execution. (4) Defense Baseline Limits and Negative SQA Result: A calibrated Encoder Selection Monitor (ESM, stationary AUROC $0.7881$ R18VD / $0.6914$ R50VD) suffers $94.76\%\text{--}97.14\%$ raw monitor bypass under white-box adaptive evasion, while zero-shot Static Query Augmentation (SQA) fails to restore stationary detection ($4.05\% \to 3.97\%$, $-0.08$ pp R18VD; $9.14\% \to 9.25\%$, $+0.11$ pp R50VD), demonstrating that unhardened query augmentation cannot compensate for corrupted encoder memory ($M_{\mathrm{adv}}$).
+                            Our diagnostic suite establishes four principal findings: (1) Under $2 \times 2$ tensor-swap patching ($N_{\mathrm{valid}} = 299$ R18VD / $200$ R50VD), memory corruption accounts for $60.59\%\text{--}71.40\%$ of degradation on R18VD and $68.22\%\text{--}74.92\%$ on R50VD, corroborated in feasible pixel space where memory-isolated query attacks retain $59.07\%$ / $68.67\%$ mAP@50 versus $0.00\%$ under pure memory disruption. (2) Normalized deformable cross-attention entropy stays invariant within $\pm 0.02$ TOST bounds ($p = 3.46 \times 10^{-5}$ R18VD; $p = 6.80 \times 10^{-6}$ R50VD) while reference drift collapses sampling hit rate and center-only random shifts reproduce matched-$L_2$ collapse. (3) Interleaved 20-scene CUDA profiling confirms invariant RT-DETR latency ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), $3.8\times$ faster than capped-NMS RetinaNet-R50-FPN-v2 ($139.73 \to 140.36$ ms). (4) Adaptive white-box evasion bypasses standalone ESM/SCM/BCM watchdogs ($84\%\text{--}99\%$) while an Ensemble caps joint evasion at $0.00\%\text{--}0.48\%$, logit-calibrated encoder-sampled SQA stays null ($4.03\%$ / $10.27\%$), and dynamic selection vulnerability transfers to RT-DETRv2-R18VD ($4.01\%$) and two-stage Deformable DETR ($3.99\%$).
                         </p>
                         <p class="lang-vi">
-                            Mô hình Real-Time Detection Transformer (RT-DETR) loại bỏ bước hậu xử lý phi cực đại (NMS) bằng cơ chế bipartite matching và chọn lọc truy vấn động top-$K$ trên đỉnh bộ mã hóa lai đa tầng. Vì tầng lựa chọn đề xuất hoạt động trực tiếp trên kim tự tháp đặc trưng, các nhiễu loạn đối kháng white-box đồng thời làm sai lệch cả biểu diễn bộ nhớ lẫn định tuyến vị trí truy vấn. Chúng tôi trình bày một nghiên cứu chẩn đoán thực nghiệm đối xứng trên cả RT-DETR-R18VD (3 tầng decoder) và RT-DETR-R50VD (6 tầng decoder) trên tập COCO val2017 ($N = 300$, $640 \times 640$, $S = 8.400$ tokens, $\epsilon = 16/255$), sử dụng AQSM làm công cụ chẩn đoán giới hạn tại Encoder trong giao thức can thiệp hoán đổi tensor $2 \times 2$ cùng các mốc chuẩn Query Vanishing và Task PGD.
+                            Real-Time Detection Transformer (RT-DETR) thay thế hậu xử lý NMS bằng bipartite matching và chọn lọc truy vấn động top-$K$ trên kim tự tháp đặc trưng của encoder. Do tầng chọn đề xuất nằm trực tiếp trên đầu ra encoder, nhiễu loạn white-box đồng thời phá hoại bộ nhớ ($M$) và định tuyến truy vấn ($Q$). Chúng tôi phân tích cơ chế sụp đổ trên RT-DETR-R18VD ($N = 300$), RT-DETR-R50VD ($N = 200$) và bộ chuẩn 6 kiến trúc ($N = 300$) trên tập COCO val2017 ($640 \times 640$, $S = 8.400$ tokens, $\epsilon = 16/255$).
                         </p>
                         <p class="lang-vi">
-                            Kết quả thực nghiệm xác lập 4 quan sát cốt lõi: (1) Phân rã thất bại cấp giao thức: AQSM kéo tụt COCO mAP@50 từ $66.93\%$ xuống $4.05\%$ trên R18VD ($-93.96\%$; sinh mới 5 seed $4.00 \pm 0.74\%$) và từ $72.95\%$ xuống $9.14\%$ trên R50VD ($-87.47\%$; 5-seed $10.19 \pm 1.10\%$). Dưới giao thức hoán đổi tensor $2 \times 2$ ($N_{\mathrm{valid}} = 299$), tổn hại bộ nhớ encoder chiếm $60.59\%$ (95% BCa CI $[58.33\%, 62.84\%]$) đóng góp Shapley từng ảnh trên $AP_i$ ($66.75\%$ pooled COCO mAP; $71.40\%$ trên thang log-retention) so với $39.41\%$ cho sự phá vỡ vị trí query trên R18VD, và dịch chuyển mạnh hơn về phía bộ nhớ trên R50VD 6 tầng ($68.16\%$ per-image / $72.19\%$ pooled / $75.20\%$ log-retention). (2) Tiêu điểm chú ý vs Định tuyến sai lệch: Qua các tầng decoder, entropy attention chuẩn hóa biến dạng nằm ổn định trong dải hẹp quanh $\approx 0.80$ ($0.8032 \to 0.7938$ trên R18VD; $0.8156 \to 0.8071$ trên R50VD), trong khi độ trôi tọa độ tham chiếu kéo tụt tỷ lệ anchor trúng foreground ($66.00\% \to 45.37\%$ R18VD; $67.02\% \to 49.67\%$ R50VD) và tỷ lệ lấy mẫu trúng ($63.53\% \to 44.17\%$ R18VD), tiệm cận xác suất lấy mẫu đều ngẫu nhiên ($45.02\%$ lưới đều / $44.75\%$ hợp GT) trên cả AQSM, Vanishing và Task PGD. (3) Tính ổn định độ trễ thực thi phần cứng: Đo đạc bằng CUDA events trên NVIDIA Tesla T4 (PyTorch FP32), RT-DETR duy trì độ trễ bất biến giữa Clean, AQSM, Task PGD và thử nghiệm bẫy trễ proposal sponge 207 hộp ($39.02 \to 38.66$ ms trên R18VD; $74.89 \to 72.76$ ms trên R50VD), phù hợp với kiến trúc cố định $N_q = 300$ không dùng NMS. (4) Ranh giới phòng thủ và kết quả null của SQA: Bộ giám sát ESM (AUROC tĩnh $0.7881$ R18VD / $0.6914$ R50VD) bị qua mặt $94.76\%\text{--}97.14\%$ dưới đối thủ thích nghi white-box, trong khi kỹ thuật Tăng cường Truy vấn Tĩnh (SQA) zero-shot không thể khôi phục độ chính xác ($4.05\% \to 3.97\%$, $-0.08$ pp R18VD; $9.14\% \to 9.25\%$, $+0.11$ pp R50VD), chứng minh query tĩnh chưa gia cố không thể bù đắp cho bộ nhớ encoder đã bị sai lệch ($M_{\mathrm{adv}}$).
+                            Nghiên cứu xác lập bốn phát hiện cốt lõi: (1) Dưới giao thức hoán đổi tensor $2 \times 2$, tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ trên R18VD và $68.22\%\text{--}74.92\%$ trên R50VD, được xác chứng trong không gian ảnh khả thi khi tấn công cô lập query vẫn giữ được $59.07\%$ / $68.67\%$ mAP@50 so với $0.00\%$ khi phá bộ nhớ thuần. (2) Entropy attention duy trì bất biến trong biên $\pm 0.02$ TOST ($p = 3.46 \times 10^{-5}$ / $6.80 \times 10^{-6}$), trong khi dịch chuyển riêng tâm tọa độ tái lập sụp đổ $L_2$. (3) Đo đạc CUDA xen kẽ 20 ảnh cho thấy độ trễ RT-DETR ổn định ($36.60 \to 36.37$ ms R18VD; $74.48 \to 74.63$ ms R50VD), nhanh hơn $3.8\times$ so với RetinaNet-R50-FPN-v2. (4) Đối thủ thích nghi vượt qua từng giám sát đơn lẻ ($84\%\text{--}99\%$) nhưng Ensemble kìm giữ tỷ lệ qua mặt đồng thời còn $0.00\%\text{--}0.48\%$, SQA chuẩn hóa logit vẫn không phục hồi ($4.03\%$ / $10.27\%$), và lỗ hổng này lặp lại trên RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$).
                         </p>
                     </div>
                 </details>
@@ -463,10 +463,10 @@
                     <span class="lang-vi">Thực Nghiệm Can Thiệp Giai Thừa 2×2 Trên COCO val2017</span>
                 </h2>
                 <p class="text-sm text-slate-600 lang-en">
-                    Surgically swapping memory ($M$) and query ($Q$) representations across clean and adversarial passes isolates and quantifies their contributions to detector collapse across both RT-DETR-R18VD and RT-DETR-R50VD ($N = 300$, $N_{\mathrm{valid}} = 299$, $\epsilon = 16/255$).
+                    Surgically swapping memory ($M$) and query ($Q$) representations across clean and adversarial passes isolates and quantifies their contributions to detector collapse across RT-DETR-R18VD ($N = 300$, $N_{\mathrm{valid}} = 299$) and RT-DETR-R50VD ($N = 200$, $N_{\mathrm{valid}} = 200$) at $\epsilon = 16/255$.
                 </p>
                 <p class="text-sm text-slate-600 lang-vi">
-                    Can thiệp hoán đổi có kiểm soát giữa biểu diễn bộ nhớ ($M$) và truy vấn ($Q$) qua các lượt chạy sạch và đối kháng giúp cô lập và định lượng chính xác từng kênh gây sụp đổ mô hình trên cả RT-DETR-R18VD và RT-DETR-R50VD ($N = 300$, $N_{\mathrm{valid}} = 299$, $\epsilon = 16/255$).
+                    Can thiệp hoán đổi có kiểm soát giữa biểu diễn bộ nhớ ($M$) và truy vấn ($Q$) qua các lượt chạy sạch và đối kháng giúp cô lập và định lượng chính xác từng kênh gây sụp đổ trên RT-DETR-R18VD ($N = 300$, $N_{\mathrm{valid}} = 299$) và RT-DETR-R50VD ($N = 200$, $N_{\mathrm{valid}} = 200$) tại $\epsilon = 16/255$.
                 </p>
             </div>
 
@@ -478,7 +478,7 @@
                         <span class="lang-vi">Bảng 3: Ma Trận Can Thiệp Hoán Đổi Tensor 6 Nhánh 2×2</span>
                     </h3>
                     <span class="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 w-fit">
-                        COCO val2017 &bull; N=300 &bull; Native 640×640 &bull; ε=16/255
+                        COCO val2017 &bull; R18 (N=300) / R50 (N=200) &bull; ε=16/255
                     </span>
                 </div>
                 <div class="overflow-x-auto custom-scrollbar">
@@ -599,7 +599,7 @@
                             <!-- RT-DETR-R50VD Group -->
                             <tr class="bg-slate-100/60">
                                 <td colspan="6" class="py-2 px-5 font-bold text-slate-800 text-[11px] uppercase tracking-wider">
-                                    RT-DETR-R50VD (6 Decoder Layers &bull; ResNet-50 Backbone &bull; 42M Params)
+                                    RT-DETR-R50VD (6 Decoder Layers &bull; ResNet-50 Backbone &bull; N = 200)
                                 </td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition">
@@ -610,8 +610,8 @@
                                 </td>
                                 <td class="py-3 px-3 text-center font-mono text-emerald-700">Clean</td>
                                 <td class="py-3 px-3 text-center font-mono text-emerald-700">Clean (300)</td>
-                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono">72.95%</td>
-                                <td class="py-3 px-4 text-right font-mono">55.73%</td>
+                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono">74.45%</td>
+                                <td class="py-3 px-4 text-right font-mono">57.47%</td>
                                 <td class="py-3 px-5 text-right text-emerald-600 font-bold font-mono">100.0%</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-rose-50/30">
@@ -622,9 +622,9 @@
                                 </td>
                                 <td class="py-3 px-3 text-center font-mono text-rose-700 font-semibold">Adversarial</td>
                                 <td class="py-3 px-3 text-center font-mono text-rose-700 font-semibold">Adversarial (300)</td>
-                                <td class="py-3 px-4 text-right font-bold text-rose-600 font-mono">9.14%</td>
-                                <td class="py-3 px-4 text-right font-mono text-rose-600">5.41%</td>
-                                <td class="py-3 px-5 text-right text-rose-600 font-bold font-mono">12.5%</td>
+                                <td class="py-3 px-4 text-right font-bold text-rose-600 font-mono">10.15%</td>
+                                <td class="py-3 px-4 text-right font-mono text-rose-600">5.75%</td>
+                                <td class="py-3 px-5 text-right text-rose-600 font-bold font-mono">13.6%</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition">
                                 <td class="py-3 px-5 font-semibold text-slate-900 flex items-center gap-2">
@@ -634,9 +634,9 @@
                                 </td>
                                 <td class="py-3 px-3 text-center font-mono text-rose-700 font-semibold">Adversarial</td>
                                 <td class="py-3 px-3 text-center font-mono text-emerald-700 font-semibold">Clean (300)</td>
-                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono">14.43%</td>
-                                <td class="py-3 px-4 text-right font-mono">9.02%</td>
-                                <td class="py-3 px-5 text-right text-slate-600 font-bold font-mono">19.8%</td>
+                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono">15.46%</td>
+                                <td class="py-3 px-4 text-right font-mono">9.56%</td>
+                                <td class="py-3 px-5 text-right text-slate-600 font-bold font-mono">20.8%</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-slate-50/40">
                                 <td class="py-3 px-5 font-semibold text-slate-700 flex items-center gap-2">
@@ -646,9 +646,9 @@
                                 </td>
                                 <td class="py-3 px-3 text-center font-mono text-rose-700 font-semibold">Adversarial</td>
                                 <td class="py-3 px-3 text-center font-mono text-purple-700 font-semibold">Adv Feat @ Clean Idx</td>
-                                <td class="py-3 px-4 text-right font-bold text-slate-700 font-mono">11.06%</td>
-                                <td class="py-3 px-4 text-right font-mono">6.46%</td>
-                                <td class="py-3 px-5 text-right text-slate-500 font-bold font-mono">15.2%</td>
+                                <td class="py-3 px-4 text-right font-bold text-slate-700 font-mono">12.20%</td>
+                                <td class="py-3 px-4 text-right font-mono">7.16%</td>
+                                <td class="py-3 px-5 text-right text-slate-500 font-bold font-mono">16.4%</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition">
                                 <td class="py-3 px-5 font-semibold text-slate-900 flex items-center gap-2">
@@ -658,9 +658,9 @@
                                 </td>
                                 <td class="py-3 px-3 text-center font-mono text-emerald-700 font-semibold">Clean</td>
                                 <td class="py-3 px-3 text-center font-mono text-rose-700 font-semibold">Adversarial (300)</td>
-                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono">42.75%</td>
-                                <td class="py-3 px-4 text-right font-mono">32.25%</td>
-                                <td class="py-3 px-5 text-right text-sky-600 font-bold font-mono">58.6%</td>
+                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono">43.98%</td>
+                                <td class="py-3 px-4 text-right font-mono">34.51%</td>
+                                <td class="py-3 px-5 text-right text-sky-600 font-bold font-mono">59.1%</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-indigo-50/30">
                                 <td class="py-3 px-5 font-semibold text-indigo-950 flex items-center gap-2">
@@ -670,9 +670,9 @@
                                 </td>
                                 <td class="py-3 px-3 text-center font-mono text-emerald-700 font-semibold">Clean</td>
                                 <td class="py-3 px-3 text-center font-mono text-purple-700 font-semibold">Clean Feat @ Adv Idx</td>
-                                <td class="py-3 px-4 text-right font-bold text-indigo-700 font-mono">53.57%</td>
-                                <td class="py-3 px-4 text-right font-mono text-indigo-700">41.60%</td>
-                                <td class="py-3 px-5 text-right text-indigo-700 font-bold font-mono">73.4%</td>
+                                <td class="py-3 px-4 text-right font-bold text-indigo-700 font-mono">52.82%</td>
+                                <td class="py-3 px-4 text-right font-mono text-indigo-700">41.40%</td>
+                                <td class="py-3 px-5 text-right text-indigo-700 font-bold font-mono">70.9%</td>
                             </tr>
                         </tbody>
                     </table>
@@ -687,12 +687,12 @@
                             <span class="lang-en">Primary Driver: Memory ($M$)</span>
                             <span class="lang-vi">Động Lực Chính: Bộ Nhớ Encoder ($M$)</span>
                         </span>
-                        <div class="text-2xl font-extrabold text-slate-900 font-mono mt-1">60.59% &rarr; 68.16%</div>
+                        <div class="text-2xl font-extrabold text-slate-900 font-mono mt-1">60.59% &rarr; 68.22%</div>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-en">
-                            Per-image Shapley share on $AP_i$ is <strong>60.59%</strong> on R18VD (CI $[58.33, 62.84]$%; pooled $66.75\%$; log-scale $71.40\%$), shifting to <strong>68.16%</strong> on 6-layer R50VD (pooled $72.19\%$). Repeated-measures ANOVA shows $\text{ME}_M = -42.95$ pp ($\eta_p^2 = 0.784, F = 1084.1, p < 0.001$).
+                            Per-image Shapley share on $AP_i$ is <strong>60.59%</strong> on R18VD (CI $[58.33, 62.84]$%; pooled $66.75\%$; log-scale $71.40\%$), rising to <strong>68.22%</strong> on 6-layer R50VD (pooled $72.18\%$; log-scale $74.92\%$). Repeated-measures ANOVA gives $\text{ME}_M = -42.95$ pp ($\eta_p^2 = 0.784, F = 1084.1$).
                         </p>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-vi">
-                            Tỷ trọng Shapley từng ảnh trên $AP_i$ đạt <strong>60.59%</strong> trên R18VD (CI $[58.33, 62.84]$%; pooled $66.75\%$; log-scale $71.40\%$), tăng lên <strong>68.16%</strong> trên R50VD (pooled $72.19\%$). ANOVA đo lường lặp lại xác nhận $\text{ME}_M = -42.95$ pp ($\eta_p^2 = 0.784, F = 1084.1, p < 0.001$).
+                            Tỷ trọng Shapley từng ảnh trên $AP_i$ đạt <strong>60.59%</strong> trên R18VD (CI $[58.33, 62.84]$%; pooled $66.75\%$; log-scale $71.40\%$), tăng lên <strong>68.22%</strong> trên R50VD 6 tầng (pooled $72.18\%$; log-scale $74.92\%$). ANOVA đo lường lặp lại cho $\text{ME}_M = -42.95$ pp ($\eta_p^2 = 0.784, F = 1084.1$).
                         </p>
                     </div>
                 </div>
@@ -703,12 +703,12 @@
                             <span class="lang-en">Secondary Channel: Query ($Q$)</span>
                             <span class="lang-vi">Kênh Thứ Cấp: Query Prior ($Q$)</span>
                         </span>
-                        <div class="text-2xl font-extrabold text-slate-900 font-mono mt-1">39.41% &rarr; 31.84%</div>
+                        <div class="text-2xl font-extrabold text-slate-900 font-mono mt-1">39.41% &rarr; 31.78%</div>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-en">
-                            Query eviction accounts for <strong>39.41%</strong> Shapley share on R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$), buffering down to <strong>31.84%</strong> on 6-layer R50VD ($\text{ME}_Q = -19.96$ pp, $\eta_p^2 = 0.637$).
+                            Query eviction accounts for <strong>39.41%</strong> Shapley share on R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$), buffering down to <strong>31.78%</strong> on 6-layer R50VD ($\text{ME}_Q = -20.27$ pp, $\eta_p^2 = 0.576$).
                         </p>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-vi">
-                            Trục xuất query chiếm <strong>39.41%</strong> tỷ trọng Shapley trên R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$), giảm xuống <strong>31.84%</strong> trên R50VD 6 tầng ($\text{ME}_Q = -19.96$ pp, $\eta_p^2 = 0.637$).
+                            Trục xuất query chiếm <strong>39.41%</strong> tỷ trọng Shapley trên R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$), giảm xuống <strong>31.78%</strong> trên R50VD 6 tầng ($\text{ME}_Q = -20.27$ pp, $\eta_p^2 = 0.576$).
                         </p>
                     </div>
                 </div>
@@ -719,12 +719,12 @@
                             <span class="lang-en">Clean-Memory Index Resilience ($\text{Arm D}_{\text{index}}$)</span>
                             <span class="lang-vi">Sức Chống Chịu Chỉ Số Khi Bộ Nhớ Sạch</span>
                         </span>
-                        <div class="text-2xl font-extrabold text-indigo-700 font-mono mt-1">39.11% &rarr; 53.57%</div>
+                        <div class="text-2xl font-extrabold text-indigo-700 font-mono mt-1">39.11% &rarr; 52.82%</div>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-en">
-                            With pristine memory $M_{\mathrm{clean}}$, purely swapping top-300 indices retains <strong>58.4%</strong> ($39.11\%$ mAP@50) on R18VD, rising to <strong>73.4%</strong> ($53.57\%$ mAP@50) on 6-layer R50VD, showing deeper decoders buffer spatial misindexing.
+                            With pristine memory $M_{\mathrm{clean}}$, purely swapping top-300 indices retains <strong>58.4%</strong> ($39.11\%$ mAP@50) on R18VD, rising to <strong>70.9%</strong> ($52.82\%$ mAP@50) on 6-layer R50VD, showing deeper decoders buffer spatial misindexing.
                         </p>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-vi">
-                            Khi giữ nguyên bộ nhớ sạch $M_{\mathrm{clean}}$, chỉ riêng tráo chỉ số top-300 vẫn giữ được <strong>58.4%</strong> ($39.11\%$ mAP@50) trên R18VD và tăng lên <strong>73.4%</strong> ($53.57\%$ mAP@50) trên R50VD, cho thấy decoder sâu hơn có khả năng bù đắp chỉ số tốt hơn.
+                            Khi giữ nguyên bộ nhớ sạch $M_{\mathrm{clean}}$, chỉ riêng tráo chỉ số top-300 vẫn giữ được <strong>58.4%</strong> ($39.11\%$ mAP@50) trên R18VD và tăng lên <strong>70.9%</strong> ($52.82\%$ mAP@50) trên R50VD, cho thấy decoder sâu hơn có khả năng bù đắp chỉ số tốt hơn.
                         </p>
                     </div>
                 </div>
@@ -738,8 +738,8 @@
                             <span class="lang-en">Figure 3: Proposal Confidence Score Spectrum</span>
                             <span class="lang-vi">Hình 3: Phổ Điểm Tin Cậy Đề Xuất Top-300</span>
                         </h4>
-                        <p class="text-[11px] text-slate-500 mb-3 lang-en">Boundary logit $s_{(300)}$ inflates $2.90\times$ ($0.0348 \to 0.1009$), compressing foreground separation.</p>
-                        <p class="text-[11px] text-slate-500 mb-3 lang-vi">Điểm tại biên $s_{(300)}$ phình to $2.90\times$ ($0.0348 \to 0.1009$), nén chặt khoảng cách giữa foreground và nền.</p>
+                        <p class="text-[11px] text-slate-500 mb-3 lang-en">Boundary logit $s_{(300)}$ inflates $2.90\times$ ($0.0350 \to 0.1014$), compressing foreground separation ($M(X) = 0.6749$).</p>
+                        <p class="text-[11px] text-slate-500 mb-3 lang-vi">Điểm tại biên $s_{(300)}$ phình to $2.90\times$ ($0.0350 \to 0.1014$), nén chặt khoảng cách giữa foreground và nền ($M(X) = 0.6749$).</p>
                     </div>
                     <div class="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-zoom-in my-auto" onclick="openModal(this.querySelector('img'))">
                         <img src="assets/images/fig3_proposal_score_spectrum.png" alt="Figure 3: Encoder proposal confidence spectrum" data-alt-en="Figure 3: Encoder proposal confidence spectrum showing 2.90x inflation of the 300th score" data-alt-vi="Hình 3: Phổ điểm tin cậy đề xuất tại Encoder cho thấy mức tăng 2.90 lần ở hạng thứ 300" class="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-[1.015]">
@@ -795,8 +795,8 @@
                                 COCO val2017 &bull; N=300
                             </span>
                         </div>
-                        <p class="text-xs text-slate-500 mb-3 lang-en">Multi-scale cosine degradation across $S_3, S_4, S_5$ ($0.6140$ overall R18VD / $0.6758$ R50VD) and query eviction.</p>
-                        <p class="text-xs text-slate-500 mb-3 lang-vi">Suy giảm cosine đa tầng qua $S_3, S_4, S_5$ ($0.6140$ R18VD / $0.6758$ R50VD) và sụp đổ độ trùng lặp query.</p>
+                        <p class="text-xs text-slate-500 mb-3 lang-en">Multi-scale cosine degradation across $S_3, S_4, S_5$ ($0.6140$ overall R18VD $N=300$ / $0.6766$ R50VD $N=200$) and query eviction.</p>
+                        <p class="text-xs text-slate-500 mb-3 lang-vi">Suy giảm cosine đa tầng qua $S_3, S_4, S_5$ ($0.6140$ R18VD $N=300$ / $0.6766$ R50VD $N=200$) và sụp đổ độ trùng lặp query.</p>
                     </div>
                     <div class="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-zoom-in my-auto" onclick="openModal(this.querySelector('img'))">
                         <img src="assets/images/fig5_multiscale_cosine_and_overlap.png" alt="Figure 5: Multi-scale feature cosine similarity and query overlap dynamics" data-alt-en="Figure 5: Multi-scale feature cosine similarity and query overlap dynamics on COCO val2017" data-alt-vi="Hình 5: Độ tương đồng Cosine đặc trưng đa tầng và động thái suy giảm độ trùng lặp query trên COCO val2017" class="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-[1.015]">
@@ -806,8 +806,8 @@
                         </div>
                     </div>
                     <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-                        <span class="lang-en"><strong>Key Telemetry:</strong> Top-300 proposal overlap collapses to $16.11\%$ on R18VD ($21.40\%$ on R50VD) while $97.22\%$ ($91.76\%$) of top-15 foreground candidate slots are evicted into peripheral background noise.</span>
-                        <span class="lang-vi"><strong>Bằng chứng cốt lõi:</strong> Độ trùng lặp top-300 query sụp đổ còn $16.11\%$ trên R18VD ($21.40\%$ trên R50VD) trong khi $97.22\%$ ($91.76\%$) khe ứng viên foreground top-15 bị trục xuất vào nhiễu nền ngoại vi.</span>
+                        <span class="lang-en"><strong>Key Telemetry:</strong> Top-300 proposal overlap collapses to $16.11\%$ on R18VD ($23.21\%$ on R50VD $N=200$) while $97.22\%$ ($92.10\%$) of top-15 foreground candidate slots are evicted into peripheral background noise.</span>
+                        <span class="lang-vi"><strong>Bằng chứng cốt lõi:</strong> Độ trùng lặp top-300 query sụp đổ còn $16.11\%$ trên R18VD ($23.21\%$ trên R50VD $N=200$) trong khi $97.22\%$ ($92.10\%$) khe ứng viên foreground top-15 bị trục xuất vào nhiễu nền ngoại vi.</span>
                     </div>
                 </div>
 
@@ -834,8 +834,8 @@
                         </div>
                     </div>
                     <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500 leading-relaxed">
-                        <span class="lang-en"><strong>Key Telemetry:</strong> Normalized entropy remains stable ($0.8032 \to 0.7938$, $d = -0.19$ on R18VD; $0.8156 \to 0.8071$ on R50VD). Conversely, deformable sampling hit drops from $63.53\%$ to $44.17\%$ on R18VD ($p = 2.54 \times 10^{-32}$) and $63.32\% \to 48.31\%$ on R50VD.</span>
-                        <span class="lang-vi"><strong>Bằng chứng cốt lõi:</strong> Entropy attention chuẩn hóa gần như bất biến ($0.8032 \to 0.7938$, $d = -0.19$ trên R18VD; $0.8156 \to 0.8071$ trên R50VD). Ngược lại, tỷ lệ lấy mẫu trúng foreground sụp đổ từ $63.53\%$ xuống $44.17\%$ trên R18VD ($p = 2.54 \times 10^{-32}$) và $63.32\% \to 48.31\%$ trên R50VD.</span>
+                        <span class="lang-en"><strong>Key Telemetry:</strong> Normalized entropy satisfies TOST $\pm 0.02$ equivalence ($0.8032 \to 0.7945$, $p_{\mathrm{TOST}} = 3.46 \times 10^{-5}$ R18VD; $0.8150 \to 0.8087$ R50VD). Conversely, sampling hit drops $63.53\% \to 45.44\%$ on R18VD ($p = 4.85 \times 10^{-29}, d = -0.80$) and $64.77\% \to 50.24\%$ on R50VD.</span>
+                        <span class="lang-vi"><strong>Bằng chứng cốt lõi:</strong> Entropy attention đạt kiểm định tương đương TOST $\pm 0.02$ ($0.8032 \to 0.7945$, $p_{\mathrm{TOST}} = 3.46 \times 10^{-5}$ R18VD; $0.8150 \to 0.8087$ R50VD). Ngược lại, tỷ lệ lấy mẫu trúng foreground giảm mạnh $63.53\% \to 45.44\%$ trên R18VD ($p = 4.85 \times 10^{-29}, d = -0.80$) và $64.77\% \to 50.24\%$ trên R50VD.</span>
                     </div>
                 </div>
             </div>
@@ -846,18 +846,18 @@
                     <div>
                         <h4 class="font-bold text-slate-900 text-sm mb-1 font-heading flex items-center gap-2">
                             <i class="fa-solid fa-check text-emerald-500"></i>
-                            <span class="lang-en">Attention Weights Do Not Disperse</span>
-                            <span class="lang-vi">Trọng Số Attention Không Hề Tán Xạ</span>
+                            <span class="lang-en">Attention Weights Stay Localized (TOST)</span>
+                            <span class="lang-vi">Trọng Số Attention Vẫn Tập Trung (TOST)</span>
                         </h4>
                         <p class="text-xs text-slate-500 leading-relaxed lang-en">
-                            Normalized deformable attention entropy changes minimally ($0.8032 \to 0.7938$, $\Delta = -0.0094, d = -0.19$ on R18VD; $0.8156 \to 0.8071$ on R50VD). Softmax weights stay sharply localized rather than scattering into diffuse noise ($H \to 1.0$).
+                            Normalized attention entropy changes minimally ($0.8032 \to 0.7945, d = -0.15$ R18VD; $0.8150 \to 0.8087, d = -0.14$ R50VD), strictly passing paired $\pm 0.02$ TOST equivalence ($p = 3.46 \times 10^{-5} / 6.80 \times 10^{-6}$). Head shifts reweight slightly toward fine scale $S_3$ ($\max_h|\Delta H_h|=0.0615, \mathrm{TV}=0.1599$) without uniform collapse.
                         </p>
                         <p class="text-xs text-slate-500 leading-relaxed lang-vi">
-                            Entropy attention biến dạng chuẩn hóa thay đổi tối thiểu ($0.8032 \to 0.7938$, $\Delta = -0.0094, d = -0.19$ trên R18VD; $0.8156 \to 0.8071$ trên R50VD). Trọng số softmax vẫn tập trung cục bộ thay vì phân tán thành nhiễu mờ ($H \to 1.0$).
+                            Entropy attention chuẩn hóa chỉ đổi rất nhẹ ($0.8032 \to 0.7945, d = -0.15$ R18VD; $0.8150 \to 0.8087, d = -0.14$ R50VD), đạt kiểm định tương đương TOST $\pm 0.02$ ($p = 3.46 \times 10^{-5} / 6.80 \times 10^{-6}$). Chuyển dịch giữa các đầu chỉ tập trung nhẹ hơn về tầng $S_3$ ($\max_h|\Delta H_h|=0.0615, \mathrm{TV}=0.1599$) mà không bị tán xạ đều.
                         </p>
                     </div>
                     <div class="mt-3 pt-2 border-t border-slate-100 text-[11px] font-mono text-emerald-600 font-semibold">
-                        ΔH(A) = -0.0094 (d = -0.19, R18VD)
+                        TOST (±0.02): p = 3.46e-5 R18VD &bull; 6.80e-6 R50VD
                     </div>
                 </div>
 
@@ -865,19 +865,19 @@
                     <div>
                         <h4 class="font-bold text-slate-900 text-sm mb-1 font-heading flex items-center gap-2">
                             <i class="fa-solid fa-crosshairs text-rose-500"></i>
-                            <span class="lang-en">Spatial Target Misrouting</span>
-                            <span class="lang-vi">Định Tuyến Sai Lệch Tọa Độ Không Gian</span>
+                            <span class="lang-en">Spatial Center Misrouting (Not Clamping)</span>
+                            <span class="lang-vi">Định Tuyến Sai Tâm Tọa Độ</span>
                         </h4>
                         <p class="text-xs text-slate-500 leading-relaxed lang-en">
-                            Initial reference coordinates undergo large displacement ($\Delta p = 0.4750 \pm 0.0669$ R18VD; $0.4503 \pm 0.0680$ R50VD), starving decoder cross-attention heads of foreground features and pulling sampling hit rate down to $44.17\%$ ($-19.4$ pp).
+                            Reference coordinates shift sharply ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), pulling sampling hit down to $45.44\%$ ($-18.1$ pp). Pure <strong>Center-Only Random Shift</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduces 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), ruling out box clamping artifacts.
                         </p>
                         <p class="text-xs text-slate-500 leading-relaxed lang-vi">
-                            Tọa độ tham chiếu ban đầu chịu sự dịch chuyển lớn ($\Delta p = 0.4750 \pm 0.0669$ R18VD; $0.4503 \pm 0.0680$ R50VD), khiến các đầu cross-attention thiếu hụt đặc trưng foreground và kéo tỷ lệ lấy mẫu trúng xuống $44.17\%$ (giảm $-19.4$ pp).
+                            Tọa độ tham chiếu trôi mạnh ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), kéo tỷ lệ lấy mẫu trúng xuống $45.44\%$ ($-18.1$ pp). Thử nghiệm <strong>Dịch chuyển Chỉ riêng Tâm</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) tái lập suy giảm 4D ($33.92\%$ / $48.43\%$), loại trừ giả tạo co bóp kích thước hộp.
                         </p>
                     </div>
                     <div class="mt-3 pt-2 border-t border-slate-100 text-[11px] font-mono text-rose-600 font-semibold">
-                        <span class="lang-en">Δp = 0.4750 &bull; Hit: 44.17% (p &lt; 10⁻³¹)</span>
-                        <span class="lang-vi">Δp = 0.4750 &bull; Trúng FG: 44.17% (p &lt; 10⁻³¹)</span>
+                        <span class="lang-en">Δp = 0.4672 &bull; Hit: 45.44% (Center-Only: 33.47%)</span>
+                        <span class="lang-vi">Δp = 0.4672 &bull; Trúng FG: 45.44% (Chỉ Tâm: 33.47%)</span>
                     </div>
                 </div>
 
@@ -944,36 +944,36 @@
                                     <span class="w-2 h-2 rounded-full bg-amber-500"></span>
                                     PGD Vanishing ($T=15$)
                                 </td>
-                                <td class="py-2.5 px-3 text-center font-mono">0.8320 ± 0.0305</td>
-                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">50.30%</td>
-                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">0.4295 ± 0.0517</td>
-                                <td class="py-2.5 px-3 text-center font-mono">17.27 ± 11.74</td>
+                                <td class="py-2.5 px-3 text-center font-mono">0.8340 ± 0.0284</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">51.43%</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">0.4264 (Hung: 0.1643)</td>
+                                <td class="py-2.5 px-3 text-center font-mono">17.67 ± 12.35</td>
                                 <td class="py-2.5 px-4 text-right font-mono text-rose-600 font-bold">1.32% (2.0%)</td>
-                                <td class="py-2.5 px-4 text-amber-800">Proposal suppression; complete scene blackout ($0.67$ boxes)</td>
+                                <td class="py-2.5 px-4 text-amber-800">Proposal suppression; complete scene blackout ($0.74$ boxes)</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition">
                                 <td class="py-2.5 px-4 font-semibold text-orange-950 flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full bg-orange-500"></span>
                                     Standard Task PGD ($T=15$)
                                 </td>
-                                <td class="py-2.5 px-3 text-center font-mono">0.7832 ± 0.0342</td>
-                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">47.29%</td>
-                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">0.4536 ± 0.0578</td>
-                                <td class="py-2.5 px-3 text-center font-mono">14.65 ± 8.64</td>
+                                <td class="py-2.5 px-3 text-center font-mono">0.7853 ± 0.0351</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">47.42%</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-slate-600">0.4534 (Hung: 0.1900)</td>
+                                <td class="py-2.5 px-3 text-center font-mono">14.43 ± 8.41</td>
                                 <td class="py-2.5 px-4 text-right font-mono text-rose-600 font-bold">0.35% (0.5%)</td>
-                                <td class="py-2.5 px-4 text-orange-800">Dense false-alarm proposal flooding ($46.55$ boxes vs clean $8.54$)</td>
+                                <td class="py-2.5 px-4 text-orange-800">Dense false-alarm proposal flooding ($46.43$ boxes vs clean $8.54$)</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-rose-50/40">
                                 <td class="py-2.5 px-4 font-bold text-rose-950 flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full bg-rose-600"></span>
                                     AQSM Probe ($T=15$)
                                 </td>
-                                <td class="py-2.5 px-3 text-center font-mono font-bold text-emerald-700">0.7938 ± 0.0293</td>
-                                <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-700">44.17%</td>
-                                <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-700">0.4750 ± 0.0669</td>
-                                <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-700">10.54 ± 7.10</td>
+                                <td class="py-2.5 px-3 text-center font-mono font-bold text-emerald-700">0.7945 ± 0.0316</td>
+                                <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-700">45.44%</td>
+                                <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-700">0.4672 (Hung: 0.2411)</td>
+                                <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-700">11.21 ± 7.98</td>
                                 <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">4.05% (6.0%)</td>
-                                <td class="py-2.5 px-4 text-rose-900 font-semibold">Attention entropy invariant ($d=-0.19$); spatial coordinate drift into noise</td>
+                                <td class="py-2.5 px-4 text-rose-900 font-semibold">Attention entropy TOST-equivalent ($p=3.46\times 10^{-5}$); spatial misrouting</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-sky-50/30">
                                 <td class="py-2.5 px-4 font-semibold text-sky-950 flex items-center gap-2">
@@ -984,20 +984,32 @@
                                 <td class="py-2.5 px-3 text-center font-mono text-sky-800">68.95% (Anchor FG)</td>
                                 <td class="py-2.5 px-3 text-center font-mono text-slate-400">0.0000 (Hung.)</td>
                                 <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
-                                <td class="py-2.5 px-4 text-right font-mono font-bold text-sky-800">63.21 ± 0.47% (94.4%)</td>
+                                <td class="py-2.5 px-4 text-right font-mono font-bold text-sky-800">63.20 ± 0.45% (94.4%)</td>
                                 <td class="py-2.5 px-4 text-sky-900">Permuting anchors across queries has minor impact (target boxes still covered)</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-sky-50/30">
                                 <td class="py-2.5 px-4 font-semibold text-sky-950 flex items-center gap-2">
                                     <span class="w-2 h-2 rounded-full bg-sky-500"></span>
-                                    Random Shift ($L_2$, 5 seeds)
+                                    Random Shift (4D $L_2$, 5 seeds)
                                 </td>
                                 <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
-                                <td class="py-2.5 px-3 text-center font-mono text-sky-800">46.19% (Anchor FG)</td>
-                                <td class="py-2.5 px-3 text-center font-mono text-sky-800">0.2003 (Hung.)</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-sky-800">46.86% (Anchor FG)</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-sky-800">0.1948 (Hung.)</td>
                                 <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
-                                <td class="py-2.5 px-4 text-right font-mono font-bold text-sky-700">32.06 ± 0.82% (47.9%)</td>
-                                <td class="py-2.5 px-4 text-sky-900">Matched isotropic shift halves accuracy, confirming coordinate sensitivity</td>
+                                <td class="py-2.5 px-4 text-right font-mono font-bold text-sky-700">33.92 ± 1.38% (50.7%)</td>
+                                <td class="py-2.5 px-4 text-sky-900">Matched 4D shift halves accuracy (R50VD $N=200$: $48.43 \pm 0.93\%$)</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50/60 transition bg-indigo-50/30">
+                                <td class="py-2.5 px-4 font-semibold text-indigo-950 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                                    Center-Only Random Shift (5 seeds)
+                                </td>
+                                <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-indigo-800">48.15% (Anchor FG)</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-indigo-800">0.1931 (Hung.)</td>
+                                <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
+                                <td class="py-2.5 px-4 text-right font-mono font-bold text-indigo-700">33.47 ± 0.86% (50.0%)</td>
+                                <td class="py-2.5 px-4 text-indigo-900">Pure $(c_x, c_y)$ shift with intact $(w,h)$ reproduces 4D drop (R50VD: $46.79\%$)</td>
                             </tr>
                             <tr class="hover:bg-slate-50/60 transition bg-sky-50/50">
                                 <td class="py-2.5 px-4 font-bold text-sky-950 flex items-center gap-2">
@@ -1005,11 +1017,11 @@
                                     AQSM Spatial Misrouting
                                 </td>
                                 <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
-                                <td class="py-2.5 px-3 text-center font-mono font-bold text-sky-900">46.20% (Anchor FG)</td>
-                                <td class="py-2.5 px-3 text-center font-mono font-bold text-sky-900">0.2516 (Hung.)</td>
+                                <td class="py-2.5 px-3 text-center font-mono font-bold text-sky-900">47.43% (Anchor FG)</td>
+                                <td class="py-2.5 px-3 text-center font-mono font-bold text-sky-900">0.2411 (Hung.)</td>
                                 <td class="py-2.5 px-3 text-center font-mono text-slate-400">—</td>
-                                <td class="py-2.5 px-4 text-right font-mono font-bold text-sky-950">27.32% (40.8%)</td>
-                                <td class="py-2.5 px-4 text-sky-950 font-semibold">Adversarial anchors yield modest extra drop ($4.7$ pp) beyond isotropic shift</td>
+                                <td class="py-2.5 px-4 text-right font-mono font-bold text-sky-950">30.24% (45.2%)</td>
+                                <td class="py-2.5 px-4 text-sky-950 font-semibold">Adversarial clustering adds $3.24\text{--}3.68$ pp drop (R50VD: $43.78\%$)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1084,23 +1096,23 @@
                                 <span class="lang-vi">Khảo Sát Quét Ngân Sách (Bảng 9)</span>
                             </h4>
                             <p class="text-slate-600 leading-relaxed lang-en mb-2">
-                                <strong>RT-DETR-R18VD:</strong> AQSM degrades mAP@50 monotonically: $10.80\%$ ($\epsilon=4/255$), $8.93\%$ ($\epsilon=8/255$), and $4.05\%$ ($\epsilon=16/255$). Standard Task PGD yields $2.71\%, 1.18\%, 0.35\%$.
+                                <strong>RT-DETR-R18VD ($N=300$):</strong> AQSM degrades mAP@50 monotonically: $10.80\%$ ($\epsilon=4/255$), $8.93\%$ ($\epsilon=8/255$), and $4.05\%$ ($\epsilon=16/255$). Standard Task PGD yields $2.71\%, 1.18\%, 0.35\%$.
                             </p>
                             <p class="text-slate-600 leading-relaxed lang-en">
-                                <strong>RT-DETR-R50VD:</strong> AQSM degrades to $23.69\%$ ($4/255$), $15.12\%$ ($8/255$), and $9.14\%$ ($16/255$), showing deeper encoders maintain slightly higher retention.
+                                <strong>RT-DETR-R50VD ($N=200$):</strong> AQSM degrades to $24.10\%$ ($4/255$), $15.40\%$ ($8/255$), and $10.15\%$ ($16/255$), vs. Task PGD $10.11\%, 6.25\%, 2.49\%$.
                             </p>
                         </div>
 
                         <div class="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/70">
                             <h4 class="font-bold text-sky-950 text-sm mb-2 font-heading">
-                                <span class="lang-en">Tesla T4 Stage Profile (38.95 ms, 25.67 FPS)</span>
-                                <span class="lang-vi">Phân Rã Tác Vụ Tesla T4 (38.95 ms, 25.67 FPS)</span>
+                                <span class="lang-en">Tesla T4 Stage Profile (36.99 ms, 27.04 FPS)</span>
+                                <span class="lang-vi">Phân Rã Tác Vụ Tesla T4 (36.99 ms, 27.04 FPS)</span>
                             </h4>
                             <div class="space-y-1.5 font-mono text-[11px] text-sky-900">
-                                <div class="flex justify-between"><span>Backbone (ResNet-18):</span><strong>20.32 ms (52.16%)</strong></div>
-                                <div class="flex justify-between"><span>Hybrid Encoder:</span><strong>10.58 ms (27.16%)</strong></div>
-                                <div class="flex justify-between"><span>Dynamic Selection Head:</span><strong>1.72 ms (4.40%)</strong></div>
-                                <div class="flex justify-between"><span>Deformable Decoder (3L):</span><strong>6.07 ms (15.58%)</strong></div>
+                                <div class="flex justify-between"><span>Backbone (ResNet-18):</span><strong>18.94 ms (51.22%)</strong></div>
+                                <div class="flex justify-between"><span>Hybrid Encoder:</span><strong>9.98 ms (26.98%)</strong></div>
+                                <div class="flex justify-between"><span>Dynamic Selection Head:</span><strong>1.61 ms (4.36%)</strong></div>
+                                <div class="flex justify-between"><span>Deformable Decoder (3L):</span><strong>6.16 ms (16.66%)</strong></div>
                             </div>
                         </div>
                     </div>
@@ -1110,11 +1122,11 @@
                 <div class="rounded-2xl border border-slate-200 overflow-hidden">
                     <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <h3 class="text-sm sm:text-base font-bold text-slate-900 font-heading">
-                            <span class="lang-en">Table 10: Hardware Execution Latency &amp; Sponge Stress Benchmark</span>
-                            <span class="lang-vi">Bảng 10: Đo Đạc Độ Trễ Phần Cứng Thực Tế &amp; Bẫy Trễ Sponge</span>
+                            <span class="lang-en">Table 10: 20-Image Interleaved Latency &amp; RetinaNet (NMS) Benchmark</span>
+                            <span class="lang-vi">Bảng 10: Đo Đạc Độ Trễ Xen Kẽ 20 Ảnh &amp; So Sánh RetinaNet (NMS)</span>
                         </h3>
                         <span class="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 w-fit">
-                            NVIDIA Tesla T4 &bull; PyTorch FP32 &bull; CUDA Events &bull; 640×640
+                            Tesla T4 &bull; PyTorch FP32 &bull; Interleaved 20 Scenes &bull; N_runs=100
                         </span>
                     </div>
                     <div class="overflow-x-auto custom-scrollbar">
@@ -1122,80 +1134,100 @@
                             <thead class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                                 <tr>
                                     <th class="py-3 px-4"><span class="lang-en">Model</span><span class="lang-vi">Mô hình</span></th>
-                                    <th class="py-3 px-4"><span class="lang-en">Condition</span><span class="lang-vi">Điều kiện</span></th>
+                                    <th class="py-3 px-4"><span class="lang-en">Interleaved Condition (20 Scenes)</span><span class="lang-vi">Điều kiện Xen Kẽ (20 Ảnh)</span></th>
                                     <th class="py-3 px-4 text-right"><span class="lang-en">Mean ± Std (ms)</span><span class="lang-vi">Độ Trễ (ms)</span></th>
                                     <th class="py-3 px-4 text-right"><span class="lang-en">Median / p95 (ms)</span><span class="lang-vi">Trung vị / p95</span></th>
                                     <th class="py-3 px-4 text-right"><span class="lang-en">Throughput (FPS)</span><span class="lang-vi">Tốc độ (FPS)</span></th>
-                                    <th class="py-3 px-4 text-right"><span class="lang-en">Active Boxes ($\tau \ge 0.35$)</span><span class="lang-vi">Số Hộp Hoạt Động</span></th>
-                                    <th class="py-3 px-4"><span class="lang-en">Latency Invariance Status</span><span class="lang-vi">Trạng Thái Đơn Định Độ Trễ</span></th>
+                                    <th class="py-3 px-4 text-right"><span class="lang-en">Mean Active Boxes</span><span class="lang-vi">Số Hộp Trung Bình</span></th>
+                                    <th class="py-3 px-4"><span class="lang-en">Latency Invariance Status</span><span class="lang-vi">Trạng Thái Độ Trễ</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-medium text-[11px]">
                                 <!-- R18VD -->
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R18VD</td>
-                                    <td class="py-2.5 px-4">Clean Baseline</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">39.02 ± 0.97</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">38.95 / 40.06</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">25.63 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">25.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Nominal baseline reference</td>
+                                    <td class="py-2.5 px-4">Interleaved: Clean Baseline</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.60 ± 0.95</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.55 / 38.00</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">27.32 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">7.95 boxes</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Nominal baseline reference (2,609 MB VRAM)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R18VD</td>
-                                    <td class="py-2.5 px-4">AQSM Attack ($\epsilon = 16$)</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">39.32 ± 0.73</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">39.51 / 40.31</td>
-                                    <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">25.43 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">20.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = +0.29$ ms, $+0.75\%$)</td>
+                                    <td class="py-2.5 px-4">Interleaved: AQSM ($\epsilon = 16$)</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.47 ± 0.69</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.50 / 37.57</td>
+                                    <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">27.42 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">19.90 boxes</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = -0.13$ ms)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R18VD</td>
-                                    <td class="py-2.5 px-4">Standard Task PGD</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">39.21 ± 0.75</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">39.29 / 40.34</td>
-                                    <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">25.50 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">75.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = +0.19$ ms, $+0.48\%$)</td>
+                                    <td class="py-2.5 px-4">Interleaved: Standard Task PGD</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.47 ± 0.76</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.51 / 37.57</td>
+                                    <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">27.42 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">44.80 boxes</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = -0.13$ ms)</td>
                                 </tr>
                                 <tr class="hover:bg-emerald-50/40 transition bg-emerald-50/20">
                                     <td class="py-2.5 px-4 font-bold text-emerald-950">RT-DETR-R18VD</td>
-                                    <td class="py-2.5 px-4 font-semibold text-emerald-900">Proposal-Flooding Sponge Stress</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">38.66 ± 0.76</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">38.73 / 39.92</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">25.87 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">207.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">Immune ($O(1)$ fixed $N_q=300$ decoding)</td>
+                                    <td class="py-2.5 px-4 font-semibold text-emerald-900">Interleaved: Proposal-Flooding Sponge</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">36.37 ± 0.96</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">36.23 / 37.49</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">27.50 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">154.20 boxes</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">Immune ($19.4\times$ boxes, $-0.23$ ms delta)</td>
                                 </tr>
 
                                 <!-- R50VD -->
                                 <tr class="hover:bg-slate-50/60 transition bg-slate-50/30">
                                     <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R50VD</td>
-                                    <td class="py-2.5 px-4">Clean Baseline</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">74.89 ± 1.36</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">74.76 / 76.38</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">13.35 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">21.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Nominal baseline reference</td>
+                                    <td class="py-2.5 px-4">Interleaved: Clean Baseline</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">74.48 ± 0.93</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">74.49 / 76.12</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900">13.43 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">7.60 boxes</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Nominal baseline (2,825 MB VRAM)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition bg-slate-50/30">
                                     <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R50VD</td>
-                                    <td class="py-2.5 px-4">AQSM Attack ($\epsilon = 16$)</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">74.41 ± 1.46</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">74.23 / 75.83</td>
-                                    <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">13.44 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">5.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = -0.48$ ms)</td>
+                                    <td class="py-2.5 px-4">Interleaved: AQSM / Task PGD</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">74.72 ± 1.19</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">74.49 / 76.41</td>
+                                    <td class="py-2.5 px-4 text-right font-mono text-emerald-700 font-bold">13.38 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">15.75 / 35.25</td>
+                                    <td class="py-2.5 px-4 text-emerald-700 font-semibold">Invariant ($\Delta t = +0.25$ ms)</td>
                                 </tr>
                                 <tr class="hover:bg-emerald-50/40 transition bg-emerald-50/20">
                                     <td class="py-2.5 px-4 font-bold text-emerald-950">RT-DETR-R50VD</td>
-                                    <td class="py-2.5 px-4 font-semibold text-emerald-900">Proposal-Flooding Sponge Stress</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">72.76 ± 1.35</td>
-                                    <td class="py-2.5 px-4 text-right font-mono">72.58 / 74.63</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">13.74 FPS</td>
-                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">136.0 boxes</td>
-                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">Immune ($O(1)$ fixed $N_q=300$ decoding)</td>
+                                    <td class="py-2.5 px-4 font-semibold text-emerald-900">Interleaved: Proposal-Flooding Sponge</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">74.63 ± 1.01</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">74.61 / 76.17</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">13.40 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-rose-600">116.00 boxes</td>
+                                    <td class="py-2.5 px-4 text-emerald-800 font-bold">Immune ($15.3\times$ boxes, $+0.16$ ms delta)</td>
+                                </tr>
+
+                                <!-- RetinaNet-R50-FPN-v2 -->
+                                <tr class="hover:bg-slate-50/60 transition bg-slate-100/50">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-800">RetinaNet-R50-FPN-v2</td>
+                                    <td class="py-2.5 px-4">Interleaved: Clean (GPU Batched NMS)</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">139.73 ± 1.21</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">139.73 / 141.87</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-700">7.16 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">101.3 boxes</td>
+                                    <td class="py-2.5 px-4 text-slate-600">3.8× slower than R18VD (capped top-$K$ NMS)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition bg-slate-100/50">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-800">RetinaNet-R50-FPN-v2</td>
+                                    <td class="py-2.5 px-4">Interleaved: Proposal-Flooding Sponge</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">140.36 ± 1.25</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">140.32 / 142.62</td>
+                                    <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-700">7.12 FPS</td>
+                                    <td class="py-2.5 px-4 text-right font-mono text-amber-700">181.9 boxes</td>
+                                    <td class="py-2.5 px-4 text-slate-600">+0.45% capped GPU NMS (<code>topk_candidates=1000</code>)</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1204,34 +1236,129 @@
             </div>
         </section>
 
-        <!-- Multi-Seed Stability and Cross-Architecture Comparison (Table 13) -->
+        <!-- Multi-Seed Stability and Cross-Architecture Comparison (Tables 13 & 14 + Fig 9) -->
         <section id="generalization" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mb-20">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-                <div class="mb-6 text-center max-w-3xl mx-auto">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-8">
+                <div class="text-center max-w-3xl mx-auto">
                     <span class="text-xs font-bold text-sky-600 uppercase tracking-wider">
-                        <span class="lang-en">Cross-Depth &amp; 5-Seed Generalization</span>
-                        <span class="lang-vi">Đối Chiếu Chiều Sâu &amp; Độ Ổn Định 5 Hạt Giống</span>
+                        <span class="lang-en">Cross-Depth, Pixel Controls &amp; 6-Architecture Suite</span>
+                        <span class="lang-vi">Đối Chiếu Chiều Sâu, Không Gian Điểm Ảnh &amp; 6 Kiến Trúc</span>
                     </span>
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1 mb-3 font-heading">
-                        <span class="lang-en">Table 13: Consolidated Benchmark — RT-DETR-R18VD vs. RT-DETR-R50VD</span>
-                        <span class="lang-vi">Bảng 13: Bảng Hợp Nhất Thực Nghiệm — RT-DETR-R18VD vs. RT-DETR-R50VD</span>
+                        <span class="lang-en">Tables 13 &amp; 14: Cross-Depth Consolidation &amp; 6-Model Benchmark</span>
+                        <span class="lang-vi">Bảng 13 &amp; 14: Tổng Hợp Đa Chiều Sâu &amp; Kiểm Chứng 6 Kiến Trúc</span>
                     </h2>
                     <p class="text-sm text-slate-600 lang-en">
-                        Direct symmetric comparison between 3-layer RT-DETR-R18VD and 6-layer RT-DETR-R50VD on COCO val2017 ($N = 300$, $640 \times 640$, $\epsilon = 16/255$). Across 5 independent random seeds ($\{42, 100, 2024, 777, 9999\}$), AQSM achieves $\text{ICC}(2,1) = 0.946$ (R18VD) and $0.908$ (R50VD), confirming architectural stability.
+                        Direct cross-depth comparison between <strong>RT-DETR-R18VD</strong> ($N = 300$) and <strong>RT-DETR-R50VD</strong> ($N = 200$), tripartite &amp; pixel-space ablation, plus our unified <strong>$N = 300$ six-architecture benchmark</strong> spanning RT-DETR, RT-DETRv2, two-stage Deformable DETR, static Vanilla DETR, and RetinaNet+NMS.
                     </p>
                     <p class="text-sm text-slate-600 lang-vi">
-                        So sánh đối xứng trực tiếp giữa RT-DETR-R18VD (3 tầng decoder) và RT-DETR-R50VD (6 tầng decoder) trên COCO val2017 ($N = 300$, $640 \times 640$, $\epsilon = 16/255$). Qua 5 hạt giống ngẫu nhiên độc lập ($\{42, 100, 2024, 777, 9999\}$), đòn đánh AQSM đạt hệ số tương quan nội lớp $\text{ICC}(2,1) = 0.946$ (R18VD) và $0.908$ (R50VD), khẳng định tính ổn định cấu trúc.
+                        So sánh trực tiếp giữa <strong>RT-DETR-R18VD</strong> ($N = 300$) và <strong>RT-DETR-R50VD</strong> ($N = 200$), khảo sát thành phần hàm mất mát và đối chứng không gian điểm ảnh, cùng bộ chuẩn <strong>6 kiến trúc ($N = 300$)</strong> qua RT-DETR, RT-DETRv2, Deformable DETR hai pha, Vanilla DETR tĩnh và RetinaNet+NMS.
                     </p>
                 </div>
 
-                <div class="rounded-2xl border border-slate-200 overflow-hidden mb-4">
+                <!-- Figure 9 Showcase -->
+                <div class="relative group rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-zoom-in" onclick="openModal(this.querySelector('img'))">
+                    <img src="assets/images/fig9_ablation_and_multimodel.png" alt="Figure 9: Component Ablation, Pixel Controls, and 6-Architecture Cross-Model Benchmark" data-alt-en="Figure 9: (a) Tripartite loss ablation, pixel-space isolation controls, and Jayasundara et al. baseline; (b) Unified N=300 six-architecture robustness comparison." data-alt-vi="Hình 9: (a) Khảo sát cắt tỉa hàm mất mát, đối chứng điểm ảnh và Jayasundara et al.; (b) So sánh 6 kiến trúc detector trên cùng tập N=300." class="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-[1.01]">
+                    <div class="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-slate-900/70 text-white text-[11px] font-medium backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                        <span class="lang-en">Click to expand (Figure 9: Ablation &amp; 6-Model Suite)</span>
+                        <span class="lang-vi">Nhấn để phóng to (Hình 9: Cắt tỉa &amp; 6 Kiến trúc)</span>
+                    </div>
+                </div>
+
+                <!-- Table 14: Unified 6-Architecture Benchmark (N=300) -->
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                    <div class="p-4 bg-indigo-50/70 border-b border-indigo-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <h3 class="text-sm sm:text-base font-bold text-indigo-950 font-heading">
+                            <span class="lang-en">Table 14: Unified Cross-Architecture Robustness ($N = 300$ COCO val2017)</span>
+                            <span class="lang-vi">Bảng 14: Kiểm Chứng Đa Kiến Trúc Trên Cùng Tập N = 300 COCO val2017</span>
+                        </h3>
+                        <span class="text-[11px] font-mono text-indigo-700 bg-white px-2.5 py-1 rounded border border-indigo-200 w-fit">
+                            640×640 &bull; ε=16/255, T=15 &bull; Tesla T4 FP32
+                        </span>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-4"><span class="lang-en">Detector Architecture</span><span class="lang-vi">Kiến Trúc Detector</span></th>
+                                    <th class="py-3 px-3 text-center">Dec. / Dyn. Sel.</th>
+                                    <th class="py-3 px-3 text-right">Clean mAP@50</th>
+                                    <th class="py-3 px-3 text-right">AQSM mAP@50</th>
+                                    <th class="py-3 px-3 text-right">Task PGD mAP@50</th>
+                                    <th class="py-3 px-3 text-center">Evict / Cos.</th>
+                                    <th class="py-3 px-4 text-right">Clean Lat.</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-medium text-[11px]">
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R18VD</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">3 / Yes</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold">66.93%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600 font-bold">5.13%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">0.35%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">83.76% / 0.4507</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">34.25 ms</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-900">RT-DETR-R50VD</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">6 / Yes</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold">72.95%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600 font-bold">8.89%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">2.93%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">77.59% / 0.5773</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">68.00 ms</td>
+                                </tr>
+                                <tr class="hover:bg-rose-50/30 transition bg-rose-50/20">
+                                    <td class="py-2.5 px-4 font-bold text-rose-950">RT-DETRv2-R18VD</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">3 / Yes</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold">67.41%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600 font-bold">4.01%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">0.74%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono font-bold">88.21% / 0.4411</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">32.50 ms</td>
+                                </tr>
+                                <tr class="hover:bg-rose-50/30 transition bg-rose-50/20">
+                                    <td class="py-2.5 px-4 font-bold text-rose-950">Deformable DETR (2-Stage)</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">6 / Yes</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold">63.10%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600 font-bold">3.99%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">0.14%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono font-bold">88.11% / 0.6063</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">125.76 ms</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-700">Vanilla DETR-R50 (Static)</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">6 / No</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold">59.47%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-400">N/A (Static)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">0.72%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono text-slate-400">— / —</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">40.25 ms</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 font-semibold text-slate-700">RetinaNet-R50-FPN-v2 (NMS)</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">0 / No</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold">63.99%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-slate-400">N/A (CNN)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">0.29%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono text-slate-500">Noise: 61.30%</td>
+                                    <td class="py-2.5 px-4 text-right font-mono">135.27 ms</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Table 13: Cross-Depth Consolidation -->
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
                     <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <span class="text-xs font-semibold text-slate-700">
-                            <span class="lang-en">Unified Diagnostic Axis Across 12 Dimensions</span>
-                            <span class="lang-vi">Trục Chẩn Đoán Hợp Nhất Qua 12 Chiều Đánh Giá</span>
+                        <span class="text-xs sm:text-sm font-bold text-slate-900 font-heading">
+                            <span class="lang-en">Table 13: Consolidated R18VD ($N = 300$) vs. R50VD ($N = 200$) &amp; 5-Seed Stability</span>
+                            <span class="lang-vi">Bảng 13: Tổng Hợp Đối Xứng R18VD ($N = 300$) vs. R50VD ($N = 200$) &amp; Độ Ổn Định 5 Seed</span>
                         </span>
                         <span class="text-[11px] font-mono text-sky-700 bg-sky-50 px-2.5 py-1 rounded border border-sky-200 w-fit">
-                            ResNet-18 (20M, 3 Dec.) vs. ResNet-50 (42M, 6 Dec.)
+                            ResNet-18 (20M, 3 Dec., N=300) vs. ResNet-50 (42M, 6 Dec., N=200)
                         </span>
                     </div>
                     <div class="overflow-x-auto custom-scrollbar">
@@ -1240,89 +1367,89 @@
                                 <tr>
                                     <th class="py-3 px-5"><span class="lang-en">Diagnostic Axis ($\epsilon = 16/255$ unless noted)</span><span class="lang-vi">Trục Chẩn Đoán ($\epsilon = 16/255$ trừ khi ghi rõ)</span></th>
                                     <th class="py-3 px-4 text-center">RT-DETR-R18VD (3 dec., $N=300$)</th>
-                                    <th class="py-3 px-5 text-center">RT-DETR-R50VD (6 dec., $N=300$)</th>
+                                    <th class="py-3 px-5 text-center">RT-DETR-R50VD (6 dec., $N=200$)</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 font-medium text-[11px]">
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">Nominal Clean mAP@50 (mAP@50:95)</td>
                                     <td class="py-2.5 px-4 text-center font-mono">66.93% (50.24%)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-slate-900">72.95% (55.73%)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-slate-900">74.45% (57.47%)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition bg-rose-50/20">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">AQSM Cached Seed 42 mAP@50 [Rel. Drop]</td>
                                     <td class="py-2.5 px-4 text-center font-mono text-rose-600 font-semibold">4.05% [−93.96%]</td>
-                                    <td class="py-2.5 px-5 text-center font-mono text-rose-600 font-semibold">9.14% [−87.47%]</td>
+                                    <td class="py-2.5 px-5 text-center font-mono text-rose-600 font-semibold">10.15% [−86.36%]</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition bg-rose-50/30">
                                     <td class="py-2.5 px-5 font-bold text-rose-950">AQSM 5-Seed Fresh Mean ± Std [Rel. Drop]</td>
                                     <td class="py-2.5 px-4 text-center font-mono font-bold text-rose-700">4.00 ± 0.74% [−94.02%]</td>
-                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-rose-700">10.19 ± 1.10% [−86.03%]</td>
+                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-rose-700">8.53 ± 0.88% [−88.54%]</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">AQSM 5-Seed Hungarian Drift / Anchor FG Hit</td>
                                     <td class="py-2.5 px-4 text-center font-mono">0.2345 ± 0.0037 / 47.12 ± 0.48%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">0.2237 ± 0.0010 / 50.09 ± 0.45%</td>
-                                </tr>
-                                <tr class="hover:bg-slate-50/60 transition bg-sky-50/30">
-                                    <td class="py-2.5 px-5 font-semibold text-sky-950">AQSM 5-Seed Inter-Seed Consistency ($\text{ICC}(2,1)$)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono font-bold text-sky-800">ICC = 0.946 ($p \le 2.32 \times 10^{-49}$)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-sky-800">ICC = 0.908 ($p \le 1.51 \times 10^{-34}$)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">0.2207 ± 0.0036 / 51.95 ± 0.71%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">AQSM Budget Sweep ($\epsilon = 4/255, 8/255$)</td>
                                     <td class="py-2.5 px-4 text-center font-mono">10.80%, 8.93%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">23.69%, 15.12%</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">24.10%, 15.40%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">PGD Vanishing / Standard Task PGD mAP@50</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">1.32% / 0.35%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">5.19% / 2.76%</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">PGD Vanishing / Task PGD / Jayasundara [27]</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">1.32% / 0.35% / 0.01%</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">4.23% / 2.49% / 0.33%</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Pixel-Space Controls (Mem-Isolated / Pure-Mem)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">59.07% (cos 0.850) / 0.00% (cos 0.070)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">68.67% (cos 0.858) / 0.00% (cos 0.274)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">Causal Surgery: $\text{C}_{\text{full}}$ / $\text{D}_{\text{full}}$ / $\text{D}_{\text{index}}$</td>
                                     <td class="py-2.5 px-4 text-center font-mono">9.31% / 30.37% / 39.11% (58.4% ret.)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">14.43% / 42.75% / 53.57% (73.4% ret.)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">15.46% / 43.98% / 52.82% (70.9% ret.)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition bg-sky-50/40">
                                     <td class="py-2.5 px-5 font-bold text-sky-950">Shapley Share (Per-Image $AP_i$: Mem / Query)</td>
                                     <td class="py-2.5 px-4 text-center font-mono font-bold text-sky-900">60.59% / 39.41% [pooled 66.75%]</td>
-                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-sky-900">68.16% / 31.84% [pooled 72.19%]</td>
+                                    <td class="py-2.5 px-5 text-center font-mono font-bold text-sky-900">68.22% / 31.78% [pooled 72.18%]</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">Encoder Memory Cosine / Top-300 Overlap / Top-15 Evict</td>
                                     <td class="py-2.5 px-4 text-center font-mono">0.6140 / 16.11% / 97.22%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">0.6758 / 21.40% / 91.76%</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">0.6766 / 23.21% / 92.10%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Deformable Attention Entropy ($H_{\mathrm{all}}$ Clean $\to$ AQSM)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">0.8032 $\to$ 0.7938 ($H_{L_1}: 0.8287 \to 0.8185$)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">0.8156 $\to$ 0.8071 ($H_{L_1}: 0.8444 \to 0.8365$)</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Deformable Attention Entropy ($H_{\mathrm{all}}$, $p_{\mathrm{TOST}}$)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">0.8032 $\to$ 0.7945 ($p = 3.46 \times 10^{-5}$)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">0.8150 $\to$ 0.8087 ($p = 6.80 \times 10^{-6}$)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">Deformable Sampling FG Hit Rate (Clean $\to$ AQSM)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">63.53% $\to$ 44.17% ($d = -0.86$)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">63.32% $\to$ 48.31% ($d = -0.68$)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">63.53% $\to$ 45.44% ($d = -0.80$)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">64.77% $\to$ 50.24% ($d = -0.70$)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Controlled Misrouting (5s Reassign / 5s Shift / AQSM)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">63.21 ± 0.47% / 32.06 ± 0.82% / 27.32%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">72.36 ± 0.16% / 47.89 ± 0.67% / 42.34%</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Misrouting (Reassign / 4D Shift / Center-Only / AQSM)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">63.20 / 33.92 / 33.47 / 30.24%</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">74.16 / 48.43 / 46.79 / 43.78%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">ESM AQSM TPR (AUROC) / Adaptive Raw Bypass</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">47.62% (0.7881) / 94.76–97.14%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">25.71% (0.6914) / 93.33–97.14%</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">ESM TPR (AUROC) / Adaptive Bypass (ESM / Ens. Joint)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">46.67% (0.7743) / 95.2–97.6% (Ens: 0.48%)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">25.71% (0.6735) / 89.3–92.1% (Ens: 0.00%)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Zero-Shot SQA mAP@50 (Clean $\to$ SQA; AQSM Dyn $\to$ SQA)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">66.93% $\to$ 66.98% / 4.05% $\to$ 3.97%</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">72.95% $\to$ 72.97% / 9.14% $\to$ 9.25%</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">Calibrated Enc.-Sampled SQA (Stationary / Adaptive)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">4.08% $\to$ 4.03% (−0.05 pp) / 2.65%</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">10.15% $\to$ 10.27% (+0.12 pp) / 6.66%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">Tesla T4 Latency (Query Selection Share %)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">38.95 ms (4.40%, 25.67 FPS)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">73.83 ms (2.31%, 13.54 FPS)</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">36.99 ms (4.36%, 27.04 FPS)</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">75.31 ms (2.34%, 13.28 FPS)</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1372,47 +1499,47 @@
                                 <span class="lang-vi">Năng Lực Phát Hiện Tĩnh Của Giám Sát</span>
                             </div>
                             <p class="text-slate-600 lang-en mb-2">
-                                ESM flags stationary AQSM at <strong>47.62% TPR</strong> ($\text{AUROC} = 0.7881$) on R18VD ($25.71\%$ on R50VD) at $10\%$ FPR. The two-sided Active-Box Watchdog detects extreme Tier B attacks strongly: <strong>85.24%</strong> Vanishing and <strong>89.05%</strong> Task PGD.
+                                ESM flags stationary AQSM at <strong>46.67% TPR</strong> ($\text{AUROC} = 0.7743$) on R18VD ($25.71\%$ on R50VD). Two-sided BCM catches Task PGD ($88.57\%$ / $91.43\%$ one-sided) and Vanishing ($85.24\%$).
                             </p>
                             <p class="text-slate-600 lang-vi mb-2">
-                                ESM phát hiện AQSM tĩnh đạt <strong>47.62% TPR</strong> ($\text{AUROC} = 0.7881$) trên R18VD ($25.71\%$ trên R50VD) ở mức FPR $10\%$. Bộ giám sát số hộp phát hiện tốt các đòn đánh cực đoan: <strong>85.24%</strong> Vanishing và <strong>89.05%</strong> Task PGD.
+                                ESM phát hiện AQSM tĩnh đạt <strong>46.67% TPR</strong> ($\text{AUROC} = 0.7743$) trên R18VD ($25.71\%$ trên R50VD). Bộ giám sát BCM bắt mạnh Task PGD ($88.57\%$ / $91.43\%$) và Vanishing ($85.24\%$).
                             </p>
                         </div>
-                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Table 11 &bull; N_cal=90, N_test=210</span>
+                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Table 11 &bull; N_test=210 R18 / 140 R50</span>
                     </div>
 
                     <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center gap-2 mb-1.5 font-bold text-slate-900">
                                 <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] font-bold">(b)</span>
-                                <span class="lang-en">White-Box Adaptive Evasion</span>
-                                <span class="lang-vi">Qua Mặt Thích Nghi White-Box</span>
+                                <span class="lang-en">Standalone Evasion vs. Ensemble Bounds</span>
+                                <span class="lang-vi">Qua Mặt Đơn Lẻ vs. Tổ Hợp Ensemble</span>
                             </div>
                             <p class="text-slate-600 lang-en mb-2">
-                                A Carlini-Tramèr white-box adversary suppresses ESM detection TPR down to <strong>2.86%–5.24%</strong> (<strong>94.76%–97.14% raw bypass</strong>), while still severely collapsing detection accuracy to $8.91\%–11.90\%$ mAP@50.
+                                Adaptive white-box evasion bypasses standalone ESM (<strong>95.24%–97.62%</strong>), SCM (<strong>94.76%–95.71%</strong>; mAP $0.76\%\text{--}1.73\%$), and BCM (<strong>84.29%–92.86%</strong>), whereas attacking their Ensemble caps joint evasion at <strong>0.00%–0.48%</strong> ($9.51\%\text{--}10.00\%$ mAP).
                             </p>
                             <p class="text-slate-600 lang-vi mb-2">
-                                Đối thủ thích nghi white-box Carlini-Tramèr dồn TPR của ESM xuống chỉ còn <strong>2.86%–5.24%</strong> (<strong>tỷ lệ qua mặt 94.76%–97.14%</strong>), trong khi vẫn làm sụp đổ độ chính xác phát hiện về mức $8.91\%–11.90\%$ mAP@50.
+                                Tấn công thích nghi qua mặt dễ dàng ESM (<strong>95.24%–97.62%</strong>), SCM (<strong>94.76%–95.71%</strong>; mAP $0.76\%\text{--}1.73\%$) và BCM (<strong>84.29%–92.86%</strong>) đơn lẻ, nhưng Ensemble giữ qua mặt đồng thời còn <strong>0.00%–0.48%</strong>.
                             </p>
                         </div>
-                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Adaptive Loss &bull; λ ∈ {0.2, 0.5, 1.0, 2.0}</span>
+                        <span class="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 w-fit">Adaptive Ensemble Joint: 0.00–0.48%</span>
                     </div>
 
                     <div class="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/70 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center gap-2 mb-1.5 font-bold text-sky-950">
                                 <span class="w-5 h-5 rounded-md bg-sky-200 text-sky-800 flex items-center justify-center text-[10px] font-bold">(c)</span>
-                                <span class="lang-en">SQA Empirical Null Result</span>
-                                <span class="lang-vi">Kết Quả Null Thực Nghiệm Của SQA</span>
+                                <span class="lang-en">Calibrated Enc.-Sampled SQA Null Result</span>
+                                <span class="lang-vi">Kết Quả Null SQA Sau Chuẩn Hóa Logit</span>
                             </div>
                             <p class="text-sky-900 lang-en mb-2">
-                                Live GPU evaluation of zero-shot SQA yields a null result: $4.05\% \to 3.97\%$ ($-0.08$ pp) on R18VD, and $9.14\% \to 9.25\%$ ($+0.11$ pp) on R50VD, because corrupted encoder memory ($M_{\mathrm{adv}}$) cannot be decoded by unhardened queries.
+                                Even after inverse-sigmoid logit calibration and encoder feature sampling, zero-shot SQA remains null: $4.08\% \to 4.03\%$ ($-0.05$ pp) on R18VD and $10.15\% \to 10.27\%$ ($+0.12$ pp) on R50VD, falling to $2.65\%$ / $6.66\%$ under full held-out adaptive attacks ($N_{\mathrm{test}} = 210 / 140$).
                             </p>
                             <p class="text-sky-900 lang-vi mb-2">
-                                Đo đạc trực tiếp trên GPU cho thấy SQA zero-shot cho kết quả null: $4.05\% \to 3.97\%$ ($-0.08$ pp) trên R18VD, và $9.14\% \to 9.25\%$ ($+0.11$ pp) trên R50VD, vì bộ nhớ encoder bị phá hoại ($M_{\mathrm{adv}}$) không thể giải mã bởi query chưa gia cố.
+                                Ngay cả sau khi chuẩn hóa tọa độ <code>logit</code> và lấy mẫu đặc trưng từ Encoder, SQA zero-shot vẫn không phục hồi: $4.08\% \to 4.03\%$ ($-0.05$ pp) trên R18VD và $10.15\% \to 10.27\%$ ($+0.12$ pp) trên R50VD, tụt về $2.65\%$ / $6.66\%$ khi bị tấn công thích nghi toàn tập kiểm thử ($N_{\mathrm{test}} = 210 / 140$).
                             </p>
                         </div>
-                        <span class="text-[10px] font-mono text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded border border-sky-300 w-fit">Table 12 &bull; 300 Dyn + 30 Static</span>
+                        <span class="text-[10px] font-mono text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded border border-sky-300 w-fit">Table 12 &bull; Calibrated SQA + Enc Sample</span>
                     </div>
                 </div>
 
@@ -1421,14 +1548,14 @@
                     <div class="p-4 sm:p-5 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div>
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 font-heading">
-                                <span class="lang-en">Table 12: Zero-Shot Static Query Augmentation (SQA) &amp; Capacity Controls</span>
-                                <span class="lang-vi">Bảng 12: Đánh Giá SQA Zero-Shot &amp; Các Nhóm Đối Chứng Dung Lượng</span>
+                                <span class="lang-en">Table 12: Calibrated &amp; Encoder-Sampled SQA Ablation &amp; Full Adaptive Evasion</span>
+                                <span class="lang-vi">Bảng 12: Thử Nghiệm Chuẩn Hóa SQA &amp; Tấn Công Thích Nghi Toàn Tập</span>
                             </h3>
-                            <p class="text-xs text-slate-500 mt-0.5 lang-en">COCO val2017 ($N = 300$, native $640 \times 640$, adaptive subset $N_{\mathrm{adapt}} = 20$) across RT-DETR-R18VD and RT-DETR-R50VD.</p>
-                            <p class="text-xs text-slate-500 mt-0.5 lang-vi">COCO val2017 ($N = 300$, độ phân giải $640 \times 640$, tập con thích nghi $N_{\mathrm{adapt}} = 20$) trên RT-DETR-R18VD và RT-DETR-R50VD.</p>
+                            <p class="text-xs text-slate-500 mt-0.5 lang-en">COCO val2017 across RT-DETR-R18VD ($N = 300$, $N_{\mathrm{test}} = 210$) and RT-DETR-R50VD ($N = 200$, $N_{\mathrm{test}} = 140$).</p>
+                            <p class="text-xs text-slate-500 mt-0.5 lang-vi">COCO val2017 trên RT-DETR-R18VD ($N = 300$, $N_{\mathrm{test}} = 210$) và RT-DETR-R50VD ($N = 200$, $N_{\mathrm{test}} = 140$).</p>
                         </div>
                         <span class="text-[11px] font-mono text-slate-500 bg-white px-2.5 py-1 rounded border border-slate-200 w-fit">
-                            $N_{\mathrm{static}} = 30$ &bull; Uniform Grid &bull; Tesla T4
+                            $N_{\mathrm{static}} = 30$ &bull; Logit Calib + Enc. Sample
                         </span>
                     </div>
 
@@ -1440,7 +1567,7 @@
                                     <th class="py-3 px-3 text-right">COCO mAP@50</th>
                                     <th class="py-3 px-3 text-right">mAP@50:95</th>
                                     <th class="py-3 px-3 text-right">Recall</th>
-                                    <th class="py-3 px-3 text-center">T4 Latency</th>
+                                    <th class="py-3 px-3 text-center">Orin Nano Est.</th>
                                     <th class="py-3 px-4"><span class="lang-en">Mechanistic Finding</span><span class="lang-vi">Phát Hiện Cơ Chế</span></th>
                                 </tr>
                             </thead>
@@ -1448,7 +1575,7 @@
                                 <!-- R18VD -->
                                 <tr class="bg-slate-100/60">
                                     <td colspan="6" class="py-1.5 px-4 font-bold text-slate-800 text-[10px] uppercase tracking-wider">
-                                        RT-DETR-R18VD (3 Decoder Layers)
+                                        RT-DETR-R18VD (3 Decoder Layers &bull; N = 300, Held-out Adaptive N_test = 210)
                                     </td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
@@ -1456,111 +1583,111 @@
                                     <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">66.93%</td>
                                     <td class="py-2.5 px-3 text-right font-mono">50.24%</td>
                                     <td class="py-2.5 px-3 text-right font-mono">86.48%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.37 ms</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.23 ms</td>
                                     <td class="py-2.5 px-4 text-slate-500">Nominal clean reference baseline</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-4 font-semibold text-slate-900 pl-6">Clean SQA Hardened (300 dyn. + 30 static)</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">66.98%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">50.25%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">86.39%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.48 ms</td>
-                                    <td class="py-2.5 px-4 text-emerald-700">Zero clean penalty (+0.05 pp, +0.43% latency)</td>
+                                    <td class="py-2.5 px-4 font-semibold text-slate-900 pl-6">Clean SQA Logit-Calibrated (330 q.)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">66.83%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">50.27%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">86.53%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.61 ms</td>
+                                    <td class="py-2.5 px-4 text-emerald-700">Negligible clean delta (−0.10 pp, +1.08% latency)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition bg-rose-50/20">
                                     <td class="py-2.5 px-4 font-semibold text-rose-950 pl-6">AQSM (ε = 16): Dynamic-300 Baseline</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-600">4.05%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600">2.10%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">17.90%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.37 ms</td>
-                                    <td class="py-2.5 px-4 text-rose-600">Catastrophic collapse (6.05% retention)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-600">4.08%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600">2.15%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">18.09%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.23 ms</td>
+                                    <td class="py-2.5 px-4 text-rose-600">Unhardened baseline (6.10% retention)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Control 1: Dynamic Top-330</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">4.06%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">2.10%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">17.95%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.48 ms</td>
-                                    <td class="py-2.5 px-4 text-slate-500">Expanding dynamic pool fails (+0.01 pp)</td>
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Controls: Dyn. Top-330 / Random-30</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">4.05% / 4.01%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">2.12% / 2.18%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">18.14% / 18.18%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.61 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">Capacity/random controls yield −0.03 / −0.07 pp</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Control 2: Random-30 Static</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">4.03%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">2.04%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">18.04%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.48 ms</td>
-                                    <td class="py-2.5 px-4 text-slate-500">Random static anchors yield no recovery (−0.02 pp)</td>
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">SQA Raw Uncalibrated / Logit + Noise</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">3.98% / 4.01%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">2.17% / 2.16%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">18.18% / 18.14%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.61 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">Eliminating logit center-bias still gives null recovery</td>
                                 </tr>
                                 <tr class="hover:bg-sky-50/40 transition bg-sky-50/30">
-                                    <td class="py-2.5 px-4 font-bold text-sky-950 pl-6">AQSM SQA (Grid-30 Static) [Proposed]</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">3.97%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">2.03%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">18.04%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.48 ms</td>
-                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null recovery (−0.08 pp); corrupted memory $M_{\mathrm{adv}}$ dominates</td>
+                                    <td class="py-2.5 px-4 font-bold text-sky-950 pl-6">SQA Logit-Calibrated + Encoder Sample</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">4.03%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">2.18%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">17.95%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.61 ms</td>
+                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null (−0.05 pp); proves corrupted $M_{\mathrm{adv}}$ bottleneck</td>
                                 </tr>
                                 <tr class="hover:bg-amber-50/40 transition">
-                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Adaptive Joint Evasion on SQA ($N_{\mathrm{adapt}} = 20$)</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">6.93%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">4.35%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">8.45%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">25.48 ms</td>
-                                    <td class="py-2.5 px-4 text-amber-800">89.65% bypass on evaluated $N=20$ adaptive subset</td>
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Adaptive Evasion (Calib. Noise / Enc.-Sample, N=210)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">1.79% / 2.65%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">0.77% / 1.63%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">11.39% / 11.32%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">34.61 ms</td>
+                                    <td class="py-2.5 px-4 text-amber-800">97.33% / 96.04% adaptive bypass across all $N=210$ test scenes</td>
                                 </tr>
 
                                 <!-- R50VD -->
                                 <tr class="bg-slate-100/60">
                                     <td colspan="6" class="py-1.5 px-4 font-bold text-slate-800 text-[10px] uppercase tracking-wider">
-                                        RT-DETR-R50VD (6 Decoder Layers)
+                                        RT-DETR-R50VD (6 Decoder Layers &bull; N = 200, Held-out Adaptive N_test = 140)
                                     </td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-4 font-semibold text-slate-900 pl-6">Clean Dynamic-300 (Ref.)</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">72.95%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">55.73%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">90.58%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">68.09 ms</td>
-                                    <td class="py-2.5 px-4 text-slate-500">Nominal clean reference baseline</td>
-                                </tr>
-                                <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-4 font-semibold text-slate-900 pl-6">Clean SQA Hardened (300 dyn. + 30 static)</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">72.97%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">55.73%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">90.57%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">68.85 ms</td>
-                                    <td class="py-2.5 px-4 text-emerald-700">Zero clean penalty (+0.02 pp, +1.12% latency)</td>
+                                    <td class="py-2.5 px-4 font-semibold text-slate-900 pl-6">Clean Dynamic-300 / Clean SQA Hardened</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">74.45% / 74.47%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">57.47% / 57.57%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">92.11% / 92.17%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">71.37 ms</td>
+                                    <td class="py-2.5 px-4 text-emerald-700">Zero clean penalty (+0.02 pp, +1.33% latency)</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition bg-rose-50/20">
                                     <td class="py-2.5 px-4 font-semibold text-rose-950 pl-6">AQSM (ε = 16): Dynamic-300 Baseline</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-600">9.14%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600">5.41%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">27.99%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">68.09 ms</td>
-                                    <td class="py-2.5 px-4 text-rose-600">Unhardened baseline (12.53% retention)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-rose-600">10.15%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-rose-600">5.75%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">27.56%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">70.42 ms</td>
+                                    <td class="py-2.5 px-4 text-rose-600">Unhardened baseline (13.63% retention)</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/60 transition">
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">SQA Raw / Logit + Noise (Controls: 10.18% / 10.43%)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">10.10% / 10.29%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">5.56% / 5.82%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">27.63% / 27.98%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">71.37 ms</td>
+                                    <td class="py-2.5 px-4 text-slate-500">Logit calibration gives negligible +0.14 pp shift</td>
                                 </tr>
                                 <tr class="hover:bg-sky-50/40 transition bg-sky-50/30">
-                                    <td class="py-2.5 px-4 font-bold text-sky-950 pl-6">AQSM SQA (Grid-30 Static) [Proposed]</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">9.25%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">5.52%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">28.08%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">68.85 ms</td>
-                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null recovery (+0.11 pp); corrupted memory $M_{\mathrm{adv}}$ dominates</td>
+                                    <td class="py-2.5 px-4 font-bold text-sky-950 pl-6">SQA Logit-Calibrated + Encoder Sample</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">10.27%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-bold text-sky-700">5.81%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">28.12%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">71.37 ms</td>
+                                    <td class="py-2.5 px-4 text-sky-900 font-semibold">Null recovery (+0.12 pp); $M_{\mathrm{adv}}$ dominates</td>
                                 </tr>
                                 <tr class="hover:bg-amber-50/40 transition">
-                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Adaptive Joint Evasion on SQA ($N_{\mathrm{adapt}} = 20$)</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">15.04%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">9.81%</td>
-                                    <td class="py-2.5 px-3 text-right font-mono">16.43%</td>
-                                    <td class="py-2.5 px-3 text-center font-mono">68.85 ms</td>
-                                    <td class="py-2.5 px-4 text-amber-800">79.38% bypass on evaluated $N=20$ adaptive subset</td>
+                                    <td class="py-2.5 px-4 text-slate-700 pl-6">Adaptive Evasion (Calib. Noise / Enc.-Sample, N=140)</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">8.59% / 6.66%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">5.08% / 3.80%</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">18.44% / 18.24%</td>
+                                    <td class="py-2.5 px-3 text-center font-mono">71.37 ms</td>
+                                    <td class="py-2.5 px-4 text-amber-800">88.46% / 91.06% adaptive bypass across $N=140$ test scenes</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
                     <div class="p-3.5 bg-slate-50/80 border-t border-slate-200 text-[11px] text-slate-500 leading-relaxed">
-                        <span class="lang-en"><strong>Mechanistic Lesson:</strong> Zero-shot SQA reveals an informative empirical null recovery result ($4.05\% \to 3.97\%$ on R18VD; $9.14\% \to 9.25\%$ on R50VD). Consistent with causal surgery (where Arm $\text{C}_{\text{full}}$ retains only $9.31\%$ / $14.43\%$ even with all 300 clean queries restored), injecting unhardened static queries cannot compensate for severely corrupted encoder memory representations ($M_{\mathrm{adv}}$). Defending dynamic-query detectors requires coupled multi-scale encoder representation hardening alongside coordinate-calibrated static priors.</span>
-                        <span class="lang-vi"><strong>Bài học Cơ chế:</strong> Thử nghiệm SQA zero-shot đem lại kết quả null thực nghiệm mang tính chẩn đoán sâu sắc ($4.05\% \to 3.97\%$ trên R18VD; $9.14\% \to 9.25\%$ trên R50VD). Phù hợp với phân tích hoán đổi nhân quả (trong đó Nhánh $\text{C}_{\text{full}}$ chỉ giữ được $9.31\%$ / $14.43\%$ ngay cả khi khôi phục toàn bộ 300 query sạch), việc bổ sung query tĩnh chưa gia cố không thể bù đắp cho biểu diễn bộ nhớ encoder đã bị tàn phá nặng ($M_{\mathrm{adv}}$). Việc phòng thủ các detector truy vấn động đòi hỏi phải kết hợp gia cố biểu diễn encoder đa tầng cùng với các anchor tĩnh được chuẩn hóa tọa độ.</span>
+                        <span class="lang-en"><strong>Mechanistic Lesson:</strong> Zero-shot SQA—even after resolving coordinate logit clustering (<code>torch.logit</code>) and sampling features directly from encoder memory—yields null recovery ($4.08\% \to 4.03\%$ R18VD; $10.15\% \to 10.27\%$ R50VD). Because causal surgery (Arm $\text{C}_{\text{full}}$ retains only $9.31\%$ / $15.46\%$) shows corrupted memory $M_{\mathrm{adv}}$ loses semantic discriminability, encoder representation hardening must accompany calibrated static query priors.</span>
+                        <span class="lang-vi"><strong>Bài học Cơ chế:</strong> SQA zero-shot—ngay cả khi xử lý sai lệch tọa độ (<code>torch.logit</code>) và lấy mẫu đặc trưng trực tiếp từ bộ nhớ encoder—vẫn không khôi phục được độ chính xác ($4.08\% \to 4.03\%$ trên R18VD; $10.15\% \to 10.27\%$ trên R50VD). Phù hợp với can thiệp nhân quả (Nhánh $\text{C}_{\text{full}}$ chỉ giữ $9.31\%$ / $15.46\%$), phòng thủ hiệu quả bắt buộc phải kết hợp gia cố biểu diễn của Encoder đa tầng.</span>
                     </div>
                 </div>
 
@@ -1667,16 +1794,16 @@
             title_vi: 'Encoder Memory (Biểu diễn bộ nhớ M)',
             calc_en: 'Multi-scale spatial feature maps extracted by hybrid encoder: S3 (80x80), S4 (40x40), S5 (20x20), S=8,400 tokens.',
             calc_vi: 'Bản đồ đặc trưng không gian đa tỷ lệ trích xuất từ hybrid encoder: S3 (80x80), S4 (40x40), S5 (20x20), S=8.400 tokens.',
-            mean_en: 'Contains semantic contextual representations. Perturbing M accounts for 60.59% (R18VD) and 68.16% (R50VD) of detector collapse.',
-            mean_vi: 'Chứa biểu diễn ngữ nghĩa của cảnh vật. Làm sai lệch M chiếm tới 60.59% (R18VD) và 68.16% (R50VD) nguyên nhân gây sụp đổ mô hình.'
+            mean_en: 'Contains semantic contextual representations. Perturbing M accounts for 60.59% (R18VD, N=300) and 68.22% (R50VD, N=200) of detector collapse.',
+            mean_vi: 'Chứa biểu diễn ngữ nghĩa của cảnh vật. Làm sai lệch M chiếm tới 60.59% (R18VD, N=300) và 68.22% (R50VD, N=200) nguyên nhân gây sụp đổ mô hình.'
         },
         'query': {
             title_en: 'Query Prior (Q)',
             title_vi: 'Query Prior (Vị trí Tiên nghiệm Q)',
             calc_en: 'Top-300 candidate positions and reference coordinates routed by dynamic query selection head.',
             calc_vi: 'Top-300 vị trí và tọa độ anchor ứng viên được lựa chọn bởi tầng dynamic query selection.',
-            mean_en: 'Clean: foreground object centers. Adversarial: anchors misrouted into background noise clusters (39.41% share on R18VD, 31.84% on R50VD).',
-            mean_vi: 'Sạch: anchor bao phủ đúng tâm đối tượng. Đối kháng: anchor bị định tuyến sai lệch vào các cụm nền nhiễu (39.41% trên R18VD, 31.84% trên R50VD).'
+            mean_en: 'Clean: foreground object centers. Adversarial: anchors misrouted into background noise clusters (39.41% share on R18VD, 31.78% on R50VD).',
+            mean_vi: 'Sạch: anchor bao phủ đúng tâm đối tượng. Đối kháng: anchor bị định tuyến sai lệch vào các cụm nền nhiễu (39.41% trên R18VD, 31.78% trên R50VD).'
         },
         'map50': {
             title_en: 'COCO mAP@50 (IoU ≥ 0.50)',
@@ -1705,34 +1832,34 @@
         'attention_entropy': {
             title_en: 'Normalized Attention Entropy H(A)',
             title_vi: 'Entropy Attention Chuẩn hóa H(A)',
-            calc_en: 'H(A) = - Σ a_k log(a_k) / log(K), computed over K=4 deformable sampling offsets across all heads and layers.',
-            calc_vi: 'H(A) = - Σ a_k log(a_k) / log(K), tính toán trên K=4 điểm lấy mẫu biến dạng qua tất cả các đầu và tầng decoder.',
-            mean_en: 'Measures sampling weight concentration. Under AQSM, H(A) stays virtually constant (0.8032 -> 0.7938 on R18VD, d = -0.19), refuting attention scattering.',
-            mean_vi: 'Đo lường mức độ tập trung trọng số lấy mẫu. Dưới AQSM, H(A) gần như không đổi (0.8032 -> 0.7938 trên R18VD, d = -0.19), bác bỏ giả thuyết tán xạ chú ý.'
+            calc_en: 'H(A) = - Σ a_k log(a_k) / log(K*L), computed over L=3 scales and K=4 deformable sampling offsets across all heads.',
+            calc_vi: 'H(A) = - Σ a_k log(a_k) / log(K*L), tính toán trên L=3 tầng tỷ lệ và K=4 điểm lấy mẫu biến dạng qua các đầu attention.',
+            mean_en: 'Passes ±0.02 TOST equivalence (0.8032 -> 0.7945 R18VD, p=3.46e-5; 0.8150 -> 0.8087 R50VD, p=6.80e-6), refuting attention scattering.',
+            mean_vi: 'Đạt kiểm định tương đương TOST ±0.02 (0.8032 -> 0.7945 R18VD, p=3.46e-5; 0.8150 -> 0.8087 R50VD, p=6.80e-6), bác bỏ giả thuyết tán xạ chú ý.'
         },
         'sampling_hit': {
             title_en: 'Spatial Sampling Hit Rate (FG %)',
             title_vi: 'Tỷ lệ Lấy mẫu trúng Foreground (FG %)',
             calc_en: 'Percentage of deformable sampling point locations that fall inside ground-truth foreground object masks.',
             calc_vi: 'Tỷ lệ phần trăm các điểm lấy mẫu biến dạng rơi trúng bên trong vùng đối tượng foreground ground-truth.',
-            mean_en: 'Collapses from 63.53% (clean) down to 44.17% under AQSM on R18VD (p = 2.54 × 10^-32), starving cross-attention heads of genuine object evidence.',
-            mean_vi: 'Sụp đổ từ 63.53% (ảnh sạch) xuống 44.17% dưới AQSM trên R18VD (p = 2.54 × 10^-32), khiến các đầu cross-attention suy giảm nghiêm trọng tín hiệu đặc trưng đối tượng thật.'
+            mean_en: 'Collapses from 63.53% (clean) down to 45.44% under AQSM on R18VD (p = 4.85 × 10^-29), starving cross-attention heads of genuine object evidence.',
+            mean_vi: 'Sụp đổ từ 63.53% (ảnh sạch) xuống 45.44% dưới AQSM trên R18VD (p = 4.85 × 10^-29), khiến các đầu cross-attention suy giảm nghiêm trọng tín hiệu đặc trưng đối tượng thật.'
         },
         'ref_drift': {
             title_en: 'Reference Coordinate Drift (Δp)',
             title_vi: 'Độ trôi Tọa độ Tham chiếu (Δp)',
             calc_en: 'Mean displacement ||p_adv - p_clean||_2 of anchor centers, alongside permutation-invariant Hungarian set distance.',
             calc_vi: 'Độ dịch chuyển tâm anchor ||p_adv - p_clean||_2 kết hợp khoảng cách tập hợp bất biến hoán vị Hungarian.',
-            mean_en: 'Quantifies spatial diversion into peripheral background noise (Clean: 0.0000, AQSM: 0.4750 R18VD / 0.4503 R50VD).',
-            mean_vi: 'Định lượng mức độ trôi lệch không gian vào nhiễu nền ngoại vi (Clean: 0.0000, AQSM: 0.4750 R18VD / 0.4503 R50VD).'
+            mean_en: 'Quantifies spatial diversion into peripheral background noise (Clean: 0.0000, AQSM: 0.4672 R18VD / 0.4459 R50VD).',
+            mean_vi: 'Định lượng mức độ trôi lệch không gian vào nhiễu nền ngoại vi (Clean: 0.0000, AQSM: 0.4672 R18VD / 0.4459 R50VD).'
         },
         'dropoff_ratio': {
             title_en: 'Proposal Dropoff Ratio D(X)',
             title_vi: 'Tỷ số Suy giảm Đề xuất D(X)',
             calc_en: 'D(X) = (s_(1) + 10^-4) / (s_(300) + 10^-4), ratio of highest proposal logit to the 300th boundary candidate.',
             calc_vi: 'D(X) = (s_(1) + 10^-4) / (s_(300) + 10^-4), tỷ số giữa logit đề xuất cao nhất và đề xuất thứ 300 tại biên.',
-            mean_en: 'Measures confidence distribution sharpness. Clean inference produces steep decay (34.73), while AQSM flattens it (10.54).',
-            mean_vi: 'Đo độ dốc phân phối độ tin cậy. Ảnh sạch có phân phối rất dốc (34.73), trong khi AQSM san phẳng phân phối này (10.54).'
+            mean_en: 'Measures confidence distribution sharpness. Clean inference produces steep decay (34.73), while AQSM flattens it (11.21).',
+            mean_vi: 'Đo độ dốc phân phối độ tin cậy. Ảnh sạch có phân phối rất dốc (34.73), trong khi AQSM san phẳng phân phối này (11.21).'
         }
     };
 

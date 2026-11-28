@@ -1,0 +1,239 @@
+{
+  "rtdetr_r18vd": {
+    "model_name": "PekingU/rtdetr_r18vd",
+    "model_tag": "rtdetr_r18vd",
+    "family": "rtdetr",
+    "has_dynamic_selection": true,
+    "postprocess_mode": "hf_multilabel",
+    "n_samples": 300,
+    "decoder_layers": 3,
+    "hidden_dim": 256,
+    "clean": {
+      "mAP@50": 66.93,
+      "mAP@50_ci95": [
+        65.48,
+        71.46
+      ],
+      "mAP@50:95": 50.24,
+      "recall_pct": 86.48,
+      "mean_latency_ms": 34.25
+    },
+    "aqsm": {
+      "mAP@50": 5.13,
+      "mAP@50_ci95": [
+        4.07,
+        7.72
+      ],
+      "mAP@50:95": 2.92,
+      "recall_pct": 17.95,
+      "mean_evicted_pct": 83.76,
+      "mean_memory_cosine": 0.4507
+    },
+    "task_pgd": {
+      "mAP@50": 0.35,
+      "mAP@50_ci95": [
+        0.14,
+        1.08
+      ],
+      "mAP@50:95": 0.06,
+      "recall_pct": 4.62,
+      "mean_evicted_pct": 76.49,
+      "mean_memory_cosine": 0.4472
+    }
+  },
+  "rtdetr_r50vd": {
+    "model_name": "PekingU/rtdetr_r50vd",
+    "model_tag": "rtdetr_r50vd",
+    "family": "rtdetr",
+    "has_dynamic_selection": true,
+    "postprocess_mode": "hf_multilabel",
+    "n_samples": 300,
+    "decoder_layers": 6,
+    "hidden_dim": 256,
+    "clean": {
+      "mAP@50": 72.95,
+      "mAP@50_ci95": [
+        71.49,
+        77.29
+      ],
+      "mAP@50:95": 55.73,
+      "recall_pct": 90.58,
+      "mean_latency_ms": 68.0
+    },
+    "aqsm": {
+      "mAP@50": 8.89,
+      "mAP@50_ci95": [
+        7.67,
+        11.65
+      ],
+      "mAP@50:95": 5.87,
+      "recall_pct": 25.03,
+      "mean_evicted_pct": 77.59,
+      "mean_memory_cosine": 0.5773
+    },
+    "task_pgd": {
+      "mAP@50": 2.93,
+      "mAP@50_ci95": [
+        2.48,
+        4.89
+      ],
+      "mAP@50:95": 0.92,
+      "recall_pct": 13.15,
+      "mean_evicted_pct": 70.28,
+      "mean_memory_cosine": 0.5701
+    }
+  },
+  "rtdetr_v2_r18vd": {
+    "model_name": "PekingU/rtdetr_v2_r18vd",
+    "model_tag": "rtdetr_v2_r18vd",
+    "family": "rtdetrv2",
+    "has_dynamic_selection": true,
+    "postprocess_mode": "per_query_max",
+    "n_samples": 300,
+    "decoder_layers": 3,
+    "hidden_dim": 256,
+    "clean": {
+      "mAP@50": 67.41,
+      "mAP@50_ci95": [
+        65.16,
+        72.18
+      ],
+      "mAP@50:95": 51.48,
+      "recall_pct": 87.04,
+      "mean_latency_ms": 32.5
+    },
+    "aqsm": {
+      "mAP@50": 4.01,
+      "mAP@50_ci95": [
+        3.09,
+        5.95
+      ],
+      "mAP@50:95": 1.95,
+      "recall_pct": 16.5,
+      "mean_evicted_pct": 88.21,
+      "mean_memory_cosine": 0.4411
+    },
+    "task_pgd": {
+      "mAP@50": 0.74,
+      "mAP@50_ci95": [
+        0.52,
+        1.66
+      ],
+      "mAP@50:95": 0.22,
+      "recall_pct": 7.09,
+      "mean_evicted_pct": 78.25,
+      "mean_memory_cosine": 0.4448
+    }
+  },
+  "deformable_detr_with_box_refine_two_stage": {
+    "model_name": "SenseTime/deformable-detr-with-box-refine-two-stage",
+    "model_tag": "deformable_detr_with_box_refine_two_stage",
+    "family": "deformable_detr",
+    "has_dynamic_selection": true,
+    "postprocess_mode": "per_query_max",
+    "n_samples": 300,
+    "decoder_layers": 6,
+    "hidden_dim": 256,
+    "clean": {
+      "mAP@50": 63.1,
+      "mAP@50_ci95": [
+        61.01,
+        67.72
+      ],
+      "mAP@50:95": 45.45,
+      "recall_pct": 83.54,
+      "mean_latency_ms": 125.76
+    },
+    "aqsm": {
+      "mAP@50": 3.99,
+      "mAP@50_ci95": [
+        3.05,
+        6.18
+      ],
+      "mAP@50:95": 1.99,
+      "recall_pct": 20.23,
+      "mean_evicted_pct": 88.11,
+      "mean_memory_cosine": 0.6063
+    },
+    "task_pgd": {
+      "mAP@50": 0.14,
+      "mAP@50_ci95": [
+        0.08,
+        0.43
+      ],
+      "mAP@50:95": 0.06,
+      "recall_pct": 7.27,
+      "mean_evicted_pct": 82.97,
+      "mean_memory_cosine": 0.6022
+    }
+  },
+  "detr_resnet_50": {
+    "model_name": "facebook/detr-resnet-50",
+    "model_tag": "detr_resnet_50",
+    "family": "detr",
+    "has_dynamic_selection": false,
+    "postprocess_mode": "detr_softmax",
+    "n_samples": 300,
+    "decoder_layers": 6,
+    "hidden_dim": 256,
+    "clean": {
+      "mAP@50": 59.47,
+      "mAP@50_ci95": [
+        57.48,
+        64.81
+      ],
+      "mAP@50:95": 40.96,
+      "recall_pct": 76.08,
+      "mean_latency_ms": 40.25
+    },
+    "aqsm": null,
+    "task_pgd": {
+      "mAP@50": 0.72,
+      "mAP@50_ci95": [
+        0.36,
+        1.73
+      ],
+      "mAP@50:95": 0.26,
+      "recall_pct": 5.78,
+      "mean_evicted_pct": null,
+      "mean_memory_cosine": 0.6901
+    }
+  },
+  "retinanet_nms": {
+    "model_name": "torchvision/retinanet_resnet50_fpn_v2",
+    "model_tag": "retinanet_nms",
+    "family": "cnn_nms",
+    "has_dynamic_selection": false,
+    "postprocess_mode": "torchvision_nms",
+    "n_samples": 300,
+    "decoder_layers": 0,
+    "hidden_dim": 256,
+    "clean": {
+      "mAP@50": 63.99,
+      "mAP@50_ci95": [
+        62.12,
+        68.55
+      ],
+      "mAP@50:95": 43.34,
+      "recall_pct": 84.71,
+      "mean_latency_ms": 135.27
+    },
+    "gaussian_noise": {
+      "mAP@50": 61.3,
+      "mAP@50:95": 41.72
+    },
+    "aqsm": null,
+    "task_pgd": {
+      "mAP@50": 0.29,
+      "mAP@50_ci95": [
+        0.15,
+        1.01
+      ],
+      "mAP@50:95": 0.06,
+      "recall_pct": 4.76,
+      "mean_latency_ms": 135.11,
+      "mean_evicted_pct": null,
+      "mean_memory_cosine": null
+    }
+  }
+}

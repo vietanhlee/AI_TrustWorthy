@@ -1,0 +1,295 @@
+{
+  "project": "Paper 1: Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks",
+  "title": "Data Provenance & Experimental Verification Manifest",
+  "version": "1.0.0-camera-ready-n1000",
+  "created_at": "2026-11-28 12:06:57",
+  "hardware_environment": {
+    "execution_platform": "Windows-11-10.0.26300-SP0",
+    "python_version": "3.13.9",
+    "gpu_benchmarked": "Tesla T4",
+    "latency_device_type": "cuda",
+    "defense_source_model": "PekingU/rtdetr_r18vd"
+  },
+  "cohort_definitions": {
+    "empirical_evaluation_cohort": {
+      "description": "Tập ảnh thực nghiệm chuẩn COCO val2017 native 640x640 đánh giá toàn diện các task, N=300 images (valid intra-subject paired samples N=299 chứa ground-truth bounding boxes, df=[1, 298])",
+      "n_images": 300,
+      "n_valid_intra_subject": 299,
+      "dataset": "Microsoft COCO val2017 (instances_val2017.json)",
+      "resolution": "640x640",
+      "threat_budget": "eps=16/255, T=15, alpha=2/255, L_inf norm-bounded",
+      "seed": 42,
+      "alpha_significance": 0.05
+    },
+    "defense_calibration_cohort": {
+      "description": "Tập hiệu chuẩn tách biệt (disjoint calibration cohort) cho Encoder Selection Monitor (ESM)",
+      "n_calibration": 90,
+      "n_test": 210,
+      "percentile_quantile": 0.05
+    }
+  },
+  "tables": {
+    "tab:tab1_ablation": {
+      "table_number": 1,
+      "caption": "Component-wise ablation of the Tripartite AQSM Objective on COCO val2017",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/matched_budget_results.json",
+        "outputs/summary_json/query_selection_dynamics.json"
+      ],
+      "metrics": {}
+    },
+    "tab:tab2_main_benchmark": {
+      "table_number": 2,
+      "caption": "COCO val2017 object detection performance across controls and adversarial tiers",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/matched_budget_results.json",
+        "outputs/raw_csv/matched_budget_sweep_raw.csv"
+      ],
+      "metrics": {
+        "Clean_mAP50": 66.93,
+        "Clean_mAP50_95": 50.24,
+        "AQSM_16_mAP50": 4.05,
+        "AQSM_16_mAP50_95": 2.1,
+        "Vanishing_16_mAP50": 1.32,
+        "TaskPGD_16_mAP50": 0.35
+      }
+    },
+    "tab:tab3_causal_surgery": {
+      "table_number": 3,
+      "caption": "Factorial causal mechanism isolation on COCO val2017 benchmark at native 640x640 resolution",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/causal_swap_results_aqsm.json",
+        "outputs/summary_json/causal_swap_results_vanishing.json",
+        "outputs/summary_json/causal_swap_results_taskpgd.json",
+        "outputs/raw_csv/causal_anova_per_image_aqsm.csv"
+      ],
+      "metrics": {
+        "Arm_A_mAP50": 66.93,
+        "Arm_B_mAP50": 4.05,
+        "Arm_C_full_mAP50": 9.31,
+        "Arm_D_full_mAP50": 30.37,
+        "Arm_D_index_mAP50": 39.11
+      }
+    },
+    "tab:tab4_anova_decomp": {
+      "table_number": 4,
+      "caption": "ANOVA Factorial Decomposition and Interventional-Protocol Attribution across Attack Formulations on COCO val2017",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/causal_swap_results_aqsm.json",
+        "outputs/summary_json/causal_swap_results_vanishing.json",
+        "outputs/summary_json/causal_swap_results_taskpgd.json"
+      ],
+      "metrics": {
+        "ME_M": -42.95,
+        "ME_Q": -27.94,
+        "Interaction_MxQ": 10.06,
+        "Memory_SS_Share_pct": 67.67,
+        "Query_SS_Share_pct": 28.62
+      }
+    },
+    "tab:tab5_memory_scales": {
+      "table_number": 5,
+      "caption": "Encoder memory feature perturbation on COCO val2017 across feature scales and semantic regions",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/encoder_memory_analysis.json"
+      ],
+      "metrics": {
+        "AQSM_Overall_Cosine": 0.614,
+        "AQSM_S3_Cosine": 0.6299,
+        "AQSM_S4_Cosine": 0.5509,
+        "AQSM_S5_Cosine": 0.6123,
+        "AQSM_FG_Rel_L2": 0.8358,
+        "AQSM_BG_Rel_L2": 0.9084
+      }
+    },
+    "tab:tab6_query_dynamics": {
+      "table_number": 6,
+      "caption": "8,400-to-300 query selection overlap, rank correlation, foreground eviction, and GT coverage",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/query_selection_dynamics.json",
+        "outputs/raw_csv/encoder_query_dynamics_raw.csv"
+      ],
+      "metrics": {
+        "AQSM_Top300_Overlap": 16.11,
+        "AQSM_Evicted_Top15": 97.22,
+        "AQSM_Center_in_GT": 78.25,
+        "Clean_Center_in_GT": 99.05,
+        "AQSM_Spearman_Rho": 0.266,
+        "AQSM_Kendall_Tau": 0.185
+      }
+    },
+    "tab:tab7_attention_telemetry": {
+      "table_number": 7,
+      "caption": "Deformable decoder cross-attention telemetry on COCO val2017",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/deformable_attention_telemetry.json",
+        "outputs/raw_csv/attention_telemetry_per_image.csv"
+      ],
+      "metrics": {
+        "Clean_Entropy": 0.8287,
+        "AQSM_Entropy": 0.819,
+        "Vanishing_Entropy": 0.8508,
+        "Clean_FG_Hit": 63.53,
+        "AQSM_FG_Hit": 45.44,
+        "AQSM_Dropoff_Ratio": 11.21
+      }
+    },
+    "tab:tab8_controlled_misrouting": {
+      "table_number": 8,
+      "caption": "Controlled spatial misrouting and query perturbation on COCO val2017",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/controlled_misrouting_results.json",
+        "outputs/raw_csv/controlled_misrouting_per_image.csv"
+      ],
+      "metrics": {
+        "Clean_mAP50": 66.93,
+        "Random_Reassign_mAP50": 63.2,
+        "Random_Shift_mAP50": 33.92,
+        "Decoupled_Shift_mAP50": 33.48,
+        "AQSM_Misrouting_mAP50": 30.24
+      }
+    },
+    "tab:tab9_matched_budget": {
+      "table_number": 9,
+      "caption": "Matched-budget mechanistic comparison across perturbation levels epsilon in {4, 8, 16}",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/matched_budget_results.json",
+        "outputs/raw_csv/matched_budget_sweep_raw.csv"
+      ],
+      "metrics": {
+        "AQSM_eps4": 10.8,
+        "AQSM_eps8": 8.93,
+        "AQSM_eps16": 4.05,
+        "TaskPGD_eps4": 2.71,
+        "TaskPGD_eps8": 1.18,
+        "TaskPGD_eps16": 0.35
+      }
+    },
+    "tab:tab10_latency_sponge": {
+      "table_number": 10,
+      "caption": "Inference latency, active query counts, and computational sponge evaluation on physical edge hardware and cloud profiling",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/latency_profile.json",
+        "outputs/summary_json/edge_latency_results.json",
+        "outputs/raw_csv/latency_profiler_raw.csv"
+      ],
+      "metrics": {
+        "Backbone_ms": 18.94,
+        "Encoder_ms": 9.98,
+        "Query_Selection_ms": 1.61,
+        "Decoder_ms": 6.16,
+        "Total_End_to_End_ms": 36.99,
+        "Throughput_FPS": 27.04
+      }
+    },
+    "tab:tab11_defense_results": {
+      "table_number": 11,
+      "caption": "Empirical detection performance of Encoder Selection Monitor (ESM) and adaptive evasion boundary",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "n_test_images": 210,
+      "source_artifacts": [
+        "outputs/summary_json/defense_esm_evaluation.json"
+      ],
+      "metrics": {
+        "Clean_FPR": 10.0,
+        "AQSM_TPR": 46.67,
+        "AQSM_AUROC": 0.7743,
+        "Adaptive_Evasion_TPR_lambda_0.5": 2.38,
+        "Adaptive_Evasion_TPR_lambda_1.0": 2.86
+      }
+    },
+    "tab:tab12_hardening_validation": {
+      "table_number": 12,
+      "caption": "Empirical validation of Architectural Hardening via Static Query Augmentation",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/hardening_evaluation_results.json"
+      ],
+      "metrics": {
+        "Clean_Default_mAP50": 66.93,
+        "Clean_Hardened_mAP50": 66.83,
+        "AQSM_Default_mAP50": 4.08,
+        "AQSM_Hardened_mAP50": 4.01,
+        "AQSM_Recovery_pp": -0.07,
+        "TaskPGD_Default_mAP50": 0.35,
+        "TaskPGD_Hardened_mAP50": 0.36,
+        "Edge_Latency_Jetson_Orin_Default_ms": 34.23,
+        "Edge_Latency_Jetson_Orin_Hardened_ms": 34.61
+      }
+    },
+    "tab:tab13_multiseed_generalization": {
+      "table_number": 13,
+      "caption": "Multi-seed optimization stability and cross-variant architectural generalization across RT-DETR model depths",
+      "active_cohort": "empirical_evaluation_cohort",
+      "n_evaluated_images": 300,
+      "source_artifacts": [
+        "outputs/summary_json/multimodel_and_seed_stability_summary.json"
+      ],
+      "metrics": {
+        "RTDETR_R18VD_Canonical_Clean_mAP50": 66.93,
+        "RTDETR_R18VD_Canonical_AQSM_mAP50": 3.37,
+        "RTDETR_R18VD_Canonical_Relative_Drop_pct": -94.96,
+        "RTDETR_R18VD_Canonical_Hungarian_Drift": 0.23,
+        "RTDETR_R18VD_Canonical_Anchor_FG_Hit_pct": 47.38,
+        "RTDETR_R18VD_Clean_mAP50": 66.93,
+        "RTDETR_R18VD_MultiSeed_Mean_AQSM_mAP50": 4.0,
+        "RTDETR_R18VD_MultiSeed_Std_AQSM_mAP50": 0.74,
+        "RTDETR_R18VD_Relative_Drop_pct": -94.02,
+        "RTDETR_R18VD_Hungarian_Drift": 0.2345,
+        "RTDETR_R18VD_Anchor_FG_Hit_pct": 47.12
+      }
+    }
+  },
+  "figures": {
+    "fig:fig3_qualitative": {
+      "figure_file": "fig/fig3_qualitative_detections.pdf",
+      "caption": "Qualitative detection visualizations across benchmark conditions on a representative COCO val2017 scene"
+    },
+    "fig:fig4_encoder_dynamics": {
+      "figure_file": "fig/fig3_proposal_score_spectrum.pdf",
+      "caption": "Sorted 8,400 candidate proposal classification score spectrum under clean and adversarial conditions"
+    },
+    "fig:fig6_causal_swap": {
+      "figure_file": "fig/fig4_causal_swap_n300.pdf",
+      "caption": "Factorial causal intervention matrix (tensor swap) across clean, AQSM, vanishing, and Task PGD"
+    },
+    "fig:fig5_multiscale_overlap": {
+      "figure_file": "fig/fig5_multiscale_cosine_and_overlap.pdf",
+      "caption": "Multi-scale encoder memory feature distortion and top-300 query rank turnover dynamics"
+    },
+    "fig:fig8_attention": {
+      "figure_file": "fig/fig6_attention_scattering_comparison.pdf",
+      "caption": "Deformable cross-attention spatial scattering telemetry and foreground hit degradation"
+    },
+    "fig:fig7_matched_budget": {
+      "figure_file": "fig/fig7_matched_budget_sweep.pdf",
+      "caption": "Matched-budget perturbation sweep across epsilon in {4, 8, 16}"
+    },
+    "fig:fig10_defense": {
+      "figure_file": "fig/fig8_defense_evaluation.pdf",
+      "caption": "ROC curves of Encoder Selection Monitor (ESM) under stationary and adaptive evasion"
+    }
+  }
+}

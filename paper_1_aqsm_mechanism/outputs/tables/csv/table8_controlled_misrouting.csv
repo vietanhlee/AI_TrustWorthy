@@ -1,0 +1,6 @@
+Condition / Strategy,Seed,mAP@50 (Rel.),mAP@50:95,Recall,Slot Disp. (L2),Hungarian Dist.,Ref FG Hit,GT Obj. Cov.
+Clean Reference Baseline,---,66.93% (100.0%),50.24%,79.52%,0.0000,0.0000,68.95%,99.31%
+Random Reassignment (Mean ± Std),5 seeds,63.20 ± 0.45% (94.4%),47.81 ± 0.39%,75.70 ± 0.26%,0.5529,0.0000,68.95%,99.31%
+"Random Shift (Matched L2, Mean ± Std)",5 seeds,33.92 ± 1.38% (50.7%),22.72 ± 0.83%,38.33 ± 0.63%,0.6360 ± 0.0000,0.1948,46.86%,85.62%
+Decoupled Random Shift (Shift + Perm),5 seeds,33.48 ± 0.76% (50.0%),22.74 ± 0.79%,37.98%,0.6620,0.1948,46.86%,85.62%
+AQSM Spatial Misrouting,---,30.24% (45.2%),21.43%,34.84%,0.6360,0.2411,47.43%,77.21%

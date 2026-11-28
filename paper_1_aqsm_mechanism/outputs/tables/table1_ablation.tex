@@ -1,0 +1,23 @@
+\begin{table}[!htbp]
+\centering
+\caption{Component-wise ablation of the Tripartite AQSM Objective on COCO val2017 ($N = 300$ images, $640 \times 640$). Evaluates mAP@50, Top-300 proposal overlap with clean baseline, and Ground-Truth foreground eviction rate.}
+\label{tab:tab1_ablation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{AQSM Formulation / Loss Variant} & \textbf{mAP@50 [Rel. Drop]} & \textbf{Top-300 Overlap} & \textbf{Evicted Top-15 FG} & \textbf{Dominant Failure Mode} \\
+\midrule
+Clean Baseline (No Attack) & 66.93\% [---] & 100.0\% & 0.0\% & Nominal inference \\
+\midrule
+Margin-Ranking Loss only ($\mathcal{L}_{\mathrm{rank}}$) & 7.03\% [$-$89.5\%] & 19.0\% & 96.7\% & Margin-ranking inversion only \\
+Foreground Suppression Loss only ($\mathcal{L}_{\mathrm{suppr}}$) & 3.71\% [$-$94.5\%] & 17.5\% & 97.9\% & Foreground confidence suppression only \\
+Distal Background Elevation only ($\mathcal{L}_{\mathrm{elev}}$) & 7.51\% [$-$88.8\%] & 18.0\% & 59.4\% & Distal background elevation only \\
+$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{rank}}$ & 5.54\% [$-$91.7\%] & 18.7\% & 96.4\% & Suppression + margin ranking \\
+$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{elev}}$ & 2.10\% [$-$96.9\%] & 12.9\% & 98.2\% & Suppression + distal elevation \\
+$\mathcal{L}_{\mathrm{rank}} + \mathcal{L}_{\mathrm{elev}}$ & 4.96\% [$-$92.6\%] & 17.2\% & 95.8\% & Dual-boundary ranking + elevation \\
+\midrule
+\textbf{Full Tripartite AQSM} & \textbf{4.05\% [$-$94.0\%]} & \textbf{16.1\%} & \textbf{97.2\%} & \textbf{Compound Eviction \& Misrouting} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

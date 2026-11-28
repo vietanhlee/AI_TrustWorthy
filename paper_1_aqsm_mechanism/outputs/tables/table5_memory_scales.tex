@@ -1,0 +1,16 @@
+\begin{table}[!htbp]
+\centering
+\caption{Encoder memory feature perturbation on COCO val2017 at native $640 \times 640$ resolution across feature scales ($S_3, S_4, S_5$) and semantic regions (GT Foreground tokens vs.\ Background tokens). Evaluated on $N = 300$ cohort.}
+\label{tab:tab5_memory_scales}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Condition} & \textbf{Overall Cosine} & \textbf{Per-Scale Cosine ($S_3/S_4/S_5$)} & \textbf{FG Rel. $\ell_2$} & \textbf{BG Rel. $\ell_2$} & \textbf{FG/BG Ratio} & \textbf{Cosine Gap ($S_5 - S_4$)} \\
+\midrule
+PGD Vanishing ($T = 15$) & 0.6888 & 0.704 / 0.639 / 0.646 & 0.7732 & 0.7955 & 0.9720 & +0.008 \\
+AQSM Probe ($T = 15$) & \textbf{0.6140} & \textbf{0.630 / 0.551 / 0.612} & \textbf{0.8358} & \textbf{0.9084} & \textbf{0.9201} & \textbf{+0.061} \\
+Standard Task PGD ($T = 15$) & 0.6031 & 0.628 / 0.512 / 0.562 & 0.8996 & 0.9739 & 0.9237 & +0.049 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

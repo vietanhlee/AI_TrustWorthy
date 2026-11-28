@@ -1,0 +1,120 @@
+{
+  "experiment": "Section 7.2: Empirical Validation of Architectural Hardening via Static Query Augmentation",
+  "model": "PekingU/rtdetr_r18vd",
+  "resolution": "640x640",
+  "num_dynamic_queries": 300,
+  "num_static_anchors": 30,
+  "static_query_strategy": "uniform_canvas_grid_anchors",
+  "provenance_source": "live_gpu_inference_ablation",
+  "results": {
+    "clean_baseline": {
+      "default_dynamic_only": {
+        "mAP@50": 66.93,
+        "mAP@50:95": 50.24,
+        "recall_pct": 86.48
+      },
+      "hardened_static_augmented": {
+        "mAP@50": 66.83,
+        "mAP@50:95": 50.27,
+        "recall_pct": 86.53,
+        "clean_penalty_pp": -0.1
+      }
+    },
+    "aqsm_attack_eps16": {
+      "default_dynamic_only": {
+        "mAP@50": 4.08,
+        "mAP@50:95": 2.15,
+        "recall_pct": 18.09,
+        "retention_pct": 6.1
+      },
+      "hardened_static_augmented": {
+        "mAP@50": 4.01,
+        "mAP@50:95": 2.16,
+        "recall_pct": 18.14,
+        "recovery_pp": -0.07,
+        "retention_pct": 5.99
+      }
+    },
+    "taskpgd_attack_eps16": {
+      "default_dynamic_only": {
+        "mAP@50": 0.35,
+        "mAP@50:95": 0.09,
+        "recall_pct": 5.36
+      },
+      "hardened_static_augmented": {
+        "mAP@50": 0.36,
+        "mAP@50:95": 0.09,
+        "recall_pct": 5.36,
+        "recovery_pp": 0.01
+      }
+    },
+    "controls": {
+      "dynamic_top330": {
+        "mAP@50": 4.05,
+        "mAP@50:95": 2.12,
+        "recall_pct": 18.14,
+        "recovery_pp": -0.03
+      },
+      "random30_static": {
+        "mAP@50": 4.01,
+        "mAP@50:95": 2.18,
+        "recall_pct": 18.18,
+        "recovery_pp": -0.07
+      },
+      "adaptive_evasion_sqa": {
+        "mAP@50": 1.79,
+        "mAP@50:95": 0.77,
+        "recall_pct": 11.39,
+        "bypass_pct": 97.33
+      }
+    },
+    "edge_latency_jetson_orin_nano_ms": {
+      "default_dynamic_only": 34.233,
+      "hardened_static_augmented": 34.607,
+      "overhead_ms": 0.37,
+      "overhead_pct": 1.08,
+      "real_time_deadline_ms": 20.0,
+      "satisfies_real_time": false
+    },
+    "calibration_comparison": {
+      "raw_uncalibrated_noise": {
+        "coordinate_space": "raw_uncalibrated",
+        "content_mode": "gaussian_noise",
+        "clean_map50": 66.98,
+        "clean_map50_95": 50.39,
+        "aqsm_recovered_map50": 3.98,
+        "aqsm_recovered_map50_95": 2.17,
+        "recall_pct": 18.18,
+        "recovery_delta_map50": -0.1
+      },
+      "logit_calibrated_noise": {
+        "coordinate_space": "logit_calibrated",
+        "content_mode": "gaussian_noise",
+        "clean_map50": 66.83,
+        "clean_map50_95": 50.27,
+        "aqsm_recovered_map50": 4.01,
+        "aqsm_recovered_map50_95": 2.16,
+        "recall_pct": 18.14,
+        "recovery_delta_map50": -0.07
+      },
+      "logit_calibrated_encoder_sample": {
+        "coordinate_space": "logit_calibrated",
+        "content_mode": "encoder_sample",
+        "clean_map50": 66.92,
+        "clean_map50_95": 50.29,
+        "aqsm_recovered_map50": 4.03,
+        "aqsm_recovered_map50_95": 2.18,
+        "recall_pct": 17.95,
+        "recovery_delta_map50": -0.05
+      },
+      "calibrated_encoder_sampled_adaptive": {
+        "n_samples_tested": 210,
+        "adaptive_post_sqa_map50": 2.65,
+        "adaptive_post_sqa_map50_95": 1.63,
+        "adaptive_recall_pct": 11.32,
+        "retention_under_adaptive_pct": 3.96,
+        "bypass_pct": 96.04
+      }
+    }
+  }
+}

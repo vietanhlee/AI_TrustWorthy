@@ -1,0 +1,321 @@
+% --- TABLE1_ABLATION ---
+\begin{table}[!htbp]
+\centering
+\caption{Component-wise ablation of the Tripartite AQSM Objective on COCO val2017 ($N = 300$ images, $640 \times 640$). Evaluates mAP@50, Top-300 proposal overlap with clean baseline, and Ground-Truth foreground eviction rate.}
+\label{tab:tab1_ablation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{AQSM Formulation / Loss Variant} & \textbf{mAP@50 [Rel. Drop]} & \textbf{Top-300 Overlap} & \textbf{Evicted Top-15 FG} & \textbf{Dominant Failure Mode} \\
+\midrule
+Clean Baseline (No Attack) & 66.93\% [---] & 100.0\% & 0.0\% & Nominal inference \\
+\midrule
+Margin-Ranking Loss only ($\mathcal{L}_{\mathrm{rank}}$) & 7.03\% [$-$89.5\%] & 19.0\% & 96.7\% & Margin-ranking inversion only \\
+Foreground Suppression Loss only ($\mathcal{L}_{\mathrm{suppr}}$) & 3.71\% [$-$94.5\%] & 17.5\% & 97.9\% & Foreground confidence suppression only \\
+Distal Background Elevation only ($\mathcal{L}_{\mathrm{elev}}$) & 7.51\% [$-$88.8\%] & 18.0\% & 59.4\% & Distal background elevation only \\
+$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{rank}}$ & 5.54\% [$-$91.7\%] & 18.7\% & 96.4\% & Suppression + margin ranking \\
+$\mathcal{L}_{\mathrm{suppr}} + \mathcal{L}_{\mathrm{elev}}$ & 2.10\% [$-$96.9\%] & 12.9\% & 98.2\% & Suppression + distal elevation \\
+$\mathcal{L}_{\mathrm{rank}} + \mathcal{L}_{\mathrm{elev}}$ & 4.96\% [$-$92.6\%] & 17.2\% & 95.8\% & Dual-boundary ranking + elevation \\
+\midrule
+\textbf{Full Tripartite AQSM} & \textbf{4.05\% [$-$94.0\%]} & \textbf{16.1\%} & \textbf{97.2\%} & \textbf{Compound Eviction \& Misrouting} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE2_MAIN_BENCHMARK ---
+\begin{table}[!htbp]
+\centering
+\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 300$ images, 80 semantic categories) on \texttt{PekingU/rtdetr\_r18vd} at native $640 \times 640$ resolution across controls and adversarial threat tiers.}
+\label{tab:tab2_main_benchmark}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Threat Tier \& Condition} & \textbf{mAP@50 [Rel. Drop]} & \textbf{mAP@50:95 [Rel.]} & \textbf{Active Boxes} & \textbf{$\text{ASR}_{\text{obj}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{silence}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{starve}}$ [CI 95\%]} \\
+\midrule
+Nominal Clean Baseline & 66.93\% [Ref.] & 50.24\% [Ref.] & $8.54 \pm 9.06$ & 0.0\% [Reference] & 0.0\% [Reference] & --- \\
+\midrule
+Tier C: AQSM ($\epsilon = 16/255$) & \textbf{4.05\% [$-$94.0\%]} & \textbf{2.10\% [$-$95.8\%]} & $17.68 \pm 11.14$ & --- & --- & --- \\
+Tier B: Query Vanishing ($\epsilon = 16/255$) & 1.32\% [$-$98.0\%] & 0.65\% [$-$98.7\%] & $0.74 \pm 1.05$ & --- & --- & --- \\
+Tier B: Standard Task PGD ($\epsilon = 16/255$) & 0.35\% [$-$99.5\%] & 0.05\% [$-$99.9\%] & $46.43 \pm 19.91$ & --- & --- & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE3_CAUSAL_SURGERY ---
+\begin{table}[!htbp]
+\centering
+\caption{Factorial interventional failure decomposition on the COCO val2017 benchmark at native $640 \times 640$ resolution (evaluation cohort $N = 300$ images, valid intra-subject $N = 299$ with $\text{df} = [1, 298]$; verifiable via \texttt{outputs/data\_provenance\_manifest.json}). Reports COCO-style mAP@50 (\%), relative retention (\% of Arm A 66.93\%), and $\Delta$ vs.\ Arm A/B.}
+\label{tab:tab3_causal_surgery}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+\textbf{Intervention Arm / Factor} & \textbf{AQSM} & \textbf{PGD Vanishing} & \textbf{Standard Task PGD} \\
+& mAP@50 (Rel.) / $\Delta$ [95\% CI] & mAP@50 (Rel.) / $\Delta$ [95\% CI] & mAP@50 (Rel.) / $\Delta$ [95\% CI] \\
+\midrule
+Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{clean}}]$) & 66.93\% (100.0\%) [Ref.] & 66.93\% (100.0\%) [Ref.] & 66.93\% (100.0\%) [Ref.] \\
+Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & 4.05\% (6.0\%) [$-$62.88 pp] & 1.32\% (2.0\%) [$-$65.61 pp] & 0.35\% (0.5\%) [$-$66.58 pp] \\
+Arm $\text{C}_{\text{full}}$: Adv Mem + Clean Prior ($M_{\mathrm{adv}} + Q_{\mathrm{clean}}$) & 9.31\% (13.9\%) [$-$57.62 pp] & 5.23\% (7.8\%) [$-$61.70 pp] & 2.16\% (3.2\%) [$-$64.77 pp] \\
+Arm $\text{C}_{\text{index}}$: Adv Mem + Adv Feat at Clean Idx ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{clean}}]$) & 4.86\% (7.3\%) [$-$62.07 pp] & 1.95\% (2.9\%) [$-$64.98 pp] & 1.08\% (1.6\%) [$-$65.84 pp] \\
+Arm $\text{D}_{\text{full}}$: Clean Mem + Adv Prior ($M_{\mathrm{clean}} + Q_{\mathrm{adv}}$) & 30.37\% (45.4\%) [$-$36.55 pp] & 42.92\% (64.1\%) [$-$24.00 pp] & 26.78\% (40.0\%) [$-$40.14 pp] \\
+Arm $\text{D}_{\text{index}}$: Clean Mem + Adv Idx ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}[\mathcal{I}_{\mathrm{adv}}]$) & 39.11\% (58.4\%) [$-$27.82 pp] & 52.94\% (79.1\%) [$-$13.99 pp] & 42.52\% (63.5\%) [$-$24.41 pp] \\
+\midrule
+\textbf{Repeated-Measures ANOVA} & & & \\
+Main Effect Memory ($\text{ME}_M$) & $-42.95$ pp [$-45.49, -40.37$] & $-54.60$ pp [$-57.55, -51.84$] & $-60.72$ pp [$-63.37, -58.05$] \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.784$ ($F=1084.1, N/A$) & $\eta_p^2 = 0.830$ ($F=1452.8, N/A$) & $\eta_p^2 = 0.877$ ($F=2131.2, N/A$) \\
+Main Effect Query ($\text{ME}_Q$) & $-27.94$ pp [$-29.88, -25.99$] & $-19.19$ pp [$-20.85, -17.52$] & $-19.90$ pp [$-21.42, -18.43$] \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.709$ ($F=725.2, N/A$) & $\eta_p^2 = 0.622$ ($F=490.1, N/A$) & $\eta_p^2 = 0.692$ ($F=668.7, N/A$) \\
+Interaction ($M \times Q$) & $+10.06$ pp [$+7.77, +12.27$] & $+2.82$ pp [$+0.81, +4.74$] & $+13.61$ pp [$+12.03, +15.27$] \\
+$\eta_p^2$ (F-statistic, $p$-value) & $\eta_p^2 = 0.203$ ($F=75.9, N/A$) & $\eta_p^2 = 0.025$ ($F=7.6, N/A$) & $\eta_p^2 = 0.478$ ($F=272.6, N/A$) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE4_ANOVA_DECOMP ---
+\begin{table}[!htbp]
+\centering
+\caption{ANOVA Factorial Decomposition and Interventional-Protocol Attribution across Attack Formulations on COCO val2017 ($640 \times 640$; evaluation cohort $N = 300$ images, valid intra-subject $N = 299$, $\text{df}_1 = 1, \text{df}_2 = 298$). Highlights that query prior displacement represents an essential secondary protocol attribution under AQSM ($\eta_p^2 = 0.709$), in contrast to Query Vanishing where degradation concentrates in memory ($\eta_p^2 = 0.830$).}
+\label{tab:tab4_anova_decomp}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Attack Formulation} & \textbf{Factor} & \textbf{Sum of Squares} & \textbf{df} & \textbf{Mean Square} & \textbf{$F$-Statistic} & \textbf{Partial $\eta_p^2$} \\
+\midrule
+\multirow{3}{*}{AQSM (Probe)} & Memory ($M$) & 551657.9 & 1 & 551657.9 & 1084.1 & 0.784 ($N/A$) \\
+& Query Prior ($Q$) & 233340.7 & 1 & 233340.7 & 725.2 & 0.709 ($N/A$) \\
+& Interaction ($M \times Q$) & 30251.9 & 1 & 30251.9 & 75.9 & 0.203 ($N/A$) \\
+\midrule
+\multirow{3}{*}{PGD Vanishing} & Memory ($M$) & 891463.7 & 1 & 891463.7 & 1452.8 & 0.830 ($N/A$) \\
+& Query Prior ($Q$) & 110114.1 & 1 & 110114.1 & 490.1 & 0.622 ($N/A$) \\
+& Interaction ($M \times Q$) & 2373.3 & 1 & 2373.3 & 7.6 & 0.025 ($N/A$) \\
+\midrule
+\multirow{3}{*}{Standard Task PGD} & Memory ($M$) & 1102402.9 & 1 & 1102402.9 & 2131.2 & 0.877 ($N/A$) \\
+& Query Prior ($Q$) & 118415.8 & 1 & 118415.8 & 668.7 & 0.692 ($N/A$) \\
+& Interaction ($M \times Q$) & 55357.7 & 1 & 55357.7 & 272.6 & 0.478 ($N/A$) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE5_MEMORY_SCALES ---
+\begin{table}[!htbp]
+\centering
+\caption{Encoder memory feature perturbation on COCO val2017 at native $640 \times 640$ resolution across feature scales ($S_3, S_4, S_5$) and semantic regions (GT Foreground tokens vs.\ Background tokens). Evaluated on $N = 300$ cohort.}
+\label{tab:tab5_memory_scales}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Condition} & \textbf{Overall Cosine} & \textbf{Per-Scale Cosine ($S_3/S_4/S_5$)} & \textbf{FG Rel. $\ell_2$} & \textbf{BG Rel. $\ell_2$} & \textbf{FG/BG Ratio} & \textbf{Cosine Gap ($S_5 - S_4$)} \\
+\midrule
+PGD Vanishing ($T = 15$) & 0.6888 & 0.704 / 0.639 / 0.646 & 0.7732 & 0.7955 & 0.9720 & +0.008 \\
+AQSM Probe ($T = 15$) & \textbf{0.6140} & \textbf{0.630 / 0.551 / 0.612} & \textbf{0.8358} & \textbf{0.9084} & \textbf{0.9201} & \textbf{+0.061} \\
+Standard Task PGD ($T = 15$) & 0.6031 & 0.628 / 0.512 / 0.562 & 0.8996 & 0.9739 & 0.9237 & +0.049 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE6_QUERY_DYNAMICS ---
+\begin{table}[!htbp]
+\centering
+\caption{Query selection overlap, global rank correlation, foreground eviction, and Ground-Truth object coverage inside selected proposals on COCO val2017 ($640 \times 640$, $N = 300$ images). GT Coverage denotes the percentage of target objects covered by at least one selected query anchor, while anchor foreground hit rate drops to $47.43\%$ under AQSM.}
+\label{tab:tab6_query_dynamics}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Condition} & \textbf{Top-300 Overlap} & \textbf{Spearman $\rho$} & \textbf{Kendall $\tau$} & \textbf{Evicted Top-15 FG} & \textbf{GT Coverage (Center)} & \textbf{GT Coverage ($\text{IoU} \ge 0.30$)} \\
+\midrule
+Clean Baseline & 100.0\% [Ref.] & 1.000 & 1.000 & 0.0\% & 99.05\% & 98.64\% \\
+PGD Vanishing ($T = 15$) & 31.11\% & 0.426 & 0.297 & 50.53\% & 89.61\% & 77.26\% \\
+AQSM Probe ($T = 15$) & \textbf{16.11\%} & \textbf{0.266} & \textbf{0.185} & \textbf{97.22\%} & \textbf{78.25\%} & \textbf{60.29\%} \\
+Standard Task PGD ($T = 15$) & 23.62\% & 0.373 & 0.259 & 60.58\% & 87.14\% & 61.82\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE7_ATTENTION_TELEMETRY ---
+\begin{table}[!htbp]
+\centering
+\caption{Deformable decoder cross-attention telemetry on COCO val2017 ($640 \times 640$, averaged across decoder layers, 8 heads, multi-scale tokens). Normalized attention entropy exhibits negligible practical change under AQSM ($\Delta = -0.0087$, from $0.8032 \to 0.7945$; Layer 1: $0.8287 \to 0.8190$), showing that attention weights remain localized rather than dispersing, while Spatial Target Misrouting reduces foreground sampling hit rate from $63.53\%$ to $45.44\%$. Reference Drift ($\Delta_{\mathrm{slot}}$) denotes rank-paired slot coordinate displacement (corresponding permutation-invariant Hungarian set distance is $\Delta_{\mathrm{Hungarian}} = 0.2411$).}
+\label{tab:tab7_attention_telemetry}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Condition} & \textbf{Norm. Attention Entropy} & \textbf{Spatial Sampling Hit Rate (FG)} & \textbf{Reference Drift ($\Delta p$)} & \textbf{Dropoff Ratio} & \textbf{Score Margin} \\
+\midrule
+Clean Baseline & 0.8032 $\pm$ 0.0461 & 63.53\% & 0.0000 & 34.73 $\pm$ 22.80 & 0.7923 $\pm$ 0.1337 \\
+PGD Vanishing ($T = 15$) & \textbf{0.8340 $\pm$ 0.0284} & 51.43\% & 0.4264 $\pm$ 0.0525 & 17.67 $\pm$ 12.35 & 0.3254 $\pm$ 0.1687 \\
+AQSM Probe ($T = 15$) & \textbf{0.7945 $\pm$ 0.0316} & \textbf{45.44\%} & \textbf{0.4672 $\pm$ 0.0689} & \textbf{11.21 $\pm$ 7.98} & \textbf{0.6749 $\pm$ 0.1224} \\
+Standard Task PGD ($T = 15$) & 0.7853 $\pm$ 0.0351 & 47.42\% & 0.4534 $\pm$ 0.0537 & 14.43 $\pm$ 8.41 & 0.8526 $\pm$ 0.0381 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE8_CONTROLLED_MISROUTING ---
+\begin{table}[!htbp]
+\centering
+\caption{Controlled spatial misrouting and query perturbation on COCO val2017 ($640 \times 640$). Evaluates decoder sensitivity to reference coordinates versus query assignment under pristine clean memory $M_{\mathrm{clean}}$ and content embeddings $H_{\mathrm{cand}}^{\mathrm{clean}}$. Distinguishes rank-paired slot displacement ($\text{Slot Disp.}$, $L_2 = 0.5529$ under pure slot permutation) from permutation-invariant Hungarian matching distance ($\text{Hungarian Dist.}$, $0.0000$ for Random Reassignment). Evaluates empirical Ground-Truth Object Coverage ($\text{GT Obj. Cov.}$, $\text{Cov}_{\text{center}}$) alongside Anchor Foreground Hit rate ($\text{Ref FG Hit}$).}
+\label{tab:tab8_controlled_misrouting}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Condition / Strategy} & \textbf{Seed} & \textbf{mAP@50 (Rel.)} & \textbf{mAP@50:95} & \textbf{Recall} & \textbf{Slot Disp. ($L_2$)} & \textbf{Hungarian Dist.} & \textbf{Ref FG Hit} & \textbf{GT Obj. Cov.} \\
+\midrule
+Clean Reference Baseline & --- & 66.93\% (100.0\%) & 50.24\% & 79.52\% & 0.0000 & 0.0000 & 68.95\% & 99.31\% \\
+\midrule
+Random Reassignment (Mean $\pm$ Std) & 5 seeds & 63.20 $\pm$ 0.45\% (94.4\%) & 47.81 $\pm$ 0.39\% & 75.70 $\pm$ 0.26\% & 0.5529 & 0.0000 & 68.95\% & 99.31\% \\
+Random Reassignment (Seed 42) & 42 & 62.53\% (93.4\%) & 47.32\% & 75.79\% & 0.5544 & 0.0000 & 68.95\% & 99.31\% \\
+Random Reassignment (Seed 100) & 100 & 63.12\% (94.3\%) & 47.79\% & 75.68\% & 0.5516 & 0.0000 & 68.95\% & 99.31\% \\
+Random Reassignment (Seed 777) & 777 & 63.21\% (94.4\%) & 47.69\% & 75.29\% & 0.5509 & 0.0000 & 68.95\% & 99.31\% \\
+Random Reassignment (Seed 2024) & 2024 & 63.77\% (95.3\%) & 48.40\% & 76.00\% & 0.5549 & 0.0000 & 68.95\% & 99.31\% \\
+Random Reassignment (Seed 9999) & 9999 & 63.40\% (94.7\%) & 47.86\% & 75.73\% & 0.5526 & 0.0000 & 68.95\% & 99.31\% \\
+\midrule
+Random Shift (Matched $L_2$, Mean $\pm$ Std) & 5 seeds & 33.92 $\pm$ 1.38\% (50.7\%) & 22.72 $\pm$ 0.83\% & 38.33 $\pm$ 0.63\% & 0.6360 $\pm$ 0.0000 & 0.1948 & 46.86\% & 85.62\% \\
+Random Shift (Seed 42) & 42 & 36.10\% (53.9\%) & 24.16\% & 39.06\% & 0.6360 & 0.1948 & 46.95\% & 85.62\% \\
+Random Shift (Seed 100) & 100 & 34.08\% (50.9\%) & 22.10\% & 37.94\% & 0.6360 & 0.1948 & 46.86\% & 85.62\% \\
+Random Shift (Seed 777) & 777 & 33.02\% (49.3\%) & 22.36\% & 38.20\% & 0.6360 & 0.1948 & 46.97\% & 85.62\% \\
+Random Shift (Seed 2024) & 2024 & 33.91\% (50.7\%) & 22.66\% & 37.57\% & 0.6360 & 0.1948 & 46.97\% & 85.62\% \\
+Random Shift (Seed 9999) & 9999 & 32.50\% (48.6\%) & 22.31\% & 38.88\% & 0.6360 & 0.1948 & 46.55\% & 85.62\% \\
+\midrule
+\textit{Decoupled Random Shift (Shift + Perm)} & 5 seeds & 33.48 $\pm$ 0.76\% (50.0\%) & 22.74 $\pm$ 0.79\% & 37.98\% & 0.6620 & 0.1948 & 46.86\% & 85.62\% \\
+\midrule
+\textbf{AQSM Spatial Misrouting} & --- & \textbf{30.24\% (45.2\%)} & \textbf{21.43\%} & \textbf{34.84\%} & \textbf{0.6360} & \textbf{0.2411} & \textbf{47.43\%} & \textbf{77.21\%} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE9_MATCHED_BUDGET ---
+\begin{table}[!htbp]
+\centering
+\caption{Matched-budget mechanistic comparison on COCO val2017 at native $640 \times 640$ resolution across $\epsilon \in \{4/255, 8/255, 16/255\}$ on $N = 300$ images. Demonstrates that Standard Task PGD degrades detection metrics across budgets, while AQSM accentuates encoder query eviction and spatial misrouting as an essential secondary transmission channel alongside encoder memory corruption.}
+\label{tab:tab9_matched_budget}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llccc}
+\toprule
+\textbf{Perturb. Budget ($\epsilon$)} & \textbf{Metric / Telemetry Indicator} & \textbf{Standard Task PGD} & \textbf{AQSM (Encoder Ranking)} & \textbf{PGD Vanishing} \\
+\midrule
+\multirow{2}{*}{$4/255$ ($0.0157$)} & COCO mAP@50 (mAP@50:95) & 2.71\% (1.12\%) & 10.80\% (6.22\%) & 6.46\% (3.98\%) \\
+& Relative Drop / Retention & $-$95.94\% (4.1\% Ret.) & $-$83.86\% (16.1\% Ret.) & $-$90.35\% (9.7\% Ret.) \\
+\midrule
+\multirow{2}{*}{$8/255$ ($0.0314$)} & COCO mAP@50 (mAP@50:95) & 1.18\% (0.38\%) & 8.93\% (4.91\%) & 2.37\% (1.38\%) \\
+& Relative Drop / Retention & $-$98.24\% (1.8\% Ret.) & $-$86.66\% (13.3\% Ret.) & $-$96.45\% (3.5\% Ret.) \\
+\midrule
+\multirow{2}{*}{$16/255$ ($0.0627$)} & COCO mAP@50 (mAP@50:95) & 0.35\% (0.05\%) & \textbf{4.05\% (2.10\%)} & 1.32\% (0.65\%) \\
+& Relative Drop / Retention & $-$99.48\% (0.5\% Ret.) & \textbf{$-$93.96\% (6.0\% Ret.)} & $-$98.03\% (2.0\% Ret.) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE10_LATENCY_SPONGE ---
+\begin{table}[!htbp]
+\centering
+\caption{Hardware execution latency stage breakdown and proposal-flooding stability on \texttt{rtdetr\_r18vd} (Device: \texttt{Tesla T4}, $N_{\mathrm{runs}} = 300$, $640 \times 640$). Reports measured inference latency across pipeline stages and adversarial attack conditions.}
+\label{tab:tab10_latency_sponge}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Stage / Operational Condition} & \textbf{Mean $\pm$ Std (ms)} & \textbf{P95 (ms)} & \textbf{Throughput (FPS)} & \textbf{Active Boxes ($\tau \ge 0.35$)} & \textbf{Share / Latency Delta} \\
+\midrule
+Stage 1: Backbone & $18.943 \pm 0.425$ & 19.715 & --- & --- & 51.2\% of E2E \\
+Stage 2: Hybrid Encoder & $9.979 \pm 0.349$ & 10.528 & --- & --- & 27.0\% of E2E \\
+Stage 3: Query Selection & $1.611 \pm 0.071$ & 1.684 & --- & --- & 4.4\% of E2E \\
+Stage 4: Deformable Decoder & $6.163 \pm 0.595$ & 7.030 & --- & --- & 16.7\% of E2E \\
+End-to-End Clean Stage Sum & $36.987 \pm 0.992$ & 38.427 & 27.04 & --- & 100.0\% Reference \\
+\midrule
+Condition: Clean Baseline & $36.598 \pm 0.952$ & 37.996 & 27.32 & 7.95 & Baseline \\
+Condition: AQSM Attack (eps=16/255) & $36.465 \pm 0.689$ & 37.573 & 27.42 & 19.90 & $\Delta t = -0.133$ ms (-0.36\%) \\
+Condition: Standard Task PGD (eps=16/255) & $36.469 \pm 0.762$ & 37.573 & 27.42 & 44.80 & $\Delta t = -0.129$ ms (-0.35\%) \\
+Condition: Proposal-Flooding Sponge & $36.366 \pm 0.957$ & 37.485 & 27.50 & 154.20 & $\Delta t = -0.232$ ms (-0.63\%) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE11_DEFENSE_RESULTS ---
+\begin{table}[!htbp]
+\centering
+\caption{Empirical detection performance of the Encoder Selection Monitor (ESM) on independent COCO val2017 test images ($N_{\text{test}} = 210$) and white-box Carlini-Tram\`er adaptive evasion boundary at native $640 \times 640$ resolution. Demonstrates that while ESM flags stationary AQSM ($\text{TPR} = 46.67\%, \text{AUROC} = 0.7743$), a white-box adaptive adversary ($\lambda_{\mathrm{evade}} \ge 0.2$) successfully evades runtime detection ($\text{TPR} \le 4.76\%$, bypass rate $\ge 95.24\%$) while sustaining $\text{mAP@50} \le 12.45\%$ vs.\ $66.93\%$ clean.}
+\label{tab:tab11_defense_results}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Evaluated Condition} & \textbf{Detection TPR (\%)} & \textbf{Empirical FPR (\%)} & \textbf{AUROC} & \textbf{Mean Anomaly Score} & \textbf{Post-Attack mAP@50 (\%)\textsuperscript{\textdagger}} \\
+\midrule
+Clean Test Baseline & --- & 10.00\% [Union Bound 22.4\%] & --- & 0.6813 & 66.93\% \\
+Stationary AQSM ($\epsilon = 16/255$) & \textbf{46.67\%} & 10.00\% & \textbf{0.7743} & 0.8818 & 4.05\% \\
+Stationary Standard Task PGD ($\epsilon = 16/255$) & 12.86\% & 10.00\% & 0.6505 & 0.8021 & 0.35\% \\
+Stationary Query Vanishing ($\epsilon = 16/255$) & 15.71\% & 10.00\% & 0.6098 & 0.7722 & 1.32\% \\
+\midrule
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.2$)} & 4.76\% & --- & Degenerate\textsuperscript{*} & Bypass: 95.24\% & 9.77\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 0.5$)} & \textbf{2.38\%} & --- & Degenerate\textsuperscript{*} & \textbf{Bypass: 97.62\%} & \textbf{10.97\%} \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 1.0$)} & 2.86\% & --- & Degenerate\textsuperscript{*} & Bypass: 97.14\% & 12.45\% \\
+\textbf{Adaptive Evasion ($\lambda_{\mathrm{evade}} = 2.0$)} & 2.38\% & --- & Degenerate\textsuperscript{*} & Bypass: 97.62\% & 12.08\% \\
+\bottomrule
+\multicolumn{6}{l}{\footnotesize{\textdagger Stationary baseline mAP values reference the evaluation cohort ($N = 300$); adaptive evasion evaluated on the independent test split ($N_{\text{test}} = 210$).}} \\
+\multicolumn{6}{l}{\footnotesize{*At the fixed deployment threshold $\tau_{\mathrm{fused}}$, adaptive evasion suppresses detection TPR below clean FPR ($10.00\%$), achieving a bypass rate $\ge 95.24\%$ without establishing a valid monotonic ROC curve.}} \\
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE12_HARDENING_VALIDATION ---
+\begin{table}[!htbp]
+\centering
+\caption{Empirical evaluation of Architectural Hardening via Static Query Augmentation ($N_{\mathrm{static}} = 30$), controls, and adaptive evasion boundary on COCO val2017 ($640 \times 640$, model rtdetr\_r18vd). Demonstrates partial recovery under stationary AQSM ($-0.07$ pp, $4.01\%$) via canvas spatial dispersion, while exposing vulnerability under white-box adaptive evasion ($1.79\%$).}
+\label{tab:tab12_hardening_validation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model Architecture / Evaluated Condition} & \textbf{COCO mAP@50} & \textbf{COCO mAP@50:95} & \textbf{Detection Recall} & \textbf{Measured Latency / Note} \\
+\midrule
+\textbf{Clean Baseline Inference:} & & & & \\
+\quad Standard rtdetr\_r18vd ($300$ dynamic) & 66.93\% & 50.24\% & 86.48\% & 34.23 ms (Ref.) \\
+\quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & 66.83\% (-0.10 pp) & 50.27\% & 86.53\% & 34.61 ms (+1.08\%) \\
+\midrule
+\textbf{Stationary AQSM Attack ($\epsilon = 16/255$):} & & & & \\
+\quad Standard rtdetr\_r18vd ($300$ dynamic) & 4.08\% (6.1\% Ret.) & 2.15\% & 18.09\% & 34.23 ms \\
+\quad Control 1: Dynamic Top-330 ($+30$ dynamic ranking) & 4.05\% (-0.03 pp) & 2.12\% & 18.14\% & Eviction unmitigated \\
+\quad Control 2: Random-30 Static Anchors & 4.01\% (-0.07 pp) & 2.18\% & 18.18\% & Partial spatial retention \\
+\quad \textbf{Proposed SQA: Uniform Grid-30 Prototype} & \textbf{4.01\% (-0.07 pp)} & \textbf{2.16\%} & \textbf{18.14\%} & \textbf{34.61 ms (Dispersion)} \\
+\quad \textbf{Adaptive Evasion on SQA (White-Box Joint)} & \textbf{1.79\% (-2.22 pp)} & \textbf{0.77\%} & \textbf{11.39\%} & \textbf{Bypass: 97.3\%} \\
+\midrule
+\textbf{Standard Task PGD Baseline ($\epsilon = 16/255$):} & & & & \\
+\quad Standard rtdetr\_r18vd ($300$ dynamic) & 0.35\% (0.5\% Ret.) & 0.09\% & 5.36\% & 34.23 ms \\
+\quad Hardened SQA Prototype ($300$ dyn. $+ 30$ static) & 0.36\% (+0.01 pp) & 0.09\% & 5.36\% & 34.61 ms (+1.08\%) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+% --- TABLE13_MULTISEED_GENERALIZATION ---
+\begin{table}[!htbp]
+\centering
+\caption{Multi-seed optimization stability ($K=5$ seeds) and cross-variant generalization on COCO val2017 ($640 \times 640$, eps=16/255, T=15, alpha=2/255).}
+\label{tab:tab13_multiseed_generalization}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Model Architecture} & \textbf{Backbone / Params} & \textbf{Evaluation Seed / Protocol} & \textbf{Clean mAP@50} & \textbf{AQSM mAP@50 [Rel. Drop]} & \textbf{$\Delta_{\mathrm{Hungarian}}$ Set Drift} & \textbf{Anchor FG Hit} \\
+\midrule
+RT-DETR-R18VD (Multi-Seed) & ResNet-18 (3 dec.) & 5 seeds ($\mu \pm \sigma$) & 66.93\% & 4.00 $\pm$ 0.74\% [$-$94.02\%] & 0.2345 $\pm$ 0.0037 & 47.12 $\pm$ 0.48\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

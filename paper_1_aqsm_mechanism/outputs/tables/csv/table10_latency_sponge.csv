@@ -1,0 +1,10 @@
+Stage / Operational Condition,Mean ± Std (ms),P95 (ms),Throughput (FPS),Active Boxes (tau >= 0.35),Share / Latency Delta
+Stage 1: Backbone,18.943 ± 0.425,19.715,---,---,51.2% of E2E
+Stage 2: Hybrid Encoder,9.979 ± 0.349,10.528,---,---,27.0% of E2E
+Stage 3: Query Selection,1.611 ± 0.071,1.684,---,---,4.4% of E2E
+Stage 4: Deformable Decoder,6.163 ± 0.595,7.030,---,---,16.7% of E2E
+End-to-End Clean Stage Sum,36.987 ± 0.992,38.427,27.04,---,100.0% Reference
+Condition: Clean Baseline,36.598 ± 0.952,37.996,27.32,7.95,Baseline
+Condition: AQSM Attack (eps=16/255),36.465 ± 0.689,37.573,27.42,19.90,Delta t = -0.133 ms (-0.36%)
+Condition: Standard Task PGD (eps=16/255),36.469 ± 0.762,37.573,27.42,44.80,Delta t = -0.129 ms (-0.35%)
+Condition: Proposal-Flooding Sponge,36.366 ± 0.957,37.485,27.50,154.20,Delta t = -0.232 ms (-0.63%)

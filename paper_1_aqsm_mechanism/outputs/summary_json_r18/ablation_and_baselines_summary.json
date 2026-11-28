@@ -1,0 +1,329 @@
+{
+  "experiment": "Task 11: Tripartite Loss Ablation, Gaussian Noise Control, M/Q Pixel Controls & Encoder Attention Baseline [27]",
+  "model": "PekingU/rtdetr_r18vd",
+  "n_images": 300,
+  "resolution": "640x640",
+  "epsilon_l_inf": 0.06274509803921569,
+  "pgd_steps": 15,
+  "n_bootstrap_resamples": 500,
+  "clean_baseline": {
+    "n_images": 300,
+    "mAP@50": 66.93,
+    "mAP@50_ci95": [
+      65.3,
+      71.36
+    ],
+    "mAP@50:95": 50.24,
+    "mAP@50:95_ci95": [
+      48.5,
+      54.57
+    ],
+    "recall_pct": 86.48,
+    "top300_overlap_pct": 100.0,
+    "evicted_top15_fg_pct": 0.0,
+    "encoder_memory_cosine": 1.0,
+    "ref_drift_delta_p": 0.0,
+    "hungarian_drift_delta_h": 0.0,
+    "active_boxes_mean": 8.35,
+    "active_boxes_std": 8.45,
+    "elapsed_seconds": 47.02
+  },
+  "tripartite_loss_ablation": {
+    "L_suppr": {
+      "n_images": 300,
+      "mAP@50": 3.71,
+      "mAP@50_ci95": [
+        2.92,
+        6.1
+      ],
+      "mAP@50:95": 1.75,
+      "mAP@50:95_ci95": [
+        1.34,
+        2.93
+      ],
+      "recall_pct": 13.66,
+      "top300_overlap_pct": 17.48,
+      "evicted_top15_fg_pct": 97.89,
+      "encoder_memory_cosine": 0.464,
+      "ref_drift_delta_p": 0.4582,
+      "hungarian_drift_delta_h": 0.2288,
+      "active_boxes_mean": 2.64,
+      "active_boxes_std": 2.78,
+      "elapsed_seconds": 441.78,
+      "relative_drop_pct": 94.46,
+      "failure_mode": "Foreground confidence suppression only",
+      "weights": {
+        "lambda_suppr": 1.0,
+        "lambda_rank": 0.0,
+        "lambda_elev": 0.0
+      }
+    },
+    "L_rank": {
+      "n_images": 300,
+      "mAP@50": 7.03,
+      "mAP@50_ci95": [
+        5.45,
+        9.63
+      ],
+      "mAP@50:95": 4.17,
+      "mAP@50:95_ci95": [
+        2.95,
+        5.98
+      ],
+      "recall_pct": 20.47,
+      "top300_overlap_pct": 18.98,
+      "evicted_top15_fg_pct": 96.69,
+      "encoder_memory_cosine": 0.4769,
+      "ref_drift_delta_p": 0.4537,
+      "hungarian_drift_delta_h": 0.2278,
+      "active_boxes_mean": 12.97,
+      "active_boxes_std": 8.07,
+      "elapsed_seconds": 438.56,
+      "relative_drop_pct": 89.5,
+      "failure_mode": "Margin-ranking inversion only",
+      "weights": {
+        "lambda_suppr": 0.0,
+        "lambda_rank": 1.2,
+        "lambda_elev": 0.0
+      }
+    },
+    "L_elev": {
+      "n_images": 300,
+      "mAP@50": 7.51,
+      "mAP@50_ci95": [
+        6.34,
+        10.62
+      ],
+      "mAP@50:95": 4.91,
+      "mAP@50:95_ci95": [
+        3.87,
+        7.13
+      ],
+      "recall_pct": 37.2,
+      "top300_overlap_pct": 18.02,
+      "evicted_top15_fg_pct": 59.42,
+      "encoder_memory_cosine": 0.4462,
+      "ref_drift_delta_p": 0.4638,
+      "hungarian_drift_delta_h": 0.1888,
+      "active_boxes_mean": 49.32,
+      "active_boxes_std": 11.55,
+      "elapsed_seconds": 438.82,
+      "relative_drop_pct": 88.78,
+      "failure_mode": "Distal background elevation only",
+      "weights": {
+        "lambda_suppr": 0.0,
+        "lambda_rank": 0.0,
+        "lambda_elev": 0.5
+      }
+    },
+    "L_suppr+L_rank": {
+      "n_images": 300,
+      "mAP@50": 5.54,
+      "mAP@50_ci95": [
+        4.41,
+        8.05
+      ],
+      "mAP@50:95": 2.91,
+      "mAP@50:95_ci95": [
+        2.25,
+        4.35
+      ],
+      "recall_pct": 19.81,
+      "top300_overlap_pct": 18.71,
+      "evicted_top15_fg_pct": 96.36,
+      "encoder_memory_cosine": 0.4669,
+      "ref_drift_delta_p": 0.4546,
+      "hungarian_drift_delta_h": 0.2321,
+      "active_boxes_mean": 10.26,
+      "active_boxes_std": 7.97,
+      "elapsed_seconds": 440.97,
+      "relative_drop_pct": 91.72,
+      "failure_mode": "Suppression + margin ranking",
+      "weights": {
+        "lambda_suppr": 1.0,
+        "lambda_rank": 1.2,
+        "lambda_elev": 0.0
+      }
+    },
+    "L_suppr+L_elev": {
+      "n_images": 300,
+      "mAP@50": 2.1,
+      "mAP@50_ci95": [
+        1.75,
+        3.5
+      ],
+      "mAP@50:95": 1.18,
+      "mAP@50:95_ci95": [
+        0.92,
+        2.09
+      ],
+      "recall_pct": 16.97,
+      "top300_overlap_pct": 12.95,
+      "evicted_top15_fg_pct": 98.22,
+      "encoder_memory_cosine": 0.4267,
+      "ref_drift_delta_p": 0.4737,
+      "hungarian_drift_delta_h": 0.2113,
+      "active_boxes_mean": 41.66,
+      "active_boxes_std": 12.95,
+      "elapsed_seconds": 440.87,
+      "relative_drop_pct": 96.86,
+      "failure_mode": "Suppression + distal elevation",
+      "weights": {
+        "lambda_suppr": 1.0,
+        "lambda_rank": 0.0,
+        "lambda_elev": 0.5
+      }
+    },
+    "L_rank+L_elev": {
+      "n_images": 300,
+      "mAP@50": 4.96,
+      "mAP@50_ci95": [
+        3.85,
+        7.55
+      ],
+      "mAP@50:95": 2.91,
+      "mAP@50:95_ci95": [
+        2.24,
+        4.74
+      ],
+      "recall_pct": 18.32,
+      "top300_overlap_pct": 17.17,
+      "evicted_top15_fg_pct": 95.82,
+      "encoder_memory_cosine": 0.4535,
+      "ref_drift_delta_p": 0.4624,
+      "hungarian_drift_delta_h": 0.2267,
+      "active_boxes_mean": 18.5,
+      "active_boxes_std": 11.95,
+      "elapsed_seconds": 441.43,
+      "relative_drop_pct": 92.59,
+      "failure_mode": "Dual-boundary ranking + elevation",
+      "weights": {
+        "lambda_suppr": 0.0,
+        "lambda_rank": 1.2,
+        "lambda_elev": 0.5
+      }
+    },
+    "Full_Tripartite": {
+      "n_images": 300,
+      "mAP@50": 3.85,
+      "mAP@50_ci95": [
+        2.96,
+        5.7
+      ],
+      "mAP@50:95": 1.89,
+      "mAP@50:95_ci95": [
+        1.37,
+        3.06
+      ],
+      "recall_pct": 17.95,
+      "top300_overlap_pct": 17.02,
+      "evicted_top15_fg_pct": 96.22,
+      "encoder_memory_cosine": 0.4512,
+      "ref_drift_delta_p": 0.4637,
+      "hungarian_drift_delta_h": 0.2292,
+      "active_boxes_mean": 19.8,
+      "active_boxes_std": 12.86,
+      "elapsed_seconds": 440.94,
+      "relative_drop_pct": 94.25,
+      "failure_mode": "Compound Eviction & Misrouting",
+      "weights": {
+        "lambda_suppr": 1.0,
+        "lambda_rank": 1.2,
+        "lambda_elev": 0.5
+      }
+    }
+  },
+  "gaussian_noise_control": {
+    "n_images": 300,
+    "mAP@50": 62.39,
+    "mAP@50_ci95": [
+      60.57,
+      67.12
+    ],
+    "mAP@50:95": 46.61,
+    "mAP@50:95_ci95": [
+      45.14,
+      51.23
+    ],
+    "recall_pct": 84.99,
+    "top300_overlap_pct": 77.06,
+    "evicted_top15_fg_pct": 0.76,
+    "encoder_memory_cosine": 0.8929,
+    "ref_drift_delta_p": 0.3722,
+    "hungarian_drift_delta_h": 0.0462,
+    "active_boxes_mean": 8.08,
+    "active_boxes_std": 8.14,
+    "elapsed_seconds": 57.26,
+    "relative_drop_pct": 6.78
+  },
+  "encoder_attention_baseline_27": {
+    "n_images": 300,
+    "mAP@50": 0.01,
+    "mAP@50_ci95": [
+      0.0,
+      0.01
+    ],
+    "mAP@50:95": 0.0,
+    "mAP@50:95_ci95": [
+      0.0,
+      0.0
+    ],
+    "recall_pct": 2.1,
+    "top300_overlap_pct": 17.68,
+    "evicted_top15_fg_pct": 76.93,
+    "encoder_memory_cosine": 0.2734,
+    "ref_drift_delta_p": 0.4839,
+    "hungarian_drift_delta_h": 0.2238,
+    "active_boxes_mean": 5.73,
+    "active_boxes_std": 4.75,
+    "elapsed_seconds": 438.83,
+    "relative_drop_pct": 99.99
+  },
+  "memory_isolated_query_control": {
+    "n_images": 300,
+    "mAP@50": 59.07,
+    "mAP@50_ci95": [
+      56.41,
+      63.42
+    ],
+    "mAP@50:95": 44.13,
+    "mAP@50:95_ci95": [
+      42.12,
+      48.35
+    ],
+    "recall_pct": 81.07,
+    "top300_overlap_pct": 70.63,
+    "evicted_top15_fg_pct": 20.69,
+    "encoder_memory_cosine": 0.8503,
+    "ref_drift_delta_p": 0.3831,
+    "hungarian_drift_delta_h": 0.062,
+    "active_boxes_mean": 7.93,
+    "active_boxes_std": 8.51,
+    "elapsed_seconds": 458.05,
+    "relative_drop_pct": 11.74
+  },
+  "pure_memory_control": {
+    "n_images": 300,
+    "mAP@50": 0.0,
+    "mAP@50_ci95": [
+      0.0,
+      0.0
+    ],
+    "mAP@50:95": 0.0,
+    "mAP@50:95_ci95": [
+      0.0,
+      0.0
+    ],
+    "recall_pct": 0.05,
+    "top300_overlap_pct": 9.31,
+    "evicted_top15_fg_pct": 87.58,
+    "encoder_memory_cosine": 0.0702,
+    "ref_drift_delta_p": 0.5049,
+    "hungarian_drift_delta_h": 0.2796,
+    "active_boxes_mean": 17.34,
+    "active_boxes_std": 12.33,
+    "elapsed_seconds": 438.37,
+    "relative_drop_pct": 100.0
+  },
+  "timestamp": "2026-11-27 20:57:49"
+}

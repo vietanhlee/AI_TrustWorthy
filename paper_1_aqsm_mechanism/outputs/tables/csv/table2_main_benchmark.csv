@@ -1,0 +1,5 @@
+Threat Tier & Condition,mAP@50 [Rel. Drop],mAP@50:95 [Rel.],Active Boxes,ASR_obj [CI 95%],ASR_silence [CI 95%],ASR_starve [CI 95%]
+Nominal Clean Baseline,66.93% [Ref.],50.24% [Ref.],8.54 ± 9.06,0.0% [Reference],0.0% [Reference],---
+Tier C: AQSM (eps = 16/255),4.05% [-94.0%],2.10% [-95.8%],17.68 ± 11.14,---,---,---
+Tier B: Query Vanishing (eps = 16/255),1.32% [-98.0%],0.65% [-98.7%],0.74 ± 1.05,---,---,---
+Tier B: Standard Task PGD (eps = 16/255),0.35% [-99.5%],0.05% [-99.9%],46.43 ± 19.91,---,---,---

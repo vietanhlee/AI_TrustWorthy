@@ -1,0 +1,387 @@
+{
+  "attack_name": "AQSM",
+  "n_evaluated_images": 300,
+  "mean_evicted_ratio": 0.8388666666666666,
+  "std_evicted_ratio": 0.10722286011713293,
+  "point_maps": {
+    "Arm_A": {
+      "mAP@50": 66.9252091696364,
+      "mAP@50:95": 50.24195409202615
+    },
+    "Arm_B": {
+      "mAP@50": 4.045115643706054,
+      "mAP@50:95": 2.0958900426474587
+    },
+    "Arm_C_full": {
+      "mAP@50": 9.30785744540407,
+      "mAP@50:95": 5.015653426943755
+    },
+    "Arm_C_index": {
+      "mAP@50": 4.855030819738366,
+      "mAP@50:95": 2.6060427471018763
+    },
+    "Arm_D_full": {
+      "mAP@50": 30.371726554749824,
+      "mAP@50:95": 20.11727015144846
+    },
+    "Arm_D_index": {
+      "mAP@50": 39.10553684098239,
+      "mAP@50:95": 27.213755886528865
+    }
+  },
+  "per_image_cell_means": {
+    "Arm_A": {
+      "ap50_mean": 8396.85,
+      "ap50_std": 2016.73,
+      "ap50_sem": 116.63,
+      "ap50_median": 9174.92,
+      "ap95_mean": 6726.47,
+      "ap95_std": 2292.37,
+      "ap95_sem": 132.57,
+      "ap95_median": 6918.19
+    },
+    "Arm_B": {
+      "ap50_mean": 1307.92,
+      "ap50_std": 2358.23,
+      "ap50_sem": 136.38,
+      "ap50_median": 0.0,
+      "ap95_mean": 674.78,
+      "ap95_std": 1378.35,
+      "ap95_sem": 79.71,
+      "ap95_median": 0.0
+    },
+    "Arm_C_full": {
+      "ap50_mean": 3095.63,
+      "ap50_std": 2947.23,
+      "ap50_sem": 170.44,
+      "ap50_median": 2348.73,
+      "ap95_mean": 1820.77,
+      "ap95_std": 2029.37,
+      "ap95_sem": 117.36,
+      "ap95_median": 1011.53
+    },
+    "Arm_C_index": {
+      "ap50_mean": 1798.83,
+      "ap50_std": 2564.87,
+      "ap50_sem": 148.33,
+      "ap50_median": 643.56,
+      "ap95_mean": 947.55,
+      "ap95_std": 1599.5,
+      "ap95_sem": 92.5,
+      "ap95_median": 195.69
+    },
+    "Arm_D_full": {
+      "ap50_mean": 4597.41,
+      "ap50_std": 3245.19,
+      "ap50_sem": 187.67,
+      "ap50_median": 4686.47,
+      "ap95_mean": 3378.44,
+      "ap95_std": 2849.57,
+      "ap95_sem": 164.8,
+      "ap95_median": 2869.4
+    },
+    "Arm_D_index": {
+      "ap50_mean": 5629.34,
+      "ap50_std": 3128.54,
+      "ap50_sem": 180.93,
+      "ap50_median": 5228.96,
+      "ap95_mean": 4257.76,
+      "ap95_std": 2868.16,
+      "ap95_sem": 165.87,
+      "ap95_median": 3877.89
+    }
+  },
+  "arm_definitions": {
+    "Arm_A": "Clean Baseline: Clean Memory M_clean, Clean Query Prior Q_clean (Top-300 clean)",
+    "Arm_B": "Full Joint Attack: Adversarial Memory M_adv, Adversarial Query Prior Q_adv (Top-300 adv)",
+    "Arm_C_full": "Intervention: Adversarial Memory M_adv, Clean Query Prior Q_clean (Top-300 clean content & coordinates)",
+    "Arm_C_index": "Intervention: Adversarial Memory M_adv, Query Prior gathered from Adversarial Encoder using Clean Indices I_clean",
+    "Arm_D_full": "Intervention: Clean Memory M_clean, Adversarial Query Prior Q_adv (Top-300 adv content & coordinates)",
+    "Arm_D_index": "Intervention: Clean Memory M_clean, Query Prior gathered from Clean Encoder using Adversarial Indices I_adv"
+  },
+  "anova_repeated_measures_full": {
+    "N": 299,
+    "df": [
+      1,
+      298
+    ],
+    "marginal_effects": {
+      "ME_M": -42.95357792265673,
+      "ME_M_ci95": [
+        -45.486092653653195,
+        -40.37246313154811
+      ],
+      "ME_Q": -27.93570652408302,
+      "ME_Q_ci95": [
+        -29.877598841849196,
+        -25.99386737011713
+      ],
+      "Interaction_MxQ": 10.058671971644285,
+      "Interaction_ci95": [
+        7.7660479876018,
+        12.266849244933049
+      ],
+      "Total_Y11_minus_Y00": -70.88928444673977,
+      "Total_ci95": [
+        -73.88565416684214,
+        -67.58471679533679
+      ]
+    },
+    "attribution_shares": {
+      "signed_fraction_of_total_drop_pct": {
+        "Memory_M": 60.592483416768616,
+        "Query_Q": 39.407516583231356,
+        "note": "Y_11 - Y_00 = ME_M + ME_Q (tổng đúng 100%)"
+      },
+      "l1_marginal_share_pct": {
+        "Memory_M": 53.06320236257572,
+        "Query_Q": 34.51070015862508,
+        "Interaction_MxQ": 12.42609747879919,
+        "note": "|ME| / (|ME_M| + |ME_Q| + |Inter|)"
+      },
+      "anova_condition_ss_share_pct": {
+        "Memory_M": 67.6672899307459,
+        "Query_Q": 28.621962739802125,
+        "Interaction_MxQ": 3.710747329451984,
+        "note": "SS_factor / (SS_M + SS_Q + SS_inter)"
+      },
+      "partial_eta_squared": {
+        "Memory_M": 0.7843791205232405,
+        "Query_Q": 0.708746331908275,
+        "Interaction_MxQ": 0.20308555803063114
+      }
+    },
+    "anova_table": {
+      "SS_subjects": 493361.03735646675,
+      "SS_total": 1674857.7871963882,
+      "Memory_M": {
+        "SS": 551657.9470509646,
+        "SS_err": 151647.2947853642,
+        "F": 1084.0553961339338,
+        "p": 1.1102230246251565e-16
+      },
+      "Query_Q": {
+        "SS": 233340.70600090895,
+        "SS_err": 95889.50725839243,
+        "F": 725.1630796359628,
+        "p": 1.1102230246251565e-16
+      },
+      "Interaction_MxQ": {
+        "SS": 30251.887668109634,
+        "SS_err": 118709.40707618123,
+        "F": 75.94227573987708,
+        "p": 2.220446049250313e-16
+      }
+    }
+  },
+  "anova_repeated_measures_index": {
+    "N": 299,
+    "df": [
+      1,
+      298
+    ],
+    "marginal_effects": {
+      "ME_M": -54.59717846696063,
+      "ME_M_ci95": [
+        -57.658153402531326,
+        -51.64102884683322
+      ],
+      "ME_Q": -16.292105979779123,
+      "ME_Q_ci95": [
+        -17.740065781568624,
+        -14.724356836637966
+      ],
+      "Interaction_MxQ": 11.382998313200083,
+      "Interaction_ci95": [
+        9.708945742070712,
+        12.96261627652467
+      ],
+      "Total_Y11_minus_Y00": -70.88928444673977,
+      "Total_ci95": [
+        -73.88565416684214,
+        -67.58471679533679
+      ]
+    },
+    "attribution_shares": {
+      "signed_fraction_of_total_drop_pct": {
+        "Memory_M": 77.01753359914409,
+        "Query_Q": 22.982466400855888,
+        "note": "Y_11 - Y_00 = ME_M + ME_Q (tổng đúng 100%)"
+      },
+      "l1_marginal_share_pct": {
+        "Memory_M": 66.36156994241709,
+        "Query_Q": 19.802666746609475,
+        "Interaction_MxQ": 13.835763310973443,
+        "note": "|ME| / (|ME_M| + |ME_Q| + |Inter|)"
+      },
+      "anova_condition_ss_share_pct": {
+        "Memory_M": 88.29910932493287,
+        "Query_Q": 7.862675950634898,
+        "Interaction_MxQ": 3.838214724432233,
+        "note": "SS_factor / (SS_M + SS_Q + SS_inter)"
+      },
+      "partial_eta_squared": {
+        "Memory_M": 0.8099166430647556,
+        "Query_Q": 0.5760918905788455,
+        "Interaction_MxQ": 0.355620692769572
+      }
+    },
+    "anova_table": {
+      "SS_subjects": 436867.28253115684,
+      "SS_total": 1784025.6380089195,
+      "Memory_M": {
+        "SS": 891274.7170693924,
+        "SS_err": 209177.68713948346,
+        "F": 1269.7332555817588,
+        "p": 1.1102230246251565e-16
+      },
+      "Query_Q": {
+        "SS": 79364.38245965017,
+        "SS_err": 58399.02604781284,
+        "F": 404.9825412090329,
+        "p": 1.1102230246251565e-16
+      },
+      "Interaction_MxQ": {
+        "SS": 38742.222528896564,
+        "SS_err": 70200.3202325281,
+        "F": 164.46053629626587,
+        "p": 1.1102230246251565e-16
+      }
+    }
+  },
+  "bootstrap_paired_deltas": {
+    "Arm_D_full_minus_Arm_A": {
+      "point_delta_mAP@50": -36.553482614886576,
+      "ci95_mAP@50": [
+        -40.54262528699462,
+        -33.236322832530796
+      ],
+      "point_delta_mAP@50_95": -30.12468394057769,
+      "ci95_mAP@50_95": [
+        -33.36934992348367,
+        -27.080085095074093
+      ]
+    },
+    "Arm_D_index_minus_Arm_A": {
+      "point_delta_mAP@50": -27.819672328654015,
+      "ci95_mAP@50": [
+        -32.06494473440296,
+        -24.980434806935737
+      ],
+      "point_delta_mAP@50_95": -23.028198205497283,
+      "ci95_mAP@50_95": [
+        -26.108755957978996,
+        -20.277192121831227
+      ]
+    },
+    "Arm_C_full_minus_Arm_A": {
+      "point_delta_mAP@50": -57.617351724232336,
+      "ci95_mAP@50": [
+        -61.10302896312772,
+        -54.30152524827208
+      ],
+      "point_delta_mAP@50_95": -45.22630066508239,
+      "ci95_mAP@50_95": [
+        -49.117337468250234,
+        -42.66930113454115
+      ]
+    },
+    "Arm_B_minus_Arm_A": {
+      "point_delta_mAP@50": -62.88009352593035,
+      "ci95_mAP@50": [
+        -67.03580787918955,
+        -60.4737810301888
+      ],
+      "point_delta_mAP@50_95": -48.14606404937869,
+      "ci95_mAP@50_95": [
+        -52.47954785940807,
+        -46.18725343376161
+      ]
+    },
+    "Arm_D_full_minus_Arm_B": {
+      "point_delta_mAP@50": 26.32661091104377,
+      "ci95_mAP@50": [
+        23.629724727460204,
+        30.206908473327154
+      ],
+      "point_delta_mAP@50_95": 18.021380108801,
+      "ci95_mAP@50_95": [
+        16.350058615011445,
+        21.968140709294758
+      ]
+    }
+  },
+  "non_parametric_contrasts": {
+    "Arm_D_full_vs_Arm_B": {
+      "description": "Causal Recovery of Clean Memory",
+      "mean_diff_pp": 3289.49,
+      "median_diff_pp": 2743.4,
+      "std_diff": 3031.62,
+      "cohen_d": 1.09,
+      "rank_biserial_r_rb": 1.0,
+      "paired_wilcoxon_stat": 4.0,
+      "paired_wilcoxon_p_value": 1.83177167409007e-40,
+      "bootstrap_95ci_pp": [
+        2944.08,
+        3637.39
+      ]
+    },
+    "Arm_D_index_vs_Arm_A": {
+      "description": "Eviction Penalty under Clean Memory",
+      "mean_diff_pp": -2767.51,
+      "median_diff_pp": -2475.25,
+      "std_diff": 2625.78,
+      "cohen_d": -1.05,
+      "rank_biserial_r_rb": -0.98,
+      "paired_wilcoxon_stat": 277.0,
+      "paired_wilcoxon_p_value": 1.9202142896228954e-38,
+      "bootstrap_95ci_pp": [
+        -3057.87,
+        -2485.95
+      ]
+    },
+    "Arm_C_full_vs_Arm_A": {
+      "description": "Memory Damage under Clean Queries",
+      "mean_diff_pp": -5301.22,
+      "median_diff_pp": -5222.77,
+      "std_diff": 2992.33,
+      "cohen_d": -1.77,
+      "rank_biserial_r_rb": -0.999,
+      "paired_wilcoxon_stat": 26.0,
+      "paired_wilcoxon_p_value": 1.381934885413184e-46,
+      "bootstrap_95ci_pp": [
+        -5632.67,
+        -4993.02
+      ]
+    },
+    "Arm_B_vs_Arm_A": {
+      "description": "Total Joint Attack Damage",
+      "mean_diff_pp": -7088.93,
+      "median_diff_pp": -7557.14,
+      "std_diff": 2813.92,
+      "cohen_d": -2.52,
+      "rank_biserial_r_rb": -1.0,
+      "paired_wilcoxon_stat": 0.0,
+      "paired_wilcoxon_p_value": 6.268256395700609e-49,
+      "bootstrap_95ci_pp": [
+        -7395.09,
+        -6774.48
+      ]
+    },
+    "Arm_D_index_vs_Arm_D_full": {
+      "description": "Index vs Full Query Prior",
+      "mean_diff_pp": 1031.93,
+      "median_diff_pp": 84.54,
+      "std_diff": 2242.87,
+      "cohen_d": 0.46,
+      "rank_biserial_r_rb": 0.637,
+      "paired_wilcoxon_stat": 3613.0,
+      "paired_wilcoxon_p_value": 6.6643617859207495e-15,
+      "bootstrap_95ci_pp": [
+        780.97,
+        1307.57
+      ]
+    }
+  },
+  "timestamp": "2026-11-26 10:31:51"
+}

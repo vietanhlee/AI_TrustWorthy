@@ -1,0 +1,23 @@
+\begin{table}[!htbp]
+\centering
+\caption{Hardware execution latency stage breakdown and proposal-flooding stability on \texttt{rtdetr\_r18vd} (Device: \texttt{Tesla T4}, $N_{\mathrm{runs}} = 300$, $640 \times 640$). Reports measured inference latency across pipeline stages and adversarial attack conditions.}
+\label{tab:tab10_latency_sponge}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Stage / Operational Condition} & \textbf{Mean $\pm$ Std (ms)} & \textbf{P95 (ms)} & \textbf{Throughput (FPS)} & \textbf{Active Boxes ($\tau \ge 0.35$)} & \textbf{Share / Latency Delta} \\
+\midrule
+Stage 1: Backbone & $18.943 \pm 0.425$ & 19.715 & --- & --- & 51.2\% of E2E \\
+Stage 2: Hybrid Encoder & $9.979 \pm 0.349$ & 10.528 & --- & --- & 27.0\% of E2E \\
+Stage 3: Query Selection & $1.611 \pm 0.071$ & 1.684 & --- & --- & 4.4\% of E2E \\
+Stage 4: Deformable Decoder & $6.163 \pm 0.595$ & 7.030 & --- & --- & 16.7\% of E2E \\
+End-to-End Clean Stage Sum & $36.987 \pm 0.992$ & 38.427 & 27.04 & --- & 100.0\% Reference \\
+\midrule
+Condition: Clean Baseline & $36.598 \pm 0.952$ & 37.996 & 27.32 & 7.95 & Baseline \\
+Condition: AQSM Attack (eps=16/255) & $36.465 \pm 0.689$ & 37.573 & 27.42 & 19.90 & $\Delta t = -0.133$ ms (-0.36\%) \\
+Condition: Standard Task PGD (eps=16/255) & $36.469 \pm 0.762$ & 37.573 & 27.42 & 44.80 & $\Delta t = -0.129$ ms (-0.35\%) \\
+Condition: Proposal-Flooding Sponge & $36.366 \pm 0.957$ & 37.485 & 27.50 & 154.20 & $\Delta t = -0.232$ ms (-0.63\%) \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

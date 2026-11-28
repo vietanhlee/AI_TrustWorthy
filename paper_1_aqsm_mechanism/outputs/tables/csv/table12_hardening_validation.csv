@@ -1,0 +1,10 @@
+Model Architecture / Evaluated Condition,COCO mAP@50,COCO mAP@50:95,Detection Recall,Measured Latency / Note
+Clean: Standard rtdetr_r18vd (300 dynamic),66.93%,50.24%,86.48%,34.23 ms (Ref.)
+Clean: Hardened SQA Prototype (300 dyn. + 30 static),66.83% (-0.10 pp),50.27%,86.53%,34.61 ms (+1.08%)
+AQSM: Standard rtdetr_r18vd (300 dynamic),4.08% (6.1% Ret.),2.15%,18.09%,34.23 ms
+AQSM Control 1: Dynamic Top-330 (+30 dynamic queries),4.05% (-0.03 pp),2.12%,18.14%,Eviction unmitigated
+AQSM Control 2: Random-30 Static Queries,4.01% (-0.07 pp),2.18%,18.18%,Partial spatial retention
+AQSM Proposed: Uniform Grid-30 SQA Prototype,4.01% (-0.07 pp),2.16%,18.14%,34.61 ms (Canvas dispersion)
+AQSM Adaptive Evasion: White-box Joint Hungarian on SQA,1.79% (-2.22 pp),0.77%,11.39%,Evasion bypass 97.3%
+Task PGD: Standard rtdetr_r18vd (300 dynamic),0.35% (0.5% Ret.),0.09%,5.36%,34.23 ms
+Task PGD: Hardened SQA Prototype (300 dyn. + 30 static),0.36% (+0.01 pp),0.09%,5.36%,34.61 ms (+1.08%)

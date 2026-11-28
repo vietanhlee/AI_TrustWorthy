@@ -1,0 +1,18 @@
+\begin{table}[!htbp]
+\centering
+\caption{COCO val2017 object detection performance (mAP@50 and mAP@50:95, $N = 300$ images, 80 semantic categories) on \texttt{PekingU/rtdetr\_r18vd} at native $640 \times 640$ resolution across controls and adversarial threat tiers.}
+\label{tab:tab2_main_benchmark}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Threat Tier \& Condition} & \textbf{mAP@50 [Rel. Drop]} & \textbf{mAP@50:95 [Rel.]} & \textbf{Active Boxes} & \textbf{$\text{ASR}_{\text{obj}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{silence}}$ [CI 95\%]} & \textbf{$\text{ASR}_{\text{starve}}$ [CI 95\%]} \\
+\midrule
+Nominal Clean Baseline & 66.93\% [Ref.] & 50.24\% [Ref.] & $8.54 \pm 9.06$ & 0.0\% [Reference] & 0.0\% [Reference] & --- \\
+\midrule
+Tier C: AQSM ($\epsilon = 16/255$) & \textbf{4.05\% [$-$94.0\%]} & \textbf{2.10\% [$-$95.8\%]} & $17.68 \pm 11.14$ & --- & --- & --- \\
+Tier B: Query Vanishing ($\epsilon = 16/255$) & 1.32\% [$-$98.0\%] & 0.65\% [$-$98.7\%] & $0.74 \pm 1.05$ & --- & --- & --- \\
+Tier B: Standard Task PGD ($\epsilon = 16/255$) & 0.35\% [$-$99.5\%] & 0.05\% [$-$99.9\%] & $46.43 \pm 19.91$ & --- & --- & --- \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

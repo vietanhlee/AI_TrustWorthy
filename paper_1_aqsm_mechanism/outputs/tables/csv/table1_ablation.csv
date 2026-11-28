@@ -1,0 +1,9 @@
+AQSM Formulation / Loss Variant,mAP@50 [Rel. Drop],Top-300 Overlap,Evicted Top-15 FG,Dominant Failure Mode
+Clean Baseline (No Attack),66.93% [---],100.0%,0.0%,Nominal inference
+Margin-Ranking Loss only (L_rank),7.03% [-89.5%],19.0%,96.7%,Margin-ranking inversion only
+Foreground Suppression Loss only (L_suppr),3.71% [-94.5%],17.5%,97.9%,Foreground confidence suppression only
+Distal Background Elevation only (L_elev),7.51% [-88.8%],18.0%,59.4%,Distal background elevation only
+L_suppr + L_rank,5.54% [-91.7%],18.7%,96.4%,Suppression + margin ranking
+L_suppr + L_elev,2.10% [-96.9%],12.9%,98.2%,Suppression + distal elevation
+L_rank + L_elev,4.96% [-92.6%],17.2%,95.8%,Dual-boundary ranking + elevation
+Full Tripartite AQSM,4.05% [-94.0%],16.1%,97.2%,Compound Eviction & Misrouting

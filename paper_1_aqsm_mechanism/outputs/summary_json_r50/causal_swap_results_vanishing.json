@@ -1,0 +1,387 @@
+{
+  "attack_name": "VANISHING",
+  "n_evaluated_images": 200,
+  "mean_evicted_ratio": 0.6594833333333332,
+  "std_evicted_ratio": 0.13032198132434814,
+  "point_maps": {
+    "Arm_A": {
+      "mAP@50": 74.45289960420818,
+      "mAP@50:95": 57.468252189905435
+    },
+    "Arm_B": {
+      "mAP@50": 4.230615214487473,
+      "mAP@50:95": 2.402466898094384
+    },
+    "Arm_C_full": {
+      "mAP@50": 6.132075127730861,
+      "mAP@50:95": 3.645349085506846
+    },
+    "Arm_C_index": {
+      "mAP@50": 4.987137760671764,
+      "mAP@50:95": 2.9041438741437546
+    },
+    "Arm_D_full": {
+      "mAP@50": 54.30930480323578,
+      "mAP@50:95": 41.7832809278864
+    },
+    "Arm_D_index": {
+      "mAP@50": 65.22004293787188,
+      "mAP@50:95": 50.797716742146996
+    }
+  },
+  "per_image_cell_means": {
+    "Arm_A": {
+      "ap50_mean": 8721.67,
+      "ap50_std": 1664.31,
+      "ap50_sem": 117.68,
+      "ap50_median": 9530.39,
+      "ap95_mean": 7058.74,
+      "ap95_std": 1979.06,
+      "ap95_sem": 139.94,
+      "ap95_median": 7197.22
+    },
+    "Arm_B": {
+      "ap50_mean": 1828.4,
+      "ap50_std": 2651.33,
+      "ap50_sem": 187.48,
+      "ap50_median": 527.39,
+      "ap95_mean": 1156.62,
+      "ap95_std": 1957.11,
+      "ap95_sem": 138.39,
+      "ap95_median": 150.28
+    },
+    "Arm_C_full": {
+      "ap50_mean": 2669.0,
+      "ap50_std": 2824.42,
+      "ap50_sem": 199.72,
+      "ap50_median": 1774.21,
+      "ap95_mean": 1735.94,
+      "ap95_std": 2178.7,
+      "ap95_sem": 154.06,
+      "ap95_median": 798.28
+    },
+    "Arm_C_index": {
+      "ap50_mean": 2203.22,
+      "ap50_std": 2750.64,
+      "ap50_sem": 194.5,
+      "ap50_median": 1051.98,
+      "ap95_mean": 1345.59,
+      "ap95_std": 1957.1,
+      "ap95_sem": 138.39,
+      "ap95_median": 508.96
+    },
+    "Arm_D_full": {
+      "ap50_mean": 7230.14,
+      "ap50_std": 2431.11,
+      "ap50_sem": 171.91,
+      "ap50_median": 7419.06,
+      "ap95_mean": 5759.89,
+      "ap95_std": 2464.71,
+      "ap95_sem": 174.28,
+      "ap95_median": 5520.94
+    },
+    "Arm_D_index": {
+      "ap50_mean": 8088.0,
+      "ap50_std": 2048.59,
+      "ap50_sem": 144.86,
+      "ap50_median": 8560.23,
+      "ap95_mean": 6541.23,
+      "ap95_std": 2206.74,
+      "ap95_sem": 156.04,
+      "ap95_median": 6562.22
+    }
+  },
+  "arm_definitions": {
+    "Arm_A": "Clean Baseline: Clean Memory M_clean, Clean Query Prior Q_clean (Top-300 clean)",
+    "Arm_B": "Full Joint Attack: Adversarial Memory M_adv, Adversarial Query Prior Q_adv (Top-300 adv)",
+    "Arm_C_full": "Intervention: Adversarial Memory M_adv, Clean Query Prior Q_clean (Top-300 clean content & coordinates)",
+    "Arm_C_index": "Intervention: Adversarial Memory M_adv, Query Prior gathered from Adversarial Encoder using Clean Indices I_clean",
+    "Arm_D_full": "Intervention: Clean Memory M_clean, Adversarial Query Prior Q_adv (Top-300 adv content & coordinates)",
+    "Arm_D_index": "Intervention: Clean Memory M_clean, Query Prior gathered from Clean Encoder using Adversarial Indices I_adv"
+  },
+  "anova_repeated_measures_full": {
+    "N": 200,
+    "df": [
+      1,
+      199
+    ],
+    "marginal_effects": {
+      "ME_M": -57.2720495595583,
+      "ME_M_ci95": [
+        -60.78154746790289,
+        -53.91999673657825
+      ],
+      "ME_Q": -11.66060033508818,
+      "ME_Q_ci95": [
+        -13.33740788765306,
+        -10.063942208207651
+      ],
+      "Interaction_MxQ": 3.254668476979591,
+      "Interaction_ci95": [
+        1.4875212941387668,
+        5.048211929995237
+      ],
+      "Total_Y11_minus_Y00": -68.93264989464647,
+      "Total_ci95": [
+        -72.56353642737584,
+        -65.07768401128496
+      ]
+    },
+    "attribution_shares": {
+      "signed_fraction_of_total_drop_pct": {
+        "Memory_M": 83.08406777788217,
+        "Query_Q": 16.915932222117835,
+        "note": "Y_11 - Y_00 = ME_M + ME_Q (tổng đúng 100%)"
+      },
+      "l1_marginal_share_pct": {
+        "Memory_M": 79.33810377152012,
+        "Query_Q": 16.153253228023353,
+        "Interaction_MxQ": 4.508643000456533,
+        "note": "|ME| / (|ME_M| + |ME_Q| + |Inter|)"
+      },
+      "anova_condition_ss_share_pct": {
+        "Memory_M": 95.72286455860466,
+        "Query_Q": 3.968003592507776,
+        "Interaction_MxQ": 0.3091318488875624,
+        "note": "SS_factor / (SS_M + SS_Q + SS_inter)"
+      },
+      "partial_eta_squared": {
+        "Memory_M": 0.8341675442156767,
+        "Query_Q": 0.4899838324395633,
+        "Interaction_MxQ": 0.06494958631317417
+      }
+    },
+    "anova_table": {
+      "SS_subjects": 282151.42544078734,
+      "SS_total": 1156703.5648190235,
+      "Memory_M": {
+        "SS": 656017.5321505003,
+        "SS_err": 130416.24449243856,
+        "F": 1001.0063501369924,
+        "p": 1.1102230246251565e-16
+      },
+      "Query_Q": {
+        "SS": 27193.920034931467,
+        "SS_err": 28305.707166106196,
+        "F": 191.18370917902044,
+        "p": 1.1102230246251565e-16
+      },
+      "Interaction_MxQ": {
+        "SS": 2118.57337900896,
+        "SS_err": 30500.162155250095,
+        "F": 13.822749540700794,
+        "p": 0.00026112882904982815
+      }
+    }
+  },
+  "anova_repeated_measures_index": {
+    "N": 200,
+    "df": [
+      1,
+      199
+    ],
+    "marginal_effects": {
+      "ME_M": -63.89022117565557,
+      "ME_M_ci95": [
+        -67.35269220539895,
+        -60.235048089167215
+      ],
+      "ME_Q": -5.042428718990916,
+      "ME_Q_ci95": [
+        -6.1921879495558585,
+        -3.952888182864618
+      ],
+      "Interaction_MxQ": 1.2942534904161402,
+      "Interaction_ci95": [
+        -0.1699108829227838,
+        2.5500120506838453
+      ],
+      "Total_Y11_minus_Y00": -68.93264989464647,
+      "Total_ci95": [
+        -72.56353642737584,
+        -65.07768401128496
+      ]
+    },
+    "attribution_shares": {
+      "signed_fraction_of_total_drop_pct": {
+        "Memory_M": 92.68499219644461,
+        "Query_Q": 7.315007803555404,
+        "note": "Y_11 - Y_00 = ME_M + ME_Q (tổng đúng 100%)"
+      },
+      "l1_marginal_share_pct": {
+        "Memory_M": 90.97684519184584,
+        "Query_Q": 7.180195161593083,
+        "Interaction_MxQ": 1.8429596465610785,
+        "note": "|ME| / (|ME_M| + |ME_Q| + |Inter|)"
+      },
+      "anova_condition_ss_share_pct": {
+        "Memory_M": 99.34045330762793,
+        "Query_Q": 0.6187808853722523,
+        "Interaction_MxQ": 0.04076580699983535,
+        "note": "SS_factor / (SS_M + SS_Q + SS_inter)"
+      },
+      "partial_eta_squared": {
+        "Memory_M": 0.8544893819097867,
+        "Query_Q": 0.2799733125420104,
+        "Interaction_MxQ": 0.018175803494969327
+      }
+    },
+    "anova_table": {
+      "SS_subjects": 258889.15593428482,
+      "SS_total": 1250899.605172359,
+      "Memory_M": {
+        "SS": 816392.0723748379,
+        "SS_err": 139023.0441362634,
+        "F": 1168.5977919125094,
+        "p": 1.1102230246251565e-16
+      },
+      "Query_Q": {
+        "SS": 5085.217477220838,
+        "SS_err": 13078.004692241451,
+        "F": 77.37864466184914,
+        "p": 6.661338147750939e-16
+      },
+      "Interaction_MxQ": {
+        "SS": 335.01841949087185,
+        "SS_err": 18097.09213802026,
+        "F": 3.6839435291716844,
+        "p": 0.056369219753729105
+      }
+    }
+  },
+  "bootstrap_paired_deltas": {
+    "Arm_D_full_minus_Arm_A": {
+      "point_delta_mAP@50": -20.1435948009724,
+      "ci95_mAP@50": [
+        -23.4471693621197,
+        -15.996291211291197
+      ],
+      "point_delta_mAP@50_95": -15.684971262019033,
+      "ci95_mAP@50_95": [
+        -18.598583329320075,
+        -12.460455169020461
+      ]
+    },
+    "Arm_D_index_minus_Arm_A": {
+      "point_delta_mAP@50": -9.232856666336303,
+      "ci95_mAP@50": [
+        -12.21786535541655,
+        -5.586834668257484
+      ],
+      "point_delta_mAP@50_95": -6.670535447758439,
+      "ci95_mAP@50_95": [
+        -8.858786927110565,
+        -4.191931600202103
+      ]
+    },
+    "Arm_C_full_minus_Arm_A": {
+      "point_delta_mAP@50": -68.32082447647733,
+      "ci95_mAP@50": [
+        -72.20948269103008,
+        -64.40015570498703
+      ],
+      "point_delta_mAP@50_95": -53.82290310439859,
+      "ci95_mAP@50_95": [
+        -57.884259251510144,
+        -50.88772944187379
+      ]
+    },
+    "Arm_B_minus_Arm_A": {
+      "point_delta_mAP@50": -70.22228438972071,
+      "ci95_mAP@50": [
+        -74.59068264389512,
+        -66.95335182126121
+      ],
+      "point_delta_mAP@50_95": -55.06578529181105,
+      "ci95_mAP@50_95": [
+        -59.40752338392904,
+        -52.509266092864706
+      ]
+    },
+    "Arm_D_full_minus_Arm_B": {
+      "point_delta_mAP@50": 50.07868958874831,
+      "ci95_mAP@50": [
+        47.03526603370913,
+        55.0281408119413
+      ],
+      "point_delta_mAP@50_95": 39.38081402979202,
+      "ci95_mAP@50_95": [
+        36.889298005242594,
+        43.76436636008623
+      ]
+    }
+  },
+  "non_parametric_contrasts": {
+    "Arm_D_full_vs_Arm_B": {
+      "description": "Causal Recovery of Clean Memory",
+      "mean_diff_pp": 5401.74,
+      "median_diff_pp": 5063.96,
+      "std_diff": 2814.7,
+      "cohen_d": 1.92,
+      "rank_biserial_r_rb": 1.0,
+      "paired_wilcoxon_stat": 2.0,
+      "paired_wilcoxon_p_value": 1.2940520550668682e-32,
+      "bootstrap_95ci_pp": [
+        5036.63,
+        5810.2
+      ]
+    },
+    "Arm_D_index_vs_Arm_A": {
+      "description": "Eviction Penalty under Clean Memory",
+      "mean_diff_pp": -633.67,
+      "median_diff_pp": 0.0,
+      "std_diff": 1290.42,
+      "cohen_d": -0.49,
+      "rank_biserial_r_rb": -0.721,
+      "paired_wilcoxon_stat": 853.0,
+      "paired_wilcoxon_p_value": 5.3948612896841937e-11,
+      "bootstrap_95ci_pp": [
+        -809.63,
+        -451.63
+      ]
+    },
+    "Arm_C_full_vs_Arm_A": {
+      "description": "Memory Damage under Clean Queries",
+      "mean_diff_pp": -6052.67,
+      "median_diff_pp": -6241.37,
+      "std_diff": 2872.28,
+      "cohen_d": -2.11,
+      "rank_biserial_r_rb": -0.999,
+      "paired_wilcoxon_stat": 6.0,
+      "paired_wilcoxon_p_value": 1.4000365396617196e-32,
+      "bootstrap_95ci_pp": [
+        -6456.56,
+        -5635.92
+      ]
+    },
+    "Arm_B_vs_Arm_A": {
+      "description": "Total Joint Attack Damage",
+      "mean_diff_pp": -6893.26,
+      "median_diff_pp": -7500.0,
+      "std_diff": 2745.26,
+      "cohen_d": -2.51,
+      "rank_biserial_r_rb": -1.0,
+      "paired_wilcoxon_stat": 0.0,
+      "paired_wilcoxon_p_value": 7.969187135397427e-33,
+      "bootstrap_95ci_pp": [
+        -7245.9,
+        -6498.19
+      ]
+    },
+    "Arm_D_index_vs_Arm_D_full": {
+      "description": "Index vs Full Query Prior",
+      "mean_diff_pp": 857.86,
+      "median_diff_pp": 185.29,
+      "std_diff": 1417.5,
+      "cohen_d": 0.61,
+      "rank_biserial_r_rb": 0.82,
+      "paired_wilcoxon_stat": 718.5,
+      "paired_wilcoxon_p_value": 1.3382569787517045e-15,
+      "bootstrap_95ci_pp": [
+        684.19,
+        1061.35
+      ]
+    }
+  },
+  "timestamp": "2026-11-27 13:57:51"
+}
