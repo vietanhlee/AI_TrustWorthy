@@ -264,8 +264,8 @@ def generate_html():
                                 <span class="lang-en">Protocol-Dependent Interventional &amp; Pixel-Space Attribution:</span>
                                 <span class="lang-vi">Phân Rã Theo Giao Thức &amp; Đối Chứng Điểm Ảnh:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">AQSM reduces subset mAP@50 from $66.93\%$ to $4.05\%$ [C1] ($4.00 \pm 0.74\%$ 5-seed) on R18VD and $74.45\% \to 10.15\%$ [C3] ($8.53 \pm 0.88\%$) on R50VD. Under $2 \times 2$ tensor swaps, memory corruption carries $60.59\%\text{--}71.40\%$ operational attribution on R18VD ($68.22\%\text{--}74.92\%$ on R50VD). Attenuated pixel-space controls stay consistent with this pattern: Memory-Isolated Query retains $59.07\%$ / $68.67\%$ (cos $0.850$ / $0.858$), whereas Pure-Memory disruption collapses subset mAP to $0.00\%$.</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">AQSM làm giảm subset mAP@50 từ $66.93\%$ xuống $4.05\%$ [C1] ($4.00 \pm 0.74\%$ 5-seed) trên R18VD và $74.45\% \to 10.15\%$ [C3] trên R50VD. Trong giao thức hoán đổi tensor $2 \times 2$, tổn hại bộ nhớ chiếm $60.59\%\text{--}71.40\%$ tỷ trọng phụ thuộc giao thức trên R18VD ($68.22\%\text{--}74.92\%$ R50VD). Đối chứng điểm ảnh cho kết quả đồng hướng: Memory-Isolated Query giữ $59.07\%$ / $68.67\%$ còn phá bộ nhớ thuần về $0.00\%$.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">AQSM reduces subset mAP@50 from $66.93\%$ to $4.05\%$ [Primary Ref. C1] ($4.00 \pm 0.74\%$ 5-seed) on R18VD and $74.45\% \to 10.15\%$ [C3] ($8.53 \pm 0.88\%$) on R50VD. Under $2 \times 2$ tensor swaps, the intervention protocol attributed a larger share ($60.59\%\text{--}71.40\%$ on R18VD; $68.22\%\text{--}74.92\%$ on R50VD) to encoder-memory distortion. Coupled pixel-space controls point in the same direction: Memory-Isolated Query retains $59.07\%$ / $68.67\%$ (cos $0.850$ / $0.858$), whereas Pure-Memory disruption drops subset mAP to $0.00\%$.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">AQSM làm giảm subset mAP@50 từ $66.93\%$ xuống $4.05\%$ [Mốc chính C1] ($4.00 \pm 0.74\%$ 5-seed) trên R18VD và $74.45\% \to 10.15\%$ [C3] trên R50VD. Trong giao thức hoán đổi tensor $2 \times 2$, phép quy kết ghi nhận tỷ phần lớn hơn thuộc về biến dạng bộ nhớ ($60.59\%\text{--}71.40\%$ R18VD; $68.22\%\text{--}74.92\%$ R50VD). Đối chứng điểm ảnh đồng hướng: Memory-Isolated Query giữ $59.07\%$ / $68.67\%$ còn phá bộ nhớ thuần về $0.00\%$.</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
@@ -275,8 +275,8 @@ def generate_html():
                                 <span class="lang-en">TOST Mean Entropy Equivalence vs. Center-Only Misrouting:</span>
                                 <span class="lang-vi">Tương Đương Entropy Trung Bình (TOST) vs. Sai Tâm Tọa Độ:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Mean normalized attention entropy stays within $\pm 0.02$ TOST bounds ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), while reference drift ($\Delta p = 0.4672$ / $0.4459$) cuts sampling hit ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Center-only random shifts ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduce 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), providing evidence against box clamping as the main driver.</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Entropy attention chuẩn hóa trung bình nằm trong biên $\pm 0.02$ TOST ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), nhưng độ trôi tọa độ ($\Delta p = 0.4672$ / $0.4459$) làm tụt tỷ lệ trúng ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Dịch chuyển riêng tâm ($33.47\%$ / $46.79\%$) tái lập sụp đổ 4D ($33.92\%$ / $48.43\%$).</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Mean normalized attention entropy remained inside prespecified $\pm 0.02$ TOST bounds ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), while reference drift ($\Delta p = 0.4672$ / $0.4459$) cut sampling hit ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Center-only random shifts ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduced 4D collapse ($33.92\%$ / $48.43\%$), suggesting that bounding-box clamping alone does not explain the degradation.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Entropy attention trung bình nằm trong biên ấn định sẵn $\pm 0.02$ TOST ($0.8032 \to 0.7945$ R18VD, $p = 3.46 \times 10^{-5}$; $0.8150 \to 0.8087$ R50VD, $p = 6.80 \times 10^{-6}$), nhưng độ trôi tọa độ làm tụt tỷ lệ trúng ($63.53\% \to 45.44\%$ / $64.77\% \to 50.24\%$). Dịch chuyển riêng tâm ($33.47\%$ / $46.79\%$) tái lập sụp đổ 4D, gợi ý rằng việc kẹp biên hộp không phải lời giải thích duy nhất.</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
@@ -286,8 +286,8 @@ def generate_html():
                                 <span class="lang-en">20-Scene T4 FP32 Stress Latency vs. Capped-NMS RetinaNet:</span>
                                 <span class="lang-vi">Độ Trễ T4 FP32 (20 Ảnh Xen Kẽ) vs. RetinaNet+NMS:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Timed via CUDA events across 20 interleaved scenes on Tesla T4 (FP32), RT-DETR exhibits no measurable latency increase under flooding sponge stress ($\Delta = -0.23$ ms, 95% CI $[-0.50, +0.03]$ ms on R18VD; $\Delta = +0.16$ ms, 95% CI $[-0.11, +0.43]$ ms on R50VD), running $3.8\times$ faster than capped batched-NMS RetinaNet-R50-FPN-v2 in this specific GPU setup.</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Đo đạc bằng CUDA events trên 20 ảnh xen kẽ trên Tesla T4 (FP32), RT-DETR không ghi nhận mức tăng độ trễ đáng kể dưới tấn công sponge ($\Delta = -0.23$ ms, KTC 95% $[-0.50, +0.03]$ ms R18VD; $\Delta = +0.16$ ms, $[-0.11, +0.43]$ ms R50VD), nhanh hơn $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng batched NMS có giới hạn ứng viên.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Under 20 interleaved scenes on Tesla T4 (FP32), we did not detect a latency increase under flooding sponge stress ($\Delta = -0.23$ ms, 95% CI $[-0.50, +0.03]$ ms on R18VD; $\Delta = +0.16$ ms, 95% CI $[-0.11, +0.43]$ ms on R50VD), and RT-DETR executed $3.8\times$ faster than capped batched-NMS RetinaNet-R50-FPN-v2 under this protocol.</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Qua 20 ảnh xen kẽ trên Tesla T4 (FP32), chúng tôi không phát hiện mức tăng độ trễ đáng kể dưới tấn công sponge ($\Delta = -0.23$ ms, KTC 95% $[-0.50, +0.03]$ ms R18VD; $\Delta = +0.16$ ms, $[-0.11, +0.43]$ ms R50VD), và nhanh hơn $3.8\times$ so với RetinaNet-R50-FPN-v2 dùng batched NMS có giới hạn ứng viên.</span>
                         </div>
                     </div>
                     <div class="p-3 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-start gap-2.5">
@@ -297,8 +297,8 @@ def generate_html():
                                 <span class="lang-en">Monitor Adaptation, Null Zero-Shot SQA &amp; 6-Checkpoint Scope:</span>
                                 <span class="lang-vi">Giới Hạn Giám Sát, SQA Zero-Shot &amp; Thử Nghiệm 6 Checkpoint:</span>
                             </strong>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Adaptive evasion bypasses standalone ESM ($46.67\%$ TPR), SCM, and BCM ($84\%\text{--}99\%$), while strict simultaneous-success joint evasion ($0.00\%\text{--}0.48\%$ on Ensemble) remains threshold- and weight-sensitive. Logit-calibrated encoder-sampled zero-shot SQA alone proves insufficient ($4.03\%$ R18VD / $10.27\%$ R50VD), while single-checkpoint dynamic-selection drops appear on RT-DETRv2 ($4.01\%$) and Deformable DETR ($3.99\%$) [C4].</span>
-                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Tấn công thích nghi vượt qua từng giám sát đơn lẻ ($84\%\text{--}99\%$), còn tỷ lệ qua mặt đồng thời trên Ensemble ($0.00\%\text{--}0.48\%$) phụ thuộc trực tiếp ngưỡng hiệu lực từng ảnh và trọng số mục tiêu. SQA zero-shot chuẩn hóa logit không đủ phục hồi trên hai RT-DETR ($4.03\%$ / $10.27\%$), và suy giảm chọn lọc động cũng xuất hiện trên hai checkpoint RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$) [C4].</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-en">Adaptive evasion bypassed standalone ESM ($10.00\%$ clean FPR; 95% Wilson CI $[6.6, 14.8]\%$), SCM, and BCM ($84\%\text{--}99\%$), while strict simultaneous-success joint evasion ($0.00\%\text{--}0.48\%$ on Ensemble) reflects finite calibration and weight choices. Zero-shot SQA failed to restore accuracy ($4.03\%$ R18VD / $10.27\%$ R50VD), while single-checkpoint drops appeared on RT-DETRv2 ($4.01\%$) and Deformable DETR ($3.99\%$) [C4].</span>
+                            <span class="text-slate-600 text-[11px] leading-relaxed lang-vi">Tấn công thích nghi vượt qua ESM ($10.00\%$ FPR sạch), SCM và BCM ($84\%\text{--}99\%$), còn tỷ lệ qua mặt đồng thời trên Ensemble ($0.00\%\text{--}0.48\%$) phụ thuộc ngưỡng hiệu lực và trọng số mục tiêu. SQA zero-shot không phục hồi được độ chính xác ($4.03\%$ / $10.27\%$), và suy giảm đơn checkpoint xuất hiện trên RT-DETRv2 ($4.01\%$) và Deformable DETR ($3.99\%$) [C4].</span>
                         </div>
                     </div>
                 </div>
@@ -312,16 +312,16 @@ def generate_html():
                     </summary>
                     <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 leading-relaxed space-y-2 bg-slate-50/50 p-3.5 rounded-xl font-serif">
                         <p class="lang-en">
-                            We investigate how white-box perturbations targeting the encoder query-selection head affect multi-scale encoder memory and dynamic top-$K$ query routing in Real-Time Detection Transformers (RT-DETR). Using Adversarial Query Selection Manipulation (AQSM) as an encoder-interface probe alongside decoder baselines and pixel-space controls within a $2 \times 2$ factorial tensor-swap protocol, we evaluate <strong>RT-DETR-R18VD</strong> ($N = 300$), <strong>RT-DETR-R50VD</strong> ($N = 200$), and six detector architectures ($N = 300$) on sequential deterministic COCO val2017 subsets ($640 \times 640$, $S = 8,400$ tokens).
+                            We investigate how white-box perturbations targeting the encoder query-selection head affect multi-scale encoder memory and dynamic top-$K$ query routing in Real-Time Detection Transformers (RT-DETR). Using Adversarial Query Selection Manipulation (AQSM) alongside decoder baselines and pixel-space controls, we evaluate two RT-DETR checkpoints (<code>r18vd</code>, $N = 300$; <code>r50vd</code>, $N = 200$) and four comparison models ($N = 300$) on sequential COCO val2017 subsets.
                         </p>
                         <p class="lang-en">
-                            Across additive and log scales, activation patching and attenuated pixel-space controls suggest that encoder memory distortion accounts for a larger share of the observed subset accuracy loss ($60.6\%\text{--}71.4\%$ protocol attribution on R18VD; $68.2\%\text{--}74.9\%$ on R50VD) than query-slot misrouting. Meanwhile, mean normalized deformable cross-attention entropy remains within the $\pm 0.02$ TOST equivalence margin ($p_{\mathrm{TOST}} \le 3.46 \times 10^{-5}$), whereas reference-coordinate drift cuts foreground sampling hit rate and center-only random shifts reproduce matched-$L_2$ degradation. These estimates depend on the intervention protocol and remain bounded to the evaluated checkpoints, sequential subsets, and 15-step $\ell_\infty$ PGD stress budget ($\epsilon = 16/255$); latency profiling, runtime monitor evasion, and zero-shot Static Query Augmentation results are detailed in the body.
+                            Under $2 \times 2$ activation patching and attenuated pixel-space controls, the intervention protocol attributed a larger share of subset accuracy loss to encoder-memory changes than to query-prior changes; this attribution varied with intervention order and metric scale, and the tensor swaps can construct out-of-distribution states. Mean normalized cross-attention entropy remained within prespecified $\pm 0.02$ TOST equivalence bounds, whereas decoder sampling locations drifted away from ground-truth boxes and center-only random shifts reproduced matched-$L_2$ degradation. Adaptive evasion bypassed standalone runtime monitors, calibrated zero-shot Static Query Augmentation failed to restore accuracy, and we did not detect a latency increase under a 20-scene FP32 Tesla T4 benchmark. These findings are bounded to the evaluated checkpoints, sequential subsets, and single-restart, 15-step PGD attacks ($\epsilon = 16/255$).
                         </p>
                         <p class="lang-vi">
-                            Chúng tôi khảo sát cách các nhiễu loạn white-box nhắm vào đầu chọn lọc truy vấn ảnh hưởng đến bộ nhớ encoder đa tầng và định tuyến truy vấn top-$K$ trong RT-DETR. Sử dụng AQSM như phép dò giao diện cùng các baseline decoder và đối chứng không gian ảnh trong giao thức hoán đổi tensor $2 \times 2$, chúng tôi đánh giá <strong>RT-DETR-R18VD</strong> ($N = 300$), <strong>RT-DETR-R50VD</strong> ($N = 200$) và 6 kiến trúc ($N = 300$) trên các tập con tất định COCO val2017 ($640 \times 640$, $S = 8.400$ tokens).
+                            Chúng tôi khảo sát cách nhiễu loạn white-box nhắm vào đầu chọn lọc truy vấn ảnh hưởng đến bộ nhớ encoder đa tầng và định tuyến truy vấn top-$K$ trong RT-DETR. Sử dụng AQSM cùng các baseline decoder và đối chứng không gian ảnh, chúng tôi đánh giá hai biến thể RT-DETR (<code>r18vd</code>, $N = 300$; <code>r50vd</code>, $N = 200$) cùng bốn mô hình đối chiếu ($N = 300$) trên các tập con tuần tự COCO val2017.
                         </p>
                         <p class="lang-vi">
-                            Qua các thang đo cộng và log, can thiệp activation patching và đối chứng không gian ảnh cho thấy biến dạng bộ nhớ encoder chiếm tỷ phần lớn hơn trong suy giảm độ chính xác tập con ($60.6\%\text{--}71.4\%$ trên R18VD; $68.2\%\text{--}74.9\%$ trên R50VD) so với sai lệch định tuyến truy vấn. Entropy trung bình nằm trong biên tương đương $\pm 0.02$ TOST ($p_{\mathrm{TOST}} \le 3.46 \times 10^{-5}$), trong khi trôi tọa độ làm giảm tỷ lệ trúng và dịch chuyển riêng tâm tái lập sụp đổ $L_2$. Các ước lượng này phụ thuộc giao thức can thiệp và giới hạn trong các checkpoint, tập con lấy tuần tự, và ngân sách PGD 15 bước ($\epsilon = 16/255$).
+                            Dưới giao thức hoán đổi $2 \times 2$ và đối chứng điểm ảnh suy giảm đồng thời, phép quy kết gán tỷ phần lớn hơn của suy giảm độ chính xác cho biến dạng bộ nhớ so với truy vấn; tỷ lệ này thay đổi theo thứ tự can thiệp và thang đo, còn việc tráo tensor có thể tạo trạng thái ngoài phân phối. Entropy trung bình nằm trong biên tương đương ấn định sẵn $\pm 0.02$ TOST, trong khi điểm lấy mẫu lệch khỏi hộp ground truth. Tấn công thích nghi vượt qua giám sát đơn lẻ, SQA zero-shot không phục hồi được độ chính xác, và chúng tôi không phát hiện tăng độ trễ trong thử nghiệm 20 ảnh T4 FP32. Kết quả giới hạn trong các checkpoint, tập con tuần tự, và PGD 15 bước một lần khởi tạo ($\epsilon = 16/255$).
                         </p>
                     </div>
                 </details>
@@ -719,10 +719,10 @@ def generate_html():
                         </span>
                         <div class="text-2xl font-extrabold text-slate-900 font-mono mt-1">39.41% &rarr; 31.78%</div>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-en">
-                            Query eviction accounts for <strong>39.41%</strong> Shapley share on R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$), buffering down to <strong>31.78%</strong> on 6-layer R50VD ($\text{ME}_Q = -20.27$ pp, $\eta_p^2 = 0.576$).
+                            The protocol attributes <strong>39.41%</strong> Shapley share on R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$) to query eviction, dropping to <strong>31.78%</strong> on 6-layer R50VD ($\text{ME}_Q = -20.27$ pp, $\eta_p^2 = 0.576$).
                         </p>
                         <p class="text-xs text-slate-500 mt-1.5 leading-relaxed lang-vi">
-                            Trục xuất query chiếm <strong>39.41%</strong> tỷ trọng Shapley trên R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$), giảm xuống <strong>31.78%</strong> trên R50VD 6 tầng ($\text{ME}_Q = -20.27$ pp, $\eta_p^2 = 0.576$).
+                            Giao thức quy kết <strong>39.41%</strong> tỷ trọng Shapley trên R18VD (pooled $33.25\%$, log-scale $28.60\%$; $\text{ME}_Q = -27.94$ pp, $\eta_p^2 = 0.709, F = 725.2$) cho việc trục xuất truy vấn, giảm xuống <strong>31.78%</strong> trên R50VD 6 tầng ($\text{ME}_Q = -20.27$ pp, $\eta_p^2 = 0.576$).
                         </p>
                     </div>
                 </div>
@@ -883,10 +883,10 @@ def generate_html():
                             <span class="lang-vi">Định Tuyến Sai Tâm Tọa Độ</span>
                         </h4>
                         <p class="text-xs text-slate-500 leading-relaxed lang-en">
-                            Reference coordinates shift sharply ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), pulling sampling hit down to $45.44\%$ ($-18.1$ pp). Pure <strong>Center-Only Random Shift</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduces 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), providing evidence against box clamping as the main driver.
+                            Reference coordinates shift sharply ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), pulling sampling hit down to $45.44\%$ ($-18.1$ pp). Pure <strong>Center-Only Random Shift</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) reproduces 4D matched-$L_2$ collapse ($33.92\%$ / $48.43\%$), suggesting that bounding-box clamping alone does not explain the observed degradation.
                         </p>
                         <p class="text-xs text-slate-500 leading-relaxed lang-vi">
-                            Tọa độ tham chiếu trôi mạnh ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), kéo tỷ lệ lấy mẫu trúng xuống $45.44\%$ ($-18.1$ pp). Thử nghiệm <strong>Dịch chuyển Chỉ riêng Tâm</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) tái lập suy giảm 4D ($33.92\%$ / $48.43\%$), cung cấp bằng chứng phản bác việc kẹp biên hộp là nguyên nhân chính.
+                            Tọa độ tham chiếu trôi mạnh ($\Delta p = 0.4672, \Delta_{\mathrm{Hung}} = 0.2411$ R18VD; $\Delta p = 0.4459$ R50VD), kéo tỷ lệ lấy mẫu trúng xuống $45.44\%$ ($-18.1$ pp). Thử nghiệm <strong>Dịch chuyển Chỉ riêng Tâm</strong> ($33.47\%$ R18VD / $46.79\%$ R50VD) tái lập suy giảm 4D ($33.92\%$ / $48.43\%$), cho thấy việc kẹp biên kích thước hộp không giải thích được toàn bộ suy giảm này.
                         </p>
                     </div>
                     <div class="mt-3 pt-2 border-t border-slate-100 text-[11px] font-mono text-rose-600 font-semibold">
@@ -1406,7 +1406,7 @@ def generate_html():
                                     <td class="py-2.5 px-5 text-center font-mono">0.2207 ± 0.0036 / 51.95 ± 0.71%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">AQSM Budget Sweep ($\epsilon = 4/255, 8/255$)</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">AQSM Budget Sweep ($\epsilon = 4/255, 8/255$; $T=10$)</td>
                                     <td class="py-2.5 px-4 text-center font-mono">10.80%, 8.93%</td>
                                     <td class="py-2.5 px-5 text-center font-mono">24.10%, 15.40%</td>
                                 </tr>
@@ -1451,9 +1451,9 @@ def generate_html():
                                     <td class="py-2.5 px-5 text-center font-mono">74.16 / 48.43 / 46.79 / 43.78%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
-                                    <td class="py-2.5 px-5 font-semibold text-slate-900">ESM TPR (AUROC) / Adaptive Bypass (ESM / Ens. Joint)</td>
-                                    <td class="py-2.5 px-4 text-center font-mono">46.67% (0.7743) / 95.2–97.6% (Ens: 0.48%)</td>
-                                    <td class="py-2.5 px-5 text-center font-mono">25.71% (0.6735) / 89.3–92.1% (Ens: 0.00%)</td>
+                                    <td class="py-2.5 px-5 font-semibold text-slate-900">ESM TPR / Clean FPR (Wilson 95% CI) / Adaptive Ens. Joint</td>
+                                    <td class="py-2.5 px-4 text-center font-mono">46.67% / 10.00% [6.6, 14.8] / Ens: 0.48%</td>
+                                    <td class="py-2.5 px-5 text-center font-mono">25.71% / 15.00% [10.0, 21.8] / Ens: 0.00%</td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/60 transition">
                                     <td class="py-2.5 px-5 font-semibold text-slate-900">Calibrated Enc.-Sampled SQA (Stationary / Adaptive)</td>
@@ -1808,8 +1808,8 @@ def generate_html():
             title_vi: 'Encoder Memory (Biểu diễn bộ nhớ M)',
             calc_en: 'Multi-scale spatial feature maps extracted by hybrid encoder: S3 (80x80), S4 (40x40), S5 (20x20), S=8,400 tokens.',
             calc_vi: 'Bản đồ đặc trưng không gian đa tỷ lệ trích xuất từ hybrid encoder: S3 (80x80), S4 (40x40), S5 (20x20), S=8.400 tokens.',
-            mean_en: 'Contains semantic contextual representations. Perturbing M accounts for 60.59% (R18VD, N=300) and 68.22% (R50VD, N=200) of detector collapse.',
-            mean_vi: 'Chứa biểu diễn ngữ nghĩa của cảnh vật. Làm sai lệch M chiếm tới 60.59% (R18VD, N=300) và 68.22% (R50VD, N=200) nguyên nhân gây sụp đổ mô hình.'
+            mean_en: 'Contains multi-scale encoder contextual features. Under 2x2 activation patching, the protocol attributed 60.59% (R18VD, N=300) and 68.22% (R50VD, N=200) per-image Shapley share to M.',
+            mean_vi: 'Chứa biểu diễn ngữ nghĩa đa tầng của encoder. Trong giao thức hoán đổi 2x2, phép quy kết gán 60.59% (R18VD, N=300) và 68.22% (R50VD, N=200) tỷ trọng Shapley cho kênh M.'
         },
         'query': {
             title_en: 'Query Prior (Q)',

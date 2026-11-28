@@ -57,7 +57,7 @@
 \title{Decomposing Failure Modes of Real-Time DETR under Encoder Adversarial Attacks: An Empirical Diagnostic Study}
 
 \begin{abstract}
-We investigate how white-box perturbations targeting the encoder query-selection head affect multi-scale encoder memory and dynamic top-$K$ query routing in Real-Time Detection Transformers (RT-DETR). Using Adversarial Query Selection Manipulation (AQSM) as an encoder-interface probe alongside decoder baselines and pixel-space controls within a $2 \times 2$ factorial tensor-swap protocol, we evaluate \textbf{RT-DETR-R18VD} ($N = 300$), \textbf{RT-DETR-R50VD} ($N = 200$), and six detector architectures ($N = 300$) on sequential deterministic COCO \texttt{val2017} subsets ($640 \times 640$, $S = 8,400$ tokens). Across additive and log scales, activation patching and attenuated pixel-space controls suggest that encoder memory distortion accounts for a larger share of the observed subset accuracy loss ($60.6\%$--$71.4\%$ protocol attribution on R18VD; $68.2\%$--$74.9\%$ on R50VD) than query-slot misrouting. Meanwhile, mean normalized deformable cross-attention entropy remains within the $\pm 0.02$ TOST equivalence margin ($p_{\mathrm{TOST}} \le 3.46 \times 10^{-5}$), whereas reference-coordinate drift cuts foreground sampling hit rate and center-only random shifts reproduce matched-$L_2$ degradation. These estimates depend on the intervention protocol and remain bounded to the evaluated checkpoints, sequential subsets, and 15-step $\ell_\infty$ PGD stress budget ($\epsilon = 16/255$); latency profiling, runtime monitor evasion, and zero-shot Static Query Augmentation results are detailed in the body.
+We investigate how white-box perturbations targeting the encoder query-selection head affect multi-scale encoder memory and dynamic top-$K$ query routing in Real-Time Detection Transformers (RT-DETR). Using Adversarial Query Selection Manipulation (AQSM) alongside decoder baselines and pixel-space controls, we evaluate two RT-DETR checkpoints (\texttt{r18vd}, $N = 300$; \texttt{r50vd}, $N = 200$) and four comparison models ($N = 300$) on sequential COCO \texttt{val2017} subsets. Under $2 \times 2$ activation patching and attenuated pixel-space controls, the intervention protocol attributed a larger share of subset accuracy loss to encoder-memory changes than to query-prior changes; this attribution varied with intervention order and metric scale, and the tensor swaps can construct out-of-distribution states. Mean normalized cross-attention entropy remained within the prespecified $\pm 0.02$ TOST equivalence bounds, whereas decoder sampling locations drifted away from ground-truth boxes and center-only random shifts reproduced matched-$L_2$ degradation. Adaptive evasion bypassed standalone runtime monitors, calibrated zero-shot Static Query Augmentation failed to restore accuracy, and we did not detect a latency increase under a 20-scene FP32 Tesla T4 benchmark. These findings are bounded to the evaluated checkpoints, sequential subsets, and single-restart, 15-step PGD attacks ($\epsilon = 16/255$).
 \end{abstract}
 
 \begin{keyword}
@@ -91,7 +91,7 @@ This coupling introduces distinct security trade-offs compared with convolutiona
 \end{equation}
 where $S[i, c]$ denotes the classification logits predicted by the encoder selection head for anchor $i$ and category $c$, and $\sigma(\cdot)$ is the sigmoid function.
 
-Crucially, because the selection classification head sits atop the encoder's multi-scale feature pyramid, white-box gradients targeting encoder logits simultaneously deform encoder memory representations ($M$). Rather than proposing AQSM as a stronger attack than end-to-end Task PGD, we use it as an encoder-interface probe alongside Query Vanishing, Task PGD, Encoder Attention Disruption \citep{jayasundara2024attention}, Gaussian noise, \textit{memory-isolated query controls} (pixel-space PGD penalizing multi-scale feature drift), and \textit{zero-shot Static Query Augmentation (SQA)} (fixed inference-time grid priors appended without adversarial retraining). Throughout, high-score clean proposals ($C_{\mathrm{real}}$) and low-ranked distal anchors ($C_{\mathrm{bg}}$) denote \textit{encoder-score proxies} rather than ground-truth object or background labels. Quantitative results are consolidated in Section~\ref{sec:empirical_results}--\ref{sec:defense_evaluation} under cohort tags \texttt{C1}--\texttt{C4} (Table~\ref{tab:tab_p1_provenance}), with benchmark scripts and manifests hosted at \href{https://vietanhlee.github.io/AI_TrustWorthy/}{\nolinkurl{https://vietanhlee.github.io/AI_TrustWorthy/}}.
+The selection classification head operates on the encoder's multi-scale feature pyramid. As a result, white-box gradients that target its logits also alter the encoder memory representations ($M$). Rather than proposing AQSM as a stronger attack than end-to-end Task PGD, we use it as an encoder-interface probe alongside Query Vanishing, Task PGD, Encoder Attention Disruption \citep{jayasundara2024attention}, Gaussian noise, \textit{memory-isolated query controls} (pixel-space PGD penalizing multi-scale feature drift), and \textit{zero-shot Static Query Augmentation} (SQA; fixed grid priors appended at inference without retraining). Throughout, top-15 high-score clean proposals ($C_{\mathrm{real}}$) and low-ranked distal anchors ($C_{\mathrm{bg}}$) denote \textit{encoder-score proxies} rather than ground-truth labels. All cohort/cache runs are indexed in Table~\ref{tab:tab_p1_provenance}, with benchmark scripts and manifests hosted at \href{https://vietanhlee.github.io/AI_TrustWorthy/}{\nolinkurl{https://vietanhlee.github.io/AI_TrustWorthy/}}.
 
 \begin{figure}[!htbp]
 \centering
@@ -100,20 +100,21 @@ Crucially, because the selection classification head sits atop the encoder's mul
 \label{fig:fig2_threat_taxonomy}
 \end{figure}
 
-We investigate four research questions across RT-DETR-R18VD ($N=300$), RT-DETR-R50VD ($N=200$), and our six-model cross-architecture suite ($N=300$):
+We investigate five focused research questions across RT-DETR-R18VD ($N=300$), RT-DETR-R50VD ($N=200$), and a six-checkpoint benchmark ($N=300$):
 \begin{itemize}
-    \item \textbf{RQ1 (Protocol-Dependent Failure Attribution):} Under a $2 \times 2$ factorial tensor-swap protocol and on-manifold pixel-space controls, how do encoder memory distortion ($M$) and query prior disruption ($Q$) jointly associate with accuracy loss across AQSM, Query Vanishing, Task PGD, and Attention Disruption \citep{jayasundara2024attention}?
-    \item \textbf{RQ2 (Proposal Dynamics vs.\ Starvation):} Does degradation stem from empty-output starvation, or from eviction of top-15 high-score clean proposal proxies and distal-anchor score elevation?
-    \item \textbf{RQ3 (Attention Entropy vs.\ Coordinate Misrouting):} Does decoder failure manifest as broad cross-attention dispersion or as spatial reference misrouting under TOST entropy equivalence and center-only shift controls?
-    \item \textbf{RQ4 (Matched-Budget, Latency, Defense Limits, and Cross-Model Scope):} How does fixed-query latency behave under a 20-image FP32 T4 stress test alongside a capped-NMS RetinaNet baseline, how do telemetry watchdogs (ESM, SCM, BCM, Ensemble) and zero-shot SQA behave under adaptive evasion, and do dynamic-selection failures appear in tested RT-DETRv2 and Deformable DETR checkpoints?
+    \item \textbf{RQ1 (Protocol-Dependent Failure Attribution):} Under a $2 \times 2$ tensor-swap protocol and on-manifold pixel-space controls, how do encoder memory changes ($M$) and query prior changes ($Q$) associate with accuracy loss across attacks?
+    \item \textbf{RQ2 (Proposal Dynamics vs.\ Starvation):} Does failure stem from empty-output starvation, or from eviction of top-15 clean-score proxies and distal-anchor elevation?
+    \item \textbf{RQ3 (Entropy Equivalence vs.\ Coordinate Misrouting):} Does decoder failure manifest as cross-attention dispersion or spatial coordinate drift under Two One-Sided Tests (TOST) equivalence and center-only shift controls?
+    \item \textbf{RQ4 (Matched-Budget Sensitivity and Scoped T4 Latency):} How does accuracy scale under matched small-step $\epsilon$ sweeps, and does flooding stress induce a detectable latency shift on a 20-scene FP32 Tesla T4 benchmark alongside a capped-NMS RetinaNet baseline?
+    \item \textbf{RQ5 (Monitor Adaptation, Zero-Shot SQA, and Cross-Checkpoint Scope):} How do runtime monitors (ESM, SCM, BCM, Ensemble) and logit-calibrated SQA behave under adaptive attacks, and do selection-interface drops appear in single checkpoints of RT-DETRv2 and Deformable DETR?
 \end{itemize}
 
 \paragraph{Key Contributions}
 \begin{enumerate}
-    \item \textbf{Protocol-Dependent Interventional and Pixel-Space Attribution (RQ1):} We pair $2 \times 2$ activation patching across additive, pooled, and log-retention scales with feasible pixel-space controls (\textit{Memory-Isolated Query} and \textit{Pure-Memory Disruption}). Because tensor swaps construct out-of-distribution (OOD) hybrid states and shares vary with intervention order and scale, we report these figures as \textit{protocol-dependent operational attribution} rather than a single method-free causal constant.
-    \item \textbf{Mean Entropy Equivalence vs.\ Spatial Coordinate Misrouting (RQ2 \& RQ3):} Paired TOST testing places mean normalized cross-attention entropy inside $\pm 0.02$ equivalence bounds despite modest head-level scale reweighting, while reference coordinate drift drops foreground sampling hit rate and center-only random shifts reproduce matched-$L_2$ degradation---providing evidence against bounding-box clamping as the main explanation.
-    \item \textbf{Scoped Fixed-Query Latency vs.\ Capped-NMS RetinaNet (RQ4):} On 20 interleaved COCO scenes in PyTorch FP32 on Tesla T4, RT-DETR shows no measurable latency increase under sponge flooding (mean differences well within $\pm 1\sigma$ and 95\% CIs straddling zero) while running faster than a capped GPU batched-NMS \texttt{torchvision} RetinaNet-R50-FPN-v2 baseline.
-    \item \textbf{Adaptive Monitor Trade-offs, Null Zero-Shot SQA, and Cross-Model Evidence (RQ1 \& RQ4):} We characterize standalone watchdog bypass, define and bound simultaneous joint evasion on an ensemble monitor, evaluate logit-calibrated encoder-sampled zero-shot SQA across R18VD and R50VD, and test six detector checkpoints side by side on a unified $N = 300$ subset.
+    \item \textbf{Protocol-Dependent Interventional and Pixel-Space Attribution (RQ1):} Pairing $2 \times 2$ activation patching with feasible pixel-space controls, the protocol attributed a larger share of subset accuracy loss to memory distortion than to query misrouting, while explicitly bounding shares by intervention order, metric scale, and OOD swap caveats.
+    \item \textbf{Mean Entropy Equivalence vs.\ Coordinate Sensitivity (RQ2 \& RQ3):} Paired TOST places mean normalized cross-attention entropy inside $\pm 0.02$ equivalence bounds despite modest head reweighting, whereas center-only random shifts reproduce matched-$L_2$ degradation---indicating that bounding-box clamping alone does not explain the observed collapse.
+    \item \textbf{Scoped T4 Latency Comparison (RQ4):} Under a 20-scene FP32 Tesla T4 stress test, we did not detect a latency increase under proposal flooding while RT-DETR executed faster than a capped GPU batched-NMS \texttt{torchvision} RetinaNet baseline.
+    \item \textbf{Adaptive Defense Limits and Six-Checkpoint Scope (RQ5):} We quantify standalone monitor bypass alongside empirical clean false-positive uncertainty ($N_{\mathrm{cal}}=60/90$), characterize zero-shot SQA failure across two RT-DETR variants, and compare six checkpoints under a unified $N=300$ protocol.
 \end{enumerate}
 
 Sections~\ref{sec:background}--\ref{sec:conclusion} detail related work, threat formulations, protocol, empirical results, defenses, discussion, and conclusions.
@@ -147,7 +148,7 @@ We operate under a standard white-box threat model following established robustn
     \begin{equation}
     \| X_{\mathrm{adv}} - X \|_\infty \le \epsilon, \quad X_{\mathrm{adv}} \in [0, 1]^{3 \times H \times W},
     \end{equation}
-    with headline budget $\epsilon = 16/255$ ($0.0627$) evaluated as a deterministic stress budget (not a perceptual imperceptibility benchmark) via single-restart Projected Gradient Descent ($T = 15$ steps, $\alpha = 2/255$). Multi-restart initialization and extended convergence sweeps ($T \gg 15$) lie outside this protocol; consequently, relative attack efficacy and adaptive defense figures remain bounded to this $T=15$ single-restart budget.
+    with headline budget $\epsilon = 16/255$ ($0.0627$) evaluated as a deterministic stress budget via single-restart Projected Gradient Descent ($T = 15$ steps, $\alpha = 2/255$); all comparisons evaluate behavior strictly within this matched optimization budget (limits discussed in Section~\ref{sec:threats_to_validity}).
 \end{itemize}
 
 \subsection{Adversarial Threat Taxonomy Across Detection Paradigms}
@@ -222,7 +223,7 @@ $X^{(0)} \leftarrow X$\;
 
 \begin{table}[!htbp]
 \centering
-\caption{Full Tripartite AQSM, calibrated Gaussian noise ($\sigma = 16/255$), pixel-space M/Q isolation controls, and Jayasundara et al.\ \citep{jayasundara2024attention} Encoder Attention Disruption across RT-DETR-R18VD (Cohort \texttt{C2}, $N = 300$) and RT-DETR-R50VD (Cohort \texttt{C3}, $N = 200$) on COCO \texttt{val2017} subsets ($640 \times 640$, $\epsilon = 16/255, T = 15$, 500-resample pooled bootstrap 95\% CIs). Individual single- and dual-term loss ablations are deferred to Appendix Table~\ref{tab:appendix_tripartite}.}
+\caption{Full Tripartite AQSM, calibrated Gaussian noise ($\sigma = 16/255$), pixel-space M/Q isolation controls, and Jayasundara et al.\ \citep{jayasundara2024attention} Encoder Attention Disruption across RT-DETR-R18VD (\texttt{C2}: same $N = 300$ images as \texttt{C1}, independent Seed~42 cache) and RT-DETR-R50VD (\texttt{C3}, $N = 200$) on COCO \texttt{val2017} subsets ($640 \times 640$, $\epsilon = 16/255, T = 15$, 500-resample pooled bootstrap 95\% CIs). Single- and dual-term ablations appear in Appendix Table~\ref{tab:appendix_tripartite}.}
 \label{tab:tab1_ablation}
 {\setlength{\tabcolsep}{3.5pt}
 \resizebox{\textwidth}{!}{%
@@ -275,7 +276,7 @@ We benchmark AQSM against two white-box decoder/end-to-end baselines under the s
 \label{sec:experimental_setup}
 
 \subsection{Dataset and Cohort Alignment Protocol}
-All experiments evaluate deterministic subsets of MS COCO 2017 validation (\texttt{val2017}, 80 classes) \citep{lin2014microsoft} drawn sequentially in \texttt{instances\_val2017.json} annotation order at native $640 \times 640$ resolution ($S = 8,400$ tokens: $80^2 + 40^2 + 20^2$, admitting $N_q / S = 3.57\%$ of proposals). Because sequential initial slices are not probability samples of the full 5,000-image validation set, category composition and difficulty reflect these fixed slices; we label accuracy figures as \textit{subset mAP@50} and \textit{subset mAP@50:95} throughout. To eliminate provenance clutter in main tables, Table~\ref{tab:tab_p1_provenance} defines four compact cohort/cache identifiers (\texttt{C1}--\texttt{C4}) referenced across Sections~\ref{sec:empirical_results}--\ref{sec:discussion}.
+All experiments evaluate deterministic initial subsets of MS COCO 2017 validation (\texttt{val2017}, 80 classes) \citep{lin2014microsoft} loaded in \texttt{instances\_val2017.json} order at native $640 \times 640$ resolution ($S = 8,400$ tokens: $80^2 + 40^2 + 20^2$, admitting $N_q / S = 3.57\%$ of proposals); precision figures are labeled \textit{subset mAP@50} and \textit{subset mAP@50:95} throughout. To establish a single canonical benchmark alongside transparent cache traceability, we anchor R18VD comparisons on \textbf{Primary Reference Cohort \texttt{C1}} ($66.93\% \to 4.05\%$) and reconcile all four evaluation runs in Table~\ref{tab:tab_p1_provenance}; downstream prose avoids repeating cache tags except at table/caption boundaries.
 
 {\begingroup
 \newcounter{savedtable}
@@ -283,17 +284,17 @@ All experiments evaluate deterministic subsets of MS COCO 2017 validation (\text
 \renewcommand{\thetable}{P1}
 \begin{table}[!htbp]
 \centering
-\caption{Cohort, Subset Statistics, and Cache Provenance Registry (\texttt{C1}--\texttt{C4}) across all COCO \texttt{val2017} evaluations ($640 \times 640$, 15-step PGD $\epsilon = 16/255$, Seed~42 unless noted).}
+\caption{Canonical Cohort (\texttt{C1}) and Cross-Run Provenance Registry (\texttt{C1}--\texttt{C4}) across COCO \texttt{val2017} evaluations ($640 \times 640$, $\epsilon = 16/255$, Seed~42 unless noted).}
 \label{tab:tab_p1_provenance}
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lllll}
+\begin{tabular}{llllll}
 \toprule
-\textbf{Tag} & \textbf{Scope / Runner} & \textbf{Subset \& GT Boxes (Mean / Med / Range)} & \textbf{Clean $\to$ AQSM mAP@50} & \textbf{Used In} \\
+\textbf{Tag (Role)} & \textbf{Model \& Runner} & \textbf{Images / GT (Mean / Med / Range)} & \textbf{Cache / Attack Generation} & \textbf{Clean $\to$ AQSM mAP@50} & \textbf{Tables} \\
 \midrule
-\texttt{C1} & R18VD Main (\texttt{results (1)}) & First $N=300$ ($N_{\mathrm{valid}}=299$); 2,168 GT (7.23 / 4.0 / 0--54) & $66.93\% \to 4.05\%$ & Tables~\ref{tab:tab2_main_benchmark}--\ref{tab:tab6_query_dynamics}, \ref{tab:tab9_matched_budget} \\
-\texttt{C2} & R18VD Refreshed (\texttt{r18}) & Identical $N=300$ ($N_{\mathrm{valid}}=299$); fresh Seed~42 cache & $66.93\% \to 3.85\%$ (T11) / $4.08\%$ (T8) & Tables~\ref{tab:tab1_ablation}, \ref{tab:tab7_attention_telemetry}, \ref{tab:tab8_controlled_misrouting}, \ref{tab:tab11_defense_results}--\ref{tab:tab12_hardening_validation}, A.1--A.2 \\
-\texttt{C3} & R50VD Diag (\texttt{r50}) & First $N=200$ ($N_{\mathrm{valid}}=200$); 1,460 GT (7.30 / 5.0 / 1--54) & $74.45\% \to 10.15\%$ (T11: $8.78\%$) & All R50VD rows except Table~\ref{tab:tab14_multimodel_benchmark} \\
-\texttt{C4} & Unified 6-Arch & Identical $N=300$ scenes across 6 checkpoints & R18: $5.13\%$; R50: $72.95\% \to 8.89\%$ & Table~\ref{tab:tab14_multimodel_benchmark} \\
+\texttt{C1} (Primary Ref.) & R18VD (\texttt{results (1)}) & First $N=300$ ($N_{\mathrm{valid}}=299$); 2,168 GT (7.23 / 4.0 / 0--54) & Primary Seed~42 npz ($T=15$, $T=10$ sweep) & $66.93\% \to 4.05\%$ & Tables~\ref{tab:tab2_main_benchmark}--\ref{tab:tab6_query_dynamics}, \ref{tab:tab9_matched_budget} \\
+\texttt{C2} (Same Imgs) & R18VD (\texttt{r18}) & Identical $N=300$ IDs (139--32334) & Fresh Seed~42 cache; T11/T8 sample $C_{\mathrm{bg}}$ & $66.93\% \to 3.85\%$ (T11) / $4.08\%$ (T8) & Tables~\ref{tab:tab1_ablation}, \ref{tab:tab7_attention_telemetry}, \ref{tab:tab8_controlled_misrouting}, \ref{tab:tab11_defense_results}--\ref{tab:tab12_hardening_validation}, A.1--A.2 \\
+\texttt{C3} (Depth Diag) & R50VD (\texttt{r50}) & First $N=200$ prefix (139--20247); 1,460 GT (7.30 / 5.0 / 1--54) & Unified Seed~42 npz ($T=15$, $T=10$ sweep) & $74.45\% \to 10.15\%$ (T11: $8.78\%$) & All R50VD rows except Table~\ref{tab:tab14_multimodel_benchmark} \\
+\texttt{C4} (6-Arch Run) & Six Checkpoints & Identical $N=300$ IDs as \texttt{C1} & Cross-model single-run PGD ($T=15$) & R18: $5.13\%$; R50: $72.95\% \to 8.89\%$ & Table~\ref{tab:tab14_multimodel_benchmark} \\
 \bottomrule
 \end{tabular}%
 }
@@ -301,7 +302,7 @@ All experiments evaluate deterministic subsets of MS COCO 2017 validation (\text
 \setcounter{table}{\value{savedtable}}
 \endgroup}
 
-\noindent\textbf{Reconciling Reference AQSM Values Across Cohorts:} All four AQSM R18VD mAP@50 values belong to distinct, explicitly scoped runs: \texttt{4.05\%} (\texttt{C1}), \texttt{3.85\%} (\texttt{C2} Task 11 Tripartite) and \texttt{4.08\%} (\texttt{C2} Task 8 SQA Baseline)---where the $0.23$ pp gap reflects independent Seed~42 sampling of the 30 distal anchors $C_{\mathrm{bg}}$---and \texttt{5.13\%} (\texttt{C4} cross-model runner), all within the 5-seed dispersion ($4.00 \pm 0.74\%$ across $\{42, 100, 2024, 777, 9999\}$, Table~\ref{tab:tab13_multiseed_generalization}). Monitor evaluation uses disjoint splits of $N_{\mathrm{cal}}=90 / N_{\mathrm{test}}=210$ (\texttt{C2}) and $N_{\mathrm{cal}}=60 / N_{\mathrm{test}}=140$ (\texttt{C3}).
+\noindent\textbf{Cross-Run AQSM Traceability:} All R18VD variants share the exact same 300 images (IDs 139--32334): differences among \texttt{4.05\%} (\texttt{C1} Primary Ref.), \texttt{3.85\%} / \texttt{4.08\%} (\texttt{C2}, $0.23$ pp gap from independent Seed~42 distal anchor draws between Tasks~8 and~11), and \texttt{5.13\%} (\texttt{C4} standalone cross-model runner) fall inside the 5-seed fresh-run dispersion ($4.00 \pm 0.74\%$, Table~\ref{tab:tab13_multiseed_generalization}). Monitor splits hold $N_{\mathrm{cal}}=90 / N_{\mathrm{test}}=210$ (\texttt{C2}) and $N_{\mathrm{cal}}=60 / N_{\mathrm{test}}=140$ (\texttt{C3}).
 
 \subsection{Target Architectures and Compute Environment}
 We evaluate official pretrained checkpoints from \texttt{transformers} and \texttt{torchvision}: (1) \textbf{RT-DETR-R18VD} (\texttt{PekingU/rtdetr\_r18vd}, 20M params, 3 decoder layers); (2) \textbf{RT-DETR-R50VD} (\texttt{PekingU/rtdetr\_r50vd}, 42M params, 6 decoder layers); and, in Section~\ref{sec:multimodel_generalization}, RT-DETRv2-R18VD, two-stage Deformable DETR, static Vanilla DETR-R50, and RetinaNet-R50-FPN-v2. All accuracy, surgery, telemetry, defense, and CUDA-event FP32 latency benchmarks run in PyTorch on NVIDIA Tesla T4 GPUs (CUDA Capability 7.5; peak allocated VRAM $2,608.92$ MB for R18VD and $2,824.89$ MB for R50VD during interleaved profiling). Stage timing averages $N_{\mathrm{runs}} = 300$ (R18VD) / $200$ (R50VD) CUDA iterations after warm-up, while condition timing uses $N_{\mathrm{runs}} = 100$ iterations interleaved randomly across 20 distinct COCO scenes.
@@ -317,13 +318,13 @@ Detection accuracy is reported using pooled COCO-style subset precision metrics:
     \item \textbf{Deformable Attention Normalized Entropy ($H(A)$) and Head-Level Dispersion:} Shannon entropy of cross-attention weights normalized by $\ln(L_{\mathrm{scales}} \cdot K) = \ln(12) \approx 2.4849$ across $L_{\mathrm{scales}} = 3$ multi-scale feature levels and $K=4$ sampling points per head (8 heads per layer; $H \approx 0.80$ equals $\sim 7.3$ effective keys), paired with head-level max entropy delta ($\max_h |\Delta H_h|$), total variation weight shift ($\mathrm{TV}$), and scale-wise attention mass across $(S_3, S_4, S_5)$.
 \end{enumerate}
 
-\paragraph{Diagnostic Scope: Per-Image Macro $AP_i$ vs.\ Global Pooled COCO mAP}
+\paragraph{Diagnostic Scope: Per-Image Macro $AP_i$, Global Pooled mAP, and Prespecified TOST Bounds}
 Because global pooled COCO evaluation integrates precision-recall curves across the whole corpus into one scalar without per-image variance, paired hypothesis testing uses per-image macro Average Precision:
 \begin{equation}
 AP_i = \frac{1}{|\mathcal{C}_i|} \sum_{c \in \mathcal{C}_i} AP_{i, c},
 \label{eq:per_image_ap}
 \end{equation}
-where for scene $i$, crowd annotations (\texttt{iscrowd = 1}) are excluded and the standard 101-point COCO precision-recall $AP_{i,c}$ is computed independently per present non-crowd category $c \in \mathcal{C}_i$ before averaging uniformly across $\mathcal{C}_i$. One scene in \texttt{C1}/\texttt{C2} containing zero non-crowd annotations yields \texttt{NaN} and is listwise excluded across all paired conditions ($N_{\mathrm{valid}} = 299$, $\text{df}_{\mathrm{err}} = 298$, paired power $0.8112$ at $d = 0.20$ and $> 0.9999$ at $d = 0.50$, $\alpha = 0.01$; vs.\ $N_{\mathrm{valid}} = 200$, $\text{df}_{\mathrm{err}} = 199$ for \texttt{C3}). Thus, $AP_i$ serves strictly as the paired unit for repeated-measures ANOVA, Wilcoxon signed-rank tests, rank-biserial correlations ($r_{\mathrm{rb}}$), 95\% BCa intervals ($B = 2,000$), and TOST checks, whereas corpus detection precision relies on pooled subset mAP with 500-resample image-level bootstrap CIs. Across multiple hypothesis tests, primary effects ($p < 10^{-16}$ for Wilcoxon contrasts, $p < 0.001$ for main ANOVA factors, and $p_{\mathrm{TOST}} \le 3.46 \times 10^{-5}$ for entropy equivalence) remain significant under conservative Bonferroni adjustment, whereas near-threshold results ($p_{\mathrm{TOST}} = 0.0481$ on anchor grid chance) are interpreted as borderline.
+where for scene $i$, crowd annotations (\texttt{iscrowd = 1}) are excluded and 101-point COCO precision-recall $AP_{i,c}$ is computed independently per present non-crowd category $c \in \mathcal{C}_i$ before averaging uniformly across $\mathcal{C}_i$ (one scene with zero non-crowd labels yields \texttt{NaN} and is listwise excluded: $N_{\mathrm{valid}} = 299$ for R18VD, $N_{\mathrm{valid}} = 200$ for R50VD). Accordingly, per-image $AP_i$ serves strictly as the paired unit for repeated-measures ANOVA, Wilcoxon signed-rank tests, and 95\% BCa intervals ($B = 2,000$), whereas corpus detection accuracy is reported separately as pooled subset mAP with 500-resample image-level bootstrap CIs. For attention telemetry equivalence, the primary $\pm 0.02$ TOST margin (and secondary $\pm 0.05$ check) on normalized entropy $H \in [0, 1]$ is a prespecified protocol constant chosen below half of clean across-scene variability ($0.43 \sigma_{\mathrm{clean}}$ at $\sigma_{\mathrm{clean}} = 0.0461$ R18VD / $0.0422$ R50VD) rather than selected post hoc. Complete test families, test counts $m$, and Bonferroni thresholds appear in Appendix Table~\ref{tab:appendix_stat_audit}; software and preprocessing specifications appear in Appendix Table~\ref{tab:appendix_repro}.
 
 % =====================================================================
 % SECTION 5: EMPIRICAL RESULTS AND MECHANISTIC ANALYSIS
@@ -423,22 +424,22 @@ Figure~\ref{fig:fig6_causal_swap}, Table~\ref{tab:tab3_causal_surgery}, and Tabl
 
 \begin{table}[!htbp]
 \centering
-\caption{Six-arm $2 \times 2$ factorial tensor-swap activation patching (pooled subset mAP@50, mAP@50:95 in parentheses, and retention \% vs.\ Arm A) plus protocol- and scale-dependent attribution shares on RT-DETR-R18VD (\texttt{C1}, $N = 300$) and RT-DETR-R50VD (\texttt{C3}, $N = 200$) at $640 \times 640$, $\epsilon = 16/255$.}
+\caption{Six-arm $2 \times 2$ factorial tensor-swap activation patching (pooled subset mAP@50, mAP@50:95 in parentheses, and retention \% vs.\ Arm A) plus protocol-dependent attribution shares on RT-DETR-R18VD (Primary \texttt{C1}, $N = 300$) and RT-DETR-R50VD (\texttt{C3}, $N = 200$) at $640 \times 640$, $\epsilon = 16/255$.}
 \label{tab:tab3_causal_surgery}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llccc}
 \toprule
-\textbf{Model} & \textbf{Intervention Arm / Attribution Metric} & \textbf{AQSM} & \textbf{PGD Vanishing} & \textbf{Standard Task PGD} \\
+\textbf{Model} & \textbf{Intervention Arm / Protocol Attribution} & \textbf{AQSM} & \textbf{PGD Vanishing} & \textbf{Standard Task PGD} \\
 \midrule
-\multirow{9}{*}{\makecell[l]{RT-DETR-R18VD\\($N=300$)}} & Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}$) & 66.93\% (50.24\%, 100.0\%) & 66.93\% (50.24\%, 100.0\%) & 66.93\% (50.24\%, 100.0\%) \\
+\multirow{9}{*}{\makecell[l]{RT-DETR-R18VD\\(\texttt{C1}, $N=300$)}} & Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}$) & 66.93\% (50.24\%, 100.0\%) & 66.93\% (50.24\%, 100.0\%) & 66.93\% (50.24\%, 100.0\%) \\
 & Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & 4.05\% (2.10\%, 6.0\%) & 1.32\% (0.65\%, 2.0\%) & 0.35\% (0.05\%, 0.5\%) \\
 & Arm $\text{C}_{\text{full}}$: Adv Mem + Clean Prior & 9.31\% (5.02\%, 13.9\%) & 5.23\% (2.62\%, 7.8\%) & 2.16\% (0.58\%, 3.2\%) \\
 & Arm $\text{C}_{\text{index}}$: Adv Mem + Adv Feat at Clean Idx & 4.86\% (2.61\%, 7.3\%) & 1.95\% (0.93\%, 2.9\%) & 1.08\% (0.14\%, 1.6\%) \\
 & Arm $\text{D}_{\text{full}}$: Clean Mem + Adv Prior & 30.37\% (20.12\%, 45.4\%) & 42.92\% (31.33\%, 64.1\%) & 26.78\% (17.65\%, 40.0\%) \\
 & Arm $\text{D}_{\text{index}}$: Clean Mem + Clean Feat at Adv Idx & 39.11\% (27.21\%, 58.4\%) & 52.94\% (40.11\%, 79.1\%) & 42.52\% (31.13\%, 63.5\%) \\
-& Shapley Share (Per-Image $AP_i$: Mem / Query) & \textbf{60.59\% / 39.41\%} & 73.99\% / 26.01\% & 75.32\% / 24.68\% \\
-& Shapley Share (Pooled mAP@50: Mem / Query) & 66.75\% / 33.25\% & 78.73\% / 21.27\% & 68.49\% / 31.51\% \\
-& Log-Retention Share (Mem / Query / $\gamma_{\mathrm{log}}$) & 71.40\% / 28.60\% ($-0.0433$) & 74.66\% / 25.34\% ($-0.0955$) & 78.93\% / 21.07\% ($-0.9163$) \\
+& Protocol Shapley (Per-Image $AP_i$: Mem / Query) & \textbf{60.59\% / 39.41\%} & 73.99\% / 26.01\% & 75.32\% / 24.68\% \\
+& Protocol Shapley (Pooled mAP@50: Mem / Query) & 66.75\% / 33.25\% & 78.73\% / 21.27\% & 68.49\% / 31.51\% \\
+& Log-Retention Attribution (Mem / Query / $\gamma_{\mathrm{log}}$) & 71.40\% / 28.60\% ($-0.0433$) & 74.66\% / 25.34\% ($-0.0955$) & 78.93\% / 21.07\% ($-0.9163$) \\
 \midrule
 \multirow{9}{*}{\makecell[l]{RT-DETR-R50VD\\($N=200$)}} & Arm A: Clean Baseline ($M_{\mathrm{clean}} + Q_{\mathrm{clean}}$) & 74.45\% (57.47\%, 100.0\%) & 74.45\% (57.47\%, 100.0\%) & 74.45\% (57.47\%, 100.0\%) \\
 & Arm B: Full Attack ($M_{\mathrm{adv}} + Q_{\mathrm{adv}}[\mathcal{I}_{\mathrm{adv}}]$) & 10.15\% (5.75\%, 13.6\%) & 4.23\% (2.40\%, 5.7\%) & 2.49\% (0.77\%, 3.3\%) \\
@@ -484,11 +485,11 @@ Figure~\ref{fig:fig6_causal_swap}, Table~\ref{tab:tab3_causal_surgery}, and Tabl
 Tables~\ref{tab:tab3_causal_surgery} and~\ref{tab:tab4_anova_decomposition} yield two protocol-scoped observations:
 \begin{enumerate}
     \item \textbf{Large Recovery Under Clean Memory ($M_{\mathrm{clean}}$) vs.\ Index-Swap Resilience:} On R18VD ($N = 300$), replacing top-300 proposal indices with adversarial indices atop clean memory and embeddings ($\text{Arm }\text{D}_{\text{index}}$) lowers subset mAP@50 from $66.93\%$ to $39.11\%$ (Wilcoxon $W = 277.0, p = 1.92 \times 10^{-38}, r_{\mathrm{rb}} = -0.980, d = -1.05$). Swapping full attacked query priors ($\text{Arm }\text{D}_{\text{full}}$) yields $30.37\%$ ($W = 4.0, d = 1.19$ over Arm B), whereas clean queries atop corrupted memory ($\text{Arm }\text{C}_{\text{full}}$) retain only $9.31\%$ ($W = 26.0$). On 6-layer R50VD ($N = 200$), $\text{D}_{\text{index}}$ retains $70.9\%$ ($52.82\%$; $W = 245.0, d = -0.90$) and $\text{D}_{\text{full}}$ reaches $43.98\%$ ($+33.83$ pp over Arm B, $W = 0.0, d = 1.11$), indicating greater tolerance to index perturbation under deeper decoding.
-    \item \textbf{Protocol- and Scale-Dependent Attribution (Not a Method-Free Constant):} Sequential patching attribution varies substantially with intervention order and aggregation scale. On pooled R18VD subset mAP under AQSM, perturbing $M$ first ($\text{A} \to \text{C}_{\text{full}} \to \text{B}$) assigns $91.63\%$ ($-57.62$ pp) to $M$, whereas perturbing $Q$ first ($\text{A} \to \text{D}_{\text{full}} \to \text{B}$) assigns $58.13\%$ ($-36.55$ pp) to $Q$ and $41.87\%$ to $M$. Consequently, we treat Shapley and ANOVA shares strictly as \textit{protocol-dependent operational attribution} rather than a unique method-free causal constant: symmetric 2-player Shapley on per-image $AP_i$ yields $60.59\%$ Memory ($95\%$ BCa CI $[58.33\%, 62.84\%]$; $\text{ME}_M = -42.95$ pp, $\text{ME}_Q = -27.94$ pp) on R18VD ($68.22\%$ on R50VD; $\text{ME}_M = -43.52$ pp, $\text{ME}_Q = -20.27$ pp), pooled subset mAP yields $66.75\%$ ($72.18\%$ on R50VD), and multiplicative log-retention scaling yields $71.40\%$ ($74.92\%$ on R50VD).
+    \item \textbf{Protocol- and Scale-Dependent Attribution:} Sequential patching shares vary sharply with intervention order and aggregation scale. On pooled R18VD subset mAP under AQSM, perturbing $M$ first ($\text{A} \to \text{C}_{\text{full}} \to \text{B}$) assigns $91.63\%$ ($-57.62$ pp) to $M$, whereas perturbing $Q$ first ($\text{A} \to \text{D}_{\text{full}} \to \text{B}$) assigns $58.13\%$ ($-36.55$ pp) to $Q$ and $41.87\%$ to $M$. Accordingly, symmetric 2-player Shapley and ANOVA shares serve strictly as \textit{protocol-dependent attribution} rather than a method-free causal constant: per-image $AP_i$ attributes $60.59\%$ to Memory ($95\%$ BCa CI $[58.33\%, 62.84\%]$; $\text{ME}_M = -42.95$ pp, $\text{ME}_Q = -27.94$ pp) on R18VD ($68.22\%$ on R50VD; $\text{ME}_M = -43.52$ pp, $\text{ME}_Q = -20.27$ pp), pooled subset mAP attributes $66.75\%$ ($72.18\%$ on R50VD), and log-retention scaling attributes $71.40\%$ ($74.92\%$ on R50VD).
 \end{enumerate}
 
-\paragraph{Multiplicative Retention Scaling and OOD Swapping Caveats}
-On the multiplicative retention scale $\text{Ret} = \text{mAP}_{\text{arm}} / \text{mAP}_{\text{clean}}$, $\text{Ret}_M \times \text{Ret}_Q = 0.1391 \times 0.4538 = 0.0631$ closely tracks $\text{Ret}_B = 0.0604$ on R18VD ($\gamma_{\mathrm{log}} = -0.0433$; and $0.2076 \times 0.5907 = 0.1226$ vs.\ $0.1364$ on R50VD, $\gamma_{\mathrm{log}} = +0.1062$). Because activation patching across clean and adversarial runs creates OOD hybrid $(M, Q)$ states \citep{pearl2001direct, vig2020causal, meng2022locating}, tensor swaps alone cannot isolate an invariant mechanism without on-manifold checks. Our pixel-space controls in Table~\ref{tab:tab1_ablation} show directionally consistent behavior on feasible $\ell_\infty$ inputs, compatible with memory corruption being the major contributor in these tests alongside interacting query misrouting.
+\paragraph{Multiplicative Retention Scaling and Tensor-Swap Caveats.}
+Using retention $\text{Ret} = \text{mAP}_{\text{arm}} / \text{mAP}_{\text{clean}}$, the multiplicative product $\text{Ret}_M \times \text{Ret}_Q$ ($0.1391 \times 0.4538 = 0.0631$) closely matches $\text{Ret}_B = 0.0604$ on R18VD ($\gamma_{\mathrm{log}} = -0.0433$). On R50VD, the corresponding product is $0.2076 \times 0.5907 = 0.1226$ against $\text{Ret}_B = 0.1364$ ($\gamma_{\mathrm{log}} = +0.1062$). Because tensor-swapped Arms C and D construct hybrid $(M, Q)$ states that can lie out of distribution \citep{pearl2001direct, vig2020causal, meng2022locating}, on-manifold pixel-space controls in Table~\ref{tab:tab1_ablation} provide a complementary directional check without claiming pure decoupling.
 
 \subsection{Encoder Memory Perturbation Across Multi-Scale Tokens and Semantic Regions}
 To characterize representation distortion inside encoder memory $M$, Table~\ref{tab:tab5_memory_scales} evaluates cosine similarity and relative $\ell_2$ perturbation across $S_3, S_4, S_5$ and between Ground-Truth Foreground (FG) versus Background (BG) tokens on R18VD ($N = 300$) and R50VD ($N = 200$).
@@ -598,7 +599,7 @@ To test whether decoder degradation manifests primarily as mean cross-attention 
 
 The decoder telemetry supports two scoped observations:
 \begin{enumerate}
-    \item \textbf{Mean Entropy Equivalence Within $\pm 0.02$ TOST Bounds vs.\ Modest Head Reweighting:} Mean normalized attention entropy stays within $\pm 0.01$ of clean baselines ($0.8032 \to 0.7945$ R18VD, $d=-0.15$; $0.8150 \to 0.8087$ R50VD, $d=-0.14$). Paired TOST testing places the mean entropy shift inside the $\pm 0.02$ equivalence margin on both R18VD ($90\%$ CI $[-0.0133, -0.0041]$, $p_{\mathrm{TOST}} = 3.46 \times 10^{-5}$; $p_{\mathrm{TOST}} = 8.29 \times 10^{-61}$ at $\pm 0.05$) and R50VD ($90\%$ CI $[-0.0114, -0.0013]$, $p_{\mathrm{TOST}} = 6.80 \times 10^{-6}$; $p_{\mathrm{TOST}} = 4.24 \times 10^{-45}$ at $\pm 0.05$). Equivalence of mean normalized entropy within $\pm 0.02$ does not establish invariance across every aspect of attention mechanics, however: head-level diagnostics still capture modest scale reweighting toward fine scale $S_3$ ($0.532 \to 0.601$ R18VD; $\mathrm{TV} = 0.1599$, $\max_h |\Delta H_h| = 0.0615$) without collapsing into uniform dispersion ($H \to 1.0$).
+    \item \textbf{Mean Entropy Equivalence Within Prespecified $\pm 0.02$ TOST Bounds vs.\ Modest Head Reweighting:} Mean normalized attention entropy shifts by less than $\pm 0.01$ ($0.8032 \to 0.7945$ R18VD, $d=-0.15$; $0.8150 \to 0.8087$ R50VD, $d=-0.14$), falling inside the prespecified $\pm 0.02$ TOST margin on both R18VD ($90\%$ CI $[-0.0133, -0.0041]$, $p_{\mathrm{TOST}} = 3.46 \times 10^{-5}$; $p_{\mathrm{TOST}} = 8.29 \times 10^{-61}$ at $\pm 0.05$) and R50VD ($90\%$ CI $[-0.0114, -0.0013]$, $p_{\mathrm{TOST}} = 6.80 \times 10^{-6}$; $p_{\mathrm{TOST}} = 4.24 \times 10^{-45}$ at $\pm 0.05$). Equivalence of mean entropy within $\pm 0.02$ does not establish invariance across all attention properties: head-level diagnostics reveal modest reweighting toward fine scale $S_3$ ($0.532 \to 0.601$ R18VD; $\mathrm{TV} = 0.1599$, $\max_h |\Delta H_h| = 0.0615$) without uniform collapse ($H \to 1.0$).
     \item \textbf{Spatial Sampling Misrouting as a Shared Encoder-Perturbation Symptom:} Conversely, deformable sampling GT-box hit drops sharply under AQSM ($63.53\% \to 45.44\%$ on R18VD, $W = 5690.0, p = 4.85 \times 10^{-29}, d = -0.80$; $64.77\% \to 50.24\%$ on R50VD, $W = 3173.0, p = 4.82 \times 10^{-17}, d = -0.70$), alongside high permutation-invariant $\Delta_{\mathrm{Hungarian}}$ across Vanishing, Task PGD, and AQSM.
 \end{enumerate}
 
@@ -634,22 +635,22 @@ To isolate coordinate sensitivity under frozen clean memory $M_{\mathrm{clean}}$
 }}
 \end{table}
 
-Table~\ref{tab:tab8_controlled_misrouting} indicates three geometric observations: (1) \textbf{Permutation Tolerance:} Permuting anchors reduces R18VD subset mAP@50 by only $-3.73$ pp ($66.93\% \to 63.20\%$) and R50VD by $-0.29$ pp ($74.45\% \to 74.16\%$) since $\Delta_{\mathrm{Hungarian}} = 0.0000$. (2) \textbf{Center-Only Shift Evidence Against Clamping as Main Driver:} Holding clean $(w, h)$ widths and heights pristine while shifting only $(c_x, c_y)$ centers (\texttt{Center-Only Random Shift}) yields comparable degradation ($33.47 \pm 0.86\%$ on R18VD vs.\ $33.92\%$ 4D; $46.79 \pm 1.74\%$ on R50VD vs.\ $48.43\%$ 4D), providing evidence against 4D box-clamping artifacts as the main explanation for the observed coordinate sensitivity. (3) \textbf{Structured AQSM Margin:} AQSM spatial structure adds $3.24\text{--}3.68$ pp extra drop over matched random shifts on R18VD ($30.24\%$ vs.\ $33.48\%\text{--}33.92\%$) and $3.01\text{--}5.35$ pp on R50VD ($43.78\%$ vs.\ $46.79\%\text{--}49.13\%$), alongside tighter clustering ($\text{ANND} = 0.0160$ vs.\ $0.0290$) and lower GT coverage ($77.21\%$ vs.\ $85.62\%$ on R18VD).
+Table~\ref{tab:tab8_controlled_misrouting} indicates three geometric observations: (1) \textbf{Permutation Tolerance:} Permuting anchors reduces R18VD subset mAP@50 by only $-3.73$ pp ($66.93\% \to 63.20\%$) and R50VD by $-0.29$ pp ($74.45\% \to 74.16\%$) since $\Delta_{\mathrm{Hungarian}} = 0.0000$. (2) \textbf{Center-Only Shift Control Against Bounding-Box Clamping:} Holding clean $(w, h)$ widths and heights pristine while shifting only $(c_x, c_y)$ centers (\texttt{Center-Only Random Shift}) yields comparable degradation ($33.47 \pm 0.86\%$ on R18VD vs.\ $33.92\%$ 4D; $46.79 \pm 1.74\%$ on R50VD vs.\ $48.43\%$ 4D), suggesting that bounding-box clamping alone does not explain the observed coordinate sensitivity. (3) \textbf{Structured AQSM Margin:} AQSM spatial structure adds $3.24\text{--}3.68$ pp extra drop over matched random shifts on R18VD ($30.24\%$ vs.\ $33.48\%\text{--}33.92\%$) and $3.01\text{--}5.35$ pp on R50VD ($43.78\%$ vs.\ $46.79\%\text{--}49.13\%$), alongside tighter clustering ($\text{ANND} = 0.0160$ vs.\ $0.0290$) and lower GT coverage ($77.21\%$ vs.\ $85.62\%$ on R18VD).
 
 \subsection{Matched-Budget Mechanism Comparison: AQSM vs.\ Standard Task PGD}
 \label{sec:matched_budget}
-Figure~\ref{fig:fig7_matched_budget} and Table~\ref{tab:tab9_matched_budget} compare AQSM, PGD Vanishing, and Standard Task PGD across $\epsilon \in \{4, 8, 16\}/255$ (single-restart 15-step PGD, $\alpha = 2/255$) on R18VD (\texttt{C1}, $N = 300$) and R50VD (\texttt{C3}, $N = 200$). Across every budget and depth, Task PGD---optimizing end-to-end decoder detection losses directly---yields lower subset mAP@50 ($2.71\%$ / $1.18\%$ / $0.35\%$ on R18VD; $10.11\%$ / $6.25\%$ / $2.49\%$ on R50VD), whereas AQSM serves a distinct role as an encoder-interface probe ($10.80\%$ / $8.93\%$ / $4.05\%$ on R18VD; $24.10\%$ / $15.40\%$ / $10.15\%$ on R50VD) rather than a mAP-minimizing substitute for Task PGD. Note that all three budgets remain bounded to 15 PGD steps with one restart; convergence under larger iteration budgets is outside this scope.
+Figure~\ref{fig:fig7_matched_budget} and Table~\ref{tab:tab9_matched_budget} compare AQSM, PGD Vanishing, and Standard Task PGD across $\epsilon \in \{4, 8, 16\}/255$ under the benchmark's matched single-restart sweep schedule ($T = 10, \alpha = 1/255$ at $\epsilon = 4/255$; $T = 10, \alpha = 2/255$ at $\epsilon = 8/255$; and $T = 15, \alpha = 2/255$ at $\epsilon = 16/255$) on Primary Cohort \texttt{C1} (R18VD, $N = 300$) and \texttt{C3} (R50VD, $N = 200$). Across these matched-budget comparisons, Task PGD---optimizing end-to-end decoder detection losses directly---yields lower subset mAP@50 ($2.71\%$ / $1.18\%$ / $0.35\%$ on R18VD; $10.11\%$ / $6.25\%$ / $2.49\%$ on R50VD), whereas AQSM serves a distinct role as an encoder-interface probe ($10.80\%$ / $8.93\%$ / $4.05\%$ on R18VD; $24.10\%$ / $15.40\%$ / $10.15\%$ on R50VD).
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.76\textwidth]{fig/fig7_matched_budget_sweep.pdf}
-\caption{Matched-budget $\ell_\infty$ sweep across $\epsilon \in \{4/255, 8/255, 16/255\}$ on RT-DETR-R18VD ($N = 300$, COCO val2017, $640 \times 640$): (a) mAP@50 and (b) mAP@50:95 degradation curves.}
+\caption{Matched-budget $\ell_\infty$ sweep across $\epsilon \in \{4/255, 8/255, 16/255\}$ on RT-DETR-R18VD (\texttt{C1}, $N = 300$, COCO val2017, $640 \times 640$): (a) mAP@50 and (b) mAP@50:95 degradation curves.}
 \label{fig:fig7_matched_budget}
 \end{figure}
 
 \begin{table}[!htbp]
 \centering
-\caption{Matched-budget robustness sweep across $\epsilon \in \{4/255, 8/255, 16/255\}$ ($T = 15, \alpha = 2/255$) on COCO val2017 ($640 \times 640$) for RT-DETR-R18VD ($N = 300$) and RT-DETR-R50VD ($N = 200$).}
+\caption{Matched-budget robustness sweep across $\epsilon \in \{4/255, 8/255, 16/255\}$ (single-restart PGD: $T = 10, \alpha = 1/255$ at $4/255$; $T = 10, \alpha = 2/255$ at $8/255$; $T = 15, \alpha = 2/255$ at $16/255$) on COCO val2017 ($640 \times 640$) for RT-DETR-R18VD (Primary \texttt{C1}, $N = 300$) and RT-DETR-R50VD (\texttt{C3}, $N = 200$).}
 \label{tab:tab9_matched_budget}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lllccc}
@@ -678,8 +679,8 @@ Figure~\ref{fig:fig7_matched_budget} and Table~\ref{tab:tab9_matched_budget} com
 \label{sec:hardware_latency}
 Table~\ref{tab:tab10_latency_sponge} reports CUDA-event PyTorch FP32 stage timing ($N_{\mathrm{runs}} = 300$ R18VD / $200$ R50VD) and 20-image randomly interleaved stress timing ($N_{\mathrm{runs}} = 100$) on NVIDIA Tesla T4, alongside a \textbf{RetinaNet-R50-FPN-v2} reference baseline evaluated under the exact same 20-image interleaved GPU protocol. We separate these two observations explicitly and restrict all latency conclusions to this FP32 Tesla T4 benchmark rather than extrapolating to edge SoCs:
 \begin{enumerate}
-    \item \textbf{RT-DETR Stress-Test Latency on 20 Interleaved Scenes:} Across clean inputs, AQSM, Task PGD, and flooding sponge stress---where active outputs rise $19.4\times$ on R18VD ($7.95 \to 154.20$ boxes) and $15.3\times$ on R50VD ($7.60 \to 116.00$ boxes)---fixed-$N_q$ ($N_q = 300$) execution exhibits \textit{no measurable latency increase} in this setup: mean sponge-minus-clean differences are $\Delta = -0.23$ ms ($95\%$ CI $[-0.50, +0.03]$ ms; SE $0.14$ ms) on R18VD ($36.60 \to 36.37$ ms) and $\Delta = +0.16$ ms ($95\%$ CI $[-0.11, +0.43]$ ms; SE $0.14$ ms) on R50VD ($74.48 \to 74.63$ ms), both smaller than run-to-run standard deviations ($0.95$ / $1.01$ ms) with intervals spanning zero. Dynamic Query Selection consumes $1.61 \pm 0.07$ ms ($4.36\%$) on R18VD and $1.76 \pm 0.08$ ms ($2.34\%$) on R50VD.
-    \item \textbf{Comparison with \texttt{torchvision} Capped-NMS RetinaNet-R50-FPN-v2:} Under the identical 20-scene T4 protocol, \texttt{RetinaNet-R50-FPN-v2} also exhibits nearly flat GPU latency between Clean and Sponge ($139.73 \to 140.36$ ms, $+0.45\%$ on R18 runner; $141.78 \to 142.18$ ms, $+0.28\%$ on R50 runner) because its \texttt{torchvision} batched NMS enforces fixed per-image candidate truncation (\texttt{topk\_candidates=1000}, \texttt{detections\_per\_img=300}), unlike uncapped CPU/legacy NMS studied elsewhere \citep{shumailov2021sponge, chen2024overload, shapira2023phantom}. Against this specific capped batched-NMS configuration in PyTorch FP32 on Tesla T4, RT-DETR-R18VD runs $3.8\times$ faster while executing on a fixed $N_q = 300$ budget without post-hoc NMS.
+    \item \textbf{RT-DETR Stress-Test Latency on 20 Interleaved Scenes:} Across clean inputs, AQSM, Task PGD, and flooding sponge stress---where active outputs rise $19.4\times$ on R18VD ($7.95 \to 154.20$ boxes) and $15.3\times$ on R50VD ($7.60 \to 116.00$ boxes)---fixed-$N_q$ ($N_q = 300$) execution \textit{did not exhibit a detectable latency increase under this benchmark}: mean sponge-minus-clean differences are $\Delta = -0.23$ ms ($95\%$ CI $[-0.50, +0.03]$ ms; SE $0.14$ ms) on R18VD ($36.60 \to 36.37$ ms) and $\Delta = +0.16$ ms ($95\%$ CI $[-0.11, +0.43]$ ms; SE $0.14$ ms) on R50VD ($74.48 \to 74.63$ ms), both smaller than run-to-run standard deviations ($0.95$ / $1.01$ ms) with intervals spanning zero. Dynamic Query Selection consumes $1.61 \pm 0.07$ ms ($4.36\%$) on R18VD and $1.76 \pm 0.08$ ms ($2.34\%$) on R50VD.
+    \item \textbf{Comparison with \texttt{torchvision} Capped-NMS RetinaNet-R50-FPN-v2:} Under the identical 20-scene T4 protocol, \texttt{RetinaNet-R50-FPN-v2} also exhibits nearly flat GPU latency between Clean and Sponge ($139.73 \to 140.36$ ms, $+0.45\%$ on R18 runner; $141.78 \to 142.18$ ms, $+0.28\%$ on R50 runner) because its \texttt{torchvision} batched NMS enforces fixed per-image candidate truncation (\texttt{topk\_candidates=1000}, \texttt{detections\_per\_img=300}), unlike uncapped CPU/legacy NMS studied elsewhere \citep{shumailov2021sponge, chen2024overload, shapira2023phantom}. Against this specific capped batched-NMS configuration in PyTorch FP32 on Tesla T4, RT-DETR-R18VD runs $3.8\times$ faster while operating without post-hoc NMS.
 \end{enumerate}
 
 \begin{table}[!htbp]
@@ -736,9 +737,9 @@ Non-parametric quantile thresholds are calibrated strictly on disjoint clean sce
 \subsection{Stationary Detection vs.\ Symmetric White-Box Adaptive Evasion}
 Table~\ref{tab:tab11_defense_results} and Figure~\ref{fig:fig10_defense}(a)--(b) summarize monitor performance across stationary attacks and white-box adaptive evasion on held-out splits ($N_{\mathrm{test}} = 210$ R18VD / $140$ R50VD; full per-$\lambda$ sweeps appear in Appendix Table~\ref{tab:appendix_adaptive_sweep}). Three empirical limitations stand out:
 \begin{enumerate}
-    \item \textbf{Low Stationary AQSM Recall and Calibration FPR Drift:} At fixed clean splits, standalone monitors miss most AQSM probes (ESM reaches $46.67\%$ TPR on R18VD [$\text{AUROC} = 0.7743$] and $25.71\%$ on R50VD [$\text{AUROC} = 0.6735$]; SCM reaches $22.38\%$ and $12.14\%$). Moreover, empirical clean FPR on $N_{\mathrm{test}} = 140$ R50VD scenes exceeds the nominal calibration rate ($15.00\%$ for ESM and $26.43\%$ for 2-sided BCM) due to finite-sample variance on $N_{\mathrm{cal}} = 60$.
-    \item \textbf{Bypass of Every Standalone Watchdog:} Optimizing Eq.~(\ref{eq:adaptive_loss}) or its SCM/BCM counterparts drops ESM detection TPR down to $2.38\%$--$4.76\%$ ($95.24\%$--$97.62\%$ raw bypass on R18VD), SCM bypass to $94.76\%$--$95.71\%$ ($0.76\%$--$1.73\%$ post subset mAP), and BCM bypass to $84.29\%$--$92.86\%$ ($0.68\%$--$1.40\%$ post subset mAP).
-    \item \textbf{Ensemble Joint-Evasion Trade-off (Optimization Bound, Not Robust Defense):} We distinguish \textit{raw monitor bypass} ($\text{anomaly score} < \tau_{\mathrm{fused}}$) from \textit{joint evasion success} on image $i$, defined by simultaneous monitor silence ($\neg\,\text{detected}_i$) and per-image attack effectiveness ($\text{max\_IoU}_{\tau=0.35} < 0.50$ or $\text{adv\_top\_conf} < 0.5 \cdot \text{clean\_top\_conf}$, or $\text{adv\_top\_conf} < 0.35$ when zero active boxes survive). Attacking all three channels jointly keeps raw bypass high ($88.10\%$ R18VD / $82.86\%$--$87.86\%$ R50VD), whereas matching clean watchdog profiles pushes top-1 confidence toward clean predictions, collapsing per-image effectiveness ($0.48\%$--$1.43\%$ R18VD) and capping joint evasion at $0.00\%$--$0.48\%$ alongside residual subset mAP ($9.51\%$--$10.00\%$ R18VD / $20.28\%$--$23.88\%$ R50VD). Thus, the $0.00\%$--$0.48\%$ figure reflects sensitivity to this joint threshold and multi-objective weights under $T=15$ PGD rather than establishing robust defense.
+    \item \textbf{Low Stationary AQSM Recall and Calibration FPR Uncertainty:} At fixed thresholds from $N_{\mathrm{cal}}=90$ (\texttt{C2}) or $N_{\mathrm{cal}}=60$ (\texttt{C3}), standalone monitors miss most AQSM probes (ESM reaches $46.67\%$ TPR on R18VD [$\text{AUROC} = 0.7743$] and $25.71\%$ on R50VD [$\text{AUROC} = 0.6735$]; SCM reaches $22.38\%$ and $12.14\%$). Moreover, small calibration splits create substantial finite-sample FPR uncertainty above nominal $\alpha = 5\%$: on $N_{\mathrm{test}}=210$ R18VD scenes, ESM Clean FPR reaches $10.00\%$ (Wilson 95\% CI $[6.63\%, 14.80\%]$) and 2-sided BCM reaches $12.38\%$ ($[8.59\%, 17.52\%]$); on $N_{\mathrm{test}}=140$ R50VD scenes, ESM Clean FPR rises to $15.00\%$ ($[10.03\%, 21.84\%]$) and 2-sided BCM reaches $26.43\%$ ($[19.82\%, 34.29\%]$).
+    \item \textbf{Bypass of Every Standalone Watchdog:} Optimizing Eq.~(\ref{eq:adaptive_loss}) or its SCM/BCM counterparts drops ESM detection TPR to $2.38\%$--$4.76\%$ ($95.24\%$--$97.62\%$ raw bypass vs.\ $10.00\%$ clean FPR on R18VD), SCM bypass to $94.76\%$--$95.71\%$ ($0.76\%$--$1.73\%$ post subset mAP vs.\ $5.71\%$ clean FPR), and BCM bypass to $84.29\%$--$92.86\%$ ($0.68\%$--$1.40\%$ post subset mAP vs.\ $12.38\%$ clean FPR).
+    \item \textbf{Ensemble Joint-Evasion Trade-off (Optimization Bound, Not Robust Defense):} We distinguish \textit{raw monitor bypass} ($\text{anomaly score} < \tau_{\mathrm{fused}}$) from \textit{joint evasion success} on image $i$, requiring simultaneous monitor silence ($\neg\,\text{detected}_i$) and per-image effectiveness ($\text{max\_IoU}_{\tau=0.35} < 0.50$ or $\text{adv\_top\_conf} < 0.5 \cdot \text{clean\_top\_conf}$, or $\text{adv\_top\_conf} < 0.35$ when zero active boxes survive). Attacking all three channels jointly keeps raw bypass high ($88.10\%$ R18VD / $82.86\%$--$87.86\%$ R50VD), whereas matching clean watchdog profiles pushes top-1 confidence toward clean predictions, collapsing per-image effectiveness ($0.48\%$--$1.43\%$ R18VD) and capping joint evasion at $0.00\%$--$0.48\%$ alongside residual subset mAP ($9.51\%$--$10.00\%$ R18VD / $20.28\%$--$23.88\%$ R50VD). Thus, paired with wide calibration FPR uncertainty, $0.00\%$--$0.48\%$ reflects sensitivity to the joint definition and multi-objective weights rather than robust defense.
 \end{enumerate}
 
 \begin{equation}
@@ -748,32 +749,32 @@ Table~\ref{tab:tab11_defense_results} and Figure~\ref{fig:fig10_defense}(a)--(b)
 
 \begin{table}[!htbp]
 \centering
-\caption{Summary of stationary monitor performance and white-box adaptive evasion on held-out COCO \texttt{val2017} test splits (\texttt{C2}: $N_{\mathrm{cal}}=90 / N_{\mathrm{test}}=210$ R18VD; \texttt{C3}: $N_{\mathrm{cal}}=60 / N_{\mathrm{test}}=140$ R50VD). \textit{Joint Ev.} requires simultaneous monitor silence ($\neg\,\text{det}$) and per-image attack success ($\text{max\_IoU} < 0.50$ or $>50\%$ top-conf drop). Detailed per-$\lambda$ sweeps appear in Appendix Table~\ref{tab:appendix_adaptive_sweep}.}
+\caption{Summary of stationary monitor performance, empirical clean FPR (with Wilson 95\% binomial CIs), and white-box adaptive evasion on held-out COCO \texttt{val2017} splits (\texttt{C2}: same 300 images as \texttt{C1}, $N_{\mathrm{cal}}=90 / N_{\mathrm{test}}=210$; \texttt{C3}: $N_{\mathrm{cal}}=60 / N_{\mathrm{test}}=140$). \textit{Joint Ev.} requires simultaneous monitor silence and per-image attack success. Per-$\lambda$ sweeps appear in Appendix Table~\ref{tab:appendix_adaptive_sweep}.}
 \label{tab:tab11_defense_results}
 {\setlength{\tabcolsep}{3.5pt}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llccccc}
 \toprule
-\textbf{Model} & \textbf{Monitor / Adaptive Summary} & \textbf{TPR / FPR (\%)} & \textbf{AUROC} & \textbf{Raw Bypass (\%)} & \textbf{Joint Ev.\ / Boxes} & \textbf{Post Subset mAP@50} \\
+\textbf{Model} & \textbf{Monitor / Adaptive Summary} & \textbf{TPR / Clean FPR [95\% CI]} & \textbf{AUROC} & \textbf{Raw Bypass (\%)} & \textbf{Joint Ev.\ / Boxes} & \textbf{Post Subset mAP@50} \\
 \midrule
-\multirow{9}{*}{\makecell[l]{R18VD\\($N_{\mathrm{test}}=210$)}} & Clean Baseline (ESM / SCM / BCM 2s) & FPR: 10.00 / 5.71 / 12.38 & --- & --- & $8.54 \pm 9.06$ box & 66.93\% \\
-& Stationary ESM (AQSM / Van.\ / PGD) & \textbf{46.67} / 15.71 / 12.86 & \textbf{0.7743} / 0.6098 / 0.6505 & 53.33 / 84.29 / 87.14 & Scores: 0.88 / 0.77 / 0.80 & 4.05 / 1.32 / 0.35\% \\
-& Stationary SCM (AQSM / Van.\ / PGD) & 22.38 / 5.24 / 22.38 & 0.6858 / 0.4673 / 0.7496 & 77.62 / 94.76 / 77.62 & Scores: 0.79 / 0.62 / 0.84 & 4.05 / 1.32 / 0.35\% \\
-& Stationary BCM 2s / Up.\ (AQSM / Van.\ / PGD) & 26.19 / 85.24 / 88.57 (Up: 35.71/91.43) & 0.6398 / 0.9102 / 0.9336 (0.9593) & --- & 17.68 / 0.74 / 46.43 box & 4.05 / 1.32 / 0.35\% \\
+\multirow{9}{*}{\makecell[l]{R18VD (\texttt{C2})\\($N_{\mathrm{test}}=210$)}} & Clean Baseline (ESM / SCM / BCM 2s) & FPR: 10.00 [6.6, 14.8] / 5.71 [3.3, 9.7] / 12.38 [8.6, 17.5]\% & --- & --- & $8.54 \pm 9.06$ box & 66.93\% \\
+& Stationary ESM (AQSM / Van.\ / PGD) & \textbf{46.67} / 15.71 / 12.86 (FPR 10.00\%) & \textbf{0.7743} / 0.6098 / 0.6505 & 53.33 / 84.29 / 87.14 & Scores: 0.88 / 0.77 / 0.80 & 4.05 / 1.32 / 0.35\% \\
+& Stationary SCM (AQSM / Van.\ / PGD) & 22.38 / 5.24 / 22.38 (FPR 5.71\%) & 0.6858 / 0.4673 / 0.7496 & 77.62 / 94.76 / 77.62 & Scores: 0.79 / 0.62 / 0.84 & 4.05 / 1.32 / 0.35\% \\
+& Stationary BCM 2s / Up.\ (AQSM / Van.\ / PGD) & 26.19 / 85.24 / 88.57 (FPR 12.38\% / 9.05\%) & 0.6398 / 0.9102 / 0.9336 (0.9593) & --- & 17.68 / 0.74 / 46.43 box & 4.05 / 1.32 / 0.35\% \\
 \cmidrule{2-7}
-& Adaptive ESM ($\lambda \in [0.2, 2.0]$) & 2.38--4.76 & --- & \textbf{95.24--97.62\%} & Cond.\ Ev.: 0.00--2.38\% & 9.77--12.45\% \\
-& Adaptive SCM ($\lambda \in [0.5, 2.0]$) & 4.29--5.24 & --- & \textbf{94.76--95.71\%} & Joint Ev.: \textbf{48.57--54.76\%} & \textbf{0.76--1.73\%} \\
-& Adaptive BCM ($\lambda \in [0.5, 2.0]$) & 7.14--15.71 & --- & \textbf{84.29--92.86\%} & Joint: 40.00--44.76\% ($18.5$--$20.8$ box) & \textbf{0.68--1.40\%} \\
+& Adaptive ESM ($\lambda \in [0.2, 2.0]$) & 2.38--4.76 (vs.\ 10.00\% FPR) & --- & \textbf{95.24--97.62\%} & Cond.\ Ev.: 0.00--2.38\% & 9.77--12.45\% \\
+& Adaptive SCM ($\lambda \in [0.5, 2.0]$) & 4.29--5.24 (vs.\ 5.71\% FPR) & --- & \textbf{94.76--95.71\%} & Joint Ev.: \textbf{48.57--54.76\%} & \textbf{0.76--1.73\%} \\
+& Adaptive BCM ($\lambda \in [0.5, 2.0]$) & 7.14--15.71 (vs.\ 12.38\% FPR) & --- & \textbf{84.29--92.86\%} & Joint: 40.00--44.76\% ($18.5$--$20.8$ box) & \textbf{0.68--1.40\%} \\
 & Adaptive Ensemble ($\lambda \in \{1.0, 2.0\}$) & 11.90 / 11.90 & --- & 88.10\% & Joint Ev.: \textbf{0.48\% / 0.00\%} ($6.2$--$6.9$ box) & 10.00\% / 9.51\% \\
 \midrule
-\multirow{9}{*}{\makecell[l]{R50VD\\($N_{\mathrm{test}}=140$)}} & Clean Baseline (ESM / SCM / BCM 2s) & FPR: 15.00 / 3.57 / 26.43 & --- & --- & $8.64 \pm 8.14$ box & 74.45\% \\
-& Stationary ESM (AQSM / Van.\ / PGD) & \textbf{25.71} / 18.57 / 10.71 & \textbf{0.6735} / 0.6193 / 0.5890 & 74.29 / 81.43 / 89.29 & Scores: 0.82 / 0.78 / 0.77 & 10.15 / 4.23 / 2.49\% \\
-& Stationary SCM (AQSM / Van.\ / PGD) & 12.14 / 2.86 / 11.43 & 0.6070 / 0.4370 / 0.6655 & 87.86 / 97.14 / 88.57 & Scores: 0.71 / 0.57 / 0.76 & 10.15 / 4.23 / 2.49\% \\
-& Stationary BCM 2s / Up.\ (AQSM / Van.\ / PGD) & 8.57 / 87.86 / 48.57 (Up: 19.29/80.71) & 0.5349 / 0.8566 / 0.8614 (0.9350) & --- & 13.94 / 1.20 / 34.65 box & 10.15 / 4.23 / 2.49\% \\
+\multirow{9}{*}{\makecell[l]{R50VD (\texttt{C3})\\($N_{\mathrm{test}}=140$)}} & Clean Baseline (ESM / SCM / BCM 2s) & FPR: 15.00 [10.0, 21.8] / 3.57 [1.5, 8.1] / 26.43 [19.8, 34.3]\% & --- & --- & $8.64 \pm 8.14$ box & 74.45\% \\
+& Stationary ESM (AQSM / Van.\ / PGD) & \textbf{25.71} / 18.57 / 10.71 (FPR 15.00\%) & \textbf{0.6735} / 0.6193 / 0.5890 & 74.29 / 81.43 / 89.29 & Scores: 0.82 / 0.78 / 0.77 & 10.15 / 4.23 / 2.49\% \\
+& Stationary SCM (AQSM / Van.\ / PGD) & 12.14 / 2.86 / 11.43 (FPR 3.57\%) & 0.6070 / 0.4370 / 0.6655 & 87.86 / 97.14 / 88.57 & Scores: 0.71 / 0.57 / 0.76 & 10.15 / 4.23 / 2.49\% \\
+& Stationary BCM 2s / Up.\ (AQSM / Van.\ / PGD) & 8.57 / 87.86 / 48.57 (FPR 26.43\% / 7.14\%) & 0.5349 / 0.8566 / 0.8614 (0.9350) & --- & 13.94 / 1.20 / 34.65 box & 10.15 / 4.23 / 2.49\% \\
 \cmidrule{2-7}
-& Adaptive ESM ($\lambda \in [0.2, 2.0]$) & 7.86--10.71 & --- & \textbf{89.29--92.14\%} & Cond.\ Ev.: 0.00--0.71\% & 19.76--23.02\% \\
-& Adaptive SCM ($\lambda \in [0.5, 2.0]$) & 1.43--2.86 & --- & \textbf{97.14--98.57\%} & Joint Ev.: \textbf{25.71--32.14\%} & \textbf{2.80--4.98\%} \\
-& Adaptive BCM ($\lambda \in [0.5, 2.0]$) & 5.71--8.57 & --- & \textbf{91.43--94.29\%} & Joint: 23.57--26.43\% ($26.1$--$27.2$ box) & \textbf{2.91--5.20\%} \\
+& Adaptive ESM ($\lambda \in [0.2, 2.0]$) & 7.86--10.71 (vs.\ 15.00\% FPR) & --- & \textbf{89.29--92.14\%} & Cond.\ Ev.: 0.00--0.71\% & 19.76--23.02\% \\
+& Adaptive SCM ($\lambda \in [0.5, 2.0]$) & 1.43--2.86 (vs.\ 3.57\% FPR) & --- & \textbf{97.14--98.57\%} & Joint Ev.: \textbf{25.71--32.14\%} & \textbf{2.80--4.98\%} \\
+& Adaptive BCM ($\lambda \in [0.5, 2.0]$) & 5.71--8.57 (vs.\ 26.43\% FPR) & --- & \textbf{91.43--94.29\%} & Joint: 23.57--26.43\% ($26.1$--$27.2$ box) & \textbf{2.91--5.20\%} \\
 & Adaptive Ensemble ($\lambda \in \{1.0, 2.0\}$) & 17.14 / 12.14 & --- & 82.86\% / 87.86\% & Joint Ev.: \textbf{0.00\% / 0.00\%} ($8.0$--$8.1$ box) & 23.88\% / 20.28\% \\
 \bottomrule
 \end{tabular}%
@@ -799,7 +800,7 @@ Even after eliminating center-clustering via \texttt{torch.logit} calibration an
 \begin{table}[!htbp]
 \centering
 {\renewcommand{\arraystretch}{0.92}
-\caption{Static Query Augmentation (SQA, $N_{\mathrm{static}} = 30$) calibration ablation, capacity/random controls, and full held-out adaptive evasion on RT-DETR-R18VD (\texttt{C2}, $N = 300$, $N_{\mathrm{test}} = 210$) and RT-DETR-R50VD (\texttt{C3}, $N = 200$, $N_{\mathrm{test}} = 140$). Runtime column reports scripted estimates rather than physical edge SoC hardware measurement.}
+\caption{Static Query Augmentation (SQA, $N_{\mathrm{static}} = 30$) calibration ablation, capacity/random controls, and full held-out adaptive evasion on RT-DETR-R18VD (\texttt{C2}: same 300 images as \texttt{C1}, $N_{\mathrm{test}} = 210$) and RT-DETR-R50VD (\texttt{C3}, $N = 200$, $N_{\mathrm{test}} = 140$). Runtime column reports scripted estimates rather than physical edge SoC hardware measurement.}
 \label{tab:tab12_hardening_validation}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{llcccc}
@@ -855,7 +856,7 @@ Across the evaluated dynamic top-$K$ checkpoints, AQSM reduces subset mAP@50 wit
 
 \begin{table}[!htbp]
 \centering
-\caption{Unified cross-architecture robustness benchmark (\texttt{C4}: $N = 300$ identical COCO \texttt{val2017} scenes, $640 \times 640$, 15-step PGD $\epsilon = 16/255$, Tesla T4 FP32) spanning six single-checkpoint detectors.}
+\caption{Unified cross-architecture robustness benchmark (cross-model runner \texttt{C4} on the same $N = 300$ COCO \texttt{val2017} images as \texttt{C1}; $640 \times 640$, 15-step PGD $\epsilon = 16/255$, Tesla T4 FP32) spanning six single-checkpoint detectors.}
 \label{tab:tab14_multimodel_benchmark}
 {\setlength{\tabcolsep}{3.5pt}
 \resizebox{\textwidth}{!}{%
@@ -914,16 +915,16 @@ Tesla T4 Total Latency (Dynamic Query Selection Share \%) & 36.99 ms (4.36\%, 27
 \end{table}
 }
 
-Key methodological bounds and threats to validity are summarized below:
+\noindent\textbf{Consolidated Threats to Validity and Scope Bounds:} All remaining methodological bounds are consolidated here rather than repeated across Sections~5--6:
 \begin{enumerate}
-    \item \textbf{Subset Precision Scope, Multi-Seed Stability, and Cohort Distinction:} All accuracy figures represent \textit{subset mAP} on sequential deterministic COCO \texttt{val2017} scenes (\texttt{C1}/\texttt{C2}/\texttt{C4}: $N = 300$; \texttt{C3}: $N = 200$) rather than random probability samples or the full 5,000-image validation set. Fresh 5-seed AQSM generation stabilizes tightly on R18VD ($4.00 \pm 0.74\%$) and R50VD ($8.53 \pm 0.88\%$), and Table~\ref{tab:tab_p1_provenance} reconciles every cohort and cache tag.
-    \item \textbf{OOD Tensor Swaps, Attribution Scale Dependence, and PGD Limits:} Tensor-swapped Arms C and D create OOD states and yield protocol-/scale-dependent attribution fractions; attenuated pixel-space \texttt{Memory-Isolated} vs.\ \texttt{Pure-Memory} controls show directionally consistent behavior without OOD swaps. All attacks use fixed 15-step single-restart PGD ($\alpha = 2/255$, $\epsilon = 16/255$ stress budget).
-    \item \textbf{Hardware, Defense, and Cross-Model Boundaries:} Zero-measured latency penalty and the $3.8\times$ comparison against capped batched-NMS RetinaNet hold specifically in PyTorch FP32 on Tesla T4 over 20 interleaved scenes (difference 95\% CIs spanning zero) and do not generalize automatically to quantized TensorRT or embedded edge SoCs. Similarly, null SQA recovery and Ensemble joint-evasion bounds depend on tested RT-DETR checkpoints, thresholds, and multi-objective weights, while single-checkpoint \texttt{C4} drops on RT-DETRv2 and Deformable DETR remain preliminary evidence rather than general family claims.
+    \item \textbf{Sequential Subsets and Cross-Run Provenance:} All accuracy figures represent \textit{subset mAP} on sequential initial COCO \texttt{val2017} scenes (\texttt{C1}/\texttt{C2}/\texttt{C4}: $N = 300$, IDs 139--32334; \texttt{C3}: $N = 200$, IDs 139--20247) rather than random probability samples or the full 5,000-image set, making them sensitive to local class and object-count composition. Fresh 5-seed AQSM generation ($4.00 \pm 0.74\%$ R18VD; $8.53 \pm 0.88\%$ R50VD) and Table~\ref{tab:tab_p1_provenance} reconcile all cache differences around Primary Cohort \texttt{C1} ($4.05\%$).
+    \item \textbf{Protocol-Dependent Attribution and Optimization Budget:} Tensor-swapped Arms C and D create hybrid $(M, Q)$ states that may lie OOD, and attribution shares depend on swap order and metric scale; likewise, pixel-space \texttt{Memory-Isolated} vs.\ \texttt{Pure-Memory} controls remain coupled through shared pyramid weights. All headline attacks use fixed single-restart 15-step PGD ($\epsilon = 16/255$ stress budget; $T = 10$ at $\epsilon \in \{4, 8\}/255$) and therefore compare behavior within a matched budget rather than measuring converged worst-case optima.
+    \item \textbf{Finite Calibration, Latency Scale, and Single-Checkpoint Cross-Architecture Scope:} Small monitor calibration splits ($N_{\mathrm{cal}}=60/90$) induce substantial clean FPR uncertainty (Wilson 95\% CIs up to $34.3\%$ on R50VD BCM), and Ensemble joint-evasion bounds reflect the simultaneous-success threshold and loss weights under $T=15$ PGD. Stress latency comparisons ($3.8\times$ vs.\ capped batched-NMS RetinaNet) apply strictly to 20 interleaved scenes in PyTorch FP32 on Tesla T4, while six-architecture \texttt{C4} drops remain single-checkpoint evidence. Statistical family counts and reproducibility specs are audited in Appendix Tables~\ref{tab:appendix_stat_audit} and~\ref{tab:appendix_repro}.
 \end{enumerate}
 
 \section{Conclusion}
 \label{sec:conclusion}
-We examined how white-box encoder-selection perturbations interact with multi-scale memory and deformable query routing in RT-DETR-R18VD, RT-DETR-R50VD, and a six-checkpoint benchmark on deterministic COCO \texttt{val2017} subsets. Across $2 \times 2$ activation patching and feasible pixel-space controls, three findings stand out: (1) multi-scale encoder memory corruption consistently accounts for a larger protocol-dependent share of accuracy loss than query-slot misrouting, which acts as a secondary interacting factor; (2) mean normalized cross-attention entropy stays within $\pm 0.02$ TOST equivalence bounds while coordinate drift lowers sampling hit rate, with center-only random shifts reproducing matched-$L_2$ degradation; and (3) fixed-$N_q$ execution shows no measurable latency overhead in our 20-scene FP32 Tesla T4 test, while adaptive attacks bypass standalone monitors and zero-shot calibrated SQA remains insufficient to recover detection. Because attribution varies across intervention orders and metric scales, and evaluations remain bounded to sequential subsets, tested checkpoints, single-restart 15-step PGD ($\epsilon = 16/255$), and T4 FP32 timing, future defenses must co-harden multi-scale encoder representations alongside calibrated spatial priors and validate on full datasets and edge hardware.
+We studied how white-box perturbations at the encoder query-selection interface affect multi-scale encoder memory and deformable query routing in RT-DETR. Across $2 \times 2$ activation patching and attenuated pixel-space controls, the intervention protocol attributed a larger share of subset accuracy loss to encoder-memory distortion than to query-prior disruption, with attribution varying by swap order and metric scale. Mean normalized cross-attention entropy stayed within prespecified $\pm 0.02$ TOST bounds despite modest head reweighting, whereas coordinate drift reduced ground-truth sampling hit rates and center-only random shifts reproduced matched-$L_2$ degradation. Under our 20-scene FP32 Tesla T4 test, we did not detect a latency increase under flooding stress, while adaptive attacks bypassed standalone watchdogs and calibrated zero-shot SQA failed to restore accuracy. These conclusions apply specifically to the tested RT-DETR and cross-architecture checkpoints, sequential COCO \texttt{val2017} subsets, Tesla T4 FP32 runtime, and matched 15-step single-restart PGD budget.
 
 \appendix
 \setcounter{table}{0}
@@ -978,6 +979,54 @@ We examined how white-box encoder-selection perturbations interact with multi-sc
 & Adaptive SCM ($\lambda = 0.5 / 1.0 / 2.0$) & 1.43 / 2.86 / 1.43 & 97.14--98.57\% & Joint Ev.: 25.71--32.14\% & 2.80--4.98\% \\
 & Adaptive BCM ($\lambda = 0.5 / 1.0 / 2.0$) & 8.57 / 8.57 / 5.71 & 91.43--94.29\% & Joint: 23.57--26.43\% ($26.1$--$27.2$ box) & 2.91--5.20\% \\
 & Adaptive Ensemble ($\lambda = 1.0 / 2.0$) & 17.14 / 12.14 & 82.86\% / 87.86\% & Joint Ev.: 0.00\% / 0.00\% ($8.0$--$8.1$ box) & 23.88\% / 20.28\% \\
+\bottomrule
+\end{tabular}%
+}}
+\end{table}
+
+\section{Statistical Hypothesis Audit and Reproducibility Inventory}
+\label{app:audit_repro}
+
+\begin{table}[!htbp]
+\centering
+\caption{Audit of statistical hypothesis families, analysis units, multiplicity adjustment (Bonferroni threshold $\alpha_{\mathrm{fam}}/m$), and observed test statistics ($N_{\mathrm{valid}} = 299$ R18VD [\texttt{C1}/\texttt{C2}]; $N_{\mathrm{valid}} = 200$ R50VD [\texttt{C3}]).}
+\label{tab:appendix_stat_audit}
+{\setlength{\tabcolsep}{3.5pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllll}
+\toprule
+\textbf{Family / Research Question} & \textbf{Analysis Unit} & \textbf{Statistical Test ($m$ in Family)} & \textbf{Bonferroni Bound} & \textbf{Observed $p$-Value / Interval (AQSM)} \\
+\midrule
+F1a: 2$\times$2 Factors ($M, Q, M{\times}Q$) & Per-image $AP_i$ & RM-ANOVA $F$-test ($m=18$: 3 fac.\ $\times$ 3 atk $\times$ 2 mod.) & $0.05/18 = 2.78\times10^{-3}$ & All $M, Q, M{\times}Q$: $p < 10^{-3}$ (R18 $F_M=1084.1$, R50 $668.0$) \\
+F1b: Arm Contrasts (e.g., $\text{D}_{\text{full}}$--B) & Per-image $AP_i$ & Paired Wilcoxon ($m=5$ pairs per attack/model) & $0.05/5 = 0.010$ & R18 $p \le 6.66\times10^{-15}$ ($\text{D}_{\text{full}}$--B: $1.83\times10^{-40}$); R50 $\le 1.00\times10^{-13}$ \\
+F1c: Corpus Summary Metrics & Image corpus & 500-resample pooled mAP bootstrap / $B=2000$ BCa & Non-inferential CIs & R18 $AP_i$ Shapley M: $60.59\%$ $[58.33, 62.84]$; R50 $68.22\%$ \\
+F2: Attention Entropy \& Hit & Per-image telemetry & Prespecified TOST ($\pm 0.02, \pm 0.05$) \& Wilcoxon ($m=6$) & $0.05/6 = 8.33\times10^{-3}$ & TOST $p = 3.46\times10^{-5}$ (R18), $6.80\times10^{-6}$ (R50); Hit $p \le 4.82\times10^{-17}$ \\
+F3: Anchor Hit Grid Chance & Per-image hit (\%) & Single paired TOST vs.\ uniform grid ($\pm 2.0$ pp, $m=1$) & Unadjusted $\alpha = 0.05$ & R18 $\Delta = +0.20$ pp, 90\% CI $[-1.59, +1.98]$, $p_{\mathrm{TOST}} = 0.0481$ (borderline) \\
+F4: Monitor Clean FPR & Held-out clean splits & Binomial Wilson 95\% CI ($N_{\mathrm{test}}=210$ / $140$) & Nominal cal.\ $\alpha=5\%$ & ESM $10.00\%$ $[6.6, 14.8]$ (R18), $15.00\%$ $[10.0, 21.8]$ (R50); BCM 2s up to $26.43\%$ \\
+F5: T4 Stress Latency Delta & 20-scene timings ($N_{\mathrm{runs}}=100$) & Two-sample normal difference 95\% CI (Sponge $-$ Clean) & Straddles zero & R18 $-0.23$ ms $[-0.50, +0.03]$ ms; R50 $+0.16$ ms $[-0.11, +0.43]$ ms \\
+\bottomrule
+\end{tabular}%
+}}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\caption{Reproducibility inventory: runtime software stack, preprocessing specification, COCO \texttt{val2017} image ID slices, attack hyperparameters, seeds, and entry commands.}
+\label{tab:appendix_repro}
+{\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{ll}
+\toprule
+\textbf{Reproducibility Dimension} & \textbf{Exact Specification in Executed Benchmarks} \\
+\midrule
+Kaggle Runtime & NVIDIA Tesla T4 (15.64 GB VRAM, CUDA Capability 7.5), PyTorch \texttt{2.11.0+cu130} (FP32) \\
+Local Audit Runtime & Python \texttt{3.13.9}, PyTorch \texttt{2.13.0+cpu}, Transformers \texttt{5.24.0}, NumPy \texttt{2.3.5}, SciPy \texttt{1.16.3} \\
+Checkpoints Tested & \texttt{PekingU/rtdetr\_r18vd}, \texttt{rtdetr\_r50vd}, \texttt{rtdetr\_v2\_r18vd}, \texttt{SenseTime/deformable-detr-with-box-refine-two-stage}, \texttt{facebook/detr-resnet-50}, \texttt{torchvision} RetinaNet \\
+Image Preprocessing & Sequential \texttt{instances\_val2017.json} order $\to$ PIL RGB $\to$ \texttt{resize(640, 640)} $\to$ $[0,1]$ tensor; ImageNet norm inside \texttt{NormalizedHFDetector} for DETR/DefDETR only \\
+Cohort Image ID Slices & \texttt{C1}/\texttt{C2}/\texttt{C4} ($N=300$): IDs \texttt{139, 285, ..., 32334}; \texttt{C3} ($N=200$): exact prefix IDs \texttt{139, 285, ..., 20247} (full CSV in \texttt{outputs/raw\_csv/}) \\
+PGD Attack Schedule & Single-restart $\ell_\infty$: $T=15, \alpha=2/255$ at $\epsilon=16/255$; $T=10, \alpha=2/255$ at $8/255$; $T=10, \alpha=1/255$ at $4/255$; AQSM $(\gamma_{\mathrm{logit}}=1.0, \lambda_{\mathrm{rank}}=1.2, \lambda_{\mathrm{elev}}=0.5)$ \\
+Random Seeds & Primary cache \& monitors: Seed \texttt{42}; multi-seed AQSM \& misrouting controls: $\{42, 100, 2024, 777, 9999\}$ ($K=5$) \\
+Benchmark Runners & \texttt{kaggle\_run\_experiments.py --model r18 --max\_samples 300 --pgd\_steps 15 --cross\_models ...} and \texttt{--model r50 --max\_samples 200 --include\_sweep --run\_multiseed} \\
 \bottomrule
 \end{tabular}%
 }}
